@@ -784,3 +784,35 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
+
+
+  app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
+  app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
+  app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
+  app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
+
+  app.use((error, _req, res, _next) => {
+    if (error instanceof multer.MulterError) {
+      const code = error.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'upload_error';
+      const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
+      return fail(res, error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, code, message);
+    }
+    console.error('Request failed:', error);
+    return fail(res, error.statusCode || 500, error.statusCode ? 'request_failed' : 'internal_error', error.message || 'The request could not be completed.');
+  });
+
+  app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
+
+  return { app, db, dataDir, imagesDir, reviewRequired };
+}
+
+if (require.main === module) {
+  const { app, db } = createApp();
+  const port = Number(process.env.PORT || 3000);
+  const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
+  const shutdown = () => server.close(() => { db.close(); process.exit(0); });
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
