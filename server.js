@@ -344,18 +344,45 @@ function createApp(options = {}) {
   app = express();
   app.disable('x-powered-by');
 
-  app.post('/api/easypost/webhook', express.json({ limit: '64kb' }), async (req, res) => {
+  app.post('/api/easypost/webhook', express.raw({ type: 'application/json', limit: '64kb' }), async (req, res) => {
     try {
       const secret = process.env.EASYPOST_WEBHOOK_SECRET;
-      const supplied = req.get('x-hmac-signature') || '';
-      if (!secret || !supplied) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature is missing.' } });
-      const rawBody = Buffer.from(JSON.stringify(req.body));
-      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-      const signature = supplied.replace(/^sha256=/i, '');
-      if (!safeEqual(expected, signature)) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid EasyPost webhook signature.' } });
-      if (req.body?.object !== 'Event' || req.body?.description !== 'tracker.updated') return res.json({ received: true, ignored: true });
+      const timestamp = req.get('x-timestamp') || '';
+      const signedPath = req.get('x-path') || '';
+      const supplied = req.get('x-hmac-signature-v2') || '';
+      if (!secret || !timestamp || !signedPath || !supplied) {
+        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature headers are missing.' } });
+      }
 
-      const tracker = req.body.result;
+      // EasyPost HMAC v2 signs timestamp + uppercase method + x-path + exact raw body.
+      const sentAt = Date.parse(timestamp);
+      const now = Date.now();
+      if (!Number.isFinite(sentAt) || sentAt < now - 60_000 || sentAt > now + 30_000) {
+        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook timestamp is outside the allowed window.' } });
+      }
+      if (signedPath !== req.originalUrl) {
+        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook path does not match.' } });
+      }
+      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+      const stringToSign = Buffer.concat([
+        Buffer.from(timestamp + req.method.toUpperCase() + signedPath, 'utf8'),
+        rawBody
+      ]);
+      const expected = crypto.createHmac('sha256', secret).update(stringToSign).digest('hex');
+      const signature = supplied.replace(/^hmac-sha256-hex=/i, '').toLowerCase();
+      if (!/^[a-f0-9]{64}$/.test(signature) || !safeEqual(expected, signature)) {
+        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid EasyPost webhook signature.' } });
+      }
+
+      let event;
+      try {
+        event = JSON.parse(rawBody.toString('utf8'));
+      } catch {
+        return res.status(400).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook body is not valid JSON.' } });
+      }
+      if (event?.object !== 'Event' || event?.description !== 'tracker.updated') return res.json({ received: true, ignored: true });
+
+      const tracker = event.result;
       if (!tracker?.id) return res.json({ received: true, ignored: true });
 
       const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
