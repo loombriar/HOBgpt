@@ -1058,6 +1058,19 @@ function createApp(options = {}) {
 
 
 
+  app.get('/media/:imageId', (req, res) => {
+    const row = db.prepare(`
+      SELECT i.storage_key, i.mime_type
+      FROM listing_images i
+      JOIN listings l ON l.id = i.listing_id
+      WHERE i.id = ? AND i.upload_status = 'ready' AND l.status = 'published' AND l.moderation_status = 'approved'
+    `).get(req.params.imageId);
+    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    res.type(row.mime_type);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(path.join(imagesDir, row.storage_key));
+  });
+
   app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
