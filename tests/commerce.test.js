@@ -6,6 +6,8 @@ const { after, before, test } = require('node:test');
 const { once } = require('node:events');
 const { createApp } = require('../server');
 
+// Commerce regression suite: intentionally credential-free so GitHub Actions can run it on every push.
+
 const DESIGNER_TOKEN='designer-token-a', OTHER_TOKEN='designer-token-b', ADMIN_TOKEN='admin-token';
 let server, context, baseUrl, tempDir;
 before(async()=>{tempDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-commerce-'));context=createApp({dataDir:tempDir,seedProducts:[],designerTokens:{[DESIGNER_TOKEN]:'designer-a',[OTHER_TOKEN]:'designer-b'},adminToken:ADMIN_TOKEN,reviewRequired:true});server=context.app.listen(0,'127.0.0.1');await once(server,'listening');baseUrl='http://127.0.0.1:'+server.address().port;});
