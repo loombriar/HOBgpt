@@ -1,0 +1,23 @@
+import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from '@/lib/icons';
+import HouseShell from '@/components/HouseShell';
+
+export default function SellPage() {
+  const [form,setForm]=useState({email:'',displayName:'',brandName:'',portfolioUrl:'',statement:''});
+  const [message,setMessage]=useState('');
+  const [applicationId,setApplicationId]=useState('');
+  const [loading,setLoading]=useState(false);
+  const submit=async(event:FormEvent)=>{
+    event.preventDefault();setLoading(true);setMessage('');
+    try{
+      const response=await fetch('/api/designer-applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data?.error?.message||'Your application could not be submitted.');
+      setApplicationId(data.application.id);setMessage('Application received. House of Briar will review it before your designer studio and payouts are activated.');
+    }catch(error){setMessage(error instanceof Error?error.message:'Your application could not be submitted.');}
+    finally{setLoading(false);}
+  };
+  const field='mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
+  return <HouseShell><main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6"><Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft size={16}/> Home</Link><p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">Designer applications</p><h1 className="mt-3 font-serif text-5xl">Bring your work into the Briar.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">House of Briar is built for independent designers. Tell us about you and your work. Approved designers receive access to their studio and can complete secure payout onboarding.</p>{applicationId?<section className="mt-10 rounded-3xl border border-primary/20 bg-primary/5 p-7"><h2 className="font-serif text-3xl">Your application is in.</h2><p role="status" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p><p className="mt-4 text-xs text-muted-foreground">Application reference: {applicationId}</p><Link to="/account" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold hover:border-primary hover:text-primary">Go to your account</Link></section>:<form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8"><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-medium">Your name<input required maxLength={100} autoComplete="name" value={form.displayName} onChange={e=>setForm({...form,displayName:e.target.value})} className={field}/></label><label className="text-sm font-medium">Brand or label<input required maxLength={120} autoComplete="organization" value={form.brandName} onChange={e=>setForm({...form,brandName:e.target.value})} className={field}/></label></div><label className="block text-sm font-medium">Email<input required type="email" autoComplete="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Portfolio or website <span className="font-normal text-muted-foreground">(optional)</span><input type="url" maxLength={500} placeholder="https://…" value={form.portfolioUrl} onChange={e=>setForm({...form,portfolioUrl:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Tell us about your work <span className="font-normal text-muted-foreground">(optional)</span><textarea maxLength={2000} rows={6} value={form.statement} onChange={e=>setForm({...form,statement:e.target.value})} className="mt-2 w-full rounded-xl border border-border bg-background p-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="What do you make? What materials, methods, or point of view define your work?"/></label>{message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}<button disabled={loading} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Submitting…':'Apply to House of Briar'}</button><p className="text-xs leading-5 text-muted-foreground">Submitting an application does not activate selling or payouts. House of Briar reviews each application first.</p></form>}</main></HouseShell>;
+}
