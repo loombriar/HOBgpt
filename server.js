@@ -91,6 +91,32 @@ function createApp(options = {}) {
       version INTEGER NOT NULL DEFAULT 1
     );
 
+    CREATE TABLE IF NOT EXISTS designer_applications (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      brand_name TEXT NOT NULL,
+      portfolio_url TEXT,
+      statement TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL CHECK (status IN ('pending','approved','rejected')),
+      designer_id TEXT,
+      created_at TEXT NOT NULL,
+      reviewed_at TEXT,
+      UNIQUE(email)
+    );
+
+    CREATE TABLE IF NOT EXISTS designer_profiles (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      brand_name TEXT NOT NULL,
+      application_id TEXT UNIQUE,
+      stripe_account_id TEXT,
+      status TEXT NOT NULL CHECK (status IN ('active','suspended')),
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(application_id) REFERENCES designer_applications(id)
+    );
+
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       stripe_session_id TEXT UNIQUE,
@@ -459,6 +485,40 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  app.post('/api/designer-applications', (req, res) => {
+    const email=String(req.body?.email||'').trim().toLowerCase();
+    const displayName=String(req.body?.displayName||'').trim();
+    const brandName=String(req.body?.brandName||'').trim();
+    const portfolioUrl=String(req.body?.portfolioUrl||'').trim();
+    const statement=String(req.body?.statement||'').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||statement.length>2000||portfolioUrl.length>500)return fail(res,422,'validation_error','Provide a valid email, designer name, brand name, and application details.');
+    const existing=db.prepare("SELECT id,status FROM designer_applications WHERE email=?").get(email);
+    if(existing)return res.status(409).json({error:{code:'application_exists',message:'An application already exists for this email.'},application:{id:existing.id,status:existing.status}});
+    const id=makeId();db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,created_at) VALUES (?,?,?,?,?,?,'pending',?)").run(id,email,displayName,brandName,portfolioUrl||null,statement,new Date().toISOString());
+    return res.status(201).json({application:{id,status:'pending'}});
+  });
+
+  app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
+    const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
+    return res.json({applications});
+  });
+
+  app.post('/api/admin/designer-applications/:applicationId/review', authAdmin, (req,res)=>{
+    const decision=String(req.body?.decision||'').trim().toLowerCase();
+    if(!['approved','rejected'].includes(decision))return fail(res,422,'invalid_decision','Decision must be approved or rejected.');
+    const application=db.prepare('SELECT * FROM designer_applications WHERE id=?').get(req.params.applicationId);
+    if(!application)return fail(res,404,'application_not_found','Designer application not found.');
+    if(application.status!=='pending')return fail(res,409,'already_reviewed','This designer application has already been reviewed.');
+    const reviewedAt=new Date().toISOString();
+    if(decision==='rejected'){db.prepare("UPDATE designer_applications SET status='rejected',reviewed_at=? WHERE id=?").run(reviewedAt,application.id);return res.json({application:{id:application.id,status:'rejected'}});}
+    const designerId='designer-'+makeId();
+    db.transaction(()=>{
+      db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at) VALUES (?,?,?,?,?,'active',?)").run(designerId,application.email,application.display_name,application.brand_name,application.id,reviewedAt);
+      db.prepare("UPDATE designer_applications SET status='approved',designer_id=?,reviewed_at=? WHERE id=?").run(designerId,reviewedAt,application.id);
+    })();
+    return res.json({application:{id:application.id,status:'approved'},designer:{id:designerId,email:application.email,displayName:application.display_name,brandName:application.brand_name,status:'active',stripeConnected:false}});
+  });
 
   async function sendEmail({ to, subject, text }) {
     if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
