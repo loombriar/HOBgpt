@@ -179,6 +179,7 @@ function createApp(options = {}) {
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
   ensureColumn('orders', 'buyer_email', 'TEXT');
+  ensureColumn('orders', 'cancel_token_hash', 'TEXT');
   ensureColumn('orders', 'stripe_payment_intent_id', 'TEXT');
   ensureColumn('orders', 'refund_status', 'TEXT');
   ensureColumn('orders', 'stripe_refund_id', 'TEXT');
@@ -617,12 +618,14 @@ function createApp(options = {}) {
     try {
       const quote = buildCheckoutQuote(req.body?.items);
       const orderId = makeId();
+      const cancelToken = crypto.randomBytes(32).toString('base64url');
+      const cancelTokenHash = crypto.createHash('sha256').update(cancelToken).digest('hex');
       const now = new Date().toISOString();
       const origin = `${req.protocol}://${req.get('host')}`;
       const body = new URLSearchParams({
         mode: 'payment',
         success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}`,
+        cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
         'metadata[order_id]': orderId,
         'payment_intent_data[metadata][order_id]': orderId
       });
@@ -635,7 +638,7 @@ function createApp(options = {}) {
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
-        db.prepare(`INSERT INTO orders (id, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        db.prepare(`INSERT INTO orders (id, cancel_token_hash, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
@@ -658,6 +661,11 @@ function createApp(options = {}) {
     try {
       const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.orderId);
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
+      const cancelToken = req.get('x-checkout-cancel-token');
+      const submittedHash = typeof cancelToken === 'string' ? crypto.createHash('sha256').update(cancelToken).digest('hex') : '';
+      if (!order.cancel_token_hash || !safeEqual(submittedHash, order.cancel_token_hash)) {
+        return fail(res, 403, 'forbidden', 'This checkout cancellation request is not authorized.');
+      }
       if (order.status === 'paid') return fail(res, 409, 'already_paid', 'Paid orders cannot be canceled from checkout.');
       // An open Checkout Session must stop being payable before its inventory can be released.
       if (order.stripe_session_id) {
