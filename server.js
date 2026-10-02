@@ -382,6 +382,7 @@ function createApp(options = {}) {
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
+            if (order.status !== 'paid') void notifySale(order.id);
           }
         }
       }
@@ -410,6 +411,41 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  async function sendEmail({ to, subject, text }) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!apiKey || !from || !to) return false;
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [to], subject, text })
+      });
+      if (!response.ok) console.error('Resend email failed:', response.status, await response.text());
+      return response.ok;
+    } catch (error) {
+      console.error('Resend email failed:', error);
+      return false;
+    }
+  }
+
+  function designerOrderContact(orderId, designerId) {
+    return db.prepare(`SELECT MAX(l.designer_email) AS email, GROUP_CONCAT(oi.title, ', ') AS titles,
+      SUM(oi.designer_amount_cents) AS earnings_cents
+      FROM order_items oi JOIN listings l ON l.id = oi.listing_id
+      WHERE oi.order_id = ? AND oi.designer_id = ?`).get(orderId, designerId);
+  }
+
+  async function notifySale(orderId) {
+    const groups = db.prepare('SELECT DISTINCT designer_id FROM order_items WHERE order_id = ?').all(orderId);
+    for (const group of groups) {
+      const contact = designerOrderContact(orderId, group.designer_id);
+      if (!contact?.email) continue;
+      await sendEmail({ to: contact.email, subject: 'You made a sale on House of Briar',
+        text: `A piece sold on House of Briar.\n\nOrder: ${orderId}\nItems: ${contact.titles}\nYour earnings: ${(contact.earnings_cents / 100).toFixed(2)}\n\nOpen your Designer Studio to ship the order and add tracking. Your payout remains held until carrier tracking is verified.` });
+    }
+  }
 
   async function stripeApi(pathname, options = {}) {
     const secret = process.env.STRIPE_SECRET_KEY;
