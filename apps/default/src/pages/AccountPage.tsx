@@ -39,6 +39,7 @@ function StudioContent() {
   const [payoutStatus, setPayoutStatus] = useState<{ connected: boolean; onboardingComplete: boolean; payoutsEnabled: boolean } | null>(null);
   const [payoutMessage, setPayoutMessage] = useState('');
   const [payoutLoading, setPayoutLoading] = useState(false);
+  const [studioAccess, setStudioAccess] = useState<'checking' | 'designer' | 'signup'>('checking');
 
   const sellerToken = auth.user?.access_token ?? '';
   const refreshOrders = async () => {
@@ -87,10 +88,25 @@ function StudioContent() {
   };
 
   useEffect(() => {
-    void refreshProducts();
-    void refreshOrders();
-    void refreshPayoutStatus();
-  }, [ownerId, sellerToken]);
+    if (!auth.isAuthenticated || !sellerToken) { setStudioAccess('checking'); return; }
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch('/api/my/designer-profile', { headers: { Authorization: `Bearer ${sellerToken}` } });
+        if (!active) return;
+        if (response.ok) {
+          setStudioAccess('designer');
+          void refreshProducts();
+          void refreshOrders();
+          void refreshPayoutStatus();
+          return;
+        }
+        if (response.status === 403 || response.status === 404) { setStudioAccess('signup'); return; }
+        setStudioAccess('signup');
+      } catch { if (active) setStudioAccess('signup'); }
+    })();
+    return () => { active = false; };
+  }, [auth.isAuthenticated, ownerId, sellerToken]);
 
   const resetListingForm = () => {
     releaseStudioPhotoPreviews(photos);
@@ -122,6 +138,14 @@ function StudioContent() {
 
   if (!auth.isAuthenticated) {
     return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><LogIn className="mx-auto text-primary" size={28} /><h1 className="mt-5 font-serif text-4xl">Your studio is yours to shape.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to manage your private listings. Each designer sees only records owned by their account.</p><button type="button" onClick={() => void auth.signinRedirect()} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Sign in or create account</button></div>;
+  }
+
+  if (auth.isAuthenticated && studioAccess === 'checking') {
+    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><h1 className="font-serif text-4xl">Opening your account…</h1><p className="mt-3 text-sm text-muted-foreground">Checking for your House of Briar designer profile.</p></div>;
+  }
+
+  if (auth.isAuthenticated && studioAccess === 'signup') {
+    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><h1 className="font-serif text-4xl">Become a House of Briar designer.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">All independent designers are welcome. Complete Designer Sign Up to create your studio, then return here with the same verified email.</p><Link to="/sell" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Designer Sign Up</Link><button type="button" onClick={() => void auth.signoutRedirect()} className="ml-3 mt-7 min-h-12 rounded-full border border-border px-5 text-sm text-muted-foreground">Sign out</button></div>;
   }
 
   const saveListing = async (event: FormEvent) => {
