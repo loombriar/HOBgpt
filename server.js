@@ -91,6 +91,32 @@ function createApp(options = {}) {
       version INTEGER NOT NULL DEFAULT 1
     );
 
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      stripe_session_id TEXT UNIQUE,
+      status TEXT NOT NULL CHECK (status IN ('pending','paid','failed','canceled')),
+      currency TEXT NOT NULL DEFAULT 'usd',
+      subtotal_cents INTEGER NOT NULL,
+      platform_fee_cents INTEGER NOT NULL,
+      designer_amount_cents INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      paid_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS order_items (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL,
+      listing_id TEXT NOT NULL,
+      designer_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      unit_amount_cents INTEGER NOT NULL,
+      quantity INTEGER NOT NULL,
+      line_total_cents INTEGER NOT NULL,
+      platform_fee_cents INTEGER NOT NULL,
+      designer_amount_cents INTEGER NOT NULL,
+      FOREIGN KEY(order_id) REFERENCES orders(id)
+    );
+
     CREATE UNIQUE INDEX IF NOT EXISTS listings_unique_idempotency
       ON listings(designer_id, idempotency_key)
       WHERE idempotency_key IS NOT NULL;
@@ -255,6 +281,48 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.post('/api/checkout/quote', (req, res) => {
+    const requested = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!requested.length || requested.length > 50) return fail(res, 422, 'invalid_cart', 'Add at least one item before checkout.');
+
+    const quantities = new Map();
+    for (const item of requested) {
+      const id = typeof item?.id === 'string' ? item.id : '';
+      const quantity = Number(item?.quantity);
+      if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) return fail(res, 422, 'invalid_cart', 'Cart quantities must be whole numbers between 1 and 10.');
+      quantities.set(id, (quantities.get(id) || 0) + quantity);
+    }
+
+    const rows = [];
+    for (const [id, quantity] of quantities) {
+      const listing = db.prepare("SELECT * FROM listings WHERE id = ? AND status = 'published' AND moderation_status = 'approved'").get(id);
+      if (!listing) return fail(res, 409, 'listing_unavailable', 'One or more pieces are no longer available.');
+      const unitAmountCents = Math.round(Number(listing.price) * 100);
+      const lineTotalCents = unitAmountCents * quantity;
+      const platformFeeCents = Math.round(lineTotalCents * 0.10);
+      rows.push({
+        id: listing.id,
+        title: listing.title,
+        designerId: listing.designer_id,
+        quantity,
+        unitAmountCents,
+        lineTotalCents,
+        platformFeeCents,
+        designerAmountCents: lineTotalCents - platformFeeCents
+      });
+    }
+
+    const subtotalCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
+    return res.json({
+      currency: 'usd',
+      items: rows,
+      subtotalCents,
+      platformFeeCents,
+      designerAmountCents: subtotalCents - platformFeeCents
+    });
+  });
+
 
   app.post('/api/session', authDesigner, (req, res) => {
     res.json({ designerId: req.designerId });
