@@ -179,6 +179,11 @@ function createApp(options = {}) {
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
   ensureColumn('orders', 'buyer_email', 'TEXT');
+  ensureColumn('orders', 'stripe_payment_intent_id', 'TEXT');
+  ensureColumn('orders', 'refund_status', 'TEXT');
+  ensureColumn('orders', 'stripe_refund_id', 'TEXT');
+  ensureColumn('orders', 'refunded_at', 'TEXT');
+  ensureColumn('designer_transfers', 'stripe_reversal_id', 'TEXT');
   ensureColumn('listings', 'designer_email', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_carrier', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_number', 'TEXT');
@@ -340,7 +345,7 @@ function createApp(options = {}) {
       const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
       if (!transfer || transfer.status === 'paid') return res.json({ received: true, ignored: true });
 
-      const accepted = new Set(['pre_transit','in_transit','out_for_delivery','delivered','available_for_pickup']);
+      const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
       db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
@@ -379,7 +384,7 @@ function createApp(options = {}) {
         if (orderId && session.payment_status === 'paid') {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
           if (order) {
-            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, order.id);
+            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
             if (order.status !== 'paid') void notifySale(order.id);
@@ -495,7 +500,7 @@ function createApp(options = {}) {
     });
     const tracker = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(tracker?.error?.message || 'Carrier could not verify this tracking number.'), { statusCode: 422 });
-    const acceptedStatuses = new Set(['pre_transit','in_transit','out_for_delivery','delivered','available_for_pickup']);
+    const acceptedStatuses = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
     const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
     const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
     return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown' };
@@ -670,6 +675,35 @@ function createApp(options = {}) {
     return res.json({order,items,payouts});
   });
 
+  app.post('/api/admin/orders/:orderId/refund', authAdmin, async (req,res,next)=>{
+    try{
+      let order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+      if(!order)return fail(res,404,'order_not_found','Order not found.');
+      if(order.status!=='paid')return fail(res,409,'not_paid','Only paid orders can be refunded.');
+      if(order.refund_status==='succeeded')return fail(res,409,'already_refunded','This order has already been refunded.');
+      let paymentIntent=order.stripe_payment_intent_id;
+      if(!paymentIntent&&order.stripe_session_id){
+        const session=await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
+        paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:'';
+        if(paymentIntent)db.prepare('UPDATE orders SET stripe_payment_intent_id=? WHERE id=?').run(paymentIntent,order.id);
+      }
+      if(!paymentIntent)return fail(res,409,'payment_reference_missing','Stripe payment reference is unavailable for this order.');
+      const paidTransfers=db.prepare("SELECT * FROM designer_transfers WHERE order_id=? AND status='paid'").all(order.id);
+      for(const transfer of paidTransfers){
+        if(!transfer.stripe_transfer_id)return fail(res,409,'transfer_reference_missing','A released designer payout is missing its Stripe transfer reference.');
+        if(!transfer.stripe_reversal_id){
+          const reversal=await stripeApi(`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(transfer.amount_cents),'metadata[order_id]':order.id,'metadata[designer_id]':transfer.designer_id}).toString(),idempotencyKey:`hob-refund-reversal-${order.id}-${transfer.designer_id}`});
+          db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,release_reason='refund_reversed' WHERE id=?").run(reversal.id,transfer.id);
+        }
+      }
+      const body=new URLSearchParams({payment_intent:paymentIntent,reason:'requested_by_customer','metadata[order_id]':order.id});
+      const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:`hob-refund-${order.id}`});
+      db.prepare("UPDATE orders SET refund_status=?,stripe_refund_id=?,refunded_at=? WHERE id=?").run(refund.status||'pending',refund.id||null,refund.status==='succeeded'?new Date().toISOString():null,order.id);
+      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund was issued for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
+      return res.json({ok:true,refundId:refund.id,status:refund.status});
+    }catch(error){return next(error);}
+  });
+
   app.post('/api/admin/orders/:orderId/cancel', authAdmin, (req,res)=>{
     const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
     if(!order)return fail(res,404,'order_not_found','Order not found.');
@@ -736,7 +770,7 @@ function createApp(options = {}) {
       const order = db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?').get(session.id);
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
-      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, order.id);
+      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
       if (paid) {
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
