@@ -336,8 +336,8 @@ function createApp(options = {}) {
   app.post('/api/easypost/webhook', express.json({ limit: '64kb' }), async (req, res) => {
     try {
       const secret = process.env.EASYPOST_WEBHOOK_SECRET;
-      const supplied = req.get('x-hob-easypost-secret') || '';
-      if (!secret || !safeEqual(supplied, secret)) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid webhook authentication.' } });
+      const supplied = req.get('x-hmac-signature') || '';
+      if (!secret || !supplied) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature is missing.' } });
 
       const tracker = req.body?.result?.object === 'Tracker' ? req.body.result : req.body?.result;
       if (!tracker?.id) return res.json({ received: true, ignored: true });
