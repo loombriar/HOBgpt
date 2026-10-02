@@ -662,6 +662,42 @@ function createApp(options = {}) {
     return res.json({summary,orders,payouts,inventory});
   });
 
+  app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
+    const order=db.prepare('SELECT id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at FROM orders WHERE id=?').get(req.params.orderId);
+    if(!order)return fail(res,404,'order_not_found','Order not found.');
+    const items=db.prepare('SELECT listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents FROM order_items WHERE order_id=?').all(order.id);
+    const payouts=db.prepare('SELECT designer_id,amount_cents,status,error_message,paid_at,tracking_carrier,tracking_number,tracking_status,tracking_verified_at,release_reason FROM designer_transfers WHERE order_id=?').all(order.id);
+    return res.json({order,items,payouts});
+  });
+
+  app.post('/api/admin/orders/:orderId/cancel', authAdmin, (req,res)=>{
+    const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+    if(!order)return fail(res,404,'order_not_found','Order not found.');
+    if(order.status==='paid')return fail(res,409,'refund_required','Paid orders require a Stripe refund rather than cancellation.');
+    releaseOrderInventory(order.id);
+    return res.json({ok:true,status:'canceled'});
+  });
+
+  app.post('/api/admin/orders/:orderId/inventory/release', authAdmin, (req,res)=>{
+    const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+    if(!order)return fail(res,404,'order_not_found','Order not found.');
+    if(order.status==='paid')return fail(res,409,'paid_order','Inventory for a paid order cannot be released.');
+    const result=db.prepare("UPDATE inventory_reservations SET status='released' WHERE order_id=? AND status='reserved'").run(order.id);
+    return res.json({ok:true,released:result.changes});
+  });
+
+  app.post('/api/admin/orders/:orderId/designers/:designerId/release', authAdmin, async (req,res,next)=>{
+    try{
+      const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);
+      if(!order)return fail(res,404,'order_not_found','Paid order not found.');
+      const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(order.id,req.params.designerId);
+      if(!transfer)return fail(res,404,'payout_not_found','Designer payout not found.');
+      const reason=transfer.status==='failed'?'admin_retry':'admin_override';
+      const results=await processDesignerTransfers(order.id,req.params.designerId,reason);
+      return res.json({ok:true,results});
+    }catch(error){return next(error);}
+  });
+
   app.get('/api/my/orders', authDesigner, (req, res) => {
     const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
       dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
