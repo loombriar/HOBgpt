@@ -285,6 +285,31 @@ function createApp(options = {}) {
   app = express();
   app.disable('x-powered-by');
 
+  app.post('/api/easypost/webhook', express.json({ limit: '64kb' }), async (req, res) => {
+    try {
+      const secret = process.env.EASYPOST_WEBHOOK_SECRET;
+      const supplied = req.get('x-hob-easypost-secret') || '';
+      if (!secret || !safeEqual(supplied, secret)) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid webhook authentication.' } });
+
+      const tracker = req.body?.result?.object === 'Tracker' ? req.body.result : req.body?.result;
+      if (!tracker?.id) return res.json({ received: true, ignored: true });
+
+      const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
+      if (!transfer || transfer.status === 'paid') return res.json({ received: true, ignored: true });
+
+      const accepted = new Set(['pre_transit','in_transit','out_for_delivery','delivered','available_for_pickup']);
+      const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
+      const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
+      db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
+
+      if (verifiedAt) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
+      return res.json({ received: true });
+    } catch (error) {
+      console.error('EasyPost webhook failed:', error);
+      return res.status(500).json({ error: { code: 'webhook_failed', message: 'Tracking update could not be processed.' } });
+    }
+  });
+
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const secret = process.env.STRIPE_WEBHOOK_SECRET;
