@@ -25,9 +25,9 @@ export async function createCheckoutSession(items: CheckoutItem[], couponCode = 
   return result.url;
 }
 
-export async function cancelCheckoutOrder(orderId: string) {
-  if (!orderId) return;
-  await api<{ status: string }>(`/api/checkout/cancel/${encodeURIComponent(orderId)}`, { method: 'POST' });
+export async function cancelCheckoutOrder(orderId: string, cancelToken: string) {
+  if (!orderId || !cancelToken) return;
+  await api<{ status: string }>(`/api/checkout/cancel/${encodeURIComponent(orderId)}`, { method: 'POST', headers: { 'X-Checkout-Cancel-Token': cancelToken } });
 }
 
 export async function verifyCheckoutSession(sessionId: string) {
