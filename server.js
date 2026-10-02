@@ -222,6 +222,14 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'tracking_verified_at', 'TEXT');
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
 
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_identities (
+    subject TEXT PRIMARY KEY,
+    designer_id TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL,
+    linked_at TEXT NOT NULL,
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
@@ -257,6 +265,18 @@ function createApp(options = {}) {
     return res.status(status).json({ error: { code, message } });
   }
 
+  async function resolveDesignerIdentity(req, token) {
+    if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
+    if (!discovery.ok) return null;
+    const metadata = await discovery.json();
+    if (typeof metadata.userinfo_endpoint !== 'string') return null;
+    const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
+    if (!userInfo.ok) return null;
+    return userInfo.json();
+  }
+
   async function authDesigner(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
@@ -269,24 +289,35 @@ function createApp(options = {}) {
     }
 
     try {
-      const origin = `${req.protocol}://${req.get('host')}`;
-      const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
-      if (!discovery.ok) return fail(res, 401, 'unauthorized', 'Designer sign-in could not be verified.');
-      const metadata = await discovery.json();
-      if (typeof metadata.userinfo_endpoint !== 'string') return fail(res, 401, 'unauthorized', 'Designer sign-in could not be verified.');
-      const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      if (!userInfo.ok) return fail(res, 401, 'unauthorized', 'Your designer session is no longer valid.');
-      const profile = await userInfo.json();
+      const profile = await resolveDesignerIdentity(req, token);
+      if (!profile) return fail(res, 401, 'unauthorized', 'Your designer session is no longer valid.');
       if (typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Designer identity is missing.');
       const subject = profile.sub.trim();
-      const mappedDesignerId = designerIdentityMap[subject];
+      const email = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+      let mappedDesignerId = designerIdentityMap[subject];
       if (typeof mappedDesignerId !== 'string' || !mappedDesignerId.trim()) {
-        return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to a House of Briar designer profile.');
+        const linked = db.prepare('SELECT designer_id FROM designer_identities WHERE subject=?').get(subject);
+        mappedDesignerId = linked?.designer_id || '';
+      }
+      if ((!mappedDesignerId || !mappedDesignerId.trim()) && email && profile.email_verified === true) {
+        const designer = db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND status='active'").get(email);
+        if (designer) {
+          try {
+            db.prepare('INSERT INTO designer_identities (subject,designer_id,email,linked_at) VALUES (?,?,?,?)').run(subject,designer.id,email,new Date().toISOString());
+            mappedDesignerId = designer.id;
+          } catch {
+            const linked = db.prepare('SELECT designer_id FROM designer_identities WHERE subject=?').get(subject);
+            mappedDesignerId = linked?.designer_id || '';
+          }
+        }
+      }
+      if (typeof mappedDesignerId !== 'string' || !mappedDesignerId.trim()) {
+        return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to an approved House of Briar designer profile.');
       }
       req.designerId = mappedDesignerId.trim();
       req.designerSubject = subject;
-      req.designerEmail = typeof profile.email === 'string' ? profile.email.trim() : '';
-      if (req.designerEmail) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(req.designerEmail, req.designerId);
+      req.designerEmail = email;
+      if (email) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(email, req.designerId);
       return next();
     } catch (error) {
       return next(error);
@@ -518,6 +549,54 @@ function createApp(options = {}) {
       db.prepare("UPDATE designer_applications SET status='approved',designer_id=?,reviewed_at=? WHERE id=?").run(designerId,reviewedAt,application.id);
     })();
     return res.json({application:{id:application.id,status:'approved'},designer:{id:designerId,email:application.email,displayName:application.display_name,brandName:application.brand_name,status:'active',stripeConnected:false}});
+  });
+
+  async function createStripeOnboarding(designer, req) {
+    let accountId=designer.stripe_account_id;
+    if(!accountId){
+      const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
+      const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}`});
+      accountId=account.id;
+      if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
+      db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
+    }
+    const origin=`${req.protocol}://${req.get('host')}`;
+    const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
+    const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
+    if(!refreshUrl.startsWith(origin)||!returnUrl.startsWith(origin))return {error:'invalid_return_url'};
+    const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
+    const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
+    return {designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null};
+  }
+
+  async function stripeStatus(designer) {
+    if(!designer.stripe_account_id)return {designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false};
+    const account=await stripeApi(`accounts/${encodeURIComponent(designer.stripe_account_id)}`);
+    return {designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled)};
+  }
+
+  app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
+    const designer=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+    if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
+    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status}});
+  });
+
+  app.post('/api/my/stripe-onboarding', authDesigner, async (req,res,next)=>{
+    try{
+      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
+      const result=await createStripeOnboarding(designer,req);
+      if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
+      return res.json(result);
+    }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/stripe-status', authDesigner, async (req,res,next)=>{
+    try{
+      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
+      return res.json(await stripeStatus(designer));
+    }catch(error){return next(error);}
   });
 
   app.post('/api/admin/designers/:designerId/stripe-onboarding', authAdmin, async (req,res,next)=>{
