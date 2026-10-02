@@ -41,7 +41,7 @@ function StudioContent() {
   const [orderMessage, setOrderMessage] = useState('');
   const [trackingDrafts, setTrackingDrafts] = useState<Record<string, { carrier: string; trackingNumber: string }>>({});
 
-  const sellerToken = auth.user?.id_token ?? '';
+  const sellerToken = auth.user?.access_token ?? '';
   const refreshOrders = async () => {
     if (!sellerToken) return;
     try {
