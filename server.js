@@ -185,6 +185,8 @@ function createApp(options = {}) {
   ensureColumn('orders', 'stripe_refund_id', 'TEXT');
   ensureColumn('orders', 'refunded_at', 'TEXT');
   ensureColumn('designer_transfers', 'stripe_reversal_id', 'TEXT');
+  ensureColumn('designer_transfers', 'payout_success_notified_at', 'TEXT');
+  ensureColumn('designer_transfers', 'payout_failure_notified_at', 'TEXT');
   ensureColumn('listings', 'designer_email', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_carrier', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_number', 'TEXT');
@@ -459,6 +461,26 @@ function createApp(options = {}) {
     }
   }
 
+  async function notifyPayout(transferId, outcome) {
+    const transfer = db.prepare('SELECT * FROM designer_transfers WHERE id = ?').get(transferId);
+    if (!transfer) return false;
+    const column = outcome === 'paid' ? 'payout_success_notified_at' : 'payout_failure_notified_at';
+    if (transfer[column]) return false;
+    const contact = designerOrderContact(transfer.order_id, transfer.designer_id);
+    if (!contact?.email) return false;
+    const amount = (transfer.amount_cents / 100).toFixed(2);
+    const success = outcome === 'paid';
+    const sent = await sendEmail({
+      to: contact.email,
+      subject: success ? 'Your House of Briar payout was sent' : 'Your House of Briar payout needs attention',
+      text: success
+        ? `Your payout for order ${transfer.order_id} has been sent.\n\nItems: ${contact.titles}\nPayout: ${amount}\n\nStripe transfer: ${transfer.stripe_transfer_id || 'processing'}`
+        : `We could not send your payout for order ${transfer.order_id}.\n\nItems: ${contact.titles}\nPayout: ${amount}\n\nNo funds were marked as paid. House of Briar can retry the transfer after the payout issue is resolved.`
+    });
+    if (sent) db.prepare(`UPDATE designer_transfers SET ${column} = ? WHERE id = ? AND ${column} IS NULL`).run(new Date().toISOString(), transferId);
+    return sent;
+  }
+
   async function stripeApi(pathname, options = {}) {
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
@@ -541,9 +563,11 @@ function createApp(options = {}) {
         });
         const transfer = await stripeApi('transfers', { method: 'POST', body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
         db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
+        await notifyPayout(transferId, 'paid');
         results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
       } catch (error) {
         db.prepare("UPDATE designer_transfers SET status = 'failed', error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
+        await notifyPayout(transferId, 'failed');
         results.push({ designer_id: group.designer_id, status: 'failed' });
       }
     }
