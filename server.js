@@ -353,6 +353,11 @@ function createApp(options = {}) {
       if (!safeEqual(expected, supplied)) return res.status(400).send('Invalid Stripe signature.');
 
       const event = JSON.parse(req.body.toString('utf8'));
+      if (event.type === 'checkout.session.expired') {
+        const session = event.data?.object;
+        const orderId = session?.metadata?.order_id;
+        if (orderId) releaseOrderInventory(orderId);
+      }
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
         const session = event.data?.object;
         const orderId = session?.metadata?.order_id;
@@ -509,6 +514,16 @@ function createApp(options = {}) {
     db.prepare("UPDATE listings SET status = 'archived', updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
   }
 
+  function releaseOrderInventory(orderId) {
+    const order = db.prepare('SELECT status FROM orders WHERE id = ?').get(orderId);
+    if (!order || order.status === 'paid') return false;
+    db.transaction(() => {
+      db.prepare("UPDATE inventory_reservations SET status = 'released' WHERE order_id = ? AND status = 'reserved'").run(orderId);
+      db.prepare("UPDATE orders SET status = 'canceled' WHERE id = ? AND status = 'pending'").run(orderId);
+    })();
+    return true;
+  }
+
   function buildCheckoutQuote(requested) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
@@ -564,6 +579,14 @@ function createApp(options = {}) {
       })();
       return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
     } catch (error) { return next(error); }
+  });
+
+  app.post('/api/checkout/cancel/:orderId', (req, res) => {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.orderId);
+    if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
+    if (order.status === 'paid') return fail(res, 409, 'already_paid', 'Paid orders cannot be canceled from checkout.');
+    releaseOrderInventory(order.id);
+    return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true });
   });
 
   app.get('/api/checkout/session/:sessionId', async (req, res, next) => {
