@@ -204,6 +204,13 @@ function createApp(options = {}) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
+  ensureColumn('designer_applications', 'location', 'TEXT');
+  ensureColumn('designer_applications', 'social_url', 'TEXT');
+  ensureColumn('designer_applications', 'categories', "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('designer_applications', 'price_range', 'TEXT');
+  ensureColumn('designer_applications', 'production_method', 'TEXT');
+  ensureColumn('designer_applications', 'originality_confirmed', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_applications', 'marketplace_terms_accepted', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
   ensureColumn('orders', 'stripe_payment_intent_id', 'TEXT');
@@ -522,22 +529,29 @@ function createApp(options = {}) {
     const displayName=String(req.body?.displayName||'').trim();
     const brandName=String(req.body?.brandName||'').trim();
     const portfolioUrl=String(req.body?.portfolioUrl||'').trim();
+    const socialUrl=String(req.body?.socialUrl||'').trim();
+    const location=String(req.body?.location||'').trim();
     const statement=String(req.body?.statement||'').trim();
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||statement.length>2000||portfolioUrl.length>500)return fail(res,422,'validation_error','Provide a valid email, designer name, brand name, and profile details.');
+    const priceRange=String(req.body?.priceRange||'').trim();
+    const productionMethod=String(req.body?.productionMethod||'').trim();
+    const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(value=>String(value).trim()).filter(Boolean))]:[];
+    const originalityConfirmed=req.body?.originalityConfirmed===true;
+    const marketplaceTermsAccepted=req.body?.marketplaceTermsAccepted===true;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||!location||location.length>160||statement.length>2000||portfolioUrl.length>500||socialUrl.length>500||priceRange.length>100||productionMethod.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)||!originalityConfirmed||!marketplaceTermsAccepted)return fail(res,422,'validation_error','Complete the required designer profile fields and confirmations.');
     const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE lower(email)=?").get(email);
     if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
     const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
     if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
     db.transaction(()=>{
-      db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at) VALUES (?,?,?,?,?,?,'approved',?,?,?)").run(id,email,displayName,brandName,portfolioUrl||null,statement,designerId,now,now);
+      db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,?,?,'approved',?,?,?,?,?,?,?,?,1,1)").run(id,email,displayName,brandName,portfolioUrl||null,statement,designerId,now,now,location,socialUrl||null,JSON.stringify(categories),priceRange||null,productionMethod||null);
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at) VALUES (?,?,?,?,?,'active',?)").run(designerId,email,displayName,brandName,id,now);
     })();
     return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false}});
   });
 
   app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
-    const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
+    const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
     return res.json({applications});
   });
 
