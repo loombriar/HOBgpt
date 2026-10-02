@@ -197,16 +197,33 @@ function createApp(options = {}) {
     return res.status(status).json({ error: { code, message } });
   }
 
-  function authDesigner(req, res, next) {
+  async function authDesigner(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!token) return fail(res, 401, 'unauthorized', 'Sign in with a designer access token.');
+    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+
     for (const [configuredToken, designerId] of Object.entries(designerTokens)) {
       if (safeEqual(token, configuredToken) && typeof designerId === 'string' && designerId.trim()) {
         req.designerId = designerId.trim();
         return next();
       }
     }
-    return fail(res, 401, 'unauthorized', 'This designer token is invalid.');
+
+    try {
+      const origin = `${req.protocol}://${req.get('host')}`;
+      const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
+      if (!discovery.ok) return fail(res, 401, 'unauthorized', 'Designer sign-in could not be verified.');
+      const metadata = await discovery.json();
+      if (typeof metadata.userinfo_endpoint !== 'string') return fail(res, 401, 'unauthorized', 'Designer sign-in could not be verified.');
+      const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
+      if (!userInfo.ok) return fail(res, 401, 'unauthorized', 'Your designer session is no longer valid.');
+      const profile = await userInfo.json();
+      if (typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Designer identity is missing.');
+      req.designerId = profile.sub.trim();
+      req.designerEmail = typeof profile.email === 'string' ? profile.email : '';
+      return next();
+    } catch (error) {
+      return next(error);
+    }
   }
 
   function authAdmin(req, res, next) {
