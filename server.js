@@ -640,6 +640,37 @@ function createApp(options = {}) {
     return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true });
   });
 
+  app.get('/api/my/orders', authDesigner, (req, res) => {
+    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
+      dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
+      FROM orders o JOIN order_items oi ON oi.order_id=o.id LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
+      WHERE oi.designer_id=? ORDER BY o.created_at DESC`).all(req.designerId);
+    const map=new Map();
+    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.earningsCents+=row.designer_amount_cents;order.items.push({title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
+    return res.json({orders:[...map.values()]});
+  });
+
+  app.post('/api/orders/:orderId/tracking', authDesigner, async (req,res,next)=>{
+    try{
+      const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);
+      if(!order)return fail(res,404,'order_not_found','Paid order not found.');
+      const owns=db.prepare('SELECT 1 FROM order_items WHERE order_id=? AND designer_id=?').get(order.id,req.designerId);
+      if(!owns)return fail(res,404,'order_not_found','Order not found.');
+      const carrier=String(req.body?.carrier||'').trim();const trackingNumber=String(req.body?.trackingNumber||'').trim();
+      if(!carrier||trackingNumber.length<6||trackingNumber.length>100)return fail(res,422,'invalid_tracking','Add a valid carrier and tracking number.');
+      prepareDesignerTransfers(order.id);
+      const tracker=await verifyShipmentTracking(trackingNumber,carrier);
+      const verifiedAt=tracker.verified?new Date().toISOString():null;
+      db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,order.id,req.designerId);
+      const contact=designerOrderContact(order.id,req.designerId);
+      if(contact?.email)void sendEmail({to:contact.email,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
+      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}`});
+      if(!tracker.verified)return res.status(202).json({verified:false,status:tracker.status});
+      const transfers=await processDesignerTransfers(order.id,req.designerId,'tracking_verified');
+      return res.json({verified:true,status:tracker.status,transfers});
+    }catch(error){return next(error);}
+  });
+
   app.get('/api/checkout/session/:sessionId', async (req, res, next) => {
     try {
       if (!/^cs_[A-Za-z0-9_]+$/.test(req.params.sessionId)) return fail(res, 400, 'invalid_session', 'Invalid checkout session.');
