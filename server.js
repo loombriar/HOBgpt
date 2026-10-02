@@ -925,31 +925,33 @@ function createApp(options = {}) {
   
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
-    const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,
+    const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
       COUNT(DISTINCT oi.designer_id) designer_count,COUNT(oi.id) item_count
       FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id GROUP BY o.id ORDER BY o.created_at DESC LIMIT 200`).all();
     const payouts = db.prepare(`SELECT dt.order_id,dt.designer_id,dt.amount_cents,dt.status,dt.error_message,dt.created_at,dt.paid_at,
-      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason
+      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id
       FROM designer_transfers dt ORDER BY dt.created_at DESC LIMIT 300`).all();
     const inventory = db.prepare(`SELECT ir.listing_id,ir.order_id,ir.status,ir.reserved_at,ir.expires_at,ir.sold_at,l.title,l.designer_id
       FROM inventory_reservations ir LEFT JOIN listings l ON l.id=ir.listing_id
       WHERE ir.status IN ('reserved','sold') ORDER BY ir.reserved_at DESC LIMIT 300`).all();
     const summary = {
-      paidOrders: orders.filter(row=>row.status==='paid').length,
+      paidOrders: orders.filter(row=>row.status==='paid'&&row.refund_status!=='succeeded').length,
+      refundedOrders: orders.filter(row=>row.refund_status==='succeeded').length,
       pendingOrders: orders.filter(row=>row.status==='pending').length,
       heldPayouts: payouts.filter(row=>row.status==='pending').length,
       failedPayouts: payouts.filter(row=>row.status==='failed').length,
-      releasedPayouts: payouts.filter(row=>row.status==='paid').length,
+      releasedPayouts: payouts.filter(row=>row.status==='paid'&&!row.stripe_reversal_id).length,
+      reversedPayouts: payouts.filter(row=>Boolean(row.stripe_reversal_id)).length,
       activeReservations: inventory.filter(row=>row.status==='reserved').length
     };
     return res.json({summary,orders,payouts,inventory});
   });
 
   app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
-    const order=db.prepare('SELECT id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at FROM orders WHERE id=?').get(req.params.orderId);
+    const order=db.prepare('SELECT id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at,refund_status,stripe_refund_id,refunded_at FROM orders WHERE id=?').get(req.params.orderId);
     if(!order)return fail(res,404,'order_not_found','Order not found.');
     const items=db.prepare('SELECT listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents FROM order_items WHERE order_id=?').all(order.id);
-    const payouts=db.prepare('SELECT designer_id,amount_cents,status,error_message,paid_at,tracking_carrier,tracking_number,tracking_status,tracking_verified_at,release_reason FROM designer_transfers WHERE order_id=?').all(order.id);
+    const payouts=db.prepare('SELECT designer_id,amount_cents,status,error_message,paid_at,tracking_carrier,tracking_number,tracking_status,tracking_verified_at,release_reason,stripe_reversal_id FROM designer_transfers WHERE order_id=?').all(order.id);
     return res.json({order,items,payouts});
   });
 
