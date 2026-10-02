@@ -174,6 +174,20 @@ function createApp(options = {}) {
     CREATE INDEX IF NOT EXISTS listing_images_listing ON listing_images(listing_id, upload_status, position);
   `);
 
+  function ensureColumn(table, name, definition) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+  }
+  ensureColumn('orders', 'buyer_email', 'TEXT');
+  ensureColumn('listings', 'designer_email', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_carrier', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_number', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_submitted_at', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_provider_id', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_status', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_verified_at', 'TEXT');
+  ensureColumn('designer_transfers', 'release_reason', 'TEXT');
+
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
@@ -231,6 +245,7 @@ function createApp(options = {}) {
       if (typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Designer identity is missing.');
       req.designerId = profile.sub.trim();
       req.designerEmail = typeof profile.email === 'string' ? profile.email : '';
+      if (req.designerEmail) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(req.designerEmail, req.designerId);
       return next();
     } catch (error) {
       return next(error);
@@ -364,7 +379,7 @@ function createApp(options = {}) {
         if (orderId && session.payment_status === 'paid') {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
           if (order) {
-            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
           }
@@ -596,7 +611,7 @@ function createApp(options = {}) {
       const order = db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?').get(session.id);
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
-      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, order.id);
       if (paid) {
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
