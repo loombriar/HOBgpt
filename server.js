@@ -204,6 +204,7 @@ function createApp(options = {}) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
+  ensureColumn('listings', 'moderation_reason', 'TEXT');
   ensureColumn('designer_applications', 'location', 'TEXT');
   ensureColumn('designer_applications', 'social_url', 'TEXT');
   ensureColumn('designer_applications', 'categories', "TEXT NOT NULL DEFAULT '[]'");
@@ -377,6 +378,7 @@ function createApp(options = {}) {
       designerId: row.designer_id,
       status: row.status,
       moderationStatus: row.moderation_status,
+      moderationReason: mode === 'private' ? (row.moderation_reason || null) : undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       publishedAt: row.published_at,
@@ -987,7 +989,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', updated_at = ?, version = version + 1
+      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(
       validation.value.title,
@@ -1139,11 +1141,16 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET status = ?, moderation_status = ?, published_at = ?, updated_at = ?, version = version + 1
+      SET status = ?, moderation_status = ?, moderation_reason = NULL, published_at = ?, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(nextStatus, nextModeration, reviewRequired ? null : timestamp, timestamp, row.id);
 
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
+    const rows = db.prepare("SELECT * FROM listings WHERE status = 'pending_review' AND moderation_status = 'pending' ORDER BY updated_at ASC").all();
+    return res.json({ items: rows.map(row => serializeListing(row, 'private')) });
   });
 
   app.post('/api/admin/listings/:listingId/approve', authAdmin, (req, res) => {
@@ -1157,7 +1164,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET status = 'published', moderation_status = 'approved', published_at = ?, updated_at = ?, version = version + 1
+      SET status = 'published', moderation_status = 'approved', moderation_reason = NULL, published_at = ?, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(timestamp, timestamp, row.id);
 
@@ -1169,12 +1176,14 @@ function createApp(options = {}) {
     if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
     if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be rejected.');
 
+    const reason = String(req.body?.reason || '').trim();
+    if (!reason || reason.length > 1000) return fail(res, 422, 'reason_required', 'Provide a rejection reason up to 1,000 characters.');
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET status = 'rejected', moderation_status = 'rejected', published_at = NULL, updated_at = ?, version = version + 1
+      SET status = 'rejected', moderation_status = 'rejected', moderation_reason = ?, published_at = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
-    `).run(timestamp, row.id);
+    `).run(reason, timestamp, row.id);
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
