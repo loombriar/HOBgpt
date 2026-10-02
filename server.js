@@ -338,8 +338,13 @@ function createApp(options = {}) {
       const secret = process.env.EASYPOST_WEBHOOK_SECRET;
       const supplied = req.get('x-hmac-signature') || '';
       if (!secret || !supplied) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature is missing.' } });
+      const rawBody = Buffer.from(JSON.stringify(req.body));
+      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      const signature = supplied.replace(/^sha256=/i, '');
+      if (!safeEqual(expected, signature)) return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid EasyPost webhook signature.' } });
+      if (req.body?.object !== 'Event' || req.body?.description !== 'tracker.updated') return res.json({ received: true, ignored: true });
 
-      const tracker = req.body?.result?.object === 'Tracker' ? req.body.result : req.body?.result;
+      const tracker = req.body.result;
       if (!tracker?.id) return res.json({ received: true, ignored: true });
 
       const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
