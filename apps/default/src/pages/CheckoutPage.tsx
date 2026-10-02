@@ -37,6 +37,7 @@ export default function CheckoutPage() {
   const returnState = searchParams.get('checkout');
   const sessionId = searchParams.get('session_id');
   const canceledOrderId = searchParams.get('order_id');
+  const cancelToken = searchParams.get('cancel_token');
   const [cartIds, setCartIds] = useState<string[]>(readCartIds);
   const [products, setProducts] = useState<GenesisNode[]>([]);
   const [snapshot] = useState<CheckoutSnapshot | null>(readSnapshot);
@@ -82,14 +83,14 @@ export default function CheckoutPage() {
   const canCheckout = cartIds.length > 0 && catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
 
   useEffect(() => {
-    if (returnState !== 'canceled' || !canceledOrderId) return;
-    void cancelCheckoutOrder(canceledOrderId)
+    if (returnState !== 'canceled' || !canceledOrderId || !cancelToken) return;
+    void cancelCheckoutOrder(canceledOrderId, cancelToken)
       .then(() => {
         window.localStorage.removeItem(PENDING_KEY);
         setPaymentState('cancelled');
       })
       .catch(() => setPaymentError('Your checkout was canceled. The reservation will release automatically if it could not be released immediately.'));
-  }, [returnState, canceledOrderId]);
+  }, [returnState, canceledOrderId, cancelToken]);
 
   useEffect(() => {
     if (returnState !== 'success') return;
