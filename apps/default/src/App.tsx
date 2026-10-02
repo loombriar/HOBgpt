@@ -11,6 +11,7 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
+const SellPage = lazy(() => import('@/pages/SellPage'));
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
   return <GenesisSection name={name}>{children}</GenesisSection>;
@@ -27,6 +28,7 @@ function AppRoutes() {
       <Route path="/cart" element={<Section name="Bag"><CartPage /></Section>} />
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
+      <Route path="/sell" element={<Section name="Apply to sell"><SellPage /></Section>} />
     </Routes>
   </BrowserRouter>;
 }
