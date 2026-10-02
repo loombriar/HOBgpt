@@ -5,7 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
 import { getFieldNumber, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import { getCatalogProducts, money } from '@/lib/marketplace';
-import { createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
+import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 
 type SnapshotItem = { id: string; name: string; amount: number; quantity: number };
 type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number };
@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const returnState = searchParams.get('checkout');
   const sessionId = searchParams.get('session_id');
+  const canceledOrderId = searchParams.get('order_id');
   const [cartIds, setCartIds] = useState<string[]>(readCartIds);
   const [products, setProducts] = useState<GenesisNode[]>([]);
   const [snapshot] = useState<CheckoutSnapshot | null>(readSnapshot);
@@ -79,6 +80,16 @@ export default function CheckoutPage() {
   const hasItems = items.length > 0;
   const guestCatalog = !auth.isAuthenticated;
   const canCheckout = cartIds.length > 0 && catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
+
+  useEffect(() => {
+    if (returnState !== 'canceled' || !canceledOrderId) return;
+    void cancelCheckoutOrder(canceledOrderId)
+      .then(() => {
+        window.localStorage.removeItem(PENDING_KEY);
+        setPaymentState('cancelled');
+      })
+      .catch(() => setPaymentError('Your checkout was canceled. The reservation will release automatically if it could not be released immediately.'));
+  }, [returnState, canceledOrderId]);
 
   useEffect(() => {
     if (returnState !== 'success') return;
