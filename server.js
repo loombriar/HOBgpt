@@ -259,6 +259,7 @@ function createApp(options = {}) {
 
   function authAdmin(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
     if (!adminToken || !safeEqual(token, adminToken)) {
       return fail(res, 403, 'forbidden', 'Administrator access is required.');
     }
