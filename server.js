@@ -281,373 +281,88 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
-  app.post('/api/checkout/quote', (req, res) => {
-    const requested = Array.isArray(req.body?.items) ? req.body.items : [];
-    if (!requested.length || requested.length > 50) return fail(res, 422, 'invalid_cart', 'Add at least one item before checkout.');
 
+  async function stripeApi(pathname, options = {}) {
+    const secret = process.env.STRIPE_SECRET_KEY;
+    if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
+    const response = await fetch(`https://api.stripe.com/v1/${pathname}`, {
+      method: options.method || 'GET',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {})
+      },
+      body: options.body
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.error?.message || 'Stripe request failed.');
+    return payload;
+  }
+
+  function buildCheckoutQuote(requested) {
+    if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
     for (const item of requested) {
       const id = typeof item?.id === 'string' ? item.id : '';
       const quantity = Number(item?.quantity);
-      if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) return fail(res, 422, 'invalid_cart', 'Cart quantities must be whole numbers between 1 and 10.');
+      if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error('Cart quantities must be whole numbers between 1 and 10.'), { statusCode: 422 });
       quantities.set(id, (quantities.get(id) || 0) + quantity);
     }
-
     const rows = [];
     for (const [id, quantity] of quantities) {
       const listing = db.prepare("SELECT * FROM listings WHERE id = ? AND status = 'published' AND moderation_status = 'approved'").get(id);
-      if (!listing) return fail(res, 409, 'listing_unavailable', 'One or more pieces are no longer available.');
+      if (!listing) throw Object.assign(new Error('One or more pieces are no longer available.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
       const lineTotalCents = unitAmountCents * quantity;
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
-      rows.push({
-        id: listing.id,
-        title: listing.title,
-        designerId: listing.designer_id,
-        quantity,
-        unitAmountCents,
-        lineTotalCents,
-        platformFeeCents,
-        designerAmountCents: lineTotalCents - platformFeeCents
-      });
+      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
-
     const subtotalCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
-    return res.json({
-      currency: 'usd',
-      items: rows,
-      subtotalCents,
-      platformFeeCents,
-      designerAmountCents: subtotalCents - platformFeeCents
-    });
+    return { currency: 'usd', items: rows, subtotalCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
+  }
+  app.post('/api/checkout/quote', (req, res) => {
+    try { return res.json(buildCheckoutQuote(req.body?.items)); }
+    catch (error) { return fail(res, error.statusCode || 422, 'invalid_cart', error.message); }
   });
 
-
-  app.post('/api/session', authDesigner, (req, res) => {
-    res.json({ designerId: req.designerId });
-  });
-
-  app.get('/api/gallery', (_req, res) => {
-    const rows = db.prepare(`
-      SELECT * FROM listings
-      WHERE status = 'published' AND moderation_status = 'approved'
-      ORDER BY published_at DESC, created_at DESC
-    `).all();
-    res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
-  });
-
-  app.get('/api/my/listings', authDesigner, (req, res) => {
-    const rows = db.prepare(`
-      SELECT * FROM listings
-      WHERE designer_id = ? AND status != 'deleted'
-      ORDER BY updated_at DESC
-    `).all(req.designerId);
-    res.json({ items: rows.map((row) => serializeListing(row, 'private')) });
-  });
-
-  app.post('/api/listings', authDesigner, (req, res) => {
-    const validation = validateListingInput(req.body || {});
-    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
-
-    const submittedKey = req.get('idempotency-key') || req.body.idempotencyKey;
-    const idempotencyKey = typeof submittedKey === 'string' && /^[A-Za-z0-9._:-]{8,128}$/.test(submittedKey) ? submittedKey : null;
-    if (submittedKey && !idempotencyKey) {
-      return fail(res, 400, 'invalid_idempotency_key', 'Use a valid idempotency key between 8 and 128 characters.');
-    }
-
-    if (idempotencyKey) {
-      const existing = db.prepare('SELECT * FROM listings WHERE designer_id = ? AND idempotency_key = ?').get(req.designerId, idempotencyKey);
-      if (existing) return res.status(200).json({ item: serializeListing(existing, 'private'), reused: true });
-    }
-
-    const id = makeId();
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, status, moderation_status,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
-    `).run(
-      id,
-      req.designerId,
-      idempotencyKey,
-      validation.value.title,
-      validation.value.description,
-      validation.value.price,
-      validation.value.category,
-      timestamp,
-      timestamp
-    );
-
-    return res.status(201).json({ item: serializeListing(getListing(id), 'private'), reused: false });
-  });
-
-  app.get('/api/listings/:listingId', authDesigner, (req, res) => {
-    const row = getListing(req.params.listingId);
-    if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
-    return res.json({ item: serializeListing(row, 'private') });
-  });
-
-  app.put('/api/listings/:listingId', authDesigner, (req, res) => {
-    const row = ownedEditableListing(req, res);
-    if (!row) return;
-    const validation = validateListingInput(req.body || {});
-    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
-
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(
-      validation.value.title,
-      validation.value.description,
-      validation.value.price,
-      validation.value.category,
-      timestamp,
-      row.id
-    );
-
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
-  });
-
-  app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
+  app.post('/api/checkout/session', async (req, res, next) => {
     try {
-      const row = ownedEditableListing(req, res);
-      if (!row) return;
-      if (!req.file) return fail(res, 400, 'missing_image', 'Choose one image to upload.');
-
-      const clientImageKey = req.get('idempotency-key') || req.body.clientImageKey;
-      if (typeof clientImageKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(clientImageKey)) {
-        return fail(res, 400, 'invalid_image_key', 'A unique image idempotency key is required.');
-      }
-
-      const existing = db.prepare('SELECT * FROM listing_images WHERE listing_id = ? AND client_image_key = ?').get(row.id, clientImageKey);
-      if (existing) return res.status(200).json({ item: serializeListing(getListing(row.id), 'private'), reused: true });
-
-      const detectedMime = detectImageMime(req.file.buffer);
-      if (!detectedMime) return fail(res, 415, 'unsupported_image', 'Upload a valid JPEG, PNG, or WebP image.');
-
-      let metadata;
-      try {
-        metadata = await sharp(req.file.buffer, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS }).metadata();
-      } catch {
-        return fail(res, 415, 'invalid_image', 'The selected file is not a readable image.');
-      }
-
-      if (!metadata.width || !metadata.height || metadata.width > MAX_IMAGE_DIMENSION || metadata.height > MAX_IMAGE_DIMENSION) {
-        return fail(res, 422, 'invalid_dimensions', 'Image dimensions must be 12,000 pixels or less on either side.');
-      }
-      if (metadata.pages && metadata.pages > 1) return fail(res, 415, 'animated_image', 'Animated images are not supported.');
-
-      const count = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
-      if (count >= MAX_IMAGES) return fail(res, 422, 'image_limit', `A design can have at most ${MAX_IMAGES} images.`);
-
-      const imageId = makeId();
-      const storageKey = `${imageId}.webp`;
-      const targetPath = path.join(imagesDir, storageKey);
-      await sharp(req.file.buffer, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS })
-        .rotate()
-        .webp({ quality: 88, effort: 4 })
-        .toFile(targetPath);
-
-      const timestamp = new Date().toISOString();
-      const imagePosition = db.prepare("SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).next_pos;
-      db.prepare(`
-        INSERT INTO listing_images (
-          id, listing_id, client_image_key, storage_key, position, mime_type,
-          size_bytes, width, height, checksum, upload_status, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'image/webp', ?, ?, ?, ?, 'ready', ?)
-      `).run(
-        imageId,
-        row.id,
-        clientImageKey,
-        storageKey,
-        imagePosition,
-        req.file.size,
-        metadata.width,
-        metadata.height,
-        crypto.createHash('sha256').update(req.file.buffer).digest('hex'),
-        timestamp
-      );
-
-      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
-      return res.status(201).json({ item: serializeListing(getListing(row.id), 'private'), reused: false });
-    } catch (error) {
-      return next(error);
-    }
-  });
-
-  app.get('/api/listings/:listingId/images/:imageId/content', authDesigner, (req, res) => {
-    const row = db.prepare(`
-      SELECT i.storage_key, i.mime_type
-      FROM listing_images i
-      JOIN listings l ON l.id = i.listing_id
-      WHERE i.id = ? AND l.id = ? AND l.designer_id = ? AND i.upload_status = 'ready'
-    `).get(req.params.imageId, req.params.listingId, req.designerId);
-    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
-    res.type(row.mime_type);
-    res.set('Cache-Control', 'private, no-store');
-    return res.sendFile(path.join(imagesDir, row.storage_key));
-  });
-
-  app.put('/api/listings/:listingId/images/order', authDesigner, (req, res) => {
-    const row = ownedEditableListing(req, res);
-    if (!row) return;
-
-    const imageIds = Array.isArray(req.body?.imageIds) ? req.body.imageIds : [];
-    if (!imageIds.length || imageIds.length > MAX_IMAGES || imageIds.some((id) => typeof id !== 'string')) {
-      return fail(res, 422, 'invalid_order', 'Provide an ordered list of image IDs.');
-    }
-
-    const currentIds = db.prepare("SELECT id FROM listing_images WHERE listing_id = ? AND upload_status = 'ready' ORDER BY position ASC").all(row.id).map((item) => item.id);
-    if (new Set(imageIds).size !== imageIds.length || imageIds.length !== currentIds.length || imageIds.some((id) => !currentIds.includes(id))) {
-      return fail(res, 422, 'invalid_order', 'The order must include every image exactly once.');
-    }
-
-    const timestamp = new Date().toISOString();
-    const stmt = db.prepare('UPDATE listing_images SET position = ? WHERE id = ? AND listing_id = ?');
-    db.transaction(() => {
-      imageIds.forEach((id, index) => stmt.run(index, id, row.id));
-      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
-    })();
-
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
-  });
-
-  app.delete('/api/listings/:listingId/images/:imageId', authDesigner, (req, res) => {
-    const row = ownedEditableListing(req, res);
-    if (!row) return;
-    const target = db.prepare("SELECT * FROM listing_images WHERE id = ? AND listing_id = ? AND upload_status = 'ready'").get(req.params.imageId, row.id);
-    if (!target) return fail(res, 404, 'not_found', 'Image not found.');
-
-    const remaining = db.prepare("SELECT id FROM listing_images WHERE listing_id = ? AND upload_status = 'ready' AND id != ? ORDER BY position ASC").all(row.id, target.id);
-    const timestamp = new Date().toISOString();
-    db.transaction(() => {
-      db.prepare("UPDATE listing_images SET upload_status = 'deleted', deleted_at = ? WHERE id = ?").run(timestamp, target.id);
-      remaining.forEach((image, index) => {
-        db.prepare('UPDATE listing_images SET position = ? WHERE id = ?').run(index, image.id);
+      const quote = buildCheckoutQuote(req.body?.items);
+      const orderId = makeId();
+      const now = new Date().toISOString();
+      const origin = `${req.protocol}://${req.get('host')}`;
+      const body = new URLSearchParams({
+        mode: 'payment',
+        success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}`,
+        'metadata[order_id]': orderId,
+        'payment_intent_data[metadata][order_id]': orderId
       });
-      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
-    })();
-
-    const storagePath = path.join(imagesDir, target.storage_key);
-    fs.promises.unlink(storagePath).catch(() => {});
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+      quote.items.forEach((item, index) => {
+        body.set(`line_items[${index}][price_data][currency]`, quote.currency);
+        body.set(`line_items[${index}][price_data][product_data][name]`, item.title);
+        body.set(`line_items[${index}][price_data][unit_amount]`, String(item.unitAmountCents));
+        body.set(`line_items[${index}][quantity]`, String(item.quantity));
+      });
+      const session = await stripeApi('checkout/sessions', { method: 'POST', body: body.toString() });
+      db.transaction(() => {
+        db.prepare(`INSERT INTO orders (id, stripe_session_id, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, session.id, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
+      })();
+      return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
+    } catch (error) { return next(error); }
   });
 
-  app.post('/api/listings/:listingId/submit', authDesigner, (req, res) => {
-    const row = getListing(req.params.listingId);
-    if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
-    if (!['draft', 'rejected'].includes(row.status)) return res.json({ item: serializeListing(row, 'private'), reused: true });
-
-    const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
-    if (imageCount < 1) return fail(res, 422, 'images_required', 'Add at least one ready image before submitting.');
-
-    const nextStatus = reviewRequired ? 'pending_review' : 'published';
-    const nextModeration = reviewRequired ? 'pending' : 'approved';
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET status = ?, moderation_status = ?, published_at = ?, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(nextStatus, nextModeration, reviewRequired ? null : timestamp, timestamp, row.id);
-
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  app.get('/api/checkout/session/:sessionId', async (req, res, next) => {
+    try {
+      if (!/^cs_[A-Za-z0-9_]+$/.test(req.params.sessionId)) return fail(res, 400, 'invalid_session', 'Invalid checkout session.');
+      const session = await stripeApi(`checkout/sessions/${encodeURIComponent(req.params.sessionId)}`);
+      const order = db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?').get(session.id);
+      if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
+      const paid = session.payment_status === 'paid' && session.status === 'complete';
+      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+      return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
+    } catch (error) { return next(error); }
   });
 
-  app.post('/api/admin/listings/:listingId/approve', authAdmin, (req, res) => {
-    const row = getListing(req.params.listingId);
-    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
-    if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be approved.');
-
-    const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
-    if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
-
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET status = 'published', moderation_status = 'approved', published_at = ?, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(timestamp, timestamp, row.id);
-
-    return res.json({ item: serializeListing(getListing(row.id), 'public') });
-  });
-
-  app.post('/api/admin/listings/:listingId/reject', authAdmin, (req, res) => {
-    const row = getListing(req.params.listingId);
-    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
-    if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be rejected.');
-
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET status = 'rejected', moderation_status = 'rejected', published_at = NULL, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(timestamp, row.id);
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
-  });
-
-  app.post('/api/admin/listings/:listingId/unpublish', authAdmin, (req, res) => {
-    const row = getListing(req.params.listingId);
-    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
-    if (row.status !== 'published') return fail(res, 409, 'invalid_state', 'Only published listings can be archived.');
-
-    const timestamp = new Date().toISOString();
-    db.prepare(`UPDATE listings SET status = 'archived', updated_at = ?, version = version + 1 WHERE id = ?`).run(timestamp, row.id);
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
-  });
-
-  app.get('/media/:imageId', (req, res) => {
-    const row = db.prepare(`
-      SELECT i.storage_key, i.mime_type
-      FROM listing_images i
-      JOIN listings l ON l.id = i.listing_id
-      WHERE i.id = ? AND i.upload_status = 'ready' AND l.status = 'published' AND l.moderation_status = 'approved'
-    `).get(req.params.imageId);
-    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
-    res.type(row.mime_type);
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    return res.sendFile(path.join(imagesDir, row.storage_key));
-  });
-
-  app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
-  app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
-
-  app.use((error, _req, res, _next) => {
-    if (error instanceof multer.MulterError) {
-      const code = error.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'upload_error';
-      const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
-      return fail(res, error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, code, message);
-    }
-    console.error('Request failed:', error);
-    return fail(res, 500, 'internal_error', 'The request could not be completed.');
-  });
-
-  app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
-
-  return { app, db, dataDir, imagesDir, reviewRequired };
-}
-
-if (require.main === module) {
-  const { app, db } = createApp();
-  const port = Number(process.env.PORT || 3000);
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`House of Briar listening on port ${port}`);
-  });
-
-  const shutdown = () => {
-    server.close(() => {
-      db.close();
-      process.exit(0);
-    });
-  };
-
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
-}
-
-module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
