@@ -198,6 +198,7 @@ function createApp(options = {}) {
 
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
+  const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
 
   const seedProducts = options.seedProducts || JSON.parse(fs.readFileSync(path.join(rootDir, 'data', 'seed-products.json'), 'utf8'));
@@ -251,8 +252,14 @@ function createApp(options = {}) {
       if (!userInfo.ok) return fail(res, 401, 'unauthorized', 'Your designer session is no longer valid.');
       const profile = await userInfo.json();
       if (typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Designer identity is missing.');
-      req.designerId = profile.sub.trim();
-      req.designerEmail = typeof profile.email === 'string' ? profile.email : '';
+      const subject = profile.sub.trim();
+      const mappedDesignerId = designerIdentityMap[subject];
+      if (typeof mappedDesignerId !== 'string' || !mappedDesignerId.trim()) {
+        return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to a House of Briar designer profile.');
+      }
+      req.designerId = mappedDesignerId.trim();
+      req.designerSubject = subject;
+      req.designerEmail = typeof profile.email === 'string' ? profile.email.trim() : '';
       if (req.designerEmail) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(req.designerEmail, req.designerId);
       return next();
     } catch (error) {
