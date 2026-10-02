@@ -134,7 +134,7 @@ export default function CheckoutPage() {
   const beginCheckout = async () => {
     setPaymentState('opening');
     setPaymentError('');
-    const checkoutItems: CheckoutItem[] = catalogItems.map(({ name, amount, quantity }) => ({ name, amount, quantity }));
+    const checkoutItems: CheckoutItem[] = catalogItems.map(({ id, name, amount, quantity }) => ({ id, name, amount, quantity }));
     const nextSnapshot: CheckoutSnapshot = { ids: catalogItems.map((item) => item.id), items: catalogItems, subtotal };
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
     try {
