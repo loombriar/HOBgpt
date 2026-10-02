@@ -520,6 +520,38 @@ function createApp(options = {}) {
     return res.json({application:{id:application.id,status:'approved'},designer:{id:designerId,email:application.email,displayName:application.display_name,brandName:application.brand_name,status:'active',stripeConnected:false}});
   });
 
+  app.post('/api/admin/designers/:designerId/stripe-onboarding', authAdmin, async (req,res,next)=>{
+    try{
+      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
+      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
+      let accountId=designer.stripe_account_id;
+      if(!accountId){
+        const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
+        const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}`});
+        accountId=account.id;
+        if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
+        db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
+      }
+      const origin=`${req.protocol}://${req.get('host')}`;
+      const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
+      const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
+      if(!refreshUrl.startsWith(origin)||!returnUrl.startsWith(origin))return fail(res,422,'invalid_return_url','Stripe onboarding return URLs must use this House of Briar origin.');
+      const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
+      const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
+      return res.json({designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null});
+    }catch(error){return next(error);}
+  });
+
+  app.get('/api/admin/designers/:designerId/stripe-status', authAdmin, async (req,res,next)=>{
+    try{
+      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
+      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
+      if(!designer.stripe_account_id)return res.json({designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false});
+      const account=await stripeApi(`accounts/${encodeURIComponent(designer.stripe_account_id)}`);
+      return res.json({designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled)});
+    }catch(error){return next(error);}
+  });
+
   async function sendEmail({ to, subject, text }) {
     if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
     const apiKey = process.env.RESEND_API_KEY;
@@ -596,6 +628,11 @@ function createApp(options = {}) {
 
   const connectAccounts = parseDesignerTokens(options.connectAccounts ?? process.env.STRIPE_CONNECT_ACCOUNTS_JSON);
 
+  function designerStripeAccount(designerId) {
+    const profile=db.prepare("SELECT stripe_account_id FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
+    return profile?.stripe_account_id || connectAccounts[designerId] || '';
+  }
+
   function prepareDesignerTransfers(orderId) {
     const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
     if (!order) return [];
@@ -604,7 +641,7 @@ function createApp(options = {}) {
     for (const group of groups) {
       const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
       if (existing) { prepared.push(existing); continue; }
-      const accountId = connectAccounts[group.designer_id];
+      const accountId = designerStripeAccount(group.designer_id);
       const transferId = makeId();
       db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, typeof accountId === 'string' ? accountId : '', group.amount_cents, new Date().toISOString());
       prepared.push(db.prepare('SELECT * FROM designer_transfers WHERE id = ?').get(transferId));
@@ -642,7 +679,7 @@ function createApp(options = {}) {
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
       if (releaseReason === 'tracking_verified' && (!existing.tracking_number || !existing.tracking_verified_at)) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
-      const accountId = connectAccounts[group.designer_id];
+      const accountId = designerStripeAccount(group.designer_id);
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
         continue;
