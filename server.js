@@ -461,6 +461,7 @@ function createApp(options = {}) {
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   async function sendEmail({ to, subject, text }) {
+    if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from || !to) return false;
@@ -515,17 +516,18 @@ function createApp(options = {}) {
     return sent;
   }
 
-  async function stripeApi(pathname, options = {}) {
+  async function stripeApi(pathname, requestOptions = {}) {
+    if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
     const response = await fetch(`https://api.stripe.com/v1/${pathname}`, {
-      method: options.method || 'GET',
+      method: requestOptions.method || 'GET',
       headers: {
         Authorization: `Bearer ${secret}`,
-        ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-        ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {})
+        ...(requestOptions.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        ...(requestOptions.idempotencyKey ? { 'Idempotency-Key': requestOptions.idempotencyKey } : {})
       },
-      body: options.body
+      body: requestOptions.body
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload?.error?.message || 'Stripe request failed.');
@@ -551,6 +553,7 @@ function createApp(options = {}) {
   }
 
   async function verifyShipmentTracking(trackingNumber, carrier) {
+    if (typeof options.verifyShipmentTracking === 'function') return options.verifyShipmentTracking(trackingNumber, carrier);
     const apiKey = process.env.EASYPOST_API_KEY;
     if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured.'), { statusCode: 503 });
     const response = await fetch('https://api.easypost.com/v2/trackers', {
