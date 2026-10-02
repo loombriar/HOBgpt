@@ -650,6 +650,278 @@ function createApp(options = {}) {
     return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true });
   });
 
+  app.get('/api/gallery', (_req, res) => {
+    const rows = db.prepare(`
+      SELECT * FROM listings
+      WHERE status = 'published' AND moderation_status = 'approved'
+      ORDER BY published_at DESC, created_at DESC
+    `).all();
+    res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
+  });
+
+  app.get('/api/my/listings', authDesigner, (req, res) => {
+    const rows = db.prepare(`
+      SELECT * FROM listings
+      WHERE designer_id = ? AND status != 'deleted'
+      ORDER BY updated_at DESC
+    `).all(req.designerId);
+    res.json({ items: rows.map((row) => serializeListing(row, 'private')) });
+  });
+
+  app.post('/api/listings', authDesigner, (req, res) => {
+    const validation = validateListingInput(req.body || {});
+    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
+
+    const submittedKey = req.get('idempotency-key') || req.body.idempotencyKey;
+    const idempotencyKey = typeof submittedKey === 'string' && /^[A-Za-z0-9._:-]{8,128}$/.test(submittedKey) ? submittedKey : null;
+    if (submittedKey && !idempotencyKey) {
+      return fail(res, 400, 'invalid_idempotency_key', 'Use a valid idempotency key between 8 and 128 characters.');
+    }
+
+    if (idempotencyKey) {
+      const existing = db.prepare('SELECT * FROM listings WHERE designer_id = ? AND idempotency_key = ?').get(req.designerId, idempotencyKey);
+      if (existing) return res.status(200).json({ item: serializeListing(existing, 'private'), reused: true });
+    }
+
+    const id = makeId();
+    const timestamp = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO listings (
+        id, designer_id, idempotency_key, title, description, price, category, status, moderation_status,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+    `).run(
+      id,
+      req.designerId,
+      idempotencyKey,
+      validation.value.title,
+      validation.value.description,
+      validation.value.price,
+      validation.value.category,
+      timestamp,
+      timestamp
+    );
+
+    return res.status(201).json({ item: serializeListing(getListing(id), 'private'), reused: false });
+  });
+
+  app.get('/api/listings/:listingId', authDesigner, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+    return res.json({ item: serializeListing(row, 'private') });
+  });
+
+  app.put('/api/listings/:listingId', authDesigner, (req, res) => {
+    const row = ownedEditableListing(req, res);
+    if (!row) return;
+    const validation = validateListingInput(req.body || {});
+    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
+
+    const timestamp = new Date().toISOString();
+    db.prepare(`
+      UPDATE listings
+      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', updated_at = ?, version = version + 1
+      WHERE id = ?
+    `).run(
+      validation.value.title,
+      validation.value.description,
+      validation.value.price,
+      validation.value.category,
+      timestamp,
+      row.id
+    );
+
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
+    try {
+      const row = ownedEditableListing(req, res);
+      if (!row) return;
+      if (!req.file) return fail(res, 400, 'missing_image', 'Choose one image to upload.');
+
+      const clientImageKey = req.get('idempotency-key') || req.body.clientImageKey;
+      if (typeof clientImageKey !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(clientImageKey)) {
+        return fail(res, 400, 'invalid_image_key', 'A unique image idempotency key is required.');
+      }
+
+      const existing = db.prepare('SELECT * FROM listing_images WHERE listing_id = ? AND client_image_key = ?').get(row.id, clientImageKey);
+      if (existing) return res.status(200).json({ item: serializeListing(getListing(row.id), 'private'), reused: true });
+
+      const detectedMime = detectImageMime(req.file.buffer);
+      if (!detectedMime) return fail(res, 415, 'unsupported_image', 'Upload a valid JPEG, PNG, or WebP image.');
+
+      let metadata;
+      try {
+        metadata = await sharp(req.file.buffer, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS }).metadata();
+      } catch {
+        return fail(res, 415, 'invalid_image', 'The selected file is not a readable image.');
+      }
+
+      if (!metadata.width || !metadata.height || metadata.width > MAX_IMAGE_DIMENSION || metadata.height > MAX_IMAGE_DIMENSION) {
+        return fail(res, 422, 'invalid_dimensions', 'Image dimensions must be 12,000 pixels or less on either side.');
+      }
+      if (metadata.pages && metadata.pages > 1) return fail(res, 415, 'animated_image', 'Animated images are not supported.');
+
+      const count = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
+      if (count >= MAX_IMAGES) return fail(res, 422, 'image_limit', `A design can have at most ${MAX_IMAGES} images.`);
+
+      const imageId = makeId();
+      const storageKey = `${imageId}.webp`;
+      const targetPath = path.join(imagesDir, storageKey);
+      await sharp(req.file.buffer, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS })
+        .rotate()
+        .webp({ quality: 88, effort: 4 })
+        .toFile(targetPath);
+
+      const timestamp = new Date().toISOString();
+      const imagePosition = db.prepare("SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).next_pos;
+      db.prepare(`
+        INSERT INTO listing_images (
+          id, listing_id, client_image_key, storage_key, position, mime_type,
+          size_bytes, width, height, checksum, upload_status, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'image/webp', ?, ?, ?, ?, 'ready', ?)
+      `).run(
+        imageId,
+        row.id,
+        clientImageKey,
+        storageKey,
+        imagePosition,
+        req.file.size,
+        metadata.width,
+        metadata.height,
+        crypto.createHash('sha256').update(req.file.buffer).digest('hex'),
+        timestamp
+      );
+
+      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
+      return res.status(201).json({ item: serializeListing(getListing(row.id), 'private'), reused: false });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get('/api/listings/:listingId/images/:imageId/content', authDesigner, (req, res) => {
+    const row = db.prepare(`
+      SELECT i.storage_key, i.mime_type
+      FROM listing_images i
+      JOIN listings l ON l.id = i.listing_id
+      WHERE i.id = ? AND l.id = ? AND l.designer_id = ? AND i.upload_status = 'ready'
+    `).get(req.params.imageId, req.params.listingId, req.designerId);
+    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    res.type(row.mime_type);
+    res.set('Cache-Control', 'private, no-store');
+    return res.sendFile(path.join(imagesDir, row.storage_key));
+  });
+
+  app.put('/api/listings/:listingId/images/order', authDesigner, (req, res) => {
+    const row = ownedEditableListing(req, res);
+    if (!row) return;
+
+    const imageIds = Array.isArray(req.body?.imageIds) ? req.body.imageIds : [];
+    if (!imageIds.length || imageIds.length > MAX_IMAGES || imageIds.some((id) => typeof id !== 'string')) {
+      return fail(res, 422, 'invalid_order', 'Provide an ordered list of image IDs.');
+    }
+
+    const currentIds = db.prepare("SELECT id FROM listing_images WHERE listing_id = ? AND upload_status = 'ready' ORDER BY position ASC").all(row.id).map((item) => item.id);
+    if (new Set(imageIds).size !== imageIds.length || imageIds.length !== currentIds.length || imageIds.some((id) => !currentIds.includes(id))) {
+      return fail(res, 422, 'invalid_order', 'The order must include every image exactly once.');
+    }
+
+    const timestamp = new Date().toISOString();
+    const stmt = db.prepare('UPDATE listing_images SET position = ? WHERE id = ? AND listing_id = ?');
+    db.transaction(() => {
+      imageIds.forEach((id, index) => stmt.run(index, id, row.id));
+      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
+    })();
+
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.delete('/api/listings/:listingId/images/:imageId', authDesigner, (req, res) => {
+    const row = ownedEditableListing(req, res);
+    if (!row) return;
+    const target = db.prepare("SELECT * FROM listing_images WHERE id = ? AND listing_id = ? AND upload_status = 'ready'").get(req.params.imageId, row.id);
+    if (!target) return fail(res, 404, 'not_found', 'Image not found.');
+
+    const remaining = db.prepare("SELECT id FROM listing_images WHERE listing_id = ? AND upload_status = 'ready' AND id != ? ORDER BY position ASC").all(row.id, target.id);
+    const timestamp = new Date().toISOString();
+    db.transaction(() => {
+      db.prepare("UPDATE listing_images SET upload_status = 'deleted', deleted_at = ? WHERE id = ?").run(timestamp, target.id);
+      remaining.forEach((image, index) => {
+        db.prepare('UPDATE listing_images SET position = ? WHERE id = ?').run(index, image.id);
+      });
+      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
+    })();
+
+    const storagePath = path.join(imagesDir, target.storage_key);
+    fs.promises.unlink(storagePath).catch(() => {});
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.post('/api/listings/:listingId/submit', authDesigner, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+    if (!['draft', 'rejected'].includes(row.status)) return res.json({ item: serializeListing(row, 'private'), reused: true });
+
+    const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
+    if (imageCount < 1) return fail(res, 422, 'images_required', 'Add at least one ready image before submitting.');
+
+    const nextStatus = reviewRequired ? 'pending_review' : 'published';
+    const nextModeration = reviewRequired ? 'pending' : 'approved';
+    const timestamp = new Date().toISOString();
+    db.prepare(`
+      UPDATE listings
+      SET status = ?, moderation_status = ?, published_at = ?, updated_at = ?, version = version + 1
+      WHERE id = ?
+    `).run(nextStatus, nextModeration, reviewRequired ? null : timestamp, timestamp, row.id);
+
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.post('/api/admin/listings/:listingId/approve', authAdmin, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+    if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be approved.');
+
+    const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
+    if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
+
+    const timestamp = new Date().toISOString();
+    db.prepare(`
+      UPDATE listings
+      SET status = 'published', moderation_status = 'approved', published_at = ?, updated_at = ?, version = version + 1
+      WHERE id = ?
+    `).run(timestamp, timestamp, row.id);
+
+    return res.json({ item: serializeListing(getListing(row.id), 'public') });
+  });
+
+  app.post('/api/admin/listings/:listingId/reject', authAdmin, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+    if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be rejected.');
+
+    const timestamp = new Date().toISOString();
+    db.prepare(`
+      UPDATE listings
+      SET status = 'rejected', moderation_status = 'rejected', published_at = NULL, updated_at = ?, version = version + 1
+      WHERE id = ?
+    `).run(timestamp, row.id);
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.post('/api/admin/listings/:listingId/unpublish', authAdmin, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+    if (row.status !== 'published') return fail(res, 409, 'invalid_state', 'Only published listings can be archived.');
+
+    const timestamp = new Date().toISOString();
+    db.prepare(`UPDATE listings SET status = 'archived', updated_at = ?, version = version + 1 WHERE id = ?`).run(timestamp, row.id);
+    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,
