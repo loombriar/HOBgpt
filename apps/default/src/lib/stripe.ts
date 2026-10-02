@@ -25,6 +25,11 @@ export async function createCheckoutSession(items: CheckoutItem[], couponCode = 
   return result.url;
 }
 
+export async function cancelCheckoutOrder(orderId: string) {
+  if (!orderId) return;
+  await api<{ status: string }>(`/api/checkout/cancel/${encodeURIComponent(orderId)}`, { method: 'POST' });
+}
+
 export async function verifyCheckoutSession(sessionId: string) {
   if (!sessionId.startsWith('cs_')) throw new Error('The checkout receipt reference is not valid.');
   return api<{ paid: boolean; orderId: string; status: string }>(`/api/checkout/session/${encodeURIComponent(sessionId)}`);
