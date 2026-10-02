@@ -114,6 +114,10 @@ function createApp(options = {}) {
       error_message TEXT,
       created_at TEXT NOT NULL,
       paid_at TEXT,
+      tracking_carrier TEXT,
+      tracking_number TEXT,
+      tracking_submitted_at TEXT,
+      release_reason TEXT,
       UNIQUE(order_id, designer_id),
       FOREIGN KEY(order_id) REFERENCES orders(id)
     );
@@ -300,7 +304,7 @@ function createApp(options = {}) {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
           if (order) {
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
-            await processDesignerTransfers(order.id);
+            await prepareDesignerTransfers(order.id);
           }
         }
       }
@@ -349,7 +353,23 @@ function createApp(options = {}) {
 
   const connectAccounts = parseDesignerTokens(options.connectAccounts ?? process.env.STRIPE_CONNECT_ACCOUNTS_JSON);
 
-  async function processDesignerTransfers(orderId) {
+  function prepareDesignerTransfers(orderId) {
+    const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
+    if (!order) return [];
+    const groups = db.prepare(`SELECT designer_id, SUM(designer_amount_cents) AS amount_cents FROM order_items WHERE order_id = ? AND designer_id = ? GROUP BY designer_id`).all(orderId, designerId);
+    const prepared = [];
+    for (const group of groups) {
+      const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
+      if (existing) { prepared.push(existing); continue; }
+      const accountId = connectAccounts[group.designer_id];
+      const transferId = makeId();
+      db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, typeof accountId === 'string' ? accountId : '', group.amount_cents, new Date().toISOString());
+      prepared.push(db.prepare('SELECT * FROM designer_transfers WHERE id = ?').get(transferId));
+    }
+    return prepared;
+  }
+
+  async function processDesignerTransfers(orderId, designerId, releaseReason = 'tracking_submitted') {
     const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
     if (!order) return [];
     const groups = db.prepare(`SELECT designer_id, SUM(designer_amount_cents) AS amount_cents FROM order_items WHERE order_id = ? GROUP BY designer_id`).all(orderId);
@@ -357,6 +377,8 @@ function createApp(options = {}) {
     for (const group of groups) {
       const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
       if (existing?.status === 'paid') { results.push(existing); continue; }
+      if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
+      if (releaseReason === 'tracking_submitted' && !existing.tracking_number) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
       const accountId = connectAccounts[group.designer_id];
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
@@ -374,7 +396,7 @@ function createApp(options = {}) {
           'metadata[designer_id]': group.designer_id
         });
         const transfer = await stripeApi('transfers', { method: 'POST', body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
-        db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', error_message = NULL, paid_at = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), transferId);
+        db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
         results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
       } catch (error) {
         db.prepare("UPDATE designer_transfers SET status = 'failed', error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
@@ -448,7 +470,7 @@ function createApp(options = {}) {
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
       if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
-      if (paid) await processDesignerTransfers(order.id);
+      if (paid) await prepareDesignerTransfers(order.id);
       return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
     } catch (error) { return next(error); }
   });
