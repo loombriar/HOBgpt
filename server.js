@@ -117,6 +117,9 @@ function createApp(options = {}) {
       tracking_carrier TEXT,
       tracking_number TEXT,
       tracking_submitted_at TEXT,
+      tracking_provider_id TEXT,
+      tracking_status TEXT,
+      tracking_verified_at TEXT,
       release_reason TEXT,
       UNIQUE(order_id, designer_id),
       FOREIGN KEY(order_id) REFERENCES orders(id)
@@ -369,6 +372,25 @@ function createApp(options = {}) {
     return prepared;
   }
 
+  async function verifyShipmentTracking(trackingNumber, carrier) {
+    const apiKey = process.env.EASYPOST_API_KEY;
+    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured.'), { statusCode: 503 });
+    const response = await fetch('https://api.easypost.com/v2/trackers', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ tracker: { tracking_code: trackingNumber, carrier } })
+    });
+    const tracker = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(tracker?.error?.message || 'Carrier could not verify this tracking number.'), { statusCode: 422 });
+    const acceptedStatuses = new Set(['pre_transit','in_transit','out_for_delivery','delivered','available_for_pickup']);
+    const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
+    const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
+    return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown' };
+  }
+
   async function processDesignerTransfers(orderId, designerId, releaseReason = 'tracking_submitted') {
     const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
     if (!order) return [];
@@ -378,7 +400,7 @@ function createApp(options = {}) {
       const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
-      if (releaseReason === 'tracking_submitted' && !existing.tracking_number) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
+      if (releaseReason === 'tracking_verified' && (!existing.tracking_number || !existing.tracking_verified_at)) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
       const accountId = connectAccounts[group.designer_id];
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
