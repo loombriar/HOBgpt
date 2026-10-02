@@ -277,6 +277,39 @@ function createApp(options = {}) {
   let app;
   app = express();
   app.disable('x-powered-by');
+
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const signature = req.get('stripe-signature') || '';
+      if (!secret || !signature) return res.status(400).send('Webhook signature configuration is missing.');
+      const parts = Object.fromEntries(signature.split(',').map(part => part.split('=', 2)));
+      const timestamp = parts.t;
+      const supplied = parts.v1;
+      if (!timestamp || !supplied) return res.status(400).send('Invalid Stripe signature.');
+      if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return res.status(400).send('Expired Stripe signature.');
+      const signed = Buffer.concat([Buffer.from(String(timestamp) + '.'), req.body]);
+      const expected = crypto.createHmac('sha256', secret).update(signed).digest('hex');
+      if (!safeEqual(expected, supplied)) return res.status(400).send('Invalid Stripe signature.');
+
+      const event = JSON.parse(req.body.toString('utf8'));
+      if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+        const session = event.data?.object;
+        const orderId = session?.metadata?.order_id;
+        if (orderId && session.payment_status === 'paid') {
+          const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
+          if (order) {
+            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+            await processDesignerTransfers(order.id);
+          }
+        }
+      }
+      return res.json({ received: true });
+    } catch (error) {
+      console.error('Stripe webhook failed:', error);
+      return res.status(500).send('Webhook processing failed.');
+    }
+  });
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
