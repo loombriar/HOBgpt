@@ -632,23 +632,40 @@ function createApp(options = {}) {
         body.set(`line_items[${index}][price_data][unit_amount]`, String(item.unitAmountCents));
         body.set(`line_items[${index}][quantity]`, String(item.quantity));
       });
-      const session = await stripeApi('checkout/sessions', { method: 'POST', body: body.toString() });
+      // Claim scarce inventory before creating an externally payable Stripe session.
+      // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
-        db.prepare(`INSERT INTO orders (id, stripe_session_id, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, session.id, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        db.prepare(`INSERT INTO orders (id, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
       })();
+
+      let session;
+      try {
+        session = await stripeApi('checkout/sessions', { method: 'POST', body: body.toString(), idempotencyKey: `hob-checkout-${orderId}` });
+        db.prepare('UPDATE orders SET stripe_session_id = ? WHERE id = ?').run(session.id, orderId);
+      } catch (error) {
+        // Never strand a one-of-a-kind reservation when Stripe cannot create checkout.
+        releaseOrderInventory(orderId);
+        throw error;
+      }
       return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
     } catch (error) { return next(error); }
   });
 
-  app.post('/api/checkout/cancel/:orderId', (req, res) => {
-    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.orderId);
-    if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
-    if (order.status === 'paid') return fail(res, 409, 'already_paid', 'Paid orders cannot be canceled from checkout.');
-    releaseOrderInventory(order.id);
-    return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true });
+  app.post('/api/checkout/cancel/:orderId', async (req, res, next) => {
+    try {
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.orderId);
+      if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
+      if (order.status === 'paid') return fail(res, 409, 'already_paid', 'Paid orders cannot be canceled from checkout.');
+      // An open Checkout Session must stop being payable before its inventory can be released.
+      if (order.stripe_session_id) {
+        await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`, { method: 'POST' });
+      }
+      releaseOrderInventory(order.id);
+      return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true, checkoutExpired: Boolean(order.stripe_session_id) });
+    } catch (error) { return next(error); }
   });
 
   app.get('/api/gallery', (_req, res) => {
