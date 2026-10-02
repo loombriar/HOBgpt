@@ -125,6 +125,17 @@ function createApp(options = {}) {
       FOREIGN KEY(order_id) REFERENCES orders(id)
     );
 
+    CREATE TABLE IF NOT EXISTS inventory_reservations (
+      listing_id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('reserved','sold','released')),
+      reserved_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      sold_at TEXT,
+      FOREIGN KEY(listing_id) REFERENCES listings(id),
+      FOREIGN KEY(order_id) REFERENCES orders(id)
+    );
+
     CREATE TABLE IF NOT EXISTS order_items (
       id TEXT PRIMARY KEY,
       order_id TEXT NOT NULL,
@@ -349,6 +360,7 @@ function createApp(options = {}) {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
           if (order) {
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+            markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
           }
         }
@@ -470,6 +482,33 @@ function createApp(options = {}) {
     return results;
   }
 
+  function releaseExpiredInventoryReservations() {
+    const now = new Date().toISOString();
+    db.prepare("UPDATE inventory_reservations SET status = 'released' WHERE status = 'reserved' AND expires_at <= ?").run(now);
+  }
+
+  function reserveInventory(orderId, items, now) {
+    releaseExpiredInventoryReservations();
+    const expiresAt = new Date(new Date(now).getTime() + 30 * 60 * 1000).toISOString();
+    const find = db.prepare("SELECT * FROM inventory_reservations WHERE listing_id = ? AND status IN ('reserved','sold')");
+    const upsert = db.prepare(`INSERT INTO inventory_reservations (listing_id, order_id, status, reserved_at, expires_at)
+      VALUES (?, ?, 'reserved', ?, ?)
+      ON CONFLICT(listing_id) DO UPDATE SET order_id=excluded.order_id, status='reserved', reserved_at=excluded.reserved_at, expires_at=excluded.expires_at, sold_at=NULL`);
+    for (const item of items) {
+      if (item.quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
+      const active = find.get(item.id);
+      if (active) throw Object.assign(new Error('One or more pieces are already reserved or sold.'), { statusCode: 409 });
+      upsert.run(item.id, orderId, now, expiresAt);
+    }
+    return expiresAt;
+  }
+
+  function markOrderInventorySold(orderId) {
+    const now = new Date().toISOString();
+    db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
+    db.prepare("UPDATE listings SET status = 'archived', updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+  }
+
   function buildCheckoutQuote(requested) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
@@ -519,6 +558,7 @@ function createApp(options = {}) {
       const session = await stripeApi('checkout/sessions', { method: 'POST', body: body.toString() });
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, stripe_session_id, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, session.id, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
       })();
@@ -534,7 +574,10 @@ function createApp(options = {}) {
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
       if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
-      if (paid) await prepareDesignerTransfers(order.id);
+      if (paid) {
+        markOrderInventorySold(order.id);
+        await prepareDesignerTransfers(order.id);
+      }
       return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
     } catch (error) { return next(error); }
   });
