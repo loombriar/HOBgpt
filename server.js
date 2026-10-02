@@ -103,6 +103,21 @@ function createApp(options = {}) {
       paid_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS designer_transfers (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL,
+      designer_id TEXT NOT NULL,
+      stripe_account_id TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      stripe_transfer_id TEXT UNIQUE,
+      status TEXT NOT NULL CHECK (status IN ('pending','paid','failed')),
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      paid_at TEXT,
+      UNIQUE(order_id, designer_id),
+      FOREIGN KEY(order_id) REFERENCES orders(id)
+    );
+
     CREATE TABLE IF NOT EXISTS order_items (
       id TEXT PRIMARY KEY,
       order_id TEXT NOT NULL,
@@ -289,13 +304,51 @@ function createApp(options = {}) {
       method: options.method || 'GET',
       headers: {
         Authorization: `Bearer ${secret}`,
-        ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {})
+        ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {})
       },
       body: options.body
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload?.error?.message || 'Stripe request failed.');
     return payload;
+  }
+
+  const connectAccounts = parseDesignerTokens(options.connectAccounts ?? process.env.STRIPE_CONNECT_ACCOUNTS_JSON);
+
+  async function processDesignerTransfers(orderId) {
+    const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
+    if (!order) return [];
+    const groups = db.prepare(`SELECT designer_id, SUM(designer_amount_cents) AS amount_cents FROM order_items WHERE order_id = ? GROUP BY designer_id`).all(orderId);
+    const results = [];
+    for (const group of groups) {
+      const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
+      if (existing?.status === 'paid') { results.push(existing); continue; }
+      const accountId = connectAccounts[group.designer_id];
+      if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
+        results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
+        continue;
+      }
+      const transferId = existing?.id || makeId();
+      if (!existing) db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, accountId, group.amount_cents, new Date().toISOString());
+      try {
+        const body = new URLSearchParams({
+          amount: String(group.amount_cents),
+          currency: order.currency,
+          destination: accountId,
+          transfer_group: orderId,
+          'metadata[order_id]': orderId,
+          'metadata[designer_id]': group.designer_id
+        });
+        const transfer = await stripeApi('transfers', { method: 'POST', body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
+        db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', error_message = NULL, paid_at = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), transferId);
+        results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
+      } catch (error) {
+        db.prepare("UPDATE designer_transfers SET status = 'failed', error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
+        results.push({ designer_id: group.designer_id, status: 'failed' });
+      }
+    }
+    return results;
   }
 
   function buildCheckoutQuote(requested) {
@@ -362,6 +415,7 @@ function createApp(options = {}) {
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
       if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ?").run(new Date().toISOString(), order.id);
+      if (paid) await processDesignerTransfers(order.id);
       return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
     } catch (error) { return next(error); }
   });
