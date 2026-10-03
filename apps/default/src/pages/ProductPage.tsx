@@ -5,7 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import HouseShell from '@/components/HouseShell';
 import InquiryForm from '@/components/InquiryForm';
-import { getCatalogProducts, getSavedProductIds, getProductImages, getProductVisual, money, setSavedProductIds, slugify } from '@/lib/marketplace';
+import { getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, getProductImages, getProductVisual, money, setPersistentFavorite, slugify } from '@/lib/marketplace';
 
 export default function ProductPage() {
   const auth = useAuth();
@@ -30,10 +30,11 @@ export default function ProductPage() {
   useEffect(() => {
     if (productId == null) return;
     setSaved(getSavedProductIds().includes(productId));
+    void getPersistentFavoriteIds(auth.user?.access_token).then(ids=>setSaved(ids.includes(productId))).catch(()=>{});
     const refreshSaved = () => setSaved(getSavedProductIds().includes(productId));
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
-  }, [productId]);
+  }, [productId, auth.user?.access_token]);
 
   useEffect(() => {
     const refreshCart = () => {
@@ -79,9 +80,9 @@ export default function ProductPage() {
   };
 
   const toggleSaved = () => {
-    const next = saved ? getSavedProductIds().filter((id) => id !== product.id) : [...getSavedProductIds(), product.id];
-    setSaved(!saved);
-    setSavedProductIds(next);
+    const next=!saved;
+    setSaved(next);
+    void setPersistentFavorite(product.id,next,auth.user?.access_token).catch(()=>setSaved(!next));
   };
 
   return <HouseShell>
