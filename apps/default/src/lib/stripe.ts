@@ -15,10 +15,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export async function createCheckoutSession(items: CheckoutItem[], couponCode = '') {
+export async function createCheckoutSession(items: CheckoutItem[], couponCode = '', accessToken = '') {
   if (couponCode.trim()) throw new Error('Promo codes are temporarily unavailable while checkout is being upgraded.');
   const result = await api<{ url: string }>('/api/checkout/session', {
     method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     body: JSON.stringify({ items: items.map(item => ({ id: item.id, quantity: item.quantity ?? 1 })) }),
   });
   if (!result.url) throw new Error('Stripe did not return a checkout link.');
