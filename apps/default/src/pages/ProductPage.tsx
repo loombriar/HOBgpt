@@ -27,26 +27,28 @@ export default function ProductPage() {
       .finally(() => setLoading(false));
   }, [productId, auth.isAuthenticated]);
 
+  const resolvedProductId = product?.id;
+
   useEffect(() => {
-    if (productId == null) return;
-    setSaved(getSavedProductIds().includes(productId));
-    void getPersistentFavoriteIds(auth.user?.access_token).then(ids=>setSaved(ids.includes(productId))).catch(()=>{});
-    const refreshSaved = () => setSaved(getSavedProductIds().includes(productId));
+    if (!resolvedProductId) return;
+    setSaved(getSavedProductIds().includes(resolvedProductId));
+    void getPersistentFavoriteIds(auth.user?.access_token).then(ids=>setSaved(ids.includes(resolvedProductId))).catch(()=>{});
+    const refreshSaved = () => setSaved(getSavedProductIds().includes(resolvedProductId));
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
-  }, [productId, auth.user?.access_token]);
+  }, [resolvedProductId, auth.user?.access_token]);
 
   useEffect(() => {
     const refreshCart = () => {
       try {
         const value = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
-        setInCart(Array.isArray(value) && Boolean(productId) && value.includes(productId));
+        setInCart(Array.isArray(value) && Boolean(resolvedProductId) && value.includes(resolvedProductId));
       } catch { setInCart(false); }
     };
     refreshCart();
     window.addEventListener('house-of-briar-cart', refreshCart);
     return () => window.removeEventListener('house-of-briar-cart', refreshCart);
-  }, [productId]);
+  }, [resolvedProductId]);
 
   if (loading) {
     return <HouseShell><section className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:px-8"><div className="aspect-[4/5] animate-pulse rounded-[2rem] bg-muted" /><div className="space-y-5 py-8"><div className="h-4 w-28 animate-pulse rounded-full bg-muted" /><div className="h-16 w-4/5 animate-pulse rounded-2xl bg-muted" /><div className="h-5 w-1/3 animate-pulse rounded-full bg-muted" /><div className="h-24 w-full animate-pulse rounded-2xl bg-muted" /><div className="h-12 w-full animate-pulse rounded-full bg-muted" /></div></section></HouseShell>;
