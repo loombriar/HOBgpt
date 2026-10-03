@@ -13,6 +13,7 @@ const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
+const CHECKOUT_RESERVATION_MINUTES = 31;
 const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'other']);
 
 function safeEqual(a, b) {
@@ -811,13 +812,18 @@ function createApp(options = {}) {
   }
 
   function releaseExpiredInventoryReservations() {
-    const now = new Date().toISOString();
-    db.prepare("UPDATE inventory_reservations SET status = 'released' WHERE status = 'reserved' AND expires_at <= ?").run(now);
+    // Stripe is authoritative for an open Checkout Session. Only release reservations
+    // whose orders are already canceled or failed; timeout release happens from
+    // checkout.session.expired so an old payable Session can never lose its inventory.
+    db.prepare(`UPDATE inventory_reservations
+      SET status = 'released'
+      WHERE status = 'reserved'
+        AND order_id IN (SELECT id FROM orders WHERE status IN ('canceled','failed'))`).run();
   }
 
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
-    const expiresAt = new Date(new Date(now).getTime() + 30 * 60 * 1000).toISOString();
+    const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
     const find = db.prepare("SELECT * FROM inventory_reservations WHERE listing_id = ? AND status IN ('reserved','sold')");
     const upsert = db.prepare(`INSERT INTO inventory_reservations (listing_id, order_id, status, reserved_at, expires_at)
       VALUES (?, ?, 'reserved', ?, ?)
@@ -886,6 +892,7 @@ function createApp(options = {}) {
         mode: 'payment',
         success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
+        expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
         'payment_intent_data[metadata][order_id]': orderId
       });
