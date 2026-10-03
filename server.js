@@ -95,6 +95,7 @@ function createApp(options = {}) {
       description TEXT NOT NULL DEFAULT '',
       price REAL NOT NULL,
       category TEXT NOT NULL,
+      style TEXT,
       status TEXT NOT NULL CHECK (status IN ('draft','pending_review','published','rejected','archived','deleted')),
       moderation_status TEXT NOT NULL CHECK (moderation_status IN ('pending','approved','rejected')),
       legacy_image_url TEXT,
