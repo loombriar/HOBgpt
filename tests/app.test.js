@@ -164,7 +164,8 @@ test('supports multiple uploads, ordering, owner isolation, review gating, and p
 
   const submitted = await getJson(`/api/listings/${encodeURIComponent(listingId)}/submit`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` }
+    headers: { Authorization: `Bearer ${DESIGNER_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ marketplaceRulesAccepted: true })
   });
   assert.equal(submitted.response.status, 200);
   assert.equal(submitted.body.item.status, 'pending_review');
