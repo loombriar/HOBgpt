@@ -280,6 +280,15 @@ function createApp(options = {}) {
   function awardBadge(subject,badgeType,sourceType,sourceId){if(!subject||!sourceId)return;db.prepare('INSERT OR IGNORE INTO user_badges (buyer_subject,badge_type,source_type,source_id,awarded_at) VALUES (?,?,?,?,?)').run(subject,badgeType,sourceType,sourceId,new Date().toISOString());}
 
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
+  // Legacy/configured designer tokens predate designer_profiles. Backfill active profiles so
+  // existing sellers and test fixtures remain public/purchasable; never overwrite an explicit
+  // profile because its suspended status must remain authoritative.
+  const ensureLegacyDesigner = db.prepare(`INSERT OR IGNORE INTO designer_profiles
+    (id,email,display_name,brand_name,status,created_at) VALUES (?,?,?,?, 'active', ?)`);
+  const legacyProfileNow = new Date().toISOString();
+  for (const designerId of new Set(Object.values(designerTokens).map(value => String(value || '').trim()).filter(Boolean))) {
+    ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
+  }
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
@@ -294,9 +303,11 @@ function createApp(options = {}) {
   const seedTx = db.transaction((rows) => {
     const now = new Date().toISOString();
     for (const row of rows) {
+      const designerId = row.designerId || 'house-of-briar';
+      ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, now);
       insertSeed.run(
         row.id,
-        row.designerId || 'house-of-briar',
+        designerId,
         row.title,
         row.description || '',
         Number(row.price) || 0,
