@@ -23,7 +23,7 @@ jobs:
       - run: npm test
       - name: Install marketplace dependencies
         working-directory: apps/default
-        run: npm ci
+        run: npm install --no-package-lock
       - name: Test marketplace
         working-directory: apps/default
         run: npm test
