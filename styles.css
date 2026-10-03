@@ -508,3 +508,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   outline: 3px solid rgba(208, 173, 123, 0.7);
   outline-offset: 2px;
 }
+
+
+/* Launch cleanup */
+.rules-confirmation { display:flex; align-items:flex-start; gap:.65rem; font-weight:500; }
+.stack-form .rules-confirmation input[type="checkbox"] { width:18px; height:18px; min-height:0; flex:0 0 18px; margin:.2rem 0 0; padding:0; }
+.donation-form { margin-top:1rem; text-align:left; }
+.donation-form label { display:block; font-weight:600; margin-bottom:.4rem; }
+.donation-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.5rem; align-items:center; }
+.donation-row input { min-height:46px; border:1px solid var(--border-strong); border-radius:10px; padding:.7rem; width:100%; }

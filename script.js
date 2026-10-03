@@ -34,7 +34,7 @@ let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
 let selectedImages = [];
-let activeFilter = 'all';
+let activeFilter = 'apparel';
 const designerListImageUrls = new Set();
 
 function getCartIds() {
@@ -104,11 +104,7 @@ function formatBytes(bytes) {
 
 function categoryLabel(category) {
   return {
-    home: 'Home',
-    wellness: 'Wellness',
-    gift: 'Gift',
-    apparel: 'Apparel',
-    accessories: 'Accessories',
+    apparel: 'Clothing',
     other: 'Other'
   }[category] || 'Other';
 }
@@ -643,6 +639,28 @@ document.querySelectorAll('.filter-button').forEach((button) => {
     activeFilter = button.dataset.filter || 'all';
     applyFilterButtons();
   });
+});
+
+byId('donation-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const amount = Number(byId('donation-amount')?.value);
+  const message = byId('donation-message');
+  if (!Number.isFinite(amount) || amount < 1 || amount > 1000) {
+    setMessage(message, 'Choose a donation between $1 and $1,000.', 'error');
+    return;
+  }
+  try {
+    setMessage(message, 'Opening secure checkout…', '');
+    const payload = await apiRequest('/api/donations/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount })
+    });
+    if (!payload?.url) throw new Error('Donation checkout did not return a checkout link.');
+    window.location.assign(payload.url);
+  } catch (error) {
+    setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
+  }
 });
 
 byId('newsletter-form')?.addEventListener('submit', (event) => {

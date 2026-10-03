@@ -349,6 +349,8 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
+  // Legacy external garment image URLs are retired; uploaded listing images are authoritative.
+  db.prepare(`UPDATE listings SET legacy_image_url = NULL WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run();
 
   function fail(res, status, code, message) {
     return res.status(status).json({ error: { code, message } });
