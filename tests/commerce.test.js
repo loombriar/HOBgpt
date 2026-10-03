@@ -119,3 +119,6 @@ test('saved pieces refresh across account views and saved shop URLs use clear na
 
 
 test('product pages do not expose a hardcoded Loom Briar or personal contact email',()=>{const product=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','ProductPage.tsx'),'utf8');assert.doesNotMatch(product,/geekgirl1039@gmail\.com/);assert.doesNotMatch(product,/designer === ['"]Loom Briar['"]/);assert.doesNotMatch(product,/mailto:/);assert.match(product,/InquiryForm productName=\{name\}/);});
+
+
+test('checkout does not advertise or calculate unsupported local coupon discounts',()=>{const checkout=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','CheckoutPage.tsx'),'utf8');const stripe=fs.readFileSync(path.join(__dirname,'..','apps','default','src','lib','stripe.ts'),'utf8');assert.doesNotMatch(checkout,/SAVE10/);assert.doesNotMatch(checkout,/couponInput|activeCoupon|discountAmount/);assert.doesNotMatch(stripe,/Promo codes are temporarily unavailable/);assert.match(checkout,/promotions available for this checkout are handled securely by Stripe/);assert.match(checkout,/money\.format\(subtotal\)/);});

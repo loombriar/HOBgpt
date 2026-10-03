@@ -45,9 +45,6 @@ export default function CheckoutPage() {
   const [loadError, setLoadError] = useState('');
   const [paymentState, setPaymentState] = useState<'idle' | 'opening' | 'verifying' | 'paid' | 'cancelled' | 'failed'>(returnState === 'canceled' ? 'cancelled' : 'idle');
   const [paymentError, setPaymentError] = useState('');
-  const [couponInput, setCouponInput] = useState('');
-  const [activeCoupon, setActiveCoupon] = useState('');
-  const [couponError, setCouponError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -74,9 +71,6 @@ export default function CheckoutPage() {
   }, [products, sourceIds]);
   const items = returnState === 'success' && snapshot ? snapshot.items : catalogItems;
   const subtotal = returnState === 'success' && snapshot ? snapshot.subtotal : catalogItems.reduce((sum, item) => sum + item.amount * item.quantity, 0);
-  const discountAmount = activeCoupon === 'SAVE10' ? subtotal * 0.1 : 0;
-  const hasDiscount = discountAmount > 0;
-  const checkoutTotal = subtotal - discountAmount;
   const hasItems = items.length > 0;
   const guestCatalog = !auth.isAuthenticated;
   const canCheckout = catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
@@ -125,23 +119,6 @@ export default function CheckoutPage() {
     return () => { active = false; };
   }, [returnState, sessionId, snapshot]);
 
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
-    if (!code) {
-      setCouponError('Enter a coupon code.');
-      setActiveCoupon('');
-      return;
-    }
-    if (code !== 'SAVE10') {
-      setCouponError('That coupon code is not recognized.');
-      setActiveCoupon('');
-      return;
-    }
-    setCouponInput(code);
-    setActiveCoupon(code);
-    setCouponError('');
-  };
-
   const beginCheckout = async () => {
     setPaymentState('opening');
     setPaymentError('');
@@ -149,7 +126,7 @@ export default function CheckoutPage() {
     const nextSnapshot: CheckoutSnapshot = { ids: catalogItems.map((item) => item.id), items: catalogItems, subtotal };
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
     try {
-      const url = await createCheckoutSession(checkoutItems, activeCoupon, auth.user?.access_token ?? '');
+      const url = await createCheckoutSession(checkoutItems, auth.user?.access_token ?? '');
       window.location.assign(url);
     } catch (error) {
       window.localStorage.removeItem(PENDING_KEY);
@@ -199,21 +176,14 @@ export default function CheckoutPage() {
           {paymentComplete ? <div className="py-3 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"><BadgeCheck size={28} /></span><h2 id="summary-heading" className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Stripe confirmed your payment. Your bag has been cleared on this device.</p><p className="mt-3 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Continue shopping</Link></div> : <>
             <h2 id="summary-heading" className="font-serif text-2xl">Your order</h2>
             <div className="mt-5 divide-y divide-border">{items.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 py-4"><div className="min-w-0"><p className="truncate text-sm">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">One of one · Qty 1</p></div><p className="shrink-0 text-sm font-medium tabular-nums">{money.format(item.amount * item.quantity)}</p></div>)}</div>
-            <div className="mt-5 border-t border-border pt-5">
-              <label htmlFor="coupon-code" className="text-sm font-medium">Coupon code</label>
-              <div className="mt-2 flex gap-2"><input id="coupon-code" type="text" autoComplete="off" maxLength={24} value={couponInput} onChange={(event) => { setCouponInput(event.target.value); setActiveCoupon(''); setCouponError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyCoupon(); } }} aria-invalid={Boolean(couponError)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Enter SAVE10" /><button type="button" onClick={applyCoupon} className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium transition hover:border-primary hover:text-primary">Apply</button></div>
-              {couponError && <p role="alert" className="mt-2 text-sm text-destructive">{couponError}</p>}
-              {activeCoupon === 'SAVE10' && <p role="status" className="mt-2 text-sm text-primary">SAVE10 applied: 10% off your items.</p>}
-            </div>
-            <div className="mt-5 flex items-center justify-between"><span className="text-sm text-muted-foreground">Item subtotal</span><span className="text-sm tabular-nums">{money.format(subtotal)}</span></div>
-            {hasDiscount && <div className="mt-2 flex items-center justify-between text-sm text-primary"><span>SAVE10 discount</span><span className="tabular-nums">−{money.format(discountAmount)}</span></div>}
-            <div className="mt-3 flex items-center justify-between border-t border-border pt-4"><span className="text-sm font-medium">Items total</span><span className="text-xl font-semibold tabular-nums">{money.format(checkoutTotal)}</span></div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">Delivery is added in Stripe. Other promo codes must already be active in your Stripe account.</p>
+            <div className="mt-5 flex items-center justify-between border-t border-border pt-5"><span className="text-sm text-muted-foreground">Item subtotal</span><span className="text-sm tabular-nums">{money.format(subtotal)}</span></div>
+            <div className="mt-3 flex items-center justify-between border-t border-border pt-4"><span className="text-sm font-medium">Items total</span><span className="text-xl font-semibold tabular-nums">{money.format(subtotal)}</span></div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">Delivery and any promotions available for this checkout are handled securely by Stripe.</p>
             {paymentState === 'cancelled' && <p role="status" className="mt-4 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">Checkout was canceled. Your bag is still here.</p>}
             {(paymentState === 'failed' || paymentError) && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{paymentError}</p>}
             {guestCatalog && <p role="status" className="mt-4 text-sm leading-6 text-muted-foreground">Guest checkout uses the public catalog prices, which may not reflect recent changes. Please review the total in Stripe before paying.</p>}
             <button type="button" onClick={() => void beginCheckout()} disabled={!canCheckout || paymentState === 'opening' || paymentState === 'verifying'} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60">{paymentState === 'opening' ? 'Opening secure checkout…' : 'Continue to secure checkout'} <ArrowRight size={16} /></button>
-            <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">By continuing, you’ll enter a secure Stripe checkout. Promo codes must be active in your Stripe account.</p>
+            <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">By continuing, you’ll enter a secure Stripe checkout. Any available discounts are shown and applied in secure checkout.</p>
           </>}
         </aside>
       </div>}
