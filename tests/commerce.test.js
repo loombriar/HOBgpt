@@ -132,6 +132,8 @@ test('buyer-only accounts keep purchases and saved pieces without requiring Desi
 test('saved pieces refresh across account views and saved shop URLs use clear naming',()=>{const account=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','AccountPage.tsx'),'utf8');const shop=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','ShopPage.tsx'),'utf8');assert.match(account,/house-of-briar-saved-products/);assert.match(account,/refreshFavorites/);assert.match(shop,/searchParams\.get\('saved'\)/);assert.match(shop,/searchParams\.get\('liked'\)/);});
 
 
+test('slug product pages use the canonical product id for saved and cart state',()=>{const page=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','ProductPage.tsx'),'utf8');assert.match(page,/const resolvedProductId = product\?\.id/);assert.match(page,/getSavedProductIds\(\)\.includes\(resolvedProductId\)/);assert.match(page,/ids\.includes\(resolvedProductId\)/);assert.match(page,/value\.includes\(resolvedProductId\)/);});
+
 test('product pages do not expose a hardcoded Loom Briar or personal contact email',()=>{const product=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','ProductPage.tsx'),'utf8');assert.doesNotMatch(product,/geekgirl1039@gmail\.com/);assert.doesNotMatch(product,/designer === ['"]Loom Briar['"]/);assert.doesNotMatch(product,/mailto:/);assert.match(product,/InquiryForm productName=\{name\}/);});
 
 
