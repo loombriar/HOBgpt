@@ -6,6 +6,7 @@ import { GenesisAuth } from '@/lib/genesis-auth';
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const ShopPage = lazy(() => import('@/pages/ShopPage'));
 const ProductPage = lazy(() => import('@/pages/ProductPage'));
+const DesignerStorefrontPage = lazy(() => import('@/pages/DesignerStorefrontPage'));
 const DesignersPage = lazy(() => import('@/pages/DesignersPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -24,6 +25,7 @@ function AppRoutes() {
       <Route path="/shop" element={<Section name="Shop"><ShopPage /></Section>} />
       <Route path="/shop/:productId" element={<Section name="Product"><ProductPage /></Section>} />
       <Route path="/designers" element={<Section name="Designers"><DesignersPage /></Section>} />
+      <Route path="/designers/:designerId" element={<Section name="Designer storefront"><DesignerStorefrontPage /></Section>} />
       <Route path="/account" element={<Section name="Your studio"><AccountPage /></Section>} />
       <Route path="/cart" element={<Section name="Bag"><CartPage /></Section>} />
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
