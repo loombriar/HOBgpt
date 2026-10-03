@@ -1601,8 +1601,15 @@ function createApp(options = {}) {
       const order = db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?').get(session.id);
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
-      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
       if (paid) {
+        const sessionCurrency = typeof session.currency === 'string' ? session.currency.toLowerCase() : '';
+        const sessionTotal = Number(session.amount_total);
+        const sessionOrderId = session.metadata?.order_id;
+        if (sessionOrderId !== order.id || sessionCurrency !== String(order.currency).toLowerCase() || !Number.isInteger(sessionTotal) || sessionTotal !== order.subtotal_cents) {
+          return fail(res, 409, 'payment_mismatch', 'Checkout payment does not match this order.');
+        }
+        if (order.status === 'canceled' || order.status === 'failed') return fail(res, 409, 'order_closed', 'Checkout order is no longer payable.');
+        if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
       }
