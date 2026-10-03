@@ -33,7 +33,7 @@ function StudioContent() {
   const [payoutStatus, setPayoutStatus] = useState<{ connected: boolean; onboardingComplete: boolean; payoutsEnabled: boolean } | null>(null);
   const [payoutMessage, setPayoutMessage] = useState('');
   const [payoutLoading, setPayoutLoading] = useState(false);
-  const [studioAccess, setStudioAccess] = useState<'checking' | 'designer' | 'signup'>('checking');
+  const [studioAccess, setStudioAccess] = useState<'checking' | 'designer' | 'signup' | 'error'>('checking');
   const [rulesAccepted,setRulesAccepted]=useState<Record<string,boolean>>({});
 
   const sellerToken = auth.user?.access_token ?? '';
@@ -97,8 +97,8 @@ function StudioContent() {
           return;
         }
         if (response.status === 403 || response.status === 404) { setStudioAccess('signup'); return; }
-        setStudioAccess('signup');
-      } catch { if (active) setStudioAccess('signup'); }
+        setStudioAccess('error');
+      } catch { if (active) setStudioAccess('error'); }
     })();
     return () => { active = false; };
   }, [auth.isAuthenticated, sellerToken]);
@@ -119,6 +119,10 @@ function StudioContent() {
 
   if (auth.isAuthenticated && studioAccess === 'checking') {
     return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><h1 className="font-serif text-4xl">Opening your account…</h1><p className="mt-3 text-sm text-muted-foreground">Checking for your House of Briar designer profile.</p></div>;
+  }
+
+  if (auth.isAuthenticated && studioAccess === 'error') {
+    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><h1 className="font-serif text-4xl">Designer Studio is temporarily unavailable.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">We could not verify your designer profile right now. Your account has not been changed. Please try again shortly.</p><button type="button" onClick={() => window.location.reload()} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Try again</button></div>;
   }
 
   if (auth.isAuthenticated && studioAccess === 'signup') {
