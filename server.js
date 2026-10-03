@@ -1435,6 +1435,11 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
+  app.get('/api/my/donations', authBuyer, (req,res) => {
+    const rows=db.prepare("SELECT id,amount_cents,currency,status,created_at,paid_at FROM donations WHERE buyer_subject=? ORDER BY created_at DESC").all(req.buyerSubject);
+    return res.json({donations:rows.map(row=>({id:row.id,amountCents:row.amount_cents,currency:row.currency,status:row.status,createdAt:row.created_at,paidAt:row.paid_at||null,badgeEligible:row.status==='paid'&&row.amount_cents>=500}))});
+  });
+
   app.get('/api/my/badges', authBuyer, (req,res) => {
     const rows=db.prepare('SELECT badge_type,awarded_at FROM user_badges WHERE buyer_subject=? ORDER BY awarded_at').all(req.buyerSubject);
     return res.json({badges:rows.map(row=>({type:row.badge_type,awardedAt:row.awarded_at}))});
