@@ -275,6 +275,35 @@ function createApp(options = {}) {
     return res.status(status).json({ error: { code, message } });
   }
 
+  function validOptionalHttpUrl(value) {
+    if (!value) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch { return false; }
+  }
+
+  function rateLimit({ windowMs, max, keyPrefix }) {
+    const hits = new Map();
+    return (req, res, next) => {
+      const now = Date.now();
+      const key = `${keyPrefix}:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+      let entry = hits.get(key);
+      if (!entry || entry.resetAt <= now) entry = { count: 0, resetAt: now + windowMs };
+      entry.count += 1;
+      hits.set(key, entry);
+      if (entry.count > max) {
+        res.set('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
+        return fail(res, 429, 'rate_limited', 'Too many requests. Please try again shortly.');
+      }
+      if (hits.size > 5000) for (const [storedKey, stored] of hits) if (stored.resetAt <= now) hits.delete(storedKey);
+      return next();
+    };
+  }
+
+  const signupLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'signup' });
+  const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'checkout' });
+
   function trustedAppOrigin(req) {
     return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
   }
@@ -544,7 +573,7 @@ function createApp(options = {}) {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-  app.post('/api/designer-applications', (req, res) => {
+  app.post('/api/designer-applications', signupLimiter, (req, res) => {
     const email=String(req.body?.email||'').trim().toLowerCase();
     const displayName=String(req.body?.displayName||'').trim();
     const brandName=String(req.body?.brandName||'').trim();
@@ -557,7 +586,7 @@ function createApp(options = {}) {
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(value=>String(value).trim()).filter(Boolean))]:[];
     const originalityConfirmed=req.body?.originalityConfirmed===true;
     const marketplaceTermsAccepted=req.body?.marketplaceTermsAccepted===true;
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||!location||location.length>160||statement.length>2000||portfolioUrl.length>500||socialUrl.length>500||priceRange.length>100||productionMethod.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)||!originalityConfirmed||!marketplaceTermsAccepted)return fail(res,422,'validation_error','Complete the required designer profile fields and confirmations.');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||!location||location.length>160||statement.length>2000||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||priceRange.length>100||productionMethod.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)||!originalityConfirmed||!marketplaceTermsAccepted)return fail(res,422,'validation_error','Complete the required designer profile fields and confirmations.');
     const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE lower(email)=?").get(email);
     if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
     const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
@@ -875,12 +904,12 @@ function createApp(options = {}) {
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
     return { currency: 'usd', items: rows, subtotalCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
   }
-  app.post('/api/checkout/quote', (req, res) => {
+  app.post('/api/checkout/quote', checkoutLimiter, (req, res) => {
     try { return res.json(buildCheckoutQuote(req.body?.items)); }
     catch (error) { return fail(res, error.statusCode || 422, 'invalid_cart', error.message); }
   });
 
-  app.post('/api/checkout/session', async (req, res, next) => {
+  app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
     try {
       const quote = buildCheckoutQuote(req.body?.items);
       const orderId = makeId();
