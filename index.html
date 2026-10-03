@@ -36,6 +36,7 @@
 
           <div class="header-actions">
             <button class="ghost-button" type="button" id="designer-login-btn">Designer portal</button>
+            <button class="ghost-button" type="button" id="admin-review-btn">Admin review</button>
             <button class="primary-button" type="button" id="cart-btn" aria-label="Shopping bag, 0 items">Cart (0)</button>
           </div>
         </div>
@@ -191,6 +192,26 @@
           </div>
           <p class="small-print">Submission follows the server’s configured publication policy. Drafts and pending items stay out of the public gallery.</p>
         </form>
+      </section>
+    </dialog>
+
+    <dialog id="admin-review-dialog" class="app-dialog admin-review-dialog" aria-labelledby="admin-review-title">
+      <div class="dialog-header">
+        <div><p class="eyebrow">House of Briar administration</p><h2 id="admin-review-title">Clothing review</h2></div>
+        <button class="icon-button" id="admin-review-close" type="button" aria-label="Close clothing review">×</button>
+      </div>
+      <section id="admin-login-panel" class="login-panel">
+        <p>Enter your private administrator code to review submitted clothing.</p>
+        <form id="admin-login-form" class="stack-form">
+          <label for="admin-token">Administrator code</label>
+          <input id="admin-token" type="password" autocomplete="current-password" required />
+          <button class="primary-button" type="submit">Open review queue</button>
+        </form>
+        <p id="admin-review-message" class="form-message" role="status" aria-live="polite"></p>
+      </section>
+      <section id="admin-review-workspace" class="hidden">
+        <div class="studio-toolbar"><div><h3>Pending clothing</h3><p>Approve pieces to publish them in the Shop, or reject them with a reason.</p></div><button id="admin-signout-btn" class="text-button" type="button">Sign out</button></div>
+        <div id="admin-review-list" class="admin-review-list" aria-live="polite"></div>
       </section>
     </dialog>
 
