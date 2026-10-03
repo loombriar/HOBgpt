@@ -122,3 +122,8 @@ test('product pages do not expose a hardcoded Loom Briar or personal contact ema
 
 
 test('checkout does not advertise or calculate unsupported local coupon discounts',()=>{const checkout=fs.readFileSync(path.join(__dirname,'..','apps','default','src','pages','CheckoutPage.tsx'),'utf8');const stripe=fs.readFileSync(path.join(__dirname,'..','apps','default','src','lib','stripe.ts'),'utf8');assert.doesNotMatch(checkout,/SAVE10/);assert.doesNotMatch(checkout,/couponInput|activeCoupon|discountAmount/);assert.doesNotMatch(stripe,/Promo codes are temporarily unavailable/);assert.match(checkout,/promotions available for this checkout are handled securely by Stripe/);assert.match(checkout,/money\.format\(subtotal\)/);});
+
+
+test('every Designer Studio marketplace category is accepted by listing validation',async()=>{for(const category of ['one-of-a-kind','upcycled','vintage-inspired','handmade','botanical','limited edition','statement piece','costumes']){const created=await json('/api/listings',{method:'POST',headers:{Authorization:'Bearer '+DESIGNER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({title:'Category '+category,description:'Category compatibility test',price:25,category})});assert.equal(created.response.status,201,category);assert.equal(created.body.item.category,category);}});
+
+test('CI gates both backend and marketplace tests plus the production marketplace build',()=>{const workflow=fs.readFileSync(path.join(__dirname,'..','.github','workflows','ci.yml'),'utf8');assert.match(workflow,/working-directory: apps\/default/);assert.match(workflow,/Test marketplace/);assert.match(workflow,/Build marketplace/);assert.match(workflow,/npm run build/);});
