@@ -79,6 +79,9 @@ function createApp(options = {}) {
       throw new Error('APP_ORIGIN must be an absolute HTTP(S) origin without a path.');
     }
   }
+  if (process.env.NODE_ENV === 'production' && new URL(configuredAppOrigin).protocol !== 'https:') {
+    throw new Error('APP_ORIGIN must use HTTPS in production.');
+  }
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
 
