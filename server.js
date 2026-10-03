@@ -351,7 +351,7 @@ function createApp(options = {}) {
   seedTx(seedProducts);
   // Retire old demo/seed garments. The live catalog should contain only designer-uploaded listings.
   db.prepare(`UPDATE listings
-    SET status = 'archived', moderation_status = 'archived', updated_at = ?
+    SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
     WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
 
   function fail(res, status, code, message) {
