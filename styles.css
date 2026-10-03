@@ -53,18 +53,12 @@ button, input, select, textarea { font: inherit; }
   gap: 0.8rem;
   min-width: 0;
 }
-.brand-icon {
-  width: 2.6rem;
-  height: 2.6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--text-dark);
-  color: white;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 2rem;
-  font-weight: 700;
+.brand-logo {
+  width: 3.4rem;
+  height: 3.4rem;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(62, 48, 30, 0.14);
 }
 .brand-name {
   display: block;
@@ -148,6 +142,61 @@ h2 { font-size: clamp(2rem, 3vw, 3rem); }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+.enchanted-hero {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  min-height: 390px;
+  border-radius: 24px;
+  background: #eee3d0;
+  box-shadow: var(--shadow-lg);
+  isolation: isolate;
+}
+.hero-art {
+  width: 100%;
+  height: 100%;
+  min-height: 390px;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.015);
+  animation: briar-drift 16s ease-in-out infinite alternate;
+}
+.hero-glow {
+  position: absolute;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  background: rgba(255, 238, 177, 0.28);
+  filter: blur(24px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: briar-glow 5s ease-in-out infinite alternate;
+}
+.hero-glow-one { top: 7%; right: 12%; }
+.hero-glow-two { bottom: 10%; left: 34%; animation-delay: -2.5s; }
+.hero-sparkle {
+  position: absolute;
+  z-index: 2;
+  color: rgba(255, 244, 193, 0.95);
+  text-shadow: 0 0 12px rgba(255, 226, 133, 0.9);
+  pointer-events: none;
+  animation: briar-sparkle 3.8s ease-in-out infinite;
+}
+.sparkle-one { top: 18%; left: 18%; font-size: 1.1rem; }
+.sparkle-two { top: 34%; right: 20%; font-size: 1.5rem; animation-delay: -1.4s; }
+.sparkle-three { bottom: 18%; left: 57%; font-size: 1rem; animation-delay: -2.6s; }
+@keyframes briar-drift {
+  from { transform: scale(1.015) translate3d(-0.25%, -0.2%, 0); }
+  to { transform: scale(1.045) translate3d(0.35%, 0.25%, 0); }
+}
+@keyframes briar-glow {
+  from { opacity: 0.38; transform: scale(0.9); }
+  to { opacity: 0.82; transform: scale(1.12); }
+}
+@keyframes briar-sparkle {
+  0%, 100% { opacity: 0.18; transform: translateY(4px) scale(0.72) rotate(0deg); }
+  50% { opacity: 1; transform: translateY(-5px) scale(1.15) rotate(12deg); }
 }
 .card {
   background: linear-gradient(140deg, #e8ddc9, #f8eddc);
@@ -452,6 +501,7 @@ h2 { font-size: clamp(2rem, 3vw, 3rem); }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; transition: none !important; }
+  .hero-art, .hero-glow, .hero-sparkle { animation: none !important; }
 }
 
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible {
