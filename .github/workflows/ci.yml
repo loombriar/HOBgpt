@@ -27,3 +27,6 @@ jobs:
       - name: Test marketplace gateway contracts
         working-directory: apps/default
         run: npm test
+      - name: Build marketplace
+        working-directory: apps/default
+        run: npm run build
