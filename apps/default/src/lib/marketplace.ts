@@ -112,6 +112,7 @@ export const MARKET_CATEGORIES = [
   'Botanical',
   'Limited edition',
   'Statement piece',
+  'Costumes',
 ] as const;
 
 export const money = new Intl.NumberFormat('en-US', {
