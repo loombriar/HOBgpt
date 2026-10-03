@@ -371,7 +371,7 @@ function createApp(options = {}) {
     const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
     if (!discovery.ok) return null;
     const metadata = await discovery.json();
-    if (typeof metadata.userinfo_endpoint !== 'string') return null;
+    if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
     const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
     if (!userInfo.ok) return null;
     return userInfo.json();
