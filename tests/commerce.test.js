@@ -32,6 +32,8 @@ test('EasyPost webhook verifies HMAC v2 against exact raw body and freshness',()
 test('refund reverses transfers before refund and uses idempotency',()=>{const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');const reversal=source.indexOf('/reversals');const refund=source.indexOf("stripeApi('refunds'");assert.ok(reversal>-1&&refund>reversal);assert.match(source,/hob-refund-reversal-/);assert.match(source,/hob-refund-/);});
 
 
+test('Stripe checkout enables Stripe-managed promotion codes',()=>{const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');const route=source.slice(source.indexOf("app.post('/api/checkout/session'"),source.indexOf("app.post('/api/checkout/cancel/:orderId'"));assert.match(route,/allow_promotion_codes: 'true'/);});
+
 test('checkout reserves inventory before Stripe and safely expires canceled sessions',()=>{const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');const route=source.slice(source.indexOf("app.post('/api/checkout/session'"),source.indexOf("app.get('/api/gallery'"));assert.ok(route.indexOf('reserveInventory(orderId, quote.items, now)')<route.indexOf("stripeApi('checkout/sessions'"));assert.match(route,/idempotencyKey: `hob-checkout-\$\{orderId\}`/);assert.match(route,/catch \(error\) \{\s*\/\/ Never strand[\s\S]*releaseOrderInventory\(orderId\)/);assert.match(route,/checkout\/sessions\/\$\{encodeURIComponent\(order\.stripe_session_id\)\}\/expire/);assert.ok(route.indexOf('/expire')<route.lastIndexOf('releaseOrderInventory(order.id)'));});
 
 
