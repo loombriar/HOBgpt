@@ -1,4 +1,4 @@
-import { getNodes, type GenesisNode } from '@/lib/genesis-data';
+import { type GenesisNode } from '@/lib/genesis-data';
 
 export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
 
@@ -53,8 +53,49 @@ const PUBLIC_PRODUCTS_SNAPSHOT: GenesisNode[] = [
   },
 ];
 
-export function getCatalogProducts(isAuthenticated: boolean): Promise<GenesisNode[]> {
-  return isAuthenticated ? getNodes(PRODUCTS_PROJECT_ID) : Promise.resolve(PUBLIC_PRODUCTS_SNAPSHOT);
+type GalleryItem = {
+  id: string;
+  title: string;
+  description?: string;
+  price: number;
+  category?: string;
+  designerId?: string;
+  designerName?: string;
+  status?: string;
+  images?: Array<{ url: string }>;
+};
+
+function galleryItemToGenesis(item: GalleryItem): GenesisNode {
+  const images = Array.isArray(item.images) ? item.images.map((image) => image.url).filter(Boolean) : [];
+  return {
+    id: item.id,
+    parentId: null,
+    content: item.title,
+    fieldValues: {
+      '/attributes/@price': String(item.price ?? 0),
+      '/attributes/@categ': item.category || 'One-of-a-kind',
+      '/attributes/@tagsx': item.category || 'Independent design',
+      '/attributes/@sizex': 'One of one',
+      '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
+      '/attributes/@descr': item.description || 'A one-of-a-kind piece made with intention.',
+      '/attributes/@statx': item.status === 'published' || !item.status ? 'Available' : item.status,
+      '/attributes/@image': images[0] || '',
+      '/attributes/@gally': images.join('\n'),
+    },
+  };
+}
+
+export async function getCatalogProducts(_isAuthenticated: boolean): Promise<GenesisNode[]> {
+  try {
+    const response = await fetch('/api/gallery', { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Marketplace gallery unavailable.');
+    const data = await response.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+    if (items.length > 0) return items.map(galleryItemToGenesis);
+  } catch {
+    // Keep the founding edit visible while the API is unavailable or before the first moderated listings launch.
+  }
+  return PUBLIC_PRODUCTS_SNAPSHOT;
 }
 export const DESIGNERS_PROJECT_ID = 'WEttcv6jabX2q9a9';
 export const PRIVATE_DESIGNER_LISTINGS_PROJECT_ID = 'QUQPuN1aFvGorkJ3';
