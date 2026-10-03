@@ -111,6 +111,18 @@ test('health and gallery endpoints respond with the expected JSON shape', async 
   assert.equal(unauthorized.response.status, 401);
 });
 
+test('designer session endpoint validates the access token', async () => {
+  const unauthorized = await getJson('/api/session', { method: 'POST' });
+  assert.equal(unauthorized.response.status, 401);
+
+  const authorized = await getJson('/api/session', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` }
+  });
+  assert.equal(authorized.response.status, 200);
+  assert.deepEqual(authorized.body, { ok: true, designerId: 'designer-a' });
+});
+
 test('supports multiple uploads, ordering, owner isolation, review gating, and publication', async () => {
   const created = await getJson('/api/listings', {
     method: 'POST',
