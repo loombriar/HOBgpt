@@ -27,9 +27,20 @@ const productDetailContent = byId('product-detail-content');
 const productIdInput = byId('product-id');
 const listingFormTitle = byId('listing-form-title');
 const cartButton = byId('cart-btn');
+const adminReviewBtn = byId('admin-review-btn');
+const adminReviewDialog = byId('admin-review-dialog');
+const adminReviewClose = byId('admin-review-close');
+const adminLoginForm = byId('admin-login-form');
+const adminTokenInput = byId('admin-token');
+const adminLoginPanel = byId('admin-login-panel');
+const adminReviewWorkspace = byId('admin-review-workspace');
+const adminReviewList = byId('admin-review-list');
+const adminReviewMessage = byId('admin-review-message');
+const adminSignoutBtn = byId('admin-signout-btn');
 const CART_KEY = 'house-of-briar:cart';
 
 let designerToken = sessionStorage.getItem('briarDesignerToken') || '';
+let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
@@ -679,3 +690,100 @@ if (designerToken) {
 }
 
 loadGallery();
+
+function adminHeaders(extra = {}) {
+  const headers = new Headers(extra);
+  if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
+  return headers;
+}
+async function adminRequest(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: adminHeaders(options.headers) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error?.message || `Request failed (${response.status}).`);
+  return payload;
+}
+async function adminImagePreview(url) {
+  const response = await fetch(url, { headers: adminHeaders() });
+  if (!response.ok) throw new Error('Image preview unavailable.');
+  return URL.createObjectURL(await response.blob());
+}
+async function renderAdminQueue() {
+  if (!adminReviewList) return;
+  adminReviewList.replaceChildren();
+  setMessage(adminReviewMessage, 'Loading pending clothing…');
+  try {
+    const payload = await adminRequest('/api/admin/listings/review-queue');
+    adminLoginPanel?.classList.add('hidden');
+    adminReviewWorkspace?.classList.remove('hidden');
+    setMessage(adminReviewMessage, '');
+    if (!payload.items?.length) {
+      adminReviewList.appendChild(makeElement('p', 'empty-state', 'No clothing is waiting for approval.'));
+      return;
+    }
+    for (const item of payload.items) {
+      const card = makeElement('article', 'admin-review-card');
+      const media = makeElement('div', 'admin-review-media');
+      const image = document.createElement('img');
+      image.alt = `${item.title} submitted clothing`;
+      if (item.images?.[0]?.url) {
+        adminImagePreview(item.images[0].url).then(url => { image.src = url; }).catch(() => { media.textContent = 'Preview unavailable'; });
+        media.appendChild(image);
+      } else media.textContent = 'No image';
+      const body = makeElement('div', 'admin-review-copy');
+      body.append(makeElement('span', 'status-badge', 'Pending review'));
+      body.append(makeElement('h3', '', item.title));
+      body.append(makeElement('p', 'admin-review-meta', `${item.designerName || item.designerId || 'Designer'} · $${Number(item.price).toFixed(2)} · ${categoryLabel(item.category)}`));
+      body.append(makeElement('p', '', item.description || 'No description provided.'));
+      const reason = document.createElement('textarea');
+      reason.rows = 2; reason.maxLength = 1000; reason.placeholder = 'Reason required only if rejecting';
+      reason.setAttribute('aria-label', `Rejection reason for ${item.title}`);
+      const actions = makeElement('div', 'form-actions');
+      const approve = makeElement('button', 'primary-button', 'Approve');
+      approve.type = 'button';
+      approve.addEventListener('click', async () => {
+        approve.disabled = true;
+        try { await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/approve`, { method:'POST' }); await renderAdminQueue(); await loadGallery(); }
+        catch (error) { setMessage(adminReviewMessage, error.message, 'error'); approve.disabled = false; }
+      });
+      const reject = makeElement('button', 'secondary-button', 'Reject');
+      reject.type = 'button';
+      reject.addEventListener('click', async () => {
+        const why = reason.value.trim();
+        if (!why) { setMessage(adminReviewMessage, 'Enter a reason before rejecting a listing.', 'error'); reason.focus(); return; }
+        reject.disabled = true;
+        try {
+          await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/reject`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason:why}) });
+          await renderAdminQueue();
+        } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); reject.disabled = false; }
+      });
+      actions.append(approve, reject);
+      body.append(reason, actions);
+      card.append(media, body);
+      adminReviewList.appendChild(card);
+    }
+  } catch (error) {
+    adminReviewWorkspace?.classList.add('hidden');
+    adminLoginPanel?.classList.remove('hidden');
+    setMessage(adminReviewMessage, error.message, 'error');
+  }
+}
+adminReviewBtn?.addEventListener('click', () => {
+  adminReviewDialog?.showModal();
+  if (adminToken) renderAdminQueue();
+});
+adminReviewClose?.addEventListener('click', () => adminReviewDialog?.close());
+adminLoginForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  adminToken = adminTokenInput?.value.trim() || '';
+  if (!adminToken) return;
+  sessionStorage.setItem('briarAdminToken', adminToken);
+  await renderAdminQueue();
+});
+adminSignoutBtn?.addEventListener('click', () => {
+  adminToken = '';
+  sessionStorage.removeItem('briarAdminToken');
+  if (adminTokenInput) adminTokenInput.value = '';
+  adminReviewWorkspace?.classList.add('hidden');
+  adminLoginPanel?.classList.remove('hidden');
+  setMessage(adminReviewMessage, '');
+});
