@@ -1662,6 +1662,8 @@ function createApp(options = {}) {
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
   app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
+  app.get('/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').sendFile(path.join(rootDir, 'manifest.webmanifest')));
+  app.get('/service-worker.js', (_req, res) => res.type('application/javascript').set('Service-Worker-Allowed', '/').sendFile(path.join(rootDir, 'service-worker.js')));
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
     res.sendFile(path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png'))
   );
