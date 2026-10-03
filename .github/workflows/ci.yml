@@ -21,3 +21,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Install marketplace dependencies
+        working-directory: apps/default
+        run: npm ci
+      - name: Test marketplace gateway contracts
+        working-directory: apps/default
+        run: npm test
