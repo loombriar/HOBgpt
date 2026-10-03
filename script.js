@@ -34,7 +34,7 @@ let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
 let selectedImages = [];
-let activeFilter = 'all';
+let activeFilter = 'apparel';
 const designerListImageUrls = new Set();
 
 function getCartIds() {
