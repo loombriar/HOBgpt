@@ -1654,6 +1654,12 @@ function createApp(options = {}) {
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
   app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
+  app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
+    res.sendFile(path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png'))
+  );
+  app.get('/House%20of%20Briar%20Enchanted%20Sewing%20Bower.png', (_req, res) =>
+    res.sendFile(path.join(rootDir, 'House of Briar Enchanted Sewing Bower.png'))
+  );
 
   app.use((error, _req, res, _next) => {
     if (error instanceof multer.MulterError) {
