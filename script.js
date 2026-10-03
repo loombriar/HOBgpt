@@ -767,9 +767,14 @@ async function renderAdminQueue() {
     setMessage(adminReviewMessage, error.message, 'error');
   }
 }
-adminReviewBtn?.addEventListener('click', () => {
+function openAdminReview() {
   adminReviewDialog?.showModal();
   if (adminToken) renderAdminQueue();
+}
+adminReviewBtn?.addEventListener('click', openAdminReview);
+if (window.location.hash === '#admin-review') openAdminReview();
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#admin-review' && !adminReviewDialog?.open) openAdminReview();
 });
 adminReviewClose?.addEventListener('click', () => adminReviewDialog?.close());
 adminLoginForm?.addEventListener('submit', async (event) => {
