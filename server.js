@@ -487,6 +487,7 @@ function createApp(options = {}) {
       description: row.description,
       price: Number(row.price),
       category: row.category,
+      style: row.style || '',
       designerId: row.designer_id,
       designerName: row.designer_name || undefined,
       status: row.status,
@@ -1147,9 +1148,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1158,6 +1159,7 @@ function createApp(options = {}) {
       validation.value.description,
       validation.value.price,
       validation.value.category,
+      validation.value.style || null,
       timestamp,
       timestamp
     );
@@ -1180,13 +1182,14 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(
       validation.value.title,
       validation.value.description,
       validation.value.price,
       validation.value.category,
+      validation.value.style || null,
       timestamp,
       row.id
     );
