@@ -214,6 +214,12 @@ function createApp(options = {}) {
   ensureColumn('designer_applications', 'production_method', 'TEXT');
   ensureColumn('designer_applications', 'originality_confirmed', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_applications', 'marketplace_terms_accepted', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_profiles', 'bio', 'TEXT');
+  ensureColumn('designer_profiles', 'location', 'TEXT');
+  ensureColumn('designer_profiles', 'production_method', 'TEXT');
+  ensureColumn('designer_profiles', 'categories', "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('designer_profiles', 'portfolio_url', 'TEXT');
+  ensureColumn('designer_profiles', 'social_url', 'TEXT');
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -651,7 +657,7 @@ function createApp(options = {}) {
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
     db.transaction(()=>{
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,?,?,'approved',?,?,?,?,?,?,?,?,1,1)").run(id,email,displayName,brandName,portfolioUrl||null,statement,designerId,now,now,location,socialUrl||null,JSON.stringify(categories),priceRange||null,productionMethod||null);
-      db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at) VALUES (?,?,?,?,?,'active',?)").run(designerId,email,displayName,brandName,id,now);
+      db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,?,?,?,?,?,?)").run(designerId,email,displayName,brandName,id,now,statement||null,location,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null);
     })();
     return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false}});
   });
@@ -950,7 +956,7 @@ function createApp(options = {}) {
     }
     const rows = [];
     for (const [id, quantity] of quantities) {
-      const listing = db.prepare("SELECT * FROM listings WHERE id = ? AND status = 'published' AND moderation_status = 'approved'").get(id);
+      const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved'").get(id);
       if (!listing) throw Object.assign(new Error('One or more pieces are no longer available.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
       const lineTotalCents = unitAmountCents * quantity;
@@ -1055,11 +1061,38 @@ function createApp(options = {}) {
     const rows = db.prepare(`
       SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
       FROM listings l
-      LEFT JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'
+      JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'
       WHERE l.status = 'published' AND l.moderation_status = 'approved'
       ORDER BY l.published_at DESC, l.created_at DESC
     `).all();
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
+  });
+
+  app.get('/api/designers/:designerId', (req, res) => {
+    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url
+      FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
+    if (!designer) return fail(res, 404, 'designer_not_found', 'Designer storefront not found.');
+    const rows = db.prepare(`SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
+      FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE l.designer_id=? AND l.status='published' AND l.moderation_status='approved'
+      ORDER BY l.published_at DESC, l.created_at DESC`).all(designer.id);
+    let categories=[]; try { categories=JSON.parse(designer.categories||'[]'); } catch {}
+    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null},items:rows.map(row=>serializeListing(row,'public'))});
+  });
+
+  app.patch('/api/my/designer-profile', authDesigner, (req,res) => {
+    const current=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+    if(!current)return fail(res,404,'designer_not_found','Active designer profile not found.');
+    const brandName=String(req.body?.brandName??current.brand_name).trim();
+    const bio=String(req.body?.bio??current.bio??'').trim();
+    const location=String(req.body?.location??current.location??'').trim();
+    const productionMethod=String(req.body?.productionMethod??current.production_method??'').trim();
+    const portfolioUrl=String(req.body?.portfolioUrl??current.portfolio_url??'').trim();
+    const socialUrl=String(req.body?.socialUrl??current.social_url??'').trim();
+    const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(v=>String(v).trim()).filter(Boolean))]:(()=>{try{return JSON.parse(current.categories||'[]')}catch{return[]}})();
+    if(!brandName||brandName.length>120||bio.length>2000||location.length>160||productionMethod.length>120||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||categories.length>12||categories.some(v=>v.length>80))return fail(res,422,'validation_error','Check the storefront profile fields and links.');
+    db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,req.designerId);
+    return res.json({ok:true,storefrontUrl:`/designers/${encodeURIComponent(req.designerId)}`});
   });
 
   app.get('/api/my/listings', authDesigner, (req, res) => {
@@ -1209,6 +1242,7 @@ function createApp(options = {}) {
       SELECT i.storage_key, i.mime_type
       FROM listing_images i
       JOIN listings l ON l.id = i.listing_id
+      JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
       WHERE i.id = ? AND l.id = ? AND l.designer_id = ? AND i.upload_status = 'ready'
     `).get(req.params.imageId, req.params.listingId, req.designerId);
     if (!row) return fail(res, 404, 'not_found', 'Image not found.');
@@ -1455,7 +1489,7 @@ function createApp(options = {}) {
       LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
       WHERE o.buyer_subject=? ORDER BY o.created_at DESC,oi.title`).all(req.buyerSubject);
     const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerName:row.designer_name,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
+    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
     return res.json({orders:[...map.values()]});
   });
 
@@ -1521,6 +1555,7 @@ function createApp(options = {}) {
     return res.sendFile(path.join(imagesDir, row.storage_key));
   });
 
+  app.get('/designers/:designerId', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
