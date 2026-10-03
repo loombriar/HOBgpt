@@ -1033,7 +1033,8 @@ function createApp(options = {}) {
         cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
         expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
-        'payment_intent_data[metadata][order_id]': orderId
+        'payment_intent_data[metadata][order_id]': orderId,
+        allow_promotion_codes: 'true'
       });
       quote.items.forEach((item, index) => {
         body.set(`line_items[${index}][price_data][currency]`, quote.currency);
