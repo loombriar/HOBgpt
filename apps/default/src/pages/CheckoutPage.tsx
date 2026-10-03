@@ -62,15 +62,14 @@ export default function CheckoutPage() {
 
   const sourceIds = returnState === 'success' && snapshot ? snapshot.ids : cartIds;
   const catalogItems = useMemo(() => {
-    const quantities = new Map<string, number>();
-    sourceIds.forEach((id) => quantities.set(id, (quantities.get(id) ?? 0) + 1));
+    const selected = new Set(sourceIds);
     return products
-      .filter((product) => quantities.has(product.id))
+      .filter((product) => selected.has(product.id))
       .map((product) => ({
         id: product.id,
         name: getTitle(product, 'Name') ?? 'House of Briar piece',
         amount: getFieldNumber(product, '@price', 'Price') ?? 0,
-        quantity: quantities.get(product.id) ?? 1,
+        quantity: 1,
       }));
   }, [products, sourceIds]);
   const items = returnState === 'success' && snapshot ? snapshot.items : catalogItems;
@@ -80,7 +79,7 @@ export default function CheckoutPage() {
   const checkoutTotal = subtotal - discountAmount;
   const hasItems = items.length > 0;
   const guestCatalog = !auth.isAuthenticated;
-  const canCheckout = cartIds.length > 0 && catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
+  const canCheckout = catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
 
   useEffect(() => {
     if (returnState !== 'canceled' || !canceledOrderId || !cancelToken) return;
@@ -199,7 +198,7 @@ export default function CheckoutPage() {
         <aside className="h-fit rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="summary-heading">
           {paymentComplete ? <div className="py-3 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"><BadgeCheck size={28} /></span><h2 id="summary-heading" className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Stripe confirmed your payment. Your bag has been cleared on this device.</p><p className="mt-3 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Continue shopping</Link></div> : <>
             <h2 id="summary-heading" className="font-serif text-2xl">Your order</h2>
-            <div className="mt-5 divide-y divide-border">{items.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 py-4"><p className="min-w-0 truncate text-sm">{item.name} <span className="text-muted-foreground">× {item.quantity}</span></p><p className="shrink-0 text-sm font-medium tabular-nums">{money.format(item.amount * item.quantity)}</p></div>)}</div>
+            <div className="mt-5 divide-y divide-border">{items.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 py-4"><div className="min-w-0"><p className="truncate text-sm">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">One of one · Qty 1</p></div><p className="shrink-0 text-sm font-medium tabular-nums">{money.format(item.amount * item.quantity)}</p></div>)}</div>
             <div className="mt-5 border-t border-border pt-5">
               <label htmlFor="coupon-code" className="text-sm font-medium">Coupon code</label>
               <div className="mt-2 flex gap-2"><input id="coupon-code" type="text" autoComplete="off" maxLength={24} value={couponInput} onChange={(event) => { setCouponInput(event.target.value); setActiveCoupon(''); setCouponError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyCoupon(); } }} aria-invalid={Boolean(couponError)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Enter SAVE10" /><button type="button" onClick={applyCoupon} className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium transition hover:border-primary hover:text-primary">Apply</button></div>
