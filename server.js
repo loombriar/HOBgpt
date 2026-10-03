@@ -579,7 +579,7 @@ function createApp(options = {}) {
             const currency=typeof session.currency==='string'?session.currency.toLowerCase():'',total=Number(session.amount_total);
             if(currency!==donation.currency||!Number.isInteger(total)||total!==donation.amount_cents)return res.status(400).send('Donation payment does not match this donation.');
             if(donation.status!=='paid')db.prepare("UPDATE donations SET status='paid',paid_at=? WHERE id=?").run(new Date().toISOString(),donation.id);
-            if(donation.buyer_subject)awardBadge(donation.buyer_subject,'supporter','donation',donation.id);
+            if(donation.buyer_subject && donation.amount_cents >= 500) awardBadge(donation.buyer_subject,'supporter','donation',donation.id);
           }
         }
         const orderId = session?.metadata?.order_id;
