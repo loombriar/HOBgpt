@@ -14,6 +14,7 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [inCart, setInCart] = useState(false);
 
   useEffect(() => {
     setActiveImageIndex(0);
@@ -32,6 +33,18 @@ export default function ProductPage() {
     const refreshSaved = () => setSaved(getSavedProductIds().includes(productId));
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
+  }, [productId]);
+
+  useEffect(() => {
+    const refreshCart = () => {
+      try {
+        const value = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
+        setInCart(Array.isArray(value) && Boolean(productId) && value.includes(productId));
+      } catch { setInCart(false); }
+    };
+    refreshCart();
+    window.addEventListener('house-of-briar-cart', refreshCart);
+    return () => window.removeEventListener('house-of-briar-cart', refreshCart);
   }, [productId]);
 
   if (loading) {
@@ -60,6 +73,7 @@ export default function ProductPage() {
     const items: string[] = raw ? JSON.parse(raw) : [];
     if (!items.includes(product.id)) items.push(product.id);
     window.localStorage.setItem('house-of-briar:cart', JSON.stringify(items));
+    setInCart(true);
     window.dispatchEvent(new Event('house-of-briar-cart'));
   };
 
@@ -84,9 +98,9 @@ export default function ProductPage() {
         <h1 className="mt-3 font-serif text-5xl leading-none sm:text-6xl">{name}</h1>
         <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(getFieldNumber(product, '@price', 'Price') ?? 0)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add to bag' : 'Currently unavailable'}</button><button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button></div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button></div>
         {email && <a href={`mailto:${email}?subject=Question about ${encodeURIComponent(name)}`} className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><Mail size={16} /> Message the designer</a>}
-        <dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
     <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">A closer conversation</p><h2 className="mt-3 font-serif text-4xl">Questions are part of the piece.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Every garment has a maker behind it. Send a note when you want the human details before you decide.</p></div><InquiryForm productName={name} /></div></section>
