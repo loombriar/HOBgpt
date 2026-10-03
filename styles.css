@@ -110,8 +110,31 @@ button, .primary-button, .secondary-button, .ghost-button {
 }
 button:hover, .primary-button:hover, .secondary-button:hover, .ghost-button:hover { transform: translateY(-1px); }
 
-.hero { padding: 3.5rem 0; background: white; }
-.hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 2.5rem; align-items: center; }
+.hero {
+  position: relative;
+  min-height: clamp(560px, 72vw, 760px);
+  padding: 5rem 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(12, 22, 16, 0.86) 0%, rgba(12, 22, 16, 0.68) 42%, rgba(12, 22, 16, 0.18) 72%, rgba(12, 22, 16, 0.08) 100%),
+    url('/House%20of%20Briar%20Enchanted%20Sewing%20Bower.png') center center / cover no-repeat;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 72% 34%, rgba(255, 236, 174, 0.18), transparent 30%);
+  pointer-events: none;
+}
+.hero-grid { display: block; width: 100%; }
+.hero-copy { max-width: 650px; color: #fffdf6; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.34); }
+.hero .eyebrow, .hero .hero-text, .hero .trust-list { color: rgba(255, 253, 246, 0.92); }
+.hero .secondary-button { color: #fffdf6; border-color: rgba(255,255,255,0.76); background: rgba(18, 28, 21, 0.28); }
+.hero .primary-button { box-shadow: 0 8px 28px rgba(0,0,0,0.22); }
 .eyebrow {
   margin: 0 0 0.75rem;
   font-size: 0.78rem;
