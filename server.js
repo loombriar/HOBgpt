@@ -540,6 +540,16 @@ function createApp(options = {}) {
         if (orderId && session.payment_status === 'paid') {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
           if (order) {
+            const sessionCurrency = typeof session.currency === 'string' ? session.currency.toLowerCase() : '';
+            const sessionTotal = Number(session.amount_total);
+            if (sessionCurrency !== String(order.currency).toLowerCase() || !Number.isInteger(sessionTotal) || sessionTotal !== order.subtotal_cents) {
+              console.error('Stripe Checkout payment did not match order totals:', order.id);
+              return res.status(400).send('Checkout payment does not match this order.');
+            }
+            if (order.status === 'canceled' || order.status === 'failed') {
+              console.error('Stripe Checkout payment arrived for a closed order:', order.id);
+              return res.status(409).send('Checkout order is no longer payable.');
+            }
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
