@@ -241,6 +241,17 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS donations (
+    id TEXT PRIMARY KEY,
+    stripe_session_id TEXT UNIQUE,
+    buyer_subject TEXT,
+    amount_cents INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'usd',
+    status TEXT NOT NULL CHECK (status IN ('pending','paid','failed')),
+    created_at TEXT NOT NULL,
+    paid_at TEXT
+  )`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
     buyer_subject TEXT NOT NULL,
     badge_type TEXT NOT NULL CHECK (badge_type IN ('supporter','verified_buyer')),
@@ -561,6 +572,16 @@ function createApp(options = {}) {
       }
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
         const session = event.data?.object;
+        const donationId=session?.metadata?.donation_id;
+        if(donationId&&session.payment_status==='paid'){
+          const donation=db.prepare('SELECT * FROM donations WHERE id=? AND stripe_session_id=?').get(donationId,session.id);
+          if(donation){
+            const currency=typeof session.currency==='string'?session.currency.toLowerCase():'',total=Number(session.amount_total);
+            if(currency!==donation.currency||!Number.isInteger(total)||total!==donation.amount_cents)return res.status(400).send('Donation payment does not match this donation.');
+            if(donation.status!=='paid')db.prepare("UPDATE donations SET status='paid',paid_at=? WHERE id=?").run(new Date().toISOString(),donation.id);
+            if(donation.buyer_subject)awardBadge(donation.buyer_subject,'supporter','donation',donation.id);
+          }
+        }
         const orderId = session?.metadata?.order_id;
         if (orderId && session.payment_status === 'paid') {
           const order = db.prepare('SELECT * FROM orders WHERE id = ? AND stripe_session_id = ?').get(orderId, session.id);
@@ -943,6 +964,22 @@ function createApp(options = {}) {
   app.post('/api/checkout/quote', checkoutLimiter, (req, res) => {
     try { return res.json(buildCheckoutQuote(req.body?.items)); }
     catch (error) { return fail(res, error.statusCode || 422, 'invalid_cart', error.message); }
+  });
+
+  app.post('/api/donations/session', checkoutLimiter, async (req,res,next) => {
+    try {
+      const amountCents=Math.round(Number(req.body?.amount)*100);
+      if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');
+      let buyerSubject=null;
+      const token=req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+      if(token){try{const profile=await resolveDesignerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim())buyerSubject=profile.sub.trim();}catch{}}
+      const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
+      db.prepare("INSERT INTO donations (id,buyer_subject,amount_cents,currency,status,created_at) VALUES (?,?,?,'usd','pending',?)").run(id,buyerSubject,amountCents,now);
+      const body=new URLSearchParams({mode:'payment',success_url:`${origin}/cart?donation=success`,cancel_url:`${origin}/cart?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
+      body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]','Support House of Briar');body.set('line_items[0][price_data][unit_amount]',String(amountCents));body.set('line_items[0][quantity]','1');
+      try{const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-donation-${id}`});db.prepare('UPDATE donations SET stripe_session_id=? WHERE id=?').run(session.id,id);return res.status(201).json({url:session.url});}
+      catch(error){db.prepare("UPDATE donations SET status='failed' WHERE id=?").run(id);throw error;}
+    }catch(error){return next(error);}
   });
 
   app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
