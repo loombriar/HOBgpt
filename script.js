@@ -26,6 +26,8 @@ const productDetailTitle = byId('product-detail-title');
 const productDetailContent = byId('product-detail-content');
 const productIdInput = byId('product-id');
 const listingFormTitle = byId('listing-form-title');
+const cartButton = byId('cart-btn');
+const CART_KEY = 'house-of-briar:cart';
 
 let designerToken = sessionStorage.getItem('briarDesignerToken') || '';
 let currentListingId = '';
@@ -34,6 +36,60 @@ let galleryItems = [];
 let selectedImages = [];
 let activeFilter = 'all';
 const designerListImageUrls = new Set();
+
+function getCartIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch { return []; }
+}
+
+function setCartIds(ids) {
+  localStorage.setItem(CART_KEY, JSON.stringify([...new Set(ids)]));
+  updateCartButton();
+}
+
+function updateCartButton() {
+  if (!cartButton) return;
+  const count = getCartIds().length;
+  cartButton.textContent = `Cart (${count})`;
+  cartButton.setAttribute('aria-label', `Shopping bag, ${count} ${count === 1 ? 'item' : 'items'}`);
+}
+
+function addToCart(item) {
+  const ids = getCartIds();
+  if (!ids.includes(item.id)) ids.push(item.id);
+  setCartIds(ids);
+  if (productDialog?.open) productDialog.close();
+  setMessage(shopStatus, `${item.title} added to your cart. Select Cart to check out.`, 'success');
+}
+
+async function checkoutCart() {
+  const ids = getCartIds();
+  if (!ids.length) {
+    setMessage(shopStatus, 'Your cart is empty. Open a piece and choose Add to cart.', 'error');
+    document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  if (cartButton) { cartButton.disabled = true; cartButton.textContent = 'Opening checkout…'; }
+  try {
+    const payload = await apiRequest('/api/checkout/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1 })) })
+    });
+    if (!payload?.url) throw new Error('Stripe checkout did not return a checkout link.');
+    window.location.assign(payload.url);
+  } catch (error) {
+    setMessage(shopStatus, error.message || 'Checkout could not be started.', 'error');
+    document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
+    updateCartButton();
+    if (cartButton) cartButton.disabled = false;
+  }
+}
+
+updateCartButton();
+cartButton?.addEventListener('click', checkoutCart);
 
 function setMessage(element, message = '', kind = '') {
   if (!element) return;
@@ -190,6 +246,11 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
+  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In cart' : 'Add to cart');
+  addButton.type = 'button';
+  addButton.disabled = getCartIds().includes(item.id);
+  addButton.addEventListener('click', () => addToCart(item));
+  copy.appendChild(addButton);
   if (images.length > 1) copy.appendChild(makeElement('p', 'small-print', `${images.length} photos · first image is the cover`));
 
   productDetailContent.append(imageGrid, copy);
