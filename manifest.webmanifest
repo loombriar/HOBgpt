@@ -1,0 +1,20 @@
+{
+  "name": "House of Briar",
+  "short_name": "Briar",
+  "description": "Discover one-of-a-kind clothing from independent designers. Made by someone, not everyone.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f1ea",
+  "theme_color": "#c9ae72",
+  "icons": [
+    {
+      "src": "/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
