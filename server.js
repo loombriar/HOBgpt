@@ -258,6 +258,16 @@ function createApp(options = {}) {
     paid_at TEXT
   )`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS buyer_favorites (
+    buyer_subject TEXT NOT NULL,
+    listing_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (buyer_subject, listing_id),
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  )`);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS buyer_favorites_subject_created ON buyer_favorites(buyer_subject, created_at DESC)`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
     buyer_subject TEXT NOT NULL,
     badge_type TEXT NOT NULL CHECK (badge_type IN ('supporter','verified_buyer')),
@@ -270,6 +280,15 @@ function createApp(options = {}) {
   function awardBadge(subject,badgeType,sourceType,sourceId){if(!subject||!sourceId)return;db.prepare('INSERT OR IGNORE INTO user_badges (buyer_subject,badge_type,source_type,source_id,awarded_at) VALUES (?,?,?,?,?)').run(subject,badgeType,sourceType,sourceId,new Date().toISOString());}
 
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
+  // Legacy/configured designer tokens predate designer_profiles. Backfill active profiles so
+  // existing sellers and test fixtures remain public/purchasable; never overwrite an explicit
+  // profile because its suspended status must remain authoritative.
+  const ensureLegacyDesigner = db.prepare(`INSERT OR IGNORE INTO designer_profiles
+    (id,email,display_name,brand_name,status,created_at) VALUES (?,?,?,?, 'active', ?)`);
+  const legacyProfileNow = new Date().toISOString();
+  for (const designerId of new Set(Object.values(designerTokens).map(value => String(value || '').trim()).filter(Boolean))) {
+    ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
+  }
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
@@ -284,9 +303,11 @@ function createApp(options = {}) {
   const seedTx = db.transaction((rows) => {
     const now = new Date().toISOString();
     for (const row of rows) {
+      const designerId = row.designerId || 'house-of-briar';
+      ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, now);
       insertSeed.run(
         row.id,
-        row.designerId || 'house-of-briar',
+        designerId,
         row.title,
         row.description || '',
         Number(row.price) || 0,
@@ -1467,6 +1488,39 @@ function createApp(options = {}) {
       const results=await processDesignerTransfers(order.id,req.params.designerId,reason);
       return res.json({ok:true,results});
     }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/favorites', authBuyer, (req,res) => {
+    const rows=db.prepare(`SELECT l.*,COALESCE(dp.brand_name,dp.display_name,l.designer_id) designer_name
+      FROM buyer_favorites bf
+      JOIN listings l ON l.id=bf.listing_id
+      JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE bf.buyer_subject=? AND l.status='published' AND l.moderation_status='approved'
+      ORDER BY bf.created_at DESC`).all(req.buyerSubject);
+    return res.json({ids:rows.map(row=>row.id),items:rows.map(row=>serializeListing(row,'public'))});
+  });
+
+  app.post('/api/my/favorites/:listingId', authBuyer, (req,res) => {
+    const listing=db.prepare(`SELECT l.id FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE l.id=? AND l.status='published' AND l.moderation_status='approved'`).get(req.params.listingId);
+    if(!listing)return fail(res,404,'listing_not_available','This piece is not available to save.');
+    db.prepare('INSERT OR IGNORE INTO buyer_favorites (buyer_subject,listing_id,created_at) VALUES (?,?,?)').run(req.buyerSubject,listing.id,new Date().toISOString());
+    return res.status(201).json({saved:true,listingId:listing.id});
+  });
+
+  app.delete('/api/my/favorites/:listingId', authBuyer, (req,res) => {
+    db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=? AND listing_id=?').run(req.buyerSubject,req.params.listingId);
+    return res.json({saved:false,listingId:req.params.listingId});
+  });
+
+  app.post('/api/my/favorites/merge', authBuyer, (req,res) => {
+    const ids=Array.isArray(req.body?.listingIds)?[...new Set(req.body.listingIds.map(id=>String(id).trim()).filter(Boolean))].slice(0,250):[];
+    const available=db.prepare(`SELECT l.id FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE l.id=? AND l.status='published' AND l.moderation_status='approved'`);
+    const insert=db.prepare('INSERT OR IGNORE INTO buyer_favorites (buyer_subject,listing_id,created_at) VALUES (?,?,?)');
+    const now=new Date().toISOString(); let merged=0;
+    db.transaction(()=>{for(const id of ids){if(available.get(id)){const result=insert.run(req.buyerSubject,id,now);merged+=result.changes;}}})();
+    return res.json({merged});
   });
 
   app.get('/api/my/donations', authBuyer, (req,res) => {

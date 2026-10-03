@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Heart, Search, SlidersHorizontal } from '@/lib/icons';
 import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import HouseShell from '@/components/HouseShell';
-import { getCatalogProducts, getSavedProductIds, isPublicProduct, getProductImages, getProductVisual, money, setSavedProductIds } from '@/lib/marketplace';
+import { getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, isPublicProduct, getProductImages, getProductVisual, money, setPersistentFavorite } from '@/lib/marketplace';
 
 const LIKED_PRODUCTS_KEY = 'house-of-briar:liked-products';
 const PRICE_RANGES = [
@@ -84,7 +84,7 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const savedOnly = searchParams.get('liked') === 'true';
   const designerFilter = searchParams.get('designer') ?? 'All designers';
-  useEffect(() => { void getCatalogProducts(auth.isAuthenticated).then(setProducts).catch(() => setProducts([])).finally(() => setLoading(false)); setSavedIds(getSavedProductIds()); setLikedIds(getLikedProductIds()); }, [auth.isAuthenticated]);
+  useEffect(() => { void getCatalogProducts(auth.isAuthenticated).then(setProducts).catch(() => setProducts([])).finally(() => setLoading(false)); setSavedIds(getSavedProductIds()); setLikedIds(getLikedProductIds()); void getPersistentFavoriteIds(auth.user?.access_token).then(setSavedIds).catch(()=>{}); }, [auth.isAuthenticated, auth.user?.access_token]);
   useEffect(() => {
     const refreshSaved = () => setSavedIds(getSavedProductIds());
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
@@ -113,9 +113,10 @@ export default function ShopPage() {
     return Array.from(groups.entries());
   }, [visible]);
   const handleSave = (productId: string) => {
-    const next = savedIds.includes(productId) ? savedIds.filter((id) => id !== productId) : [...savedIds, productId];
-    setSavedIds(next);
-    setSavedProductIds(next);
+    const shouldSave=!savedIds.includes(productId);
+    const previous=savedIds;
+    setSavedIds(shouldSave?[...savedIds,productId]:savedIds.filter(id=>id!==productId));
+    void setPersistentFavorite(productId,shouldSave,auth.user?.access_token).catch(()=>setSavedIds(previous));
   };
   const handleLike = (productId: string) => {
     const next = likedIds.includes(productId) ? likedIds.filter((id) => id !== productId) : [...likedIds, productId];
