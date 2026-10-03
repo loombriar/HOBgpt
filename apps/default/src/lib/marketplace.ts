@@ -59,6 +59,7 @@ type GalleryItem = {
   description?: string;
   price: number;
   category?: string;
+  style?: string;
   designerId?: string;
   designerName?: string;
   status?: string;
@@ -74,7 +75,8 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
     fieldValues: {
       '/attributes/@price': String(item.price ?? 0),
       '/attributes/@categ': item.category || 'One-of-a-kind',
-      '/attributes/@tagsx': item.category || 'Independent design',
+      '/attributes/@tagsx': [item.style, item.category].filter(Boolean).join(', ') || 'Independent design',
+      '/attributes/@style': item.style || '',
       '/attributes/@sizex': 'One of one',
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',
