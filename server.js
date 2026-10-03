@@ -742,6 +742,10 @@ function createApp(options = {}) {
     return {designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled)};
   }
 
+  app.post('/api/session', authDesigner, (req, res) => {
+    res.json({ ok: true, designerId: req.designerId });
+  });
+
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
     const designer=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
