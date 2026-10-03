@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { ArrowLeft, Heart, Mail, Ruler, ShoppingBag, Sparkles } from '@/lib/icons';
+import { ArrowLeft, Heart, Ruler, ShoppingBag, Sparkles } from '@/lib/icons';
 import { Link, useParams } from 'react-router-dom';
 import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import HouseShell from '@/components/HouseShell';
@@ -61,7 +61,6 @@ export default function ProductPage() {
   const designerId = getFieldValue(product, '@desid', 'Designer ID') ?? '';
   const availability = getFieldValue(product, '@statx', 'Status') ?? 'Available';
   const isAvailable = availability === 'Available';
-  const email = auth.isAuthenticated && designer === 'Loom Briar' ? 'geekgirl1039@gmail.com' : '';
   const description = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.';
   const category = getFieldValue(product, '@categ', 'Category') ?? 'One-of-a-kind';
   const size = getFieldValue(product, '@sizex', 'Size') ?? 'Made to order';
@@ -101,7 +100,6 @@ export default function ProductPage() {
         <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(getFieldNumber(product, '@price', 'Price') ?? 0)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button></div>
-        {email && <a href={`mailto:${email}?subject=Question about ${encodeURIComponent(name)}`} className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><Mail size={16} /> Message the designer</a>}
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
