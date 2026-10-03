@@ -1284,20 +1284,33 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  app.post('/api/admin/orders/:orderId/cancel', authAdmin, (req,res)=>{
-    const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
-    if(!order)return fail(res,404,'order_not_found','Order not found.');
-    if(order.status==='paid')return fail(res,409,'refund_required','Paid orders require a Stripe refund rather than cancellation.');
-    releaseOrderInventory(order.id);
-    return res.json({ok:true,status:'canceled'});
+  async function expireOpenCheckout(order) {
+    if (order.stripe_session_id) {
+      await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`, { method: 'POST' });
+    }
+  }
+
+  app.post('/api/admin/orders/:orderId/cancel', authAdmin, async (req,res,next)=>{
+    try {
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+      if(!order)return fail(res,404,'order_not_found','Order not found.');
+      if(order.status==='paid')return fail(res,409,'refund_required','Paid orders require a Stripe refund rather than cancellation.');
+      await expireOpenCheckout(order);
+      releaseOrderInventory(order.id);
+      return res.json({ok:true,status:'canceled'});
+    } catch(error) { return next(error); }
   });
 
-  app.post('/api/admin/orders/:orderId/inventory/release', authAdmin, (req,res)=>{
-    const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
-    if(!order)return fail(res,404,'order_not_found','Order not found.');
-    if(order.status==='paid')return fail(res,409,'paid_order','Inventory for a paid order cannot be released.');
-    const result=db.prepare("UPDATE inventory_reservations SET status='released' WHERE order_id=? AND status='reserved'").run(order.id);
-    return res.json({ok:true,released:result.changes});
+  app.post('/api/admin/orders/:orderId/inventory/release', authAdmin, async (req,res,next)=>{
+    try {
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+      if(!order)return fail(res,404,'order_not_found','Order not found.');
+      if(order.status==='paid')return fail(res,409,'paid_order','Inventory for a paid order cannot be released.');
+      await expireOpenCheckout(order);
+      const result=db.prepare("UPDATE inventory_reservations SET status='released' WHERE order_id=? AND status='reserved'").run(order.id);
+      db.prepare("UPDATE orders SET status='canceled' WHERE id=? AND status='pending'").run(order.id);
+      return res.json({ok:true,released:result.changes});
+    } catch(error) { return next(error); }
   });
 
   app.post('/api/admin/orders/:orderId/designers/:designerId/release', authAdmin, async (req,res,next)=>{
