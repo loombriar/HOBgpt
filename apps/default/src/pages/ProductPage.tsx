@@ -57,6 +57,7 @@ export default function ProductPage() {
 
   const name = getTitle(product, 'Name') ?? 'Untitled piece';
   const designer = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
+  const designerId = getFieldValue(product, '@desid', 'Designer ID') ?? '';
   const availability = getFieldValue(product, '@statx', 'Status') ?? 'Available';
   const isAvailable = availability === 'Available';
   const email = auth.isAuthenticated && designer === 'Loom Briar' ? 'geekgirl1039@gmail.com' : '';
@@ -94,7 +95,7 @@ export default function ProductPage() {
       </div>
       <div className="flex flex-col justify-center">
         <Link to="/shop" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><ArrowLeft size={16} /> Back to collection</Link>
-        <p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">{designer}</p>
+        <p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">{designerId ? <Link to={`/designers/${encodeURIComponent(designerId)}`} className="hover:underline">{designer}</Link> : designer}</p>
         <h1 className="mt-3 font-serif text-5xl leading-none sm:text-6xl">{name}</h1>
         <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(getFieldNumber(product, '@price', 'Price') ?? 0)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
