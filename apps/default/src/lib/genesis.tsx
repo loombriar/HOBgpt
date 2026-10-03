@@ -1,8 +1,11 @@
-import type {
-  LogFunction,
-  LoggerEntryInput,
-  SpaceAppLogLifecycleData,
-} from '@taskade/parade-shared';
+// Local shape of the preview logger payload used by this app.
+// Keeping this type here avoids installing a private template package.
+interface LifecycleLogEntry {
+  level: 'error';
+  message: string;
+  data: { code: GenesisErrorCode; message: string; stack: string };
+}
+type LogFunction = (entry: LifecycleLogEntry) => void;
 import * as React from 'react';
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
 import { useInRouterContext, useLocation } from 'react-router-dom';
@@ -198,8 +201,8 @@ export function reportGenesisError(
         stack: [error instanceof Error ? error.stack : undefined, componentStack]
           .filter(Boolean)
           .join('\n'),
-      } satisfies SpaceAppLogLifecycleData,
-    } satisfies LoggerEntryInput);
+      },
+    } satisfies LifecycleLogEntry);
     return errorId;
   }
 
