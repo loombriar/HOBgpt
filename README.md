@@ -16,18 +16,20 @@ Then open http://localhost:3000.
 
 ## CI and frontend build status
 
-`.github/workflows/ci.yml` runs the backend regression suite and separately installs the marketplace lockfile and runs its gateway contract tests. A passing CI run does not verify a complete React marketplace build or its UI.
+`.github/workflows/ci.yml` runs the backend regression suite, installs the marketplace lockfile, runs its gateway contract tests, and builds the complete React marketplace with Vite. The missing chat, inquiry flow, supporting UI, and base stylesheet files were recovered from the earlier app export without overwriting newer marketplace features.
 
-The marketplace installs from public npm with `npm ci` in `apps/default`. Unused Taskade runtime/template packages were removed, and the preview logger's payload types are defined locally. The gateway tests cover duplicate-write prevention, invalid response handling, conditional reads, and pending-request tracking.
+To build the marketplace:
 
-The marketplace export is not yet independently buildable. Restore these missing template files from the original source before requiring a production build:
+```bash
+cd apps/default
+npm ci
+npm test
+npm run build
+```
 
-- `apps/default/scripts/build.mjs`, referenced by the build and dev commands.
-- `apps/default/src/styles/genesis-base.css`, imported by `main.tsx`.
-- `apps/default/src/components/blocks`, providing `FloatingAgentChat` to `HouseShell.tsx`.
-- `apps/default/src/lib/genesis-flows`, providing `submitForm` to `InquiryForm.tsx`.
+Output is in `apps/default/dist`. For frontend development run `npm run dev`. This restores the build; it does not switch the Express server from its current root storefront to the React app or deploy either frontend.
 
-The gateway tests do not replace browser tests of checkout, signup, chat, or inquiry delivery. Verify those flows and `npm run build` after restoring the template before enabling a production build gate.
+The React app still expects same-origin `/api/*` backend routes plus Taskade's `/_genesis/auth` and `/api/taskade/*` services for sign-in, chat, and inquiry flows. A standalone Vite preview does not provide those services. Verify those hosting integrations and real checkout, signup, chat, and inquiry delivery before launch. CI's gateway unit tests and production build do not establish end-to-end service readiness.
 
 The sample Jekyll deployment workflow has been removed. GitHub Pages cannot run this application's Express server, SQLite database, webhooks, or upload handling; deploy the backend to a Node.js host with persistent storage as described below.
 
@@ -70,4 +72,4 @@ Stripe must send its signed webhook to `/api/stripe/webhook`. EasyPost must send
 
 The built-in signup and checkout rate limits use the request IP. No reverse-proxy trust setting is enabled by default because the correct trust boundary depends on the hosting provider. If the production host places the app behind a proxy, validate the provider's documented proxy topology before configuring Express `trust proxy`; do not enable it globally without that validation.
 
-Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend installs and its gateway contract tests pass, but its production build remains blocked by missing template source files; passing CI does not establish frontend deployment readiness.
+Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend now installs, passes gateway contract tests, and builds. Verify the frontend/backend hosting connection and Taskade authentication, chat, and inquiry services before treating it as ready to launch.

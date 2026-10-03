@@ -2,7 +2,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { Heart, Menu as MenuIcon, Moon, ShoppingBag, Sun, X as CloseIcon } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { FloatingAgentChat } from '@/components/blocks';
+import { FloatingAgentChat } from '@/components/blocks/agent-chat/FloatingAgentChat';
 import { HOUSE_OF_BRIAR_AGENT_ID, HOUSE_OF_BRIAR_PUBLIC_AGENT_ID } from '@/lib/marketplace';
 import { createDonationSession } from '@/lib/stripe';
 
