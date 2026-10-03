@@ -468,7 +468,16 @@ async function handleSave(event) {
     }
 
     if (action === 'submit') {
-      const payload = await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/submit`, { method: 'POST' });
+      const rulesAccepted = byId('marketplace-rules-accepted')?.checked === true;
+      if (!rulesAccepted) {
+        setMessage(uploadMessage, 'Confirm that this listing follows House of Briar marketplace rules before submitting.', 'error');
+        return;
+      }
+      const payload = await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketplaceRulesAccepted: true })
+      });
       if (payload.item.status === 'pending_review') {
         setMessage(uploadMessage, 'Submitted for review. It will appear in the Shop after approval.', 'success');
       } else {
