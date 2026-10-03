@@ -50,6 +50,7 @@ function ProductCard({ product, onLike, liked, saved, onSave }: ProductCardProps
   const price = getFieldNumber(product, '@price', 'Price') ?? 0;
   const category = getFieldValue(product, '@categ', 'Category') ?? 'One-of-a-kind';
   const designer = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
+  const designerId = getFieldValue(product, '@desid', 'Designer ID') ?? '';
   const likes = (getFieldNumber(product, '@likes', 'Likes') ?? 0) + (liked ? 1 : 0);
   const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs'));
   const primaryImage = images[0];
@@ -64,7 +65,7 @@ function ProductCard({ product, onLike, liked, saved, onSave }: ProductCardProps
         <span className="absolute right-4 top-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground">{getFieldValue(product, '@statx', 'Status') ?? 'Available'}</span>
       </Link>
       <div className="space-y-3 p-5">
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="truncate font-serif text-xl font-semibold">{name}</h2><p className="mt-1 text-sm text-muted-foreground">by {designer}</p></div><span className="shrink-0 text-sm font-semibold tabular-nums">{money.format(price)}</span></div>
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="truncate font-serif text-xl font-semibold">{name}</h2><p className="mt-1 text-sm text-muted-foreground">by {designerId ? <Link to={`/designers/${encodeURIComponent(designerId)}`} onClick={(event) => event.stopPropagation()} className="hover:text-primary hover:underline">{designer}</Link> : designer}</p></div><span className="shrink-0 text-sm font-semibold tabular-nums">{money.format(price)}</span></div>
         <div className="flex items-center justify-between border-t border-border pt-3"><span className="text-xs text-muted-foreground">{getFieldValue(product, '@sizex', 'Size') ?? 'Made to order'}</span><div className="flex items-center gap-1"><button type="button" aria-label={`${saved ? 'Remove' : 'Save'} ${name}`} onClick={() => onSave(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${saved ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={saved ? 'currentColor' : 'none'} />{saved ? 'Saved' : 'Save'}</button><button type="button" aria-label={`${liked ? 'Unlike' : 'Like'} ${name}`} onClick={() => onLike(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${liked ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={liked ? 'currentColor' : 'none'} />{likes}</button></div></div>
       </div>
     </article>

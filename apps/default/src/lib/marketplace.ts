@@ -77,6 +77,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@tagsx': item.category || 'Independent design',
       '/attributes/@sizex': 'One of one',
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
+      '/attributes/@desid': item.designerId || '',
       '/attributes/@descr': item.description || 'A one-of-a-kind piece made with intention.',
       '/attributes/@statx': item.status === 'published' || !item.status ? 'Available' : item.status,
       '/attributes/@image': images[0] || '',
