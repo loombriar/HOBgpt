@@ -1135,6 +1135,7 @@ function createApp(options = {}) {
 
     const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
     if (imageCount < 1) return fail(res, 422, 'images_required', 'Add at least one ready image before submitting.');
+    if (req.body?.marketplaceRulesAccepted !== true) return fail(res, 422, 'marketplace_rules_required', 'Confirm that this listing follows House of Briar marketplace rules before submitting.');
 
     const nextStatus = reviewRequired ? 'pending_review' : 'published';
     const nextModeration = reviewRequired ? 'pending' : 'approved';
