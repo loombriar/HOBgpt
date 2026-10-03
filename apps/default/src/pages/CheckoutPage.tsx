@@ -149,7 +149,7 @@ export default function CheckoutPage() {
     const nextSnapshot: CheckoutSnapshot = { ids: catalogItems.map((item) => item.id), items: catalogItems, subtotal };
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
     try {
-      const url = await createCheckoutSession(checkoutItems, activeCoupon);
+      const url = await createCheckoutSession(checkoutItems, activeCoupon, auth.user?.access_token ?? '');
       window.location.assign(url);
     } catch (error) {
       window.localStorage.removeItem(PENDING_KEY);
