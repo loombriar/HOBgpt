@@ -14,7 +14,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 const CHECKOUT_RESERVATION_MINUTES = 31;
-const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other']);
+const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -70,6 +70,15 @@ function createApp(options = {}) {
   const rootDir = options.rootDir || __dirname;
   const dataDir = path.resolve(options.dataDir || process.env.DATA_DIR || path.join(rootDir, '.data'));
   const configuredAppOrigin = String(options.appOrigin || process.env.APP_ORIGIN || '').replace(/\/$/, '');
+  if (process.env.NODE_ENV === 'production' && !configuredAppOrigin) {
+    throw new Error('APP_ORIGIN must be configured in production.');
+  }
+  if (configuredAppOrigin) {
+    const parsedAppOrigin = new URL(configuredAppOrigin);
+    if (!['http:', 'https:'].includes(parsedAppOrigin.protocol) || parsedAppOrigin.origin !== configuredAppOrigin) {
+      throw new Error('APP_ORIGIN must be an absolute HTTP(S) origin without a path.');
+    }
+  }
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
 
@@ -86,6 +95,7 @@ function createApp(options = {}) {
       description TEXT NOT NULL DEFAULT '',
       price REAL NOT NULL,
       category TEXT NOT NULL,
+      style TEXT,
       status TEXT NOT NULL CHECK (status IN ('draft','pending_review','published','rejected','archived','deleted')),
       moderation_status TEXT NOT NULL CHECK (moderation_status IN ('pending','approved','rejected')),
       legacy_image_url TEXT,
@@ -371,7 +381,7 @@ function createApp(options = {}) {
     const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
     if (!discovery.ok) return null;
     const metadata = await discovery.json();
-    if (typeof metadata.userinfo_endpoint !== 'string') return null;
+    if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
     const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
     if (!userInfo.ok) return null;
     return userInfo.json();
@@ -1033,7 +1043,8 @@ function createApp(options = {}) {
         cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
         expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
-        'payment_intent_data[metadata][order_id]': orderId
+        'payment_intent_data[metadata][order_id]': orderId,
+        allow_promotion_codes: 'true'
       });
       quote.items.forEach((item, index) => {
         body.set(`line_items[${index}][price_data][currency]`, quote.currency);
@@ -1591,8 +1602,15 @@ function createApp(options = {}) {
       const order = db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?').get(session.id);
       if (!order) return fail(res, 404, 'order_not_found', 'Order not found.');
       const paid = session.payment_status === 'paid' && session.status === 'complete';
-      if (paid && order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
       if (paid) {
+        const sessionCurrency = typeof session.currency === 'string' ? session.currency.toLowerCase() : '';
+        const sessionTotal = Number(session.amount_total);
+        const sessionOrderId = session.metadata?.order_id;
+        if (sessionOrderId !== order.id || sessionCurrency !== String(order.currency).toLowerCase() || !Number.isInteger(sessionTotal) || sessionTotal !== order.subtotal_cents) {
+          return fail(res, 409, 'payment_mismatch', 'Checkout payment does not match this order.');
+        }
+        if (order.status === 'canceled' || order.status === 'failed') return fail(res, 409, 'order_closed', 'Checkout order is no longer payable.');
+        if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
       }
