@@ -59,6 +59,7 @@ type GalleryItem = {
   description?: string;
   price: number;
   category?: string;
+  style?: string;
   designerId?: string;
   designerName?: string;
   status?: string;
@@ -74,7 +75,8 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
     fieldValues: {
       '/attributes/@price': String(item.price ?? 0),
       '/attributes/@categ': item.category || 'One-of-a-kind',
-      '/attributes/@tagsx': item.category || 'Independent design',
+      '/attributes/@tagsx': [item.style, item.category].filter(Boolean).join(', ') || 'Independent design',
+      '/attributes/@style': item.style || '',
       '/attributes/@sizex': 'One of one',
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',
@@ -104,6 +106,10 @@ export const PRODUCT_INQUIRY_FLOW_ID = '01M3QHM2WS9696Q1CZQAN748KQ';
 export const HOUSE_OF_BRIAR_AGENT_ID = '01M3PZ25F6V6H974MMAZ4Q0EX1';
 export const HOUSE_OF_BRIAR_PUBLIC_AGENT_ID = 'house-of-briar-guide-01M3PZ25F8KYQ9XJP5FKY9F840';
 
+export const MARKET_STYLES = [
+  'Boho', 'Cottagecore', 'Gothic', 'Romantic', 'Vintage', 'Whimsical', 'Minimalist', 'Streetwear', 'Avant-Garde', 'Art Nouveau', 'Dark Academia', 'Fairycore', 'Fantasy', 'Retro', 'Punk', 'Western',
+] as const;
+
 export const MARKET_CATEGORIES = [
   'One-of-a-kind',
   'Upcycled',
@@ -112,6 +118,7 @@ export const MARKET_CATEGORIES = [
   'Botanical',
   'Limited edition',
   'Statement piece',
+  'Costumes',
 ] as const;
 
 export const money = new Intl.NumberFormat('en-US', {

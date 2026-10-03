@@ -14,7 +14,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 const CHECKOUT_RESERVATION_MINUTES = 31;
-const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'other']);
+const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other']);
 
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -55,13 +55,15 @@ function validateListingInput(body = {}) {
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const price = Number(body.price);
   const category = typeof body.category === 'string' ? body.category.trim().toLowerCase() : '';
+  const style = typeof body.style === 'string' ? body.style.trim() : '';
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
   if (!Number.isFinite(price) || price < 0 || price > 1000000) return { error: 'Enter a valid price between 0 and 1,000,000.' };
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
+  if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
 
-  return { value: { title, description, price, category } };
+  return { value: { title, description, price, category, style } };
 }
 
 function createApp(options = {}) {
@@ -207,6 +209,7 @@ function createApp(options = {}) {
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
   ensureColumn('listings', 'moderation_reason', 'TEXT');
+  ensureColumn('listings', 'style', 'TEXT');
   ensureColumn('designer_applications', 'location', 'TEXT');
   ensureColumn('designer_applications', 'social_url', 'TEXT');
   ensureColumn('designer_applications', 'categories', "TEXT NOT NULL DEFAULT '[]'");
@@ -484,6 +487,7 @@ function createApp(options = {}) {
       description: row.description,
       price: Number(row.price),
       category: row.category,
+      style: row.style || '',
       designerId: row.designer_id,
       designerName: row.designer_name || undefined,
       status: row.status,
@@ -1144,9 +1148,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1155,6 +1159,7 @@ function createApp(options = {}) {
       validation.value.description,
       validation.value.price,
       validation.value.category,
+      validation.value.style || null,
       timestamp,
       timestamp
     );
@@ -1177,13 +1182,14 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(
       validation.value.title,
       validation.value.description,
       validation.value.price,
       validation.value.category,
+      validation.value.style || null,
       timestamp,
       row.id
     );
