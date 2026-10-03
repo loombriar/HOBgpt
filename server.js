@@ -310,6 +310,19 @@ function createApp(options = {}) {
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
 
   const seedProducts = options.seedProducts || JSON.parse(fs.readFileSync(path.join(rootDir, 'data', 'seed-products.json'), 'utf8'));
+  // Retire the original demo catalog and the $1 Tulips test garment from persistent
+  // production databases. Seed insertion is idempotent, so the real Loom Briar
+  // garments below remain stable across Railway restarts and redeploys.
+  const retiredSeedIds = [
+    'seed-wildflower-runner',
+    'seed-rose-oat-soak',
+    'seed-golden-hour-set',
+    'seed-stoneware-mug-duo',
+    '48a0cc6f-e6ac-4538-8a9f-a4889ce21c4c'
+  ];
+  const retireSeed = db.prepare("UPDATE listings SET status = 'archived', updated_at = ? WHERE id = ?");
+  const retireSeedNow = new Date().toISOString();
+  for (const id of retiredSeedIds) retireSeed.run(retireSeedNow, id);
   const insertSeed = db.prepare(`
     INSERT OR IGNORE INTO listings (
       id, designer_id, title, description, price, category, status, moderation_status,
