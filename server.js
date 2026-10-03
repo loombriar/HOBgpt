@@ -423,6 +423,7 @@ function createApp(options = {}) {
       price: Number(row.price),
       category: row.category,
       designerId: row.designer_id,
+      designerName: row.designer_name || undefined,
       status: row.status,
       moderationStatus: row.moderation_status,
       moderationReason: mode === 'private' ? (row.moderation_reason || null) : undefined,
@@ -984,9 +985,11 @@ function createApp(options = {}) {
 
   app.get('/api/gallery', (_req, res) => {
     const rows = db.prepare(`
-      SELECT * FROM listings
-      WHERE status = 'published' AND moderation_status = 'approved'
-      ORDER BY published_at DESC, created_at DESC
+      SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
+      FROM listings l
+      LEFT JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'
+      WHERE l.status = 'published' AND l.moderation_status = 'approved'
+      ORDER BY l.published_at DESC, l.created_at DESC
     `).all();
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
   });
