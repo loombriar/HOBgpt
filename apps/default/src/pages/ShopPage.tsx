@@ -84,7 +84,7 @@ export default function ShopPage() {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const savedOnly = searchParams.get('liked') === 'true';
+  const savedOnly = searchParams.get('saved') === 'true' || searchParams.get('liked') === 'true';
   const designerFilter = searchParams.get('designer') ?? 'All designers';
   useEffect(() => { setQuery(searchParams.get('q') ?? ''); setCategory(searchParams.get('category') ?? 'All pieces'); setPriceRange(searchParams.get('price') ?? 'all-prices'); setSort(searchParams.get('sort') ?? 'newest'); setStyle(searchParams.get('style') ?? 'All styles'); }, [searchParams]);
   const updateFilter = (key: string, value: string, defaultValue: string) => { const next = new URLSearchParams(searchParams); if (!value || value === defaultValue) next.delete(key); else next.set(key, value); setSearchParams(next, { replace: true }); };
