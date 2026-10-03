@@ -291,7 +291,10 @@ function createApp(options = {}) {
 
     for (const [configuredToken, designerId] of Object.entries(designerTokens)) {
       if (safeEqual(token, configuredToken) && typeof designerId === 'string' && designerId.trim()) {
-        req.designerId = designerId.trim();
+        const legacyDesignerId = designerId.trim();
+        const profile = db.prepare('SELECT status FROM designer_profiles WHERE id = ?').get(legacyDesignerId);
+        if (profile && profile.status !== 'active') return fail(res, 403, 'designer_inactive', 'This designer profile is not active.');
+        req.designerId = legacyDesignerId;
         return next();
       }
     }
