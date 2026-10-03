@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f8f1ea" />
+    <meta name="theme-color" content="#c9ae72" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png" type="image/png" />
     <title>House of Briar</title>
     <meta
       name="description"
@@ -14,6 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/script.js" defer></script>
+    <script>if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js"));</script>
   </head>
   <body>
     <div class="page-shell">
