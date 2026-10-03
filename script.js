@@ -359,13 +359,15 @@ function readFormValues() {
     title: byId('product-name').value.trim(),
     description: byId('product-description').value.trim(),
     price: byId('product-price').value,
-    category: byId('product-category').value
+    category: 'apparel',
+    style: byId('product-style')?.value || ''
   };
 }
 
 function validateListingValues(values) {
   if (!values.title || values.title.length > 120) return 'Add a design name (1–120 characters).';
   if (values.description.length > 2000) return 'Description must be 2,000 characters or fewer.';
+  if (!values.style) return 'Choose a garment type.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
   return '';
@@ -549,7 +551,8 @@ async function editListing(listingId) {
     if (byId('product-name')) byId('product-name').value = listing.title;
     if (byId('product-description')) byId('product-description').value = listing.description;
     if (byId('product-price')) byId('product-price').value = listing.price;
-    if (byId('product-category')) byId('product-category').value = listing.category;
+    if (byId('product-category')) byId('product-category').value = 'apparel';
+    if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (listingFormTitle) listingFormTitle.textContent = 'Edit a design';
 
     selectedImages.forEach((image) => {
