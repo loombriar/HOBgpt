@@ -320,9 +320,14 @@ function createApp(options = {}) {
         }
       }
       if (typeof mappedDesignerId !== 'string' || !mappedDesignerId.trim()) {
-        return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to an approved House of Briar designer profile.');
+        return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to a House of Briar designer profile.');
       }
-      req.designerId = mappedDesignerId.trim();
+      mappedDesignerId = mappedDesignerId.trim();
+      const activeDesigner = db.prepare("SELECT id FROM designer_profiles WHERE id = ? AND status = 'active'").get(mappedDesignerId);
+      if (!activeDesigner) {
+        return fail(res, 403, 'designer_inactive', 'This designer profile is not active.');
+      }
+      req.designerId = mappedDesignerId;
       req.designerSubject = subject;
       req.designerEmail = email;
       if (email) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(email, req.designerId);
