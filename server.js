@@ -215,6 +215,7 @@ function createApp(options = {}) {
   ensureColumn('designer_applications', 'originality_confirmed', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_applications', 'marketplace_terms_accepted', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('orders', 'buyer_email', 'TEXT');
+  ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
   ensureColumn('orders', 'stripe_payment_intent_id', 'TEXT');
   ensureColumn('orders', 'refund_status', 'TEXT');
@@ -322,6 +323,18 @@ function createApp(options = {}) {
     const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
     if (!userInfo.ok) return null;
     return userInfo.json();
+  }
+
+  async function authBuyer(req, res, next) {
+    const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
+    try {
+      const profile = await resolveDesignerIdentity(req, token);
+      if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
+      req.buyerSubject = profile.sub.trim();
+      req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+      return next();
+    } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
 
   async function authDesigner(req, res, next) {
@@ -921,6 +934,12 @@ function createApp(options = {}) {
   });
 
   app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
+    let buyerSubject = null;
+    let buyerEmail = null;
+    const buyerToken = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    if (buyerToken) {
+      try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
+    }
     try {
       const quote = buildCheckoutQuote(req.body?.items);
       const orderId = makeId();
@@ -945,7 +964,7 @@ function createApp(options = {}) {
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
-        db.prepare(`INSERT INTO orders (id, cancel_token_hash, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
@@ -1365,6 +1384,20 @@ function createApp(options = {}) {
       const results=await processDesignerTransfers(order.id,req.params.designerId,reason);
       return res.json({ok:true,results});
     }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/purchases', authBuyer, (req, res) => {
+    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.subtotal_cents,o.created_at,o.paid_at,o.refund_status,o.refunded_at,
+      oi.listing_id,oi.designer_id,oi.title,oi.quantity,oi.line_total_cents,
+      COALESCE(dp.brand_name,dp.display_name,oi.designer_id) designer_name,
+      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at
+      FROM orders o JOIN order_items oi ON oi.order_id=o.id
+      LEFT JOIN designer_profiles dp ON dp.id=oi.designer_id
+      LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
+      WHERE o.buyer_subject=? ORDER BY o.created_at DESC,oi.title`).all(req.buyerSubject);
+    const map=new Map();
+    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerName:row.designer_name,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
+    return res.json({orders:[...map.values()]});
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
