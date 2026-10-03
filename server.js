@@ -70,6 +70,15 @@ function createApp(options = {}) {
   const rootDir = options.rootDir || __dirname;
   const dataDir = path.resolve(options.dataDir || process.env.DATA_DIR || path.join(rootDir, '.data'));
   const configuredAppOrigin = String(options.appOrigin || process.env.APP_ORIGIN || '').replace(/\/$/, '');
+  if (process.env.NODE_ENV === 'production' && !configuredAppOrigin) {
+    throw new Error('APP_ORIGIN must be configured in production.');
+  }
+  if (configuredAppOrigin) {
+    const parsedAppOrigin = new URL(configuredAppOrigin);
+    if (!['http:', 'https:'].includes(parsedAppOrigin.protocol) || parsedAppOrigin.origin !== configuredAppOrigin) {
+      throw new Error('APP_ORIGIN must be an absolute HTTP(S) origin without a path.');
+    }
+  }
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
 
