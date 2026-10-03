@@ -349,8 +349,10 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
-  // Legacy external garment image URLs are retired; uploaded listing images are authoritative.
-  db.prepare(`UPDATE listings SET legacy_image_url = NULL WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run();
+  // Retire old demo/seed garments. The live catalog should contain only designer-uploaded listings.
+  db.prepare(`UPDATE listings
+    SET status = 'archived', moderation_status = 'archived', updated_at = ?
+    WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
 
   function fail(res, status, code, message) {
     return res.status(status).json({ error: { code, message } });
