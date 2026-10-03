@@ -241,6 +241,17 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
+    buyer_subject TEXT NOT NULL,
+    badge_type TEXT NOT NULL CHECK (badge_type IN ('supporter','verified_buyer')),
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    awarded_at TEXT NOT NULL,
+    PRIMARY KEY (buyer_subject, badge_type),
+    UNIQUE (badge_type, source_type, source_id)
+  )`);
+  function awardBadge(subject,badgeType,sourceType,sourceId){if(!subject||!sourceId)return;db.prepare('INSERT OR IGNORE INTO user_badges (buyer_subject,badge_type,source_type,source_id,awarded_at) VALUES (?,?,?,?,?)').run(subject,badgeType,sourceType,sourceId,new Date().toISOString());}
+
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
@@ -565,6 +576,7 @@ function createApp(options = {}) {
               return res.status(409).send('Checkout order is no longer payable.');
             }
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
+            if (order.buyer_subject) awardBadge(order.buyer_subject,'verified_buyer','order',order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
             if (order.status !== 'paid') void notifySale(order.id);
@@ -1384,6 +1396,11 @@ function createApp(options = {}) {
       const results=await processDesignerTransfers(order.id,req.params.designerId,reason);
       return res.json({ok:true,results});
     }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/badges', authBuyer, (req,res) => {
+    const rows=db.prepare('SELECT badge_type,awarded_at FROM user_badges WHERE buyer_subject=? ORDER BY awarded_at').all(req.buyerSubject);
+    return res.json({badges:rows.map(row=>({type:row.badge_type,awardedAt:row.awarded_at}))});
   });
 
   app.get('/api/my/purchases', authBuyer, (req, res) => {
