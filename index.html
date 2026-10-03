@@ -166,10 +166,19 @@
           <div class="form-row">
             <div><label for="product-price">Price</label><input id="product-price" name="price" type="number" min="0" step="0.01" required /></div>
             <div>
-              <label for="product-category">Category</label>
-              <select id="product-category" name="category" required>
-                <option value="apparel">Clothing</option>
+              <label for="product-style">Garment type</label>
+              <select id="product-style" name="style" required>
+                <option value="">Choose a garment type</option>
+                <option value="Dress">Dress</option>
+                <option value="Skirt">Skirt</option>
+                <option value="Top">Top</option>
+                <option value="Set / Outfit">Set / Outfit</option>
+                <option value="Jacket / Outerwear">Jacket / Outerwear</option>
+                <option value="Pants / Shorts">Pants / Shorts</option>
+                <option value="Jumpsuit / Romper">Jumpsuit / Romper</option>
+                <option value="Other clothing">Other clothing</option>
               </select>
+              <input id="product-category" name="category" type="hidden" value="apparel" />
             </div>
           </div>
           <div class="upload-heading">
