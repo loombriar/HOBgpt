@@ -36,8 +36,10 @@ export async function verifyCheckoutSession(sessionId: string) {
   return api<{ paid: boolean; orderId: string; status: string }>(`/api/checkout/session/${encodeURIComponent(sessionId)}`);
 }
 
-export async function createDonationSession(_amount: number) {
-  throw new Error('Donations are temporarily unavailable while checkout is being upgraded.');
+export async function createDonationSession(amount: number, accessToken = '') {
+  const result = await api<{ url: string }>('/api/donations/session', { method: 'POST', headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined, body: JSON.stringify({ amount }) });
+  if (!result.url) throw new Error('Stripe did not return a donation checkout link.');
+  return result.url;
 }
 
 export async function createRefund(_chargeOrPaymentIntent: string) {
