@@ -15,8 +15,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export async function createCheckoutSession(items: CheckoutItem[], couponCode = '', accessToken = '') {
-  if (couponCode.trim()) throw new Error('Promo codes are temporarily unavailable while checkout is being upgraded.');
+export async function createCheckoutSession(items: CheckoutItem[], accessToken = '') {
   const result = await api<{ url: string }>('/api/checkout/session', {
     method: 'POST',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
