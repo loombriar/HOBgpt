@@ -14,6 +14,21 @@ npm start
 
 Then open http://localhost:3000.
 
+## CI and frontend build status
+
+`.github/workflows/ci.yml` installs the root lockfile with `npm ci` and runs the backend regression suite with `npm test`. A passing Node.js CI run does not verify the separate React marketplace in `apps/default`.
+
+The marketplace export is not yet independently buildable:
+
+- Its manifest requests `@taskade/genesis-client`, `@taskade/parade-shared`, and `@taskade/parade-template-utils`. The attempted CI install returned a public npm 404 for `@taskade/genesis-client`; obtain Taskade's supported package source and access instructions before restoring the frontend install gate.
+- Its build and dev commands reference missing `apps/default/scripts/build.mjs`.
+- `apps/default/src/main.tsx` imports missing `apps/default/src/styles/genesis-base.css`.
+- Its test command is `vitest run`, but this export contains no frontend test files.
+
+Restore the missing template files, verify package access and meaningful frontend tests, then generate and commit `apps/default/package-lock.json`. Only after the marketplace tests and build pass should CI require those checks with `npm ci`, `npm test`, and `npm run build` in `apps/default`.
+
+The sample Jekyll deployment workflow has been removed. GitHub Pages cannot run this application's Express server, SQLite database, webhooks, or upload handling; deploy the backend to a Node.js host with persistent storage as described below.
+
 ## Designer flow
 
 1. Open the Designer portal.
