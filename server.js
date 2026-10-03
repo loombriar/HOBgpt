@@ -66,6 +66,7 @@ function validateListingInput(body = {}) {
 function createApp(options = {}) {
   const rootDir = options.rootDir || __dirname;
   const dataDir = path.resolve(options.dataDir || process.env.DATA_DIR || path.join(rootDir, '.data'));
+  const configuredAppOrigin = String(options.appOrigin || process.env.APP_ORIGIN || '').replace(/\/$/, '');
   const imagesDir = path.join(dataDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
 
@@ -273,9 +274,17 @@ function createApp(options = {}) {
     return res.status(status).json({ error: { code, message } });
   }
 
+  function trustedAppOrigin(req) {
+    return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
+  }
+
+  function isSameOriginUrl(value, origin) {
+    try { return new URL(value).origin === new URL(origin).origin; } catch { return false; }
+  }
+
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    const origin = `${req.protocol}://${req.get('host')}`;
+    const origin = trustedAppOrigin(req);
     const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
     if (!discovery.ok) return null;
     const metadata = await discovery.json();
@@ -574,10 +583,10 @@ function createApp(options = {}) {
       if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
       db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
     }
-    const origin=`${req.protocol}://${req.get('host')}`;
+    const origin=trustedAppOrigin(req);
     const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
     const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
-    if(!refreshUrl.startsWith(origin)||!returnUrl.startsWith(origin))return {error:'invalid_return_url'};
+    if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
     const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
     return {designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null};
@@ -625,10 +634,10 @@ function createApp(options = {}) {
         if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
         db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
       }
-      const origin=`${req.protocol}://${req.get('host')}`;
+      const origin=trustedAppOrigin(req);
       const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
       const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
-      if(!refreshUrl.startsWith(origin)||!returnUrl.startsWith(origin))return fail(res,422,'invalid_return_url','Stripe onboarding return URLs must use this House of Briar origin.');
+      if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return fail(res,422,'invalid_return_url','Stripe onboarding return URLs must use this House of Briar origin.');
       const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
       const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
       return res.json({designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null});
@@ -872,7 +881,7 @@ function createApp(options = {}) {
       const cancelToken = crypto.randomBytes(32).toString('base64url');
       const cancelTokenHash = crypto.createHash('sha256').update(cancelToken).digest('hex');
       const now = new Date().toISOString();
-      const origin = `${req.protocol}://${req.get('host')}`;
+      const origin = trustedAppOrigin(req);
       const body = new URLSearchParams({
         mode: 'payment',
         success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
