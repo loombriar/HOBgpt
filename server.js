@@ -258,6 +258,16 @@ function createApp(options = {}) {
     paid_at TEXT
   )`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS buyer_favorites (
+    buyer_subject TEXT NOT NULL,
+    listing_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (buyer_subject, listing_id),
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  )`);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS buyer_favorites_subject_created ON buyer_favorites(buyer_subject, created_at DESC)`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
     buyer_subject TEXT NOT NULL,
     badge_type TEXT NOT NULL CHECK (badge_type IN ('supporter','verified_buyer')),
@@ -1467,6 +1477,39 @@ function createApp(options = {}) {
       const results=await processDesignerTransfers(order.id,req.params.designerId,reason);
       return res.json({ok:true,results});
     }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/favorites', authBuyer, (req,res) => {
+    const rows=db.prepare(`SELECT l.*,COALESCE(dp.brand_name,dp.display_name,l.designer_id) designer_name
+      FROM buyer_favorites bf
+      JOIN listings l ON l.id=bf.listing_id
+      JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE bf.buyer_subject=? AND l.status='published' AND l.moderation_status='approved'
+      ORDER BY bf.created_at DESC`).all(req.buyerSubject);
+    return res.json({ids:rows.map(row=>row.id),items:rows.map(row=>serializeListing(row,'public'))});
+  });
+
+  app.post('/api/my/favorites/:listingId', authBuyer, (req,res) => {
+    const listing=db.prepare(`SELECT l.id FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE l.id=? AND l.status='published' AND l.moderation_status='approved'`).get(req.params.listingId);
+    if(!listing)return fail(res,404,'listing_not_available','This piece is not available to save.');
+    db.prepare('INSERT OR IGNORE INTO buyer_favorites (buyer_subject,listing_id,created_at) VALUES (?,?,?)').run(req.buyerSubject,listing.id,new Date().toISOString());
+    return res.status(201).json({saved:true,listingId:listing.id});
+  });
+
+  app.delete('/api/my/favorites/:listingId', authBuyer, (req,res) => {
+    db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=? AND listing_id=?').run(req.buyerSubject,req.params.listingId);
+    return res.json({saved:false,listingId:req.params.listingId});
+  });
+
+  app.post('/api/my/favorites/merge', authBuyer, (req,res) => {
+    const ids=Array.isArray(req.body?.listingIds)?[...new Set(req.body.listingIds.map(id=>String(id).trim()).filter(Boolean))].slice(0,250):[];
+    const available=db.prepare(`SELECT l.id FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
+      WHERE l.id=? AND l.status='published' AND l.moderation_status='approved'`);
+    const insert=db.prepare('INSERT OR IGNORE INTO buyer_favorites (buyer_subject,listing_id,created_at) VALUES (?,?,?)');
+    const now=new Date().toISOString(); let merged=0;
+    db.transaction(()=>{for(const id of ids){if(available.get(id)){const result=insert.run(req.buyerSubject,id,now);merged+=result.changes;}}})();
+    return res.json({merged});
   });
 
   app.get('/api/my/donations', authBuyer, (req,res) => {
