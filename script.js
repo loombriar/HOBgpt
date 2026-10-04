@@ -318,6 +318,13 @@ byId('photo-lightbox')?.addEventListener('click', (event) => {
   if (event.target === byId('photo-lightbox')) byId('photo-lightbox')?.close();
 });
 
+const MEASUREMENT_PROFILES_KEY = 'house-of-briar:measurement-profiles';
+function loadMeasurementProfiles(){try{const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[];}catch{return[];}}
+function saveMeasurementProfiles(rows){localStorage.setItem(MEASUREMENT_PROFILES_KEY,JSON.stringify(rows));}
+function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product-item');const info=makeElement('div','designer-product-info');info.append(makeElement('strong','',p.label),makeElement('p','small-print',`Bust ${p.bust||'—'} · Waist ${p.waist||'—'} · Hips ${p.hips||'—'} · Height ${p.height||'—'}`));const remove=makeElement('button','text-button','Remove');remove.type='button';remove.addEventListener('click',()=>{saveMeasurementProfiles(loadMeasurementProfiles().filter(x=>x.id!==p.id));renderMeasurementProfiles();});row.append(info,remove);list.append(row);});}
+byId('measurement-profile-form')?.addEventListener('submit',event=>{event.preventDefault();const p={id:crypto.randomUUID(),label:byId('measurement-profile-name').value.trim(),bust:byId('measurement-profile-bust').value.trim(),waist:byId('measurement-profile-waist').value.trim(),hips:byId('measurement-profile-hips').value.trim(),height:byId('measurement-profile-height').value.trim(),notes:byId('measurement-profile-notes').value.trim()};if(!p.label)return;saveMeasurementProfiles([...loadMeasurementProfiles(),p]);event.currentTarget.reset();setMessage(byId('measurement-profile-message'),'Measurement profile saved.','success');renderMeasurementProfiles();});
+renderMeasurementProfiles();
+
 function openProductDetails(item) {
   if (!productDialog) return;
   const images = getProductImages(item);
@@ -367,6 +374,17 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('strong', 'price', `${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
+  const sizingBox=makeElement('div','measurement-request');
+  sizingBox.appendChild(makeElement('h4','','Send measurements for this piece'));
+  sizingBox.appendChild(makeElement('p','small-print','Choose a saved Visitor’s Suite profile or enter measurements here. They are attached only to this piece.'));
+  const profileSelect=document.createElement('select');profileSelect.innerHTML='<option value="">Choose saved profile (optional)</option>';
+  loadMeasurementProfiles().forEach(p=>{const option=document.createElement('option');option.value=p.id;option.textContent=p.label;profileSelect.appendChild(option);});
+  const bust=document.createElement('input'),waist=document.createElement('input'),hips=document.createElement('input'),height=document.createElement('input'),note=document.createElement('textarea');
+  bust.placeholder='Bust / chest';waist.placeholder='Waist';hips.placeholder='Hips';height.placeholder='Height';note.placeholder='Sizing request for this piece';
+  profileSelect.addEventListener('change',()=>{const p=loadMeasurementProfiles().find(x=>x.id===profileSelect.value);if(!p)return;bust.value=p.bust||'';waist.value=p.waist||'';hips.value=p.hips||'';height.value=p.height||'';note.value=p.notes||'';});
+  const send=makeElement('button','secondary-button','Send measurement request');send.type='button';
+  send.addEventListener('click',async()=>{const measurements=[bust.value&&`Bust/chest: ${bust.value}`,waist.value&&`Waist: ${waist.value}`,hips.value&&`Hips: ${hips.value}`,height.value&&`Height: ${height.value}`,note.value&&`Notes: ${note.value}`].filter(Boolean).join('\n');if(!measurements){alert('Add measurements or choose a saved profile first.');return;}try{await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/inquiries`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:measurements})});send.textContent='Measurement request sent';send.disabled=true;}catch(error){alert(error.message||'Measurement request could not be sent.');}});
+  sizingBox.append(profileSelect,bust,waist,hips,height,note,send);copy.appendChild(sizingBox);
   const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In cart' : 'Add to cart');
   addButton.type = 'button';
   addButton.disabled = getCartIds().includes(item.id);
