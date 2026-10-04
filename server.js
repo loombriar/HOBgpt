@@ -1323,7 +1323,7 @@ function createApp(options = {}) {
       INSERT INTO listings (
         id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, production_type, availability, alterations_available, takes_requests, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
