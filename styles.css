@@ -783,3 +783,117 @@ main>section:not(.hero){position:relative}
 @media(max-width:700px){
   .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
 }
+
+
+/* Responsive image sizing cleanup */
+.artwork-header{
+  width:100%!important;
+  overflow:hidden!important;
+}
+.botanical-nav-art{
+  width:100%!important;
+  max-width:none!important;
+  height:auto!important;
+  aspect-ratio:2048/300!important;
+  overflow:hidden!important;
+}
+.botanical-nav-art>img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+/* Keep the hero large enough to read while preserving its artwork */
+.hero{
+  width:100%!important;
+  aspect-ratio:16/7.2!important;
+  min-height:360px!important;
+  background-size:cover!important;
+  background-position:center center!important;
+}
+
+/* Product cards: consistent image windows without stretching */
+.product-image{
+  width:100%!important;
+  aspect-ratio:4/5!important;
+  height:auto!important;
+  max-height:none!important;
+}
+.product-image img{
+  width:100%!important;
+  height:100%!important;
+  max-height:none!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+/* Illustrated shop filters should stay compact and proportional */
+.product-section .shop-drop-windows{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:16px!important;
+}
+.product-section .illustrated-select{
+  width:100%!important;
+  aspect-ratio:800/260!important;
+  max-height:150px!important;
+}
+.product-section .illustrated-select>img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.product-section .illustrated-select>select{
+  left:10%!important;
+  width:80%!important;
+  bottom:7%!important;
+  height:30px!important;
+  min-height:30px!important;
+  max-height:30px!important;
+}
+
+/* Decorative story/newsletter frames should not grow taller than their content */
+.story-grid{
+  min-height:0!important;
+  background-size:100% 100%!important;
+}
+.newsletter-box{
+  min-height:0!important;
+  background-size:100% 100%!important;
+}
+
+@media(max-width:900px){
+  .hero{
+    aspect-ratio:16/9!important;
+    min-height:300px!important;
+  }
+  .product-section .shop-drop-windows{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .product-section .illustrated-select{
+    max-height:none!important;
+  }
+}
+
+@media(max-width:520px){
+  .botanical-nav-art{
+    min-width:0!important;
+    width:100%!important;
+    aspect-ratio:2048/420!important;
+  }
+  .artwork-header{
+    overflow:hidden!important;
+  }
+  .hero{
+    aspect-ratio:4/5!important;
+    min-height:0!important;
+    background-size:cover!important;
+  }
+  .product-section .shop-drop-windows{
+    grid-template-columns:1fr!important;
+  }
+  .product-section .illustrated-select{
+    aspect-ratio:800/230!important;
+  }
+}
