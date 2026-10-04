@@ -48,6 +48,7 @@ let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
 let activeShopWindow = 'all';
+let shopSearch = '';
 let selectedImages = [];
 let activeFilter = 'apparel';
 let activeAesthetic = 'all';
@@ -68,7 +69,7 @@ function setCartIds(ids) {
 function updateCartButton() {
   if (!cartButton) return;
   const count = getCartIds().length;
-  cartButton.textContent = `Suitcase (${count})`;
+  const label=byId('suitcase-label'); if(label) label.textContent=`Suitcase (${count})`; else cartButton.textContent=`Suitcase (${count})`;
   cartButton.setAttribute('aria-label', `Suitcase, ${count} ${count === 1 ? 'item' : 'items'}`);
 }
 
@@ -250,6 +251,7 @@ function renderGallery() {
     if (activeFilter === 'all' || activeFilter === 'apparel') return item.category === 'apparel';
     return item.category === 'apparel' && item.style === activeFilter;
   }).filter((item) => activeAesthetic === 'all' || item.aesthetic === activeAesthetic);
+  if(shopSearch) items=items.filter(item=>[item.title,item.description,item.style,item.aesthetic,item.designerName,item.designer,item.productionType].filter(Boolean).join(' ').toLowerCase().includes(shopSearch));
   if(activeShopWindow==='one') items=items.filter(item=>item.productionType==='One of a Kind');
   if(activeShopWindow==='multiple') items=items.filter(item=>item.productionType==='Made in Multiple');
   if(activeShopWindow==='low') items=[...items].sort((a,b)=>Number(a.price||0)-Number(b.price||0));
@@ -829,8 +831,9 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 
 byId('visitor-suite-btn')?.addEventListener('click',()=>byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click',()=>byId('visitor-suite-modal')?.close());
-document.querySelectorAll('[data-shop-window]').forEach(button=>button.addEventListener('click',()=>{activeShopWindow=button.dataset.shopWindow||'all';document.querySelectorAll('[data-shop-window]').forEach(item=>item.classList.toggle('is-active',item===button));renderGallery();document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
-document.querySelector('[data-shop-window="all"]')?.classList.add('is-active');
+byId('shop-sort-filter')?.addEventListener('change',event=>{activeShopWindow=event.target.value;renderGallery();});
+byId('shop-piece-filter')?.addEventListener('change',event=>{const value=event.target.value;activeShopWindow=value==='all'?(byId('shop-sort-filter')?.value||'all'):value;renderGallery();});
+byId('shop-search-input')?.addEventListener('input',event=>{shopSearch=event.target.value.trim().toLowerCase();renderGallery();});
 
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (!designerToken) {
