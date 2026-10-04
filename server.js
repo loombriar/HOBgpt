@@ -1703,6 +1703,16 @@ function createApp(options = {}) {
     return res.sendFile(path.join(imagesDir, row.storage_key));
   });
 
+  app.get('/manifest.webmanifest', (_req, res) => {
+    res.type('application/manifest+json');
+    res.sendFile(path.join(rootDir, 'manifest.webmanifest'));
+  });
+  app.get('/service-worker.js', (_req, res) => {
+    res.type('application/javascript');
+    res.set('Service-Worker-Allowed', '/');
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(rootDir, 'service-worker.js'));
+  });
   app.get('/designers/:designerId', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
