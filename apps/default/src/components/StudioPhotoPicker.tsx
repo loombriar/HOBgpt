@@ -21,9 +21,10 @@ export function releaseStudioPhotoPreviews(photos: StudioPhoto[]) {
 type StudioPhotoPickerProps = {
   photos: StudioPhoto[];
   setPhotos: Dispatch<SetStateAction<StudioPhoto[]>>;
+  onRemoveSaved?: (photo: StudioPhoto) => void;
 };
 
-export default function StudioPhotoPicker({ photos, setPhotos }: StudioPhotoPickerProps) {
+export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved }: StudioPhotoPickerProps) {
   const [error, setError] = useState('');
 
   const addPhotos = (event: ChangeEvent<HTMLInputElement>) => {
@@ -64,7 +65,7 @@ export default function StudioPhotoPicker({ photos, setPhotos }: StudioPhotoPick
 
   const removePhoto = (index: number) => {
     const photo = photos[index];
-    if (photo) releaseStudioPhotoPreviews([photo]);
+    if (photo) { releaseStudioPhotoPreviews([photo]); if (!photo.file && photo.url) onRemoveSaved?.(photo); }
     setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
   };
 
