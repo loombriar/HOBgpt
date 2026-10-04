@@ -1232,7 +1232,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(
       validation.value.title,
@@ -1240,6 +1240,7 @@ function createApp(options = {}) {
       validation.value.price,
       validation.value.category,
       validation.value.style || null,
+      validation.value.size,
       timestamp,
       row.id
     );
