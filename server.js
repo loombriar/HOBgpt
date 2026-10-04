@@ -63,7 +63,7 @@ function validateListingInput(body = {}) {
   if (!Number.isFinite(price) || price < 0 || price > 1000000) return { error: 'Enter a valid price between 0 and 1,000,000.' };
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
-  if (!size || size.length > 40) return { error: 'Choose a valid clothing size.' };
+  if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
 
   return { value: { title, description, price, category, style, size } };
 }
@@ -1209,7 +1209,7 @@ function createApp(options = {}) {
       validation.value.price,
       validation.value.category,
       validation.value.style || null,
-      validation.value.size,
+      validation.value.size || null,
       timestamp,
       timestamp
     );
@@ -1240,7 +1240,7 @@ function createApp(options = {}) {
       validation.value.price,
       validation.value.category,
       validation.value.style || null,
-      validation.value.size,
+      validation.value.size || null,
       timestamp,
       row.id
     );
