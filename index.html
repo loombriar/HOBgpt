@@ -42,10 +42,11 @@
           </nav>
 
           <div class="header-actions">
-            <a class="room-door visitor-door" href="#visitor-suite"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></a>
+            <button class="room-door visitor-door" type="button" id="visitor-suite-btn"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></button>
             <button class="room-door designer-door" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span aria-hidden="true">🔒</span><span>Designer’s Room</span></button>
             <button class="primary-button" type="button" id="cart-btn" aria-label="Shopping bag, 0 items">Cart (0)</button>
           </div>
+          <div class="room-explanations"><p><strong>Visitor’s Suite:</strong> your private shopping room for saved measurements, hearts, purchases, and favorite designers.</p><p><strong>Designer’s Room 🔒:</strong> manage your own pieces and storefront. Designers can use the Visitor’s Suite too.</p></div>
         </div>
       </header>
 
@@ -86,7 +87,7 @@
                 <p class="eyebrow">Shop the market</p>
                 <h2>One-of-a-kind clothing</h2>
               </div>
-              <div class="shop-filter-selects" aria-label="Shop filters">
+              <div class="shop-category-windows" aria-label="Browse clothing categories"><button type="button" data-shop-style="all">All clothing</button><button type="button" data-shop-style="Dress">Dresses</button><button type="button" data-shop-style="Top">Tops</button><button type="button" data-shop-style="Skirt">Skirts</button><button type="button" data-shop-style="Set / Outfit">Sets</button><button type="button" data-shop-style="Jacket / Outerwear">Outerwear</button><button type="button" data-shop-style="Pants / Shorts">Pants & Shorts</button><button type="button" data-shop-style="Jumpsuit / Romper">Jumpsuits</button><button type="button" data-shop-style="Costume">Costumes</button></div><div class="shop-filter-selects" aria-label="Shop filters">
                 <label for="shop-garment-filter">Garment type
                   <select id="shop-garment-filter">
                     <option value="apparel">All clothing</option>
@@ -136,19 +137,6 @@
           </div>
         </section>
 
-        <section id="visitor-suite" class="content-section visitor-suite-section">
-          <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
-          <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer until you submit that item’s request.</p>
-          <form id="measurement-profile-form" class="stack-form">
-            <label>Profile name<input id="measurement-profile-name" maxlength="80" placeholder="Me, Mom, Partner…" required></label>
-            <div class="form-row"><label>Bust / chest<input id="measurement-profile-bust" inputmode="decimal"></label><label>Waist<input id="measurement-profile-waist" inputmode="decimal"></label><label>Hips<input id="measurement-profile-hips" inputmode="decimal"></label><label>Height<input id="measurement-profile-height"></label></div>
-            <label>Fit notes<textarea id="measurement-profile-notes" rows="2"></textarea></label>
-            <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
-          </form>
-          <div id="measurement-profile-list" class="designer-products"></div>
-          <p class="small-print">Hearts and previous purchases will appear here as the signed-in shopper account features are connected to this storefront.</p>
-        </section>
-
         <section id="journal" class="newsletter-section">
           <div class="container newsletter-box">
             <div><p class="eyebrow">House notes</p><h2>Sign up for new drops and thoughtful inspiration.</h2></div>
@@ -169,6 +157,24 @@
         </div>
       </footer>
     </div>
+
+    <dialog id="visitor-suite-modal" class="app-dialog visitor-suite-dialog" aria-labelledby="visitor-suite-title">
+      <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Visitor’s Suite</h2></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Visitor’s Suite">×</button></div>
+      <section id="visitor-suite" class="visitor-suite-section">
+          <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
+          <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer until you submit that item’s request.</p>
+          <form id="measurement-profile-form" class="stack-form">
+            <label>Profile name<input id="measurement-profile-name" maxlength="80" placeholder="Me, Mom, Partner…" required></label>
+            <div class="form-row"><label>Bust / chest<input id="measurement-profile-bust" inputmode="decimal"></label><label>Waist<input id="measurement-profile-waist" inputmode="decimal"></label><label>Hips<input id="measurement-profile-hips" inputmode="decimal"></label><label>Height<input id="measurement-profile-height"></label></div>
+            <label>Fit notes<textarea id="measurement-profile-notes" rows="2"></textarea></label>
+            <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
+          </form>
+          <div id="measurement-profile-list" class="designer-products"></div>
+          <p class="small-print">Hearts and previous purchases will appear here as the signed-in shopper account features are connected to this storefront.</p>
+      </section>
+
+
+    </dialog>
 
     <dialog id="designer-modal" class="app-dialog designer-dialog" aria-labelledby="designer-dialog-title">
       <div class="dialog-header">

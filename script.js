@@ -821,6 +821,10 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   renderGallery();
 });
 
+byId('visitor-suite-btn')?.addEventListener('click',()=>byId('visitor-suite-modal')?.showModal());
+byId('visitor-suite-close')?.addEventListener('click',()=>byId('visitor-suite-modal')?.close());
+document.querySelectorAll('[data-shop-style]').forEach(button=>button.addEventListener('click',()=>{const filter=byId('shop-garment-filter');if(filter){filter.value=button.dataset.shopStyle==='all'?'apparel':button.dataset.shopStyle;filter.dispatchEvent(new Event('change'));}document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
+
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (!designerToken) {
     if (loginPanel) loginPanel.classList.remove('hidden');
