@@ -745,3 +745,26 @@ main>section:not(.hero){position:relative}
 .product-section:before,.story-section:before,.curation-section:before,.newsletter-section:before,.site-footer:before{background-image:url("/Briar-Divider.png")!important;background-size:100% 100%!important;background-repeat:no-repeat!important;height:38px!important;opacity:1!important}
 @media(max-width:900px){.shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{padding:42px 34px!important}}
 @media(max-width:520px){.shop-drop-windows{grid-template-columns:1fr!important}.botanical-nav-art{min-width:680px!important;width:680px!important}.artwork-header{overflow-x:auto!important}.story-grid{padding:36px 24px!important}}
+
+/* Approved lantern-free homepage composition */
+.product-section>.container>.section-heading{display:block!important;text-align:center!important;margin-bottom:20px!important}
+.product-section>.container>.section-heading>div:first-child{margin:0 auto 18px!important}
+.product-section>.container>.section-heading .eyebrow{margin-bottom:4px!important}
+.product-section>.container>.section-heading h2{font-size:3.25rem!important;line-height:1!important;margin:0!important}
+.product-section .shop-search-controls{width:min(1180px,100%)!important;margin:0 auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.product-section .shop-search{width:min(760px,100%)!important;margin:0 auto 18px!important;text-align:left!important}
+.product-section .shop-drop-windows{width:100%!important;gap:18px!important}
+.product-section .illustrated-select{aspect-ratio:800/300!important;filter:drop-shadow(0 5px 7px rgba(68,46,25,.12))}
+.product-section .illustrated-select>select{left:10%!important;width:80%!important;bottom:6%!important;max-height:40px!important;font-size:.78rem!important}
+.product-section #shop-status{margin-top:24px!important}
+.product-grid{margin-top:12px!important}
+.story-grid{min-height:360px!important;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)!important;align-items:center!important;padding:72px 86px!important;background-color:transparent!important}
+.story-visual{min-height:210px!important;background:transparent!important;border:0!important;display:flex!important;align-items:center!important}
+.story-panel{padding:20px!important}
+.story-copy{position:relative;z-index:2;padding:28px 20px!important;background:rgba(255,250,239,.82)!important;border-radius:20px!important}
+.curation-section .section-heading{margin-bottom:26px!important}
+.curation-grid{align-items:stretch!important}.curation-card{min-height:270px!important}
+.newsletter-box{min-height:210px!important;padding:58px 95px!important;display:grid!important;grid-template-columns:1fr!important;justify-items:center!important;text-align:center!important}
+.newsletter-form{width:min(620px,100%)!important}
+@media(max-width:900px){.product-section>.container>.section-heading h2{font-size:2.7rem!important}.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{grid-template-columns:1fr!important;padding:54px 44px!important}.story-visual{min-height:130px!important}.newsletter-box{padding:48px 42px!important}}
+@media(max-width:520px){.product-section>.container>.section-heading h2{font-size:2.25rem!important}.product-section .shop-drop-windows{grid-template-columns:1fr!important}.story-grid{padding:42px 28px!important}.newsletter-box{padding:42px 28px!important}}
