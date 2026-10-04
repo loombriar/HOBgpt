@@ -697,18 +697,14 @@ function signOut() {
 }
 
 function applyFilterButtons() {
-  document.querySelectorAll('.filter-button[data-filter]').forEach((button) => {
-    const selected = button.dataset.filter === activeFilter;
-    button.classList.toggle('is-active', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
-  document.querySelectorAll('.aesthetic-filter-button').forEach((button) => {
-    const selected = button.dataset.aesthetic === activeAesthetic;
-    button.classList.toggle('is-active', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
+  byId('shop-garment-filter')?.addEventListener('change', (event) => {
+  activeFilter = event.target.value || 'apparel';
   renderGallery();
-}
+});
+byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
+  activeAesthetic = event.target.value || 'all';
+  renderGallery();
+});
 
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (designerToken) {

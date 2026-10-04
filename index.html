@@ -85,34 +85,25 @@
                 <p class="eyebrow">Shop the market</p>
                 <h2>One-of-a-kind clothing</h2>
               </div>
-              <div class="filter-toolbar" role="group" aria-label="Clothing style">
-                <button class="filter-button is-active" type="button" data-filter="apparel" aria-pressed="true">All clothing</button>
-                <button class="filter-button" type="button" data-filter="Dress" aria-pressed="false">Dresses</button>
-                <button class="filter-button" type="button" data-filter="Skirt" aria-pressed="false">Skirts</button>
-                <button class="filter-button" type="button" data-filter="Top" aria-pressed="false">Tops</button>
-                <button class="filter-button" type="button" data-filter="Set / Outfit" aria-pressed="false">Sets & Outfits</button>
-                <button class="filter-button" type="button" data-filter="Jacket / Outerwear" aria-pressed="false">Jackets & Outerwear</button>
-                <button class="filter-button" type="button" data-filter="Pants / Shorts" aria-pressed="false">Pants & Shorts</button>
-                <button class="filter-button" type="button" data-filter="Jumpsuit / Romper" aria-pressed="false">Jumpsuits & Rompers</button>
-                <button class="filter-button" type="button" data-filter="Other clothing" aria-pressed="false">Other</button>
-              </div>
-            </div>
-            <div class="shop-aesthetic-filters">
-              <p class="filter-label">Shop by aesthetic</p>
-              <div class="filter-toolbar" role="group" aria-label="Aesthetic style">
-                <button class="aesthetic-filter-button filter-button is-active" type="button" data-aesthetic="all" aria-pressed="true">All styles</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Boho" aria-pressed="false">Boho</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Cottagecore" aria-pressed="false">Cottagecore</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Fairycore" aria-pressed="false">Fairycore</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Gothic" aria-pressed="false">Gothic</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Vintage / Retro" aria-pressed="false">Vintage / Retro</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Romantic" aria-pressed="false">Romantic</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Whimsical" aria-pressed="false">Whimsical</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Streetwear" aria-pressed="false">Streetwear</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Minimalist" aria-pressed="false">Minimalist</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Western" aria-pressed="false">Western</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Punk / Alternative" aria-pressed="false">Punk / Alternative</button>
-                <button class="aesthetic-filter-button filter-button" type="button" data-aesthetic="Other" aria-pressed="false">Other</button>
+              <div class="shop-filter-selects" aria-label="Shop filters">
+                <label for="shop-garment-filter">Garment type
+                  <select id="shop-garment-filter">
+                    <option value="apparel">All clothing</option>
+                    <option value="Dress">Dresses</option><option value="Skirt">Skirts</option><option value="Top">Tops</option>
+                    <option value="Set / Outfit">Sets & Outfits</option><option value="Jacket / Outerwear">Jackets & Outerwear</option>
+                    <option value="Pants / Shorts">Pants & Shorts</option><option value="Jumpsuit / Romper">Jumpsuits & Rompers</option>
+                    <option value="Costume">Costumes</option><option value="Other clothing">Other</option>
+                  </select>
+                </label>
+                <label for="shop-aesthetic-filter">Aesthetic
+                  <select id="shop-aesthetic-filter">
+                    <option value="all">All styles</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option>
+                    <option value="Fairycore">Fairycore</option><option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option>
+                    <option value="Romantic">Romantic</option><option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option>
+                    <option value="Minimalist">Minimalist</option><option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
               </div>
             </div>
             <p id="shop-status" class="notice" role="status" aria-live="polite">Loading the latest pieces…</p>
@@ -124,9 +115,9 @@
           <div class="container story-grid">
             <div class="story-visual"><div class="story-panel"><p class="eyebrow">Our story</p><h2>Rooted in creative living.</h2></div></div>
             <div class="story-copy">
-              <p>House of Briar began as a love letter to creative humans making beautiful things with care.</p>
-              <p>We celebrate independent designers, slow-made pieces, and the beauty of being different.</p>
-              <a class="secondary-button" href="#journal">Read the Journal</a>
+              <p>House of Briar began because we were tired of waiting for someone else to make this kind of marketplace happen.</p>
+              <p>So we built the place we wanted to see: a home for independent designers, one-of-a-kind clothing, and people who would rather wear something made by someone, not everyone.</p>
+              <a class="secondary-button" href="#shop">Explore the marketplace</a>
             </div>
           </div>
         </section>
@@ -203,7 +194,7 @@
               <select id="product-style" name="style" required>
                 <option value="">Choose a garment type</option>
                 <option value="Dress">Dress</option><option value="Skirt">Skirt</option><option value="Top">Top</option>
-                <option value="Set / Outfit">Set / Outfit</option><option value="Jacket / Outerwear">Jacket / Outerwear</option>
+                <option value="Set / Outfit">Set / Outfit</option><option value="Jacket / Outerwear">Jacket / Outerwear</option><option value="Costume">Costume</option>
                 <option value="Pants / Shorts">Pants / Shorts</option><option value="Jumpsuit / Romper">Jumpsuit / Romper</option>
                 <option value="Other clothing">Other clothing</option>
               </select>
