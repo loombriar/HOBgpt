@@ -79,6 +79,12 @@ function addToCart(item) {
   setMessage(shopStatus, `${item.title} added to your cart. Select Cart to check out.`, 'success');
 }
 
+function removeFromCart(item) {
+  setCartIds(getCartIds().filter((id) => id !== item.id));
+  setMessage(shopStatus, `${item.title} removed from your cart.`, 'success');
+  renderGallery();
+}
+
 async function checkoutCart() {
   const ids = getCartIds();
   if (!ids.length) {
