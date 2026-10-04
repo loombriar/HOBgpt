@@ -42,8 +42,7 @@
           </nav>
 
           <div class="header-actions">
-            <a class="room-door visitor-door" href="#measurements"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></a>
-            <button class="room-door designer-door" type="button" id="designer-login-btn"><span class="door-knob" aria-hidden="true"></span><span>Designer’s Room</span></button>
+            <button class="room-door designer-door" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span aria-hidden="true">🔒</span><span>Designer’s Room</span></button>
             <button class="primary-button" type="button" id="cart-btn" aria-label="Shopping bag, 0 items">Cart (0)</button>
           </div>
         </div>
@@ -133,33 +132,6 @@
               <article class="curation-card"><span class="curation-number">★</span><h3>Supporter badge</h3><p>A $5 or greater completed donation can earn a Supporter badge when the donation is connected to a signed-in buyer account.</p></article>
               <article class="curation-card"><span class="curation-number">✓</span><h3>Verified Buyer badge</h3><p>A Verified Buyer badge shows that the account has completed a purchase through House of Briar.</p></article>
             </div>
-          </div>
-        </section>
-
-        <section id="measurements" class="newsletter-section">
-          <div class="container newsletter-box">
-            <div>
-              <p class="eyebrow">Visitor’s Suite</p>
-              <h2>Your fit profile</h2>
-              <p>Keep your measurements together so you can share them with an independent designer when discussing fit or custom work.</p>
-            </div>
-            <form id="measurements-form" class="stack-form">
-              <div class="form-row">
-                <div><label for="measure-bust">Bust / chest</label><input id="measure-bust" type="number" min="0" step="0.25" /></div>
-                <div><label for="measure-waist">Waist</label><input id="measure-waist" type="number" min="0" step="0.25" /></div>
-                <div><label for="measure-hips">Hips</label><input id="measure-hips" type="number" min="0" step="0.25" /></div>
-              </div>
-              <div class="form-row">
-                <div><label for="measure-inseam">Inseam</label><input id="measure-inseam" type="number" min="0" step="0.25" /></div>
-                <div><label for="measure-height">Height</label><input id="measure-height" type="number" min="0" step="0.25" /></div>
-                <div><label for="measure-unit">Unit</label><select id="measure-unit"><option value="in">inches</option><option value="cm">centimeters</option></select></div>
-              </div>
-              <label for="measure-notes">Fit notes / additional measurements</label>
-              <textarea id="measure-notes" rows="3" maxlength="1000" placeholder="Shoulder, sleeve, rise, preferred ease, or notes for a designer"></textarea>
-              <button class="primary-button" type="submit">Save measurements</button>
-              <p id="measurements-message" class="form-message" role="status" aria-live="polite"></p>
-              <p class="small-print">Saved on this device for now. We’ll connect this to customer accounts before enabling designer sharing.</p>
-            </form>
           </div>
         </section>
 
