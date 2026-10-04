@@ -13,7 +13,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/house-of-briar-192.png" type="image/png" />
+    <link rel="icon" href="/icons/house-of-briar-192.png?v=spool-2" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=spool-2" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/script.js" defer></script>
     <script>
@@ -44,9 +45,9 @@
           <div class="header-actions">
             <button class="room-door visitor-door" type="button" id="visitor-suite-btn"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></button>
             <button class="room-door designer-door" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span aria-hidden="true">🔒</span><span>Designer’s Room</span></button>
-            <button class="primary-button" type="button" id="cart-btn" aria-label="Shopping bag, 0 items">Cart (0)</button>
+            <button class="primary-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items">Suitcase (0)</button>
           </div>
-          <div class="room-explanations"><p><strong>Visitor’s Suite:</strong> your private shopping room for saved measurements, hearts, purchases, and favorite designers.</p><p><strong>Designer’s Room 🔒:</strong> manage your own pieces and storefront. Designers can use the Visitor’s Suite too.</p></div>
+          <div class="room-tooltips" aria-live="polite"><span class="room-tooltip visitor-tooltip">Your private shopping room: saved measurements, hearts, purchases, and favorite designers.</span><span class="room-tooltip designer-tooltip">Designer workspace for managing pieces and your storefront. Designers can shop in the Visitor’s Suite too.</span></div>
         </div>
       </header>
 
@@ -87,7 +88,14 @@
                 <p class="eyebrow">Shop the market</p>
                 <h2>One-of-a-kind clothing</h2>
               </div>
-              <div class="shop-category-windows" aria-label="Browse clothing categories"><button type="button" data-shop-style="all">All clothing</button><button type="button" data-shop-style="Dress">Dresses</button><button type="button" data-shop-style="Top">Tops</button><button type="button" data-shop-style="Skirt">Skirts</button><button type="button" data-shop-style="Set / Outfit">Sets</button><button type="button" data-shop-style="Jacket / Outerwear">Outerwear</button><button type="button" data-shop-style="Pants / Shorts">Pants & Shorts</button><button type="button" data-shop-style="Jumpsuit / Romper">Jumpsuits</button><button type="button" data-shop-style="Costume">Costumes</button></div><div class="shop-filter-selects" aria-label="Shop filters">
+              <div class="shop-category-windows" aria-label="Discover pieces">
+                <button type="button" data-shop-window="all">All Pieces</button>
+                <button type="button" data-shop-window="new">Newly Added</button>
+                <button type="button" data-shop-window="low">Price: Low–High</button>
+                <button type="button" data-shop-window="high">Price: High–Low</button>
+                <button type="button" data-shop-window="one">One of a Kind</button>
+                <button type="button" data-shop-window="multiple">Multiple Available</button>
+              </div><div class="shop-filter-selects" aria-label="Shop filters">
                 <label for="shop-garment-filter">Garment type
                   <select id="shop-garment-filter">
                     <option value="apparel">All clothing</option>
@@ -294,11 +302,11 @@
 
     <dialog id="cart-dialog" class="app-dialog cart-dialog" aria-labelledby="cart-dialog-title">
       <div class="dialog-header">
-        <div><p class="eyebrow">Your selections</p><h2 id="cart-dialog-title">Your cart</h2></div>
+        <div><p class="eyebrow">Your selections</p><h2 id="cart-dialog-title">Your Suitcase</h2></div>
         <button id="cart-dialog-close" class="icon-button" type="button" aria-label="Close cart">×</button>
       </div>
       <div id="cart-items" class="designer-products"></div>
-      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your cart does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable if another customer reaches checkout first.</p>
+      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Suitcase does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable if another customer reaches checkout first.</p>
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
         <button id="continue-shopping-btn" class="secondary-button" type="button">Continue shopping</button>

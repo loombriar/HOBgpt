@@ -47,6 +47,7 @@ let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
+let activeShopWindow = 'all';
 let selectedImages = [];
 let activeFilter = 'apparel';
 let activeAesthetic = 'all';
@@ -67,8 +68,8 @@ function setCartIds(ids) {
 function updateCartButton() {
   if (!cartButton) return;
   const count = getCartIds().length;
-  cartButton.textContent = `Cart (${count})`;
-  cartButton.setAttribute('aria-label', `Shopping bag, ${count} ${count === 1 ? 'item' : 'items'}`);
+  cartButton.textContent = `Suitcase (${count})`;
+  cartButton.setAttribute('aria-label', `Suitcase, ${count} ${count === 1 ? 'item' : 'items'}`);
 }
 
 function addToCart(item) {
@@ -76,19 +77,19 @@ function addToCart(item) {
   if (!ids.includes(item.id)) ids.push(item.id);
   setCartIds(ids);
   if (productDialog?.open) productDialog.close();
-  setMessage(shopStatus, `${item.title} added to your cart. Select Cart to check out.`, 'success');
+  setMessage(shopStatus, `${item.title} added to your Suitcase. Select Suitcase to check out.`, 'success');
 }
 
 function removeFromCart(item) {
   setCartIds(getCartIds().filter((id) => id !== item.id));
-  setMessage(shopStatus, `${item.title} removed from your cart.`, 'success');
+  setMessage(shopStatus, `${item.title} removed from your Suitcase.`, 'success');
   renderGallery();
 }
 
 async function checkoutCart() {
   const ids = getCartIds();
   if (!ids.length) {
-    setMessage(shopStatus, 'Your cart is empty. Open a piece and choose Add to cart.', 'error');
+    setMessage(shopStatus, 'Your Suitcase is empty. Open a piece and choose Add to Suitcase.', 'error');
     document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
     return;
   }
@@ -114,7 +115,7 @@ function openCart() {
   const ids = getCartIds();
   cartItems.replaceChildren();
   if (!ids.length) {
-    cartItems.appendChild(makeElement('p', 'notice', 'Your cart is empty.'));
+    cartItems.appendChild(makeElement('p', 'notice', 'Your Suitcase is empty.'));
     if (checkoutButton) checkoutButton.disabled = true;
   } else {
     if (checkoutButton) checkoutButton.disabled = false;
@@ -125,7 +126,7 @@ function openCart() {
       const copy = makeElement('div');
       copy.appendChild(makeElement('strong', '', item.title));
       copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
-      const remove = makeElement('button', 'text-button', 'Remove from cart');
+      const remove = makeElement('button', 'text-button', 'Remove from Suitcase');
       remove.type = 'button';
       remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
       row.append(copy, remove);
@@ -245,10 +246,15 @@ function renderGallery() {
   if (!productGrid) return;
   productGrid.replaceChildren();
 
-  const items = galleryItems.filter((item) => {
+  let items = galleryItems.filter((item) => {
     if (activeFilter === 'all' || activeFilter === 'apparel') return item.category === 'apparel';
     return item.category === 'apparel' && item.style === activeFilter;
   }).filter((item) => activeAesthetic === 'all' || item.aesthetic === activeAesthetic);
+  if(activeShopWindow==='one') items=items.filter(item=>item.productionType==='One of a Kind');
+  if(activeShopWindow==='multiple') items=items.filter(item=>item.productionType==='Made in Multiple');
+  if(activeShopWindow==='low') items=[...items].sort((a,b)=>Number(a.price||0)-Number(b.price||0));
+  if(activeShopWindow==='high') items=[...items].sort((a,b)=>Number(b.price||0)-Number(a.price||0));
+  if(activeShopWindow==='new') items=[...items].sort((a,b)=>String(b.createdAt||b.created_at||'').localeCompare(String(a.createdAt||a.created_at||'')));
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
     productGrid.appendChild(empty);
@@ -358,7 +364,7 @@ function openProductDetails(item) {
     productionButton.type = 'button';
     productionButton.addEventListener('click', () => {
       const info = {
-        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your cart does not reserve it; it is secured when checkout begins.',
+        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your Suitcase does not reserve it; it is secured when checkout begins.',
         'Upcycled': 'This piece gives existing materials or garments a new life through the designer’s creative work.',
         'Made in Multiple': 'This design can be made more than once. Individual pieces may still vary because they are independently made.'
       };
@@ -385,7 +391,7 @@ function openProductDetails(item) {
   const send=makeElement('button','secondary-button','Send measurement request');send.type='button';
   send.addEventListener('click',async()=>{const measurements=[bust.value&&`Bust/chest: ${bust.value}`,waist.value&&`Waist: ${waist.value}`,hips.value&&`Hips: ${hips.value}`,height.value&&`Height: ${height.value}`,note.value&&`Notes: ${note.value}`].filter(Boolean).join('\n');if(!measurements){alert('Add measurements or choose a saved profile first.');return;}try{await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/inquiries`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:measurements})});send.textContent='Measurement request sent';send.disabled=true;}catch(error){alert(error.message||'Measurement request could not be sent.');}});
   sizingBox.append(profileSelect,bust,waist,hips,height,note,send);copy.appendChild(sizingBox);
-  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In cart' : 'Add to cart');
+  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Suitcase' : 'Add to Suitcase');
   addButton.type = 'button';
   addButton.disabled = getCartIds().includes(item.id);
   addButton.addEventListener('click', () => addToCart(item));
@@ -823,7 +829,7 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 
 byId('visitor-suite-btn')?.addEventListener('click',()=>byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click',()=>byId('visitor-suite-modal')?.close());
-document.querySelectorAll('[data-shop-style]').forEach(button=>button.addEventListener('click',()=>{const filter=byId('shop-garment-filter');if(filter){filter.value=button.dataset.shopStyle==='all'?'apparel':button.dataset.shopStyle;filter.dispatchEvent(new Event('change'));}document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
+document.querySelectorAll('[data-shop-window]').forEach(button=>button.addEventListener('click',()=>{activeShopWindow=button.dataset.shopWindow||'all';renderGallery();document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
 
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (!designerToken) {

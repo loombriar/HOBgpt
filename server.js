@@ -1883,14 +1883,14 @@ function createApp(options = {}) {
     if (![192, 512].includes(size)) return fail(res, 404, 'not_found', 'Icon not found.');
     const uploadedIcon = path.join(rootDir, `house-of-briar-${size}.png`);
     if (fs.existsSync(uploadedIcon)) {
-      res.set('Cache-Control', 'public, max-age=3600');
+      res.set('Cache-Control', 'no-cache, must-revalidate');
       return res.sendFile(uploadedIcon);
     }
     try {
       const source = path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png');
       const output = await sharp(source).resize(size, size, { fit: 'cover', position: 'centre' }).png().toBuffer();
       res.set('Content-Type', 'image/png');
-      res.set('Cache-Control', 'public, max-age=3600');
+      res.set('Cache-Control', 'no-cache, must-revalidate');
       return res.send(output);
     } catch (error) { return next(error); }
   });
