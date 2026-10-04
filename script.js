@@ -544,6 +544,24 @@ async function loadDesignerListings() {
       edit.className = 'text-button';
       edit.addEventListener('click', () => editListing(listing.id));
       if (['draft', 'rejected'].includes(listing.status)) actions.appendChild(edit);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Delete';
+      remove.className = 'text-button';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Delete "${listing.title}" permanently? This also removes its uploaded photos.`)) return;
+        remove.disabled = true;
+        try {
+          await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}`, { method: 'DELETE' });
+          if (currentListingId === listing.id) resetListingForm();
+          await loadDesignerListings();
+          await loadGallery();
+        } catch (error) {
+          setMessage(designerAuthMessage, error.message, 'error');
+          remove.disabled = false;
+        }
+      });
+      actions.appendChild(remove);
       row.appendChild(actions);
       if (designerProductsContainer) designerProductsContainer.appendChild(row);
     }
@@ -759,7 +777,18 @@ async function renderAdminQueue() {
           await renderAdminQueue();
         } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); reject.disabled = false; }
       });
-      actions.append(approve, reject);
+      const remove = makeElement('button', 'secondary-button', 'Delete');
+      remove.type = 'button';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Delete "${item.title}" permanently? This also removes its uploaded photos.`)) return;
+        remove.disabled = true;
+        try {
+          await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}`, { method:'DELETE' });
+          await renderAdminQueue();
+          await loadGallery();
+        } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); remove.disabled = false; }
+      });
+      actions.append(approve, reject, remove);
       body.append(reason, actions);
       card.append(media, body);
       adminReviewList.appendChild(card);
