@@ -27,6 +27,9 @@ const productDetailContent = byId('product-detail-content');
 const productIdInput = byId('product-id');
 const listingFormTitle = byId('listing-form-title');
 const cartButton = byId('cart-btn');
+const cartDialog = byId('cart-dialog');
+const cartItems = byId('cart-items');
+const checkoutButton = byId('checkout-btn');
 const adminReviewBtn = byId('admin-review-btn');
 const adminReviewDialog = byId('admin-review-dialog');
 const adminReviewClose = byId('admin-review-close');
@@ -100,8 +103,37 @@ async function checkoutCart() {
   }
 }
 
+function openCart() {
+  if (!cartDialog || !cartItems) return checkoutCart();
+  const ids = getCartIds();
+  cartItems.replaceChildren();
+  if (!ids.length) {
+    cartItems.appendChild(makeElement('p', 'notice', 'Your cart is empty.'));
+    if (checkoutButton) checkoutButton.disabled = true;
+  } else {
+    if (checkoutButton) checkoutButton.disabled = false;
+    ids.forEach((id) => {
+      const item = galleryItems.find((entry) => entry.id === id);
+      if (!item) return;
+      const row = makeElement('div', 'designer-product');
+      const copy = makeElement('div');
+      copy.appendChild(makeElement('strong', '', item.title));
+      copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
+      const remove = makeElement('button', 'text-button', 'Remove from cart');
+      remove.type = 'button';
+      remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
+      row.append(copy, remove);
+      cartItems.appendChild(row);
+    });
+  }
+  cartDialog.showModal();
+}
+
 updateCartButton();
-cartButton?.addEventListener('click', checkoutCart);
+cartButton?.addEventListener('click', openCart);
+checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
+byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
+byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
 
 function setMessage(element, message = '', kind = '') {
   if (!element) return;
