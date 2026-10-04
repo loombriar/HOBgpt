@@ -532,6 +532,16 @@ function createApp(options = {}) {
     };
   }
 
+  async function deleteListingAndImages(row) {
+    const images = db.prepare("SELECT id, storage_key FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").all(row.id);
+    const timestamp = new Date().toISOString();
+    db.transaction(() => {
+      db.prepare("UPDATE listing_images SET upload_status = 'deleted', deleted_at = ? WHERE listing_id = ? AND upload_status = 'ready'").run(timestamp, row.id);
+      db.prepare("UPDATE listings SET status = 'deleted', moderation_status = 'rejected', moderation_reason = 'Listing deleted', published_at = NULL, updated_at = ?, version = version + 1 WHERE id = ?").run(timestamp, row.id);
+    })();
+    await Promise.all(images.map((image) => fs.promises.unlink(path.join(imagesDir, image.storage_key)).catch(() => {})));
+  }
+
   function ownedEditableListing(req, res) {
     const row = getListing(req.params.listingId);
     if (!row || row.designer_id !== req.designerId || row.status === 'deleted') {
@@ -1370,6 +1380,15 @@ function createApp(options = {}) {
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
+  app.delete('/api/listings/:listingId', authDesigner, async (req, res, next) => {
+    try {
+      const row = getListing(req.params.listingId);
+      if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+      await deleteListingAndImages(row);
+      return res.json({ deleted: true, id: row.id });
+    } catch (error) { return next(error); }
+  });
+
   app.post('/api/listings/:listingId/submit', authDesigner, (req, res) => {
     const row = getListing(req.params.listingId);
     if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
@@ -1428,6 +1447,15 @@ function createApp(options = {}) {
       WHERE id = ?
     `).run(reason, timestamp, row.id);
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.delete('/api/admin/listings/:listingId', authAdmin, async (req, res, next) => {
+    try {
+      const row = getListing(req.params.listingId);
+      if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
+      await deleteListingAndImages(row);
+      return res.json({ deleted: true, id: row.id });
+    } catch (error) { return next(error); }
   });
 
   app.post('/api/admin/listings/:listingId/unpublish', authAdmin, (req, res) => {
