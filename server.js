@@ -1514,7 +1514,7 @@ function createApp(options = {}) {
       remaining.forEach((image, index) => {
         db.prepare('UPDATE listing_images SET position = ? WHERE id = ?').run(index, image.id);
       });
-      db.prepare('UPDATE listings SET updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
+      db.prepare('UPDATE listings SET legacy_image_url = NULL, updated_at = ?, version = version + 1 WHERE id = ?').run(timestamp, row.id);
     })();
 
     const storagePath = path.join(imagesDir, target.storage_key);
