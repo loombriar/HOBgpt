@@ -697,7 +697,13 @@ function signOut() {
 }
 
 function applyFilterButtons() {
-  byId('shop-garment-filter')?.addEventListener('change', (event) => {
+  const garmentSelect = byId('shop-garment-filter');
+  const aestheticSelect = byId('shop-aesthetic-filter');
+  if (garmentSelect) garmentSelect.value = activeFilter;
+  if (aestheticSelect) aestheticSelect.value = activeAesthetic;
+}
+
+byId('shop-garment-filter')?.addEventListener('change', (event) => {
   activeFilter = event.target.value || 'apparel';
   renderGallery();
 });
@@ -720,19 +726,6 @@ if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
-
-document.querySelectorAll('.filter-button[data-filter]').forEach((button) => {
-  button.addEventListener('click', () => {
-    activeFilter = button.dataset.filter || 'all';
-    applyFilterButtons();
-  });
-});
-document.querySelectorAll('.aesthetic-filter-button').forEach((button) => {
-  button.addEventListener('click', () => {
-    activeAesthetic = button.dataset.aesthetic || 'all';
-    applyFilterButtons();
-  });
-});
 
 byId('donation-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
