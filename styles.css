@@ -903,3 +903,12 @@ main>section:not(.hero){position:relative}
 .botanical-nav-art>img,.hero-artwork>img{display:block!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;object-fit:contain!important;object-position:center!important}
 .hero-artwork::after{display:none!important}
 @media(max-width:700px){.hero-artwork{aspect-ratio:auto!important;min-height:0!important}.hero-artwork>img{width:100%!important;height:auto!important}.botanical-nav-art{min-width:0!important;width:100%!important}.artwork-header{overflow:visible!important}}
+
+/* Clean homepage section composition: no repeated miniature-card dividers or baked-text collisions */
+.product-section::before,.story-section::before,.curation-section::before,.newsletter-section::before,.site-footer::before{display:none!important;background:none!important;height:0!important;content:none!important}
+.story-grid{background:#fffaf0!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:28px!important;box-shadow:0 12px 32px rgba(70,48,28,.06)!important;min-height:0!important;padding:54px 64px!important}
+.story-visual{min-height:0!important}
+.story-panel{position:static!important}
+.story-copy{background:transparent!important;padding:0!important}
+.newsletter-box{background:#fffaf0!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:28px!important;box-shadow:0 12px 32px rgba(70,48,28,.06)!important;min-height:0!important;padding:44px 64px!important}
+@media(max-width:700px){.story-grid,.newsletter-box{padding:34px 24px!important}}
