@@ -912,3 +912,17 @@ main>section:not(.hero){position:relative}
 .story-copy{background:transparent!important;padding:0!important}
 .newsletter-box{background:#fffaf0!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:28px!important;box-shadow:0 12px 32px rgba(70,48,28,.06)!important;min-height:0!important;padding:44px 64px!important}
 @media(max-width:700px){.story-grid,.newsletter-box{padding:34px 24px!important}}
+
+/* Keep maker-uploaded photos fully visible across storefront and designer workflows. */
+.product-image {
+  background: #f7f3ed !important;
+}
+.product-image img,
+.photo-preview-item img,
+.designer-product-item img,
+.admin-review-media img,
+.product-detail-images img {
+  object-fit: contain !important;
+  object-position: center !important;
+  background-color: #f7f3ed;
+}

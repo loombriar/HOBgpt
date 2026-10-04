@@ -204,3 +204,23 @@ test('supports multiple uploads, ordering, owner isolation, review gating, and p
   assert.equal(publicImage.status, 200);
   assert.match(publicImage.headers.get('content-type'), /image\/webp/);
 });
+
+
+test('uploaded product photos fit fully in gallery, detail, upload, designer, and review views', async () => {
+  const response = await fetch(`${baseUrl}/styles.css`);
+  const css = await response.text();
+  assert.equal(response.status, 200);
+  const finalImageFitRules = css.slice(css.lastIndexOf('/* Keep maker-uploaded photos'));
+  assert.ok(finalImageFitRules.length > 0, 'final uploaded-image fitting rules should be present');
+  for (const selector of [
+    '.product-image img',
+    '.photo-preview-item img',
+    '.designer-product-item img',
+    '.admin-review-media img',
+    '.product-detail-images img'
+  ]) {
+    assert.ok(finalImageFitRules.includes(selector), `missing contain-fit coverage for ${selector}`);
+  }
+  assert.match(finalImageFitRules, /object-fit:\s*contain\s*!important/);
+  assert.match(finalImageFitRules, /object-position:\s*center\s*!important/);
+});
