@@ -1928,6 +1928,21 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
+  const illustratedPublicAssets = [
+    'Enchanted Briar House Header.png',
+    'Botanical Garment Selector Banner-1.png',
+    'Ornate Woodland Aesthetic Dropdown UI-2.png',
+    'Enchanted Woodland Price Selector-3.png',
+    'Botanical Accessories Dropdown Banner-4.png'
+  ];
+  illustratedPublicAssets.forEach((assetName) => {
+    app.get('/' + encodeURIComponent(assetName).replace(/%20/g, '%20'), (_req, res) => {
+      res.type('image/png');
+      res.set('Cache-Control', 'no-cache, must-revalidate');
+      res.sendFile(path.join(rootDir, 'public', assetName));
+    });
+  });
+
 
   app.use((error, _req, res, _next) => {
     if (error instanceof multer.MulterError) {
