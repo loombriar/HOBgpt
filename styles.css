@@ -768,3 +768,18 @@ main>section:not(.hero){position:relative}
 .newsletter-form{width:min(620px,100%)!important}
 @media(max-width:900px){.product-section>.container>.section-heading h2{font-size:2.7rem!important}.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{grid-template-columns:1fr!important;padding:54px 44px!important}.story-visual{min-height:130px!important}.newsletter-box{padding:48px 42px!important}}
 @media(max-width:520px){.product-section>.container>.section-heading h2{font-size:2.25rem!important}.product-section .shop-drop-windows{grid-template-columns:1fr!important}.story-grid{padding:42px 28px!important}.newsletter-box{padding:42px 28px!important}}
+
+/* Final cohesive artisan hero: show the complete uploaded artwork */
+.hero{
+  aspect-ratio:16/9!important;
+  min-height:0!important;
+  padding:0!important;
+  display:block!important;
+  background:url('/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png') center/contain no-repeat!important;
+  background-color:#faf4e5!important;
+}
+.hero::after{display:none!important}
+.hero>.container{display:none!important}
+@media(max-width:700px){
+  .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
+}
