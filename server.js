@@ -290,6 +290,22 @@ function createApp(options = {}) {
 
   db.exec(`CREATE INDEX IF NOT EXISTS buyer_favorites_subject_created ON buyer_favorites(buyer_subject, created_at DESC)`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS listing_inquiries (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL,
+    designer_id TEXT NOT NULL,
+    buyer_subject TEXT NOT NULL,
+    buyer_email TEXT,
+    message TEXT NOT NULL,
+    availability_status TEXT NOT NULL DEFAULT 'pending' CHECK (availability_status IN ('pending','available','not_available')),
+    created_at TEXT NOT NULL,
+    responded_at TEXT,
+    FOREIGN KEY(listing_id) REFERENCES listings(id),
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_designer_created ON listing_inquiries(designer_id, created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_buyer_created ON listing_inquiries(buyer_subject, created_at DESC)`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
     buyer_subject TEXT NOT NULL,
     badge_type TEXT NOT NULL CHECK (badge_type IN ('supporter','verified_buyer')),
@@ -708,6 +724,41 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
+    const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
+    if(!listing)return fail(res,404,'listing_not_found','This listing is not available for inquiries.');
+    const message=String(req.body?.message||'').trim();
+    if(!message||message.length>800)return fail(res,422,'validation_error','Write a message between 1 and 800 characters.');
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare(`INSERT INTO listing_inquiries (id,listing_id,designer_id,buyer_subject,buyer_email,message,created_at) VALUES (?,?,?,?,?,?,?)`).run(id,listing.id,listing.designer_id,req.buyerSubject,req.buyerEmail||null,message,now);
+    void sendEmail({to:listing.designer_email,subject:`New House of Briar inquiry: ${listing.title}`,text:`A customer sent a question about ${listing.title}.\n\n${message}\n\nOpen your Designer Studio to respond Available or Not available.`});
+    return res.status(201).json({inquiry:{id,listingId:listing.id,title:listing.title,message,availabilityStatus:'pending',createdAt:now}});
+  });
+
+  app.get('/api/my/inquiries', authBuyer, (req,res)=>{
+    const inquiries=db.prepare(`SELECT i.id,i.listing_id,i.message,i.availability_status,i.created_at,i.responded_at,l.title,p.brand_name,p.display_name
+      FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id JOIN designer_profiles p ON p.id=i.designer_id
+      WHERE i.buyer_subject=? ORDER BY i.created_at DESC LIMIT 100`).all(req.buyerSubject);
+    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,designerName:i.brand_name||i.display_name,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at}))});
+  });
+
+  app.get('/api/my/designer-inquiries', authDesigner, (req,res)=>{
+    const inquiries=db.prepare(`SELECT i.id,i.listing_id,i.buyer_email,i.message,i.availability_status,i.created_at,i.responded_at,l.title
+      FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.designer_id=? ORDER BY i.created_at DESC LIMIT 100`).all(req.designerId);
+    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,buyerEmail:i.buyer_email,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at}))});
+  });
+
+  app.patch('/api/my/designer-inquiries/:inquiryId', authDesigner, (req,res)=>{
+    const status=String(req.body?.availabilityStatus||'');
+    if(!['available','not_available'].includes(status))return fail(res,422,'validation_error','Choose Available or Not available.');
+    const inquiry=db.prepare(`SELECT i.*,l.title FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.id=? AND i.designer_id=?`).get(req.params.inquiryId,req.designerId);
+    if(!inquiry)return fail(res,404,'inquiry_not_found','Inquiry not found.');
+    const now=new Date().toISOString();
+    db.prepare('UPDATE listing_inquiries SET availability_status=?,responded_at=? WHERE id=?').run(status,now,inquiry.id);
+    if(inquiry.buyer_email)void sendEmail({to:inquiry.buyer_email,subject:`House of Briar: ${inquiry.title} is ${status==='available'?'available':'not available'}`,text:`The designer responded to your inquiry about ${inquiry.title}: ${status==='available'?'Available':'Not available'}.\n\nOpen your House of Briar account to view the response.`});
+    return res.json({inquiry:{id:inquiry.id,availabilityStatus:status,respondedAt:now}});
+  });
 
   app.post('/api/designer-applications', signupLimiter, (req, res) => {
     const email=String(req.body?.email||'').trim().toLowerCase();
