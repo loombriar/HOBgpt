@@ -1715,15 +1715,18 @@ function createApp(options = {}) {
   app.get('/icons/house-of-briar-:size.png', async (req, res, next) => {
     const size = Number(req.params.size);
     if (![192, 512].includes(size)) return fail(res, 404, 'not_found', 'Icon not found.');
+    const uploadedIcon = path.join(rootDir, `house-of-briar-${size}.png`);
+    if (fs.existsSync(uploadedIcon)) {
+      res.set('Cache-Control', 'public, max-age=3600');
+      return res.sendFile(uploadedIcon);
+    }
     try {
       const source = path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png');
-      const icon = await sharp(source).resize(size, size, { fit: 'cover' }).png().toBuffer();
-      res.type('image/png');
-      res.set('Cache-Control', 'public, max-age=31536000, immutable');
-      return res.send(icon);
-    } catch (error) {
-      return next(error);
-    }
+      const output = await sharp(source).resize(size, size, { fit: 'cover', position: 'centre' }).png().toBuffer();
+      res.set('Content-Type', 'image/png');
+      res.set('Cache-Control', 'public, max-age=3600');
+      return res.send(output);
+    } catch (error) { return next(error); }
   });
 
   app.get('/manifest.webmanifest', (_req, res) => {
