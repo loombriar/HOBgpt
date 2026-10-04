@@ -1214,6 +1214,18 @@ function createApp(options = {}) {
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
   });
 
+  app.get('/api/designers', (_req,res)=>{
+    const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
+      COUNT(l.id) piece_count,
+      SUM(CASE WHEN ir.status='sold' THEN 1 ELSE 0 END) sold_count,
+      SUM(CASE WHEN l.status='published' AND l.moderation_status='approved' AND ir.status IS NULL THEN 1 ELSE 0 END) available_count
+      FROM designer_profiles dp
+      LEFT JOIN listings l ON l.designer_id=dp.id AND l.status!='deleted'
+      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
+      WHERE dp.status='active' GROUP BY dp.id ORDER BY COALESCE(dp.brand_name,dp.display_name)`).all();
+    return res.json({designers:rows.map(d=>({id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:d.piece_count||0,soldCount:d.sold_count||0,availableCount:d.available_count||0}))});
+  });
+
   app.get('/api/designers/:designerId', (req, res) => {
     const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key
       FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
