@@ -697,8 +697,13 @@ function signOut() {
 }
 
 function applyFilterButtons() {
-  document.querySelectorAll('.filter-button').forEach((button) => {
+  document.querySelectorAll('.filter-button[data-filter]').forEach((button) => {
     const selected = button.dataset.filter === activeFilter;
+    button.classList.toggle('is-active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  document.querySelectorAll('.aesthetic-filter-button').forEach((button) => {
+    const selected = button.dataset.aesthetic === activeAesthetic;
     button.classList.toggle('is-active', selected);
     button.setAttribute('aria-pressed', String(selected));
   });
@@ -720,9 +725,15 @@ byId('signout-btn')?.addEventListener('click', signOut);
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 
-document.querySelectorAll('.filter-button').forEach((button) => {
+document.querySelectorAll('.filter-button[data-filter]').forEach((button) => {
   button.addEventListener('click', () => {
     activeFilter = button.dataset.filter || 'all';
+    applyFilterButtons();
+  });
+});
+document.querySelectorAll('.aesthetic-filter-button').forEach((button) => {
+  button.addEventListener('click', () => {
+    activeAesthetic = button.dataset.aesthetic || 'all';
     applyFilterButtons();
   });
 });
