@@ -79,6 +79,12 @@ function addToCart(item) {
   setMessage(shopStatus, `${item.title} added to your cart. Select Cart to check out.`, 'success');
 }
 
+function removeFromCart(item) {
+  setCartIds(getCartIds().filter((id) => id !== item.id));
+  setMessage(shopStatus, `${item.title} removed from your cart.`, 'success');
+  renderGallery();
+}
+
 async function checkoutCart() {
   const ids = getCartIds();
   if (!ids.length) {
@@ -134,6 +140,34 @@ cartButton?.addEventListener('click', openCart);
 checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
 byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
+
+const MEASUREMENTS_KEY = 'house-of-briar:measurements';
+
+function loadMeasurements() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MEASUREMENTS_KEY) || '{}');
+    [['measure-bust','bust'],['measure-waist','waist'],['measure-hips','hips'],['measure-inseam','inseam'],['measure-height','height'],['measure-unit','unit'],['measure-notes','notes']].forEach(([id,key]) => {
+      const field = byId(id);
+      if (field && saved[key] != null) field.value = saved[key];
+    });
+  } catch {}
+}
+
+byId('measurements-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const measurements = {
+    bust: byId('measure-bust')?.value || '',
+    waist: byId('measure-waist')?.value || '',
+    hips: byId('measure-hips')?.value || '',
+    inseam: byId('measure-inseam')?.value || '',
+    height: byId('measure-height')?.value || '',
+    unit: byId('measure-unit')?.value || 'in',
+    notes: byId('measure-notes')?.value?.trim() || ''
+  };
+  localStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(measurements));
+  setMessage(byId('measurements-message'), 'Measurements saved on this device.', 'success');
+});
+loadMeasurements();
 
 function setMessage(element, message = '', kind = '') {
   if (!element) return;
