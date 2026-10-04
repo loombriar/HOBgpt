@@ -233,6 +233,20 @@ async function loadGallery() {
   }
 }
 
+function openPhotoLightbox(src, alt) {
+  const lightbox = byId('photo-lightbox');
+  const lightboxImage = byId('photo-lightbox-image');
+  if (!lightbox || !lightboxImage) return;
+  lightboxImage.src = src;
+  lightboxImage.alt = alt || 'Full product photo';
+  lightbox.showModal();
+}
+
+byId('photo-lightbox-close')?.addEventListener('click', () => byId('photo-lightbox')?.close());
+byId('photo-lightbox')?.addEventListener('click', (event) => {
+  if (event.target === byId('photo-lightbox')) byId('photo-lightbox')?.close();
+});
+
 function openProductDetails(item) {
   if (!productDialog) return;
   const images = getProductImages(item);
@@ -245,6 +259,16 @@ function openProductDetails(item) {
     img.src = image.url;
     img.alt = `${item.title} image ${index + 1}`;
     img.loading = index === 0 ? 'eager' : 'lazy';
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', `View full photo ${index + 1} of ${item.title}`);
+    img.addEventListener('click', () => openPhotoLightbox(image.url, img.alt));
+    img.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openPhotoLightbox(image.url, img.alt);
+      }
+    });
     imageGrid.appendChild(img);
   });
 
