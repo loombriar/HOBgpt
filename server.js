@@ -1703,6 +1703,20 @@ function createApp(options = {}) {
     return res.sendFile(path.join(imagesDir, row.storage_key));
   });
 
+  app.get('/icons/house-of-briar-:size.png', async (req, res, next) => {
+    const size = Number(req.params.size);
+    if (![192, 512].includes(size)) return fail(res, 404, 'not_found', 'Icon not found.');
+    try {
+      const source = path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png');
+      const icon = await sharp(source).resize(size, size, { fit: 'cover' }).png().toBuffer();
+      res.type('image/png');
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.send(icon);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.get('/manifest.webmanifest', (_req, res) => {
     res.type('application/manifest+json');
     res.sendFile(path.join(rootDir, 'manifest.webmanifest'));
