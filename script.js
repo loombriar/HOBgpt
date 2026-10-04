@@ -829,7 +829,8 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 
 byId('visitor-suite-btn')?.addEventListener('click',()=>byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click',()=>byId('visitor-suite-modal')?.close());
-document.querySelectorAll('[data-shop-window]').forEach(button=>button.addEventListener('click',()=>{activeShopWindow=button.dataset.shopWindow||'all';renderGallery();document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
+document.querySelectorAll('[data-shop-window]').forEach(button=>button.addEventListener('click',()=>{activeShopWindow=button.dataset.shopWindow||'all';document.querySelectorAll('[data-shop-window]').forEach(item=>item.classList.toggle('is-active',item===button));renderGallery();document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'});}));
+document.querySelector('[data-shop-window="all"]')?.classList.add('is-active');
 
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (!designerToken) {
