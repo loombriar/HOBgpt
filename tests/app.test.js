@@ -224,3 +224,31 @@ test('uploaded product photos fit fully in gallery, detail, upload, designer, an
   assert.match(finalImageFitRules, /object-fit:\s*contain\s*!important/);
   assert.match(finalImageFitRules, /object-position:\s*center\s*!important/);
 });
+
+test('header and category artwork are sized to their authored panels with live filters below', async () => {
+  const pageResponse = await fetch(`${baseUrl}/`);
+  const html = await pageResponse.text();
+  assert.equal(pageResponse.status, 200);
+  for (const asset of [
+    'Briar-Header-Fitted.png',
+    'Briar-Garment-Art.png',
+    'Briar-Aesthetic-Art.png',
+    'Briar-Price-Art.png',
+    'Briar-Accessories-Art.png'
+  ]) {
+    assert.ok(html.includes(asset), `storefront should reference ${asset}`);
+    const image = await fetch(`${baseUrl}/${asset}`);
+    assert.equal(image.status, 200, `${asset} should be served`);
+    assert.match(image.headers.get('content-type'), /image\/png/);
+  }
+
+  const cssResponse = await fetch(`${baseUrl}/styles.css`);
+  const css = await cssResponse.text();
+  const finalFitRules = css.slice(css.lastIndexOf('/* Fit the true header artwork'));
+  assert.ok(finalFitRules.length > 0, 'final header/category fit rules should be present');
+  assert.match(finalFitRules, /aspect-ratio:\s*1469\s*\/\s*300\s*!important/);
+  assert.match(finalFitRules, /\.botanical-nav-art\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
+  assert.match(finalFitRules, /\.hero\.hero-artwork\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
+  assert.match(finalFitRules, /\.illustrated-select\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
+  assert.match(finalFitRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*static\s*!important/);
+});
