@@ -25,30 +25,18 @@
   </head>
   <body>
     <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand-mark botanical-crest" href="#top" aria-label="House of Briar home">
-            <img class="brand-logo" src="/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png" alt="" />
-            <span class="crest-wordmark"><span class="brand-name">House<br><small>of</small><br>Briar</span></span>
-          </a>
-
-          <nav class="main-nav" aria-label="Main navigation">
-            <a href="#shop">Shop</a><span aria-hidden="true">✦</span>
-            <a href="#story">Our Story</a><span aria-hidden="true">✦</span>
-            <a href="#support">Support & Badges</a><span aria-hidden="true">✦</span>
-            <a href="#journal">Journal</a>
-          </nav>
-
-          <div class="header-actions">
-            <button class="room-door visitor-door" type="button" id="visitor-suite-btn"><span class="door-arch" aria-hidden="true"></span><span>Visitor’s<br>Suite</span><span class="door-knob" aria-hidden="true"></span><span class="door-mark" aria-hidden="true">✥</span></button>
-            <button class="room-door designer-door" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span class="door-arch" aria-hidden="true"></span><span>Designer’s<br>Room</span><span class="door-knob" aria-hidden="true"></span><span class="door-mark" aria-hidden="true">☾</span></button>
-            <button class="primary-button suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><span class="suitcase-handle" aria-hidden="true"></span><span class="suitcase-cart" aria-hidden="true">🛒</span><span id="suitcase-label">Suitcase (0)</span></button>
-          </div>
-          <div class="room-tooltips" aria-live="polite"><span class="room-tooltip visitor-tooltip">Your private shopping room: saved measurements, hearts, purchases, and favorite designers.</span><span class="room-tooltip designer-tooltip">Designer workspace for managing pieces and your storefront. Designers can shop in the Visitor’s Suite too.</span></div>
+      <header class="site-header artwork-header">
+        <div class="botanical-nav-art" role="navigation" aria-label="Main navigation">
+          <img src="/public/House%20of%20Briar%20Botanical%20Navigation%20Header.png" alt="House of Briar botanical navigation with Visitor’s Suite, Designer’s Room, and Suitcase" />
+          <a class="nav-hotspot hot-shop" href="#shop" aria-label="Shop"></a>
+          <a class="nav-hotspot hot-story" href="#story" aria-label="Our Story"></a>
+          <a class="nav-hotspot hot-support" href="#support" aria-label="Support and Badges"></a>
+          <a class="nav-hotspot hot-journal" href="#journal" aria-label="Journal"></a>
+          <button class="nav-hotspot hot-visitor" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite"></button>
+          <button class="nav-hotspot hot-designer" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"></button>
+          <button class="nav-hotspot hot-suitcase" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><span id="suitcase-label" class="sr-only">Suitcase (0)</span></button>
         </div>
-      </header>
-
-      <main id="top">
+      </header>      <main id="top">
         <section class="hero">
           <div class="container hero-grid">
             <div class="hero-copy">
