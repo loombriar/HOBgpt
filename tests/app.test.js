@@ -252,3 +252,23 @@ test('header and category artwork are sized to their authored panels with live f
   assert.match(finalFitRules, /\.illustrated-select\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
   assert.match(finalFitRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*static\s*!important/);
 });
+
+test('filter windows show real category headings and stay still while hero drift remains bounded', async () => {
+  const pageResponse = await fetch(`${baseUrl}/`);
+  const html = await pageResponse.text();
+  assert.equal(pageResponse.status, 200);
+  for (const heading of ['Garment', 'Aesthetic', 'Price / New', 'Accessories']) {
+    assert.ok(html.includes(`class="category-window-title" aria-hidden="true">${heading}</span>`), `${heading} should be a visible window title`);
+  }
+  assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
+
+  const cssResponse = await fetch(`${baseUrl}/styles.css`);
+  const css = await cssResponse.text();
+  const titleAndMotionRules = css.slice(css.lastIndexOf('/* Readable titles stay inside each filter window'));
+  assert.ok(titleAndMotionRules.length > 0);
+  assert.match(titleAndMotionRules, /\.category-window-title\s*\{[\s\S]*?position:\s*absolute\s*!important/);
+  assert.match(titleAndMotionRules, /\.illustrated-select[\s\S]*?animation:\s*none\s*!important[\s\S]*?transform:\s*none\s*!important/);
+  assert.match(titleAndMotionRules, /\.hero\.hero-artwork\s*\{[\s\S]*?contain:\s*paint\s*!important[\s\S]*?overflow:\s*hidden\s*!important/);
+  assert.match(titleAndMotionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
+  assert.match(titleAndMotionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
+});

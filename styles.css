@@ -1043,3 +1043,73 @@ main>section:not(.hero){position:relative}
 @media (max-width: 360px) {
   .product-section .shop-drop-windows { grid-template-columns: minmax(0, 180px) !important; }
 }
+
+
+/* Readable titles stay inside each filter window; the hero's gentle drift stays above them. */
+.product-section .category-art-frame {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  aspect-ratio: 225 / 170 !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  isolation: isolate !important;
+}
+.product-section .category-art-frame > img {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: 8px !important;
+}
+.product-section .category-window-title {
+  position: absolute !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  display: grid !important;
+  min-height: 30px !important;
+  place-items: center !important;
+  padding: 4px 6px !important;
+  border-top: 1px solid #d7c6aa !important;
+  background: rgba(255, 250, 240, 0.97) !important;
+  color: #3d2f22 !important;
+  font-family: "Cormorant Garamond", Georgia, serif !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.035em !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+/* The request is for still filter windows: explicitly avoid hover/selection movement. */
+.product-section .illustrated-select,
+.product-section .illustrated-select:hover,
+.product-section .illustrated-select:focus-within,
+.product-section .category-art-frame > img,
+.product-section .category-window-title {
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+.hero.hero-artwork {
+  position: relative !important;
+  isolation: isolate !important;
+  contain: paint !important;
+  overflow: hidden !important;
+}
+.hero.hero-artwork > img.hero-art {
+  animation: briar-drift 24s ease-in-out infinite alternate !important;
+}
+@keyframes briar-drift {
+  from { transform: scale(1.002) translate3d(-0.08%, -0.04%, 0); }
+  to { transform: scale(1.012) translate3d(0.1%, 0.05%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-artwork > img.hero-art {
+    animation: none !important;
+    transform: none !important;
+  }
+}
