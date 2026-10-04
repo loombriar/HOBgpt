@@ -552,8 +552,8 @@ function createApp(options = {}) {
       fail(res, 404, 'not_found', 'Listing not found.');
       return null;
     }
-    if (!['draft', 'rejected'].includes(row.status)) {
-      fail(res, 409, 'not_editable', 'Only draft or rejected listings can be edited.');
+    if (!['draft', 'rejected', 'published'].includes(row.status)) {
+      fail(res, 409, 'not_editable', 'Only draft, rejected, or published listings can be edited.');
       return null;
     }
     return row;
@@ -1232,7 +1232,10 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, status = 'draft', moderation_status = 'pending', moderation_reason = NULL, updated_at = ?, version = version + 1
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?,
+          status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
+          moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
+          moderation_reason = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(
       validation.value.title,

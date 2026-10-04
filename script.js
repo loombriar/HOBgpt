@@ -345,10 +345,20 @@ function renderSelectedImages() {
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.textContent = 'Remove';
-    remove.addEventListener('click', () => {
-      if (image.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(image.objectUrl);
-      selectedImages.splice(index, 1);
-      renderSelectedImages();
+    remove.addEventListener('click', async () => {
+      remove.disabled = true;
+      try {
+        if (image.id && currentListingId) {
+          await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/images/${encodeURIComponent(image.id)}`, { method: 'DELETE' });
+        }
+        if (image.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(image.objectUrl);
+        const currentIndex = selectedImages.indexOf(image);
+        if (currentIndex >= 0) selectedImages.splice(currentIndex, 1);
+        renderSelectedImages();
+      } catch (error) {
+        remove.disabled = false;
+        setMessage(uploadMessage, error.message, 'error');
+      }
     });
     actions.appendChild(remove);
 
@@ -570,7 +580,7 @@ async function loadDesignerListings() {
       edit.textContent = 'Edit';
       edit.className = 'text-button';
       edit.addEventListener('click', () => editListing(listing.id));
-      if (['draft', 'rejected'].includes(listing.status)) actions.appendChild(edit);
+      if (['draft', 'rejected', 'published'].includes(listing.status)) actions.appendChild(edit);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Delete';
@@ -637,7 +647,7 @@ async function editListing(listingId) {
       });
     }
     renderSelectedImages();
-    setMessage(uploadMessage, 'Draft loaded. You can add new images or remove existing ones.', 'success');
+    setMessage(uploadMessage, listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');
   }
