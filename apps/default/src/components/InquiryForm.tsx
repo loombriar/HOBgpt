@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadMeasurementProfiles, type MeasurementProfile } from '@/components/MeasurementProfiles';
 import { Send } from '@/lib/icons';
 import { submitForm } from '@/lib/genesis-flows';
 import { PRODUCT_INQUIRY_FLOW_ID } from '@/lib/marketplace';
@@ -17,6 +18,9 @@ export default function InquiryForm({ productName, productId = '', designerName 
   const [hips, setHips] = useState('');
   const [height, setHeight] = useState('');
   const [request, setRequest] = useState('');
+  const [profiles,setProfiles]=useState<MeasurementProfile[]>([]);
+  useEffect(()=>{const refresh=()=>setProfiles(loadMeasurementProfiles());refresh();window.addEventListener('house-of-briar-measurements',refresh);return()=>window.removeEventListener('house-of-briar-measurements',refresh);},[]);
+  const applyProfile=(id:string)=>{const p=profiles.find(row=>row.id===id);if(!p)return;setBust(p.bust);setWaist(p.waist);setHips(p.hips);setHeight(p.height);if(p.notes&&!request)setRequest(p.notes);};
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
 
@@ -50,6 +54,7 @@ export default function InquiryForm({ productName, productId = '', designerName 
       <label className="space-y-2 text-sm font-medium"><span>Your name</span><input required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" /></label>
       <label className="space-y-2 text-sm font-medium"><span>Email address</span><input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" /></label>
     </div>
+    {profiles.length>0&&<label className="block space-y-2 text-sm font-medium"><span>Autofill saved measurements</span><select defaultValue="" onChange={e=>applyProfile(e.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3"><option value="" disabled>Choose a Visitor’s Suite profile</option>{profiles.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
     <fieldset><legend className="text-sm font-medium">Measurements <span className="font-normal text-muted-foreground">(inches)</span></legend><div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <label className="text-xs text-muted-foreground">Bust<input required inputMode="decimal" value={bust} onChange={(e)=>setBust(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
       <label className="text-xs text-muted-foreground">Waist<input required inputMode="decimal" value={waist} onChange={(e)=>setWaist(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
