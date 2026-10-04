@@ -39,7 +39,7 @@ const adminReviewMessage = byId('admin-review-message');
 const adminSignoutBtn = byId('admin-signout-btn');
 const CART_KEY = 'house-of-briar:cart';
 
-let designerToken = sessionStorage.getItem('briarDesignerToken') || '';
+let designerToken = localStorage.getItem('briarDesignerToken') || sessionStorage.getItem('briarDesignerToken') || '';
 let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
 let currentIdempotencyKey = '';
@@ -663,7 +663,9 @@ async function signIn(tokenValue) {
   designerToken = token;
   try {
     await apiRequest('/api/session', { method: 'POST' });
-    sessionStorage.setItem('briarDesignerToken', designerToken);
+    localStorage.setItem('briarDesignerToken', designerToken);
+    localStorage.removeItem('briarDesignerToken');
+  sessionStorage.removeItem('briarDesignerToken');
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     setMessage(designerAuthMessage, '', '');
@@ -695,7 +697,13 @@ function applyFilterButtons() {
   renderGallery();
 }
 
-if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => designerModal.showModal());
+if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
+  if (designerToken) {
+    if (loginPanel) loginPanel.classList.add('hidden');
+    if (designerWorkspace) designerWorkspace.classList.remove('hidden');
+  }
+  designerModal.showModal();
+});
 if (modalClose) modalClose.addEventListener('click', () => designerModal.close());
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
