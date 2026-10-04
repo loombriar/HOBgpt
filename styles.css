@@ -731,3 +731,17 @@ main>section:not(.hero){position:relative}
 @media(min-width:1450px){.botanical-nav-art{max-width:1700px!important;height:168px!important}.botanical-nav-art>img{height:168px!important}}
 @media(max-width:900px){.botanical-nav-art{height:126px!important;min-width:0!important}.botanical-nav-art>img{height:126px!important;object-fit:cover!important}.shop-drop-windows{grid-template-columns:repeat(2,minmax(170px,1fr))!important}}
 @media(max-width:520px){.botanical-nav-art{height:100px!important}.botanical-nav-art>img{height:100px!important}.shop-drop-windows{grid-template-columns:1fr!important}.illustrated-select{height:128px!important}}
+
+/* Standardized final Briar artwork dimensions */
+.botanical-nav-art{width:100%!important;max-width:none!important;height:auto!important;aspect-ratio:2048/300!important;margin:0!important;overflow:hidden!important}
+.botanical-nav-art>img{width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;object-position:center!important}
+.shop-search-controls{width:min(1120px,100%)!important}
+.shop-drop-windows{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important}
+.illustrated-select{width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:800/260!important}
+.illustrated-select>img{width:100%!important;height:100%!important;min-height:0!important;object-fit:cover!important}
+.illustrated-select>select{left:12%!important;bottom:7%!important;width:76%!important;height:27%!important;min-height:28px!important;max-height:36px!important}
+.story-grid{background:#fffaf0 url("/Briar-Wide-Frame.png") center/100% 100% no-repeat!important;border:0!important;box-shadow:none!important;padding:54px 70px!important}
+.newsletter-box{background:#fffaf0 url("/Briar-Wide-Frame.png") center/100% 100% no-repeat!important;border:0!important;box-shadow:none!important}
+.product-section:before,.story-section:before,.curation-section:before,.newsletter-section:before,.site-footer:before{background-image:url("/Briar-Divider.png")!important;background-size:100% 100%!important;background-repeat:no-repeat!important;height:38px!important;opacity:1!important}
+@media(max-width:900px){.shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{padding:42px 34px!important}}
+@media(max-width:520px){.shop-drop-windows{grid-template-columns:1fr!important}.botanical-nav-art{min-width:680px!important;width:680px!important}.artwork-header{overflow-x:auto!important}.story-grid{padding:36px 24px!important}}
