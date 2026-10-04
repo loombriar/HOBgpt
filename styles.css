@@ -29,7 +29,70 @@ img { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 1.25rem; }
-.page-shell { min-height: 100vh; }
+.page-shell {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+.page-shell::before,
+.page-shell::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+.page-shell::before {
+  width: clamp(220px, 32vw, 480px);
+  height: clamp(220px, 32vw, 480px);
+  top: 34rem;
+  left: clamp(-180px, -10vw, -80px);
+  background: rgba(176, 194, 174, 0.24);
+}
+.page-shell::after {
+  width: clamp(180px, 25vw, 360px);
+  height: clamp(180px, 25vw, 360px);
+  top: 68rem;
+  right: clamp(-130px, -7vw, -55px);
+  background: rgba(203, 176, 160, 0.20);
+}
+
+.product-section,
+.story-section,
+.curation-section,
+.newsletter-section {
+  position: relative;
+}
+.product-section::after,
+.story-section::before,
+.curation-section::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+.product-section::after {
+  width: 150px;
+  height: 150px;
+  right: 8%;
+  bottom: -45px;
+  background: rgba(185, 169, 197, 0.18);
+}
+.story-section::before {
+  width: 110px;
+  height: 110px;
+  left: 9%;
+  top: -38px;
+  background: rgba(211, 191, 142, 0.22);
+}
+.curation-section::after {
+  width: 190px;
+  height: 190px;
+  right: 14%;
+  bottom: -70px;
+  background: rgba(143, 174, 171, 0.16);
+}
 
 .site-header {
   position: sticky;
