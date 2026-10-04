@@ -50,7 +50,7 @@ export default function App() {
     themeColor.setAttribute('content', '#c9ae72');
     if (!themeColor.parentNode) document.head.appendChild(themeColor);
 
-    const logoUrl = 'https://files.taskade.com/space-files/dcdb0306-5408-4b6e-9f03-5548f7a3e865/original/house-of-briar-crest.png';
+    const logoUrl = '/icons/house-of-briar-512.png';
     const favicon = document.querySelector('link[rel="icon"]') ?? document.createElement('link');
     favicon.setAttribute('rel', 'icon');
     favicon.setAttribute('type', 'image/png');
