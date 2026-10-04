@@ -697,6 +697,6 @@ main>section:not(.hero){position:relative}
 .nav-hotspot{position:absolute;display:block;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;cursor:pointer;z-index:5}
 .hot-shop{left:22.1%;top:39%;width:7%;height:24%}.hot-story{left:29.1%;top:39%;width:10%;height:24%}.hot-support{left:39.3%;top:39%;width:14%;height:24%}.hot-journal{left:53.2%;top:39%;width:8%;height:24%}.hot-visitor{left:65.5%;top:15%;width:8.5%;height:70%}.hot-designer{left:74.1%;top:15%;width:8.5%;height:70%}.hot-suitcase{left:83.2%;top:13%;width:10%;height:72%}
 .nav-hotspot:focus-visible{outline:4px solid #b78b45!important;outline-offset:2px;border-radius:8px!important}
-.enchanted-boutique-page{position:relative}.enchanted-boutique-page:before{content:"";position:fixed;inset:0;z-index:-2;background:#f9f5ea url("/public/House%20of%20Briar%20Enchanted%20Boutique.png") center top/cover no-repeat;opacity:.09;pointer-events:none}
+.enchanted-boutique-page{position:relative}.enchanted-boutique-page:before{content:"";position:fixed;inset:0;z-index:-2;background:#f9f5ea url("/House%20of%20Briar%20Enchanted%20Boutique.png") center top/cover no-repeat;opacity:.09;pointer-events:none}
 .enchanted-boutique-page .hero{margin-top:0}
 @media(max-width:800px){.botanical-nav-art{min-width:760px;transform-origin:left top}.artwork-header{overflow-x:auto}.botanical-nav-art>img{max-height:none}.nav-hotspot:focus-visible{outline-width:3px!important}}
