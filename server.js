@@ -57,6 +57,7 @@ function validateListingInput(body = {}) {
   const category = typeof body.category === 'string' ? body.category.trim().toLowerCase() : '';
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
+  const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -64,8 +65,9 @@ function validateListingInput(body = {}) {
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
+  if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
 
-  return { value: { title, description, price, category, style, size } };
+  return { value: { title, description, price, category, style, size, aesthetic } };
 }
 
 function createApp(options = {}) {
@@ -225,6 +227,7 @@ function createApp(options = {}) {
   }
   ensureColumn('listings', 'moderation_reason', 'TEXT');
   ensureColumn('listings', 'style', 'TEXT');
+  ensureColumn('listings', 'aesthetic', 'TEXT');
   ensureColumn('listings', 'size', 'TEXT');
   ensureColumn('designer_applications', 'location', 'TEXT');
   ensureColumn('designer_applications', 'social_url', 'TEXT');
@@ -522,6 +525,7 @@ function createApp(options = {}) {
       category: row.category,
       style: row.style || '',
       size: row.size || '',
+      aesthetic: row.aesthetic || '',
       designerId: row.designer_id,
       designerName: row.designer_name || undefined,
       status: row.status,
@@ -1197,9 +1201,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1210,6 +1214,7 @@ function createApp(options = {}) {
       validation.value.category,
       validation.value.style || null,
       validation.value.size || null,
+      validation.value.aesthetic || null,
       timestamp,
       timestamp
     );
@@ -1232,7 +1237,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1244,6 +1249,7 @@ function createApp(options = {}) {
       validation.value.category,
       validation.value.style || null,
       validation.value.size || null,
+      validation.value.aesthetic || null,
       timestamp,
       row.id
     );

@@ -46,6 +46,7 @@ let currentIdempotencyKey = '';
 let galleryItems = [];
 let selectedImages = [];
 let activeFilter = 'apparel';
+let activeAesthetic = 'all';
 const designerListImageUrls = new Set();
 
 function getCartIds() {
@@ -181,7 +182,7 @@ function renderGallery() {
   const items = galleryItems.filter((item) => {
     if (activeFilter === 'all' || activeFilter === 'apparel') return item.category === 'apparel';
     return item.category === 'apparel' && item.style === activeFilter;
-  });
+  }).filter((item) => activeAesthetic === 'all' || item.aesthetic === activeAesthetic);
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
     productGrid.appendChild(empty);
@@ -214,6 +215,7 @@ function renderGallery() {
     const body = makeElement('span', 'product-body');
     const meta = makeElement('span', 'meta-row');
     meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
+    if (item.aesthetic) meta.appendChild(makeElement('span', 'badge', item.aesthetic));
     meta.appendChild(makeElement('span', 'price', `$${Number(item.price || 0).toFixed(2)}`));
     body.appendChild(meta);
     body.appendChild(makeElement('span', 'card-title', item.title));
@@ -277,6 +279,7 @@ function openProductDetails(item) {
 
   const copy = makeElement('div', 'product-detail-copy');
   copy.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
+  if (item.aesthetic) copy.appendChild(makeElement('span', 'badge', item.aesthetic));
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
@@ -410,7 +413,8 @@ function readFormValues() {
     price: byId('product-price').value,
     category: 'apparel',
     style: byId('product-style')?.value || '',
-    size: byId('product-size')?.value || ''
+    size: byId('product-size')?.value || '',
+    aesthetic: byId('product-aesthetic')?.value || ''
   };
 }
 
@@ -419,6 +423,7 @@ function validateListingValues(values) {
   if (values.description.length > 2000) return 'Description must be 2,000 characters or fewer.';
   if (!values.style) return 'Choose a garment type.';
   if (!values.size) return 'Choose a size.';
+  if (!values.aesthetic) return 'Choose an aesthetic style.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
   return '';
