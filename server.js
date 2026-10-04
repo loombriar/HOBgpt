@@ -1375,6 +1375,7 @@ function createApp(options = {}) {
       validation.value.size || null,
       validation.value.aesthetic || null,
       validation.value.productionType,
+      validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
       timestamp,
