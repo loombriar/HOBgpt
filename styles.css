@@ -708,3 +708,11 @@ main>section:not(.hero){position:relative}
 .hot-suitcase #suitcase-label,.hot-suitcase .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media(min-width:1200px){.botanical-nav-art{aspect-ratio:2048/500;max-height:190px}.botanical-nav-art>img{object-position:center 50%}}
 @media(max-width:800px){.botanical-nav-art{min-width:0!important;width:100%!important;aspect-ratio:2048/682;max-height:none}.artwork-header{overflow:hidden!important}.botanical-nav-art>img{object-fit:cover!important}}
+
+/* Uploaded illustrated shopping controls */
+.illustrated-select{position:relative!important;min-height:132px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;overflow:hidden;border-radius:12px!important}
+.illustrated-select:before{display:none!important}.illustrated-select>img{display:block;width:100%;height:100%;min-height:132px;object-fit:cover;border-radius:12px}
+.illustrated-select>select{position:absolute!important;left:12%!important;right:12%!important;bottom:10%!important;width:76%!important;min-height:32px!important;z-index:4!important;background:rgba(255,250,239,.94)!important;border:1px solid #846746!important;border-radius:4px!important;font-size:.72rem!important}
+.shop-drop-windows{grid-template-columns:repeat(4,minmax(150px,1fr))!important;align-items:stretch}.shop-search-controls{width:min(900px,100%)!important}
+.botanical-nav-art{aspect-ratio:auto!important;max-height:none!important}.botanical-nav-art>img{height:auto!important;max-height:220px!important;object-fit:contain!important;background:#fffdf8}
+@media(max-width:820px){.shop-drop-windows{grid-template-columns:repeat(2,minmax(140px,1fr))!important}.illustrated-select{min-height:115px!important}.illustrated-select>img{min-height:115px}.botanical-nav-art>img{max-height:150px!important}}
