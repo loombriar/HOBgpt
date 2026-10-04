@@ -716,3 +716,18 @@ main>section:not(.hero){position:relative}
 .shop-drop-windows{grid-template-columns:repeat(4,minmax(150px,1fr))!important;align-items:stretch}.shop-search-controls{width:min(900px,100%)!important}
 .botanical-nav-art{aspect-ratio:auto!important;max-height:none!important}.botanical-nav-art>img{height:auto!important;max-height:220px!important;object-fit:contain!important;background:#fffdf8}
 @media(max-width:820px){.shop-drop-windows{grid-template-columns:repeat(2,minmax(140px,1fr))!important}.illustrated-select{min-height:115px!important}.illustrated-select>img{min-height:115px}.botanical-nav-art>img{max-height:150px!important}}
+
+/* Refine uploaded illustrated navigation and selector artwork */
+.artwork-header{background:#fffdf8!important;padding:0!important}
+.botanical-nav-art{width:100%!important;max-width:1500px!important;margin:0 auto!important;height:154px!important;overflow:hidden!important}
+.botanical-nav-art>img{display:block!important;width:100%!important;height:154px!important;max-height:none!important;object-fit:cover!important;object-position:center center!important}
+.shop-search-controls{width:min(1040px,100%)!important;padding:18px 20px 20px!important}
+.shop-drop-windows{display:grid!important;grid-template-columns:repeat(4,minmax(180px,1fr))!important;gap:12px!important}
+.illustrated-select{height:116px!important;min-height:116px!important;overflow:hidden!important;border-radius:10px!important}
+.illustrated-select>img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;object-fit:cover!important;object-position:center!important;border-radius:10px!important}
+.illustrated-select>select{left:13%!important;right:auto!important;bottom:8px!important;width:74%!important;height:29px!important;min-height:29px!important;padding:2px 24px 2px 7px!important;font-size:.68rem!important;line-height:1!important;background:rgba(255,250,239,.96)!important}
+.illustrated-select>.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.shop-filter-selects{display:none!important}
+@media(min-width:1450px){.botanical-nav-art{max-width:1700px!important;height:168px!important}.botanical-nav-art>img{height:168px!important}}
+@media(max-width:900px){.botanical-nav-art{height:126px!important;min-width:0!important}.botanical-nav-art>img{height:126px!important;object-fit:cover!important}.shop-drop-windows{grid-template-columns:repeat(2,minmax(170px,1fr))!important}}
+@media(max-width:520px){.botanical-nav-art{height:100px!important}.botanical-nav-art>img{height:100px!important}.shop-drop-windows{grid-template-columns:1fr!important}.illustrated-select{height:128px!important}}
