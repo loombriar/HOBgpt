@@ -1941,7 +1941,8 @@ function createApp(options = {}) {
     'Briar-Accessories.png',
     'Briar-Wide-Frame.png',
     'Briar-Tall-Frame.png',
-    'Briar-Divider.png'
+    'Briar-Divider.png',
+    'House of Briar_ Wearable Artisan Magic.png'
   ];
   illustratedPublicAssets.forEach((assetName) => {
     app.get('/' + encodeURIComponent(assetName).replace(/%20/g, '%20'), (_req, res) => {
