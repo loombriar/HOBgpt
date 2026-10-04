@@ -100,7 +100,7 @@ export default function CheckoutPage() {
         if (!active) return;
         if (!result.paid) {
           setPaymentState('failed');
-          setPaymentError('Stripe has not marked this payment as paid. Your bag is unchanged.');
+          setPaymentError('Stripe has not marked this payment as paid. Your suitcase is unchanged.');
           return;
         }
         setPaymentState('paid');
@@ -140,7 +140,7 @@ export default function CheckoutPage() {
 
   return <HouseShell>
     <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
-      <Link to="/cart" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><ArrowLeft size={16} /> Back to bag</Link>
+      <Link to="/cart" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><ArrowLeft size={16} /> Back to suitcase</Link>
       <div className="mt-7 border-b border-border pb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">House of Briar checkout</p>
         <h1 className="mt-3 font-serif text-4xl sm:text-5xl">A thoughtful final step.</h1>
@@ -153,7 +153,7 @@ export default function CheckoutPage() {
 
       {loading && <div className="mt-8 grid gap-4 md:grid-cols-[1.3fr_0.7fr]"><div className="h-56 animate-pulse rounded-3xl bg-muted" /><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}
       {!loading && loadError && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{loadError} <button type="button" onClick={() => window.location.reload()} className="ml-2 underline underline-offset-4">Retry</button></div>}
-      {emptyBag && <div className="mt-8 rounded-3xl border border-border bg-card p-8 text-center sm:p-12"><p className="font-serif text-3xl">Your bag is waiting for a piece.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Explore the collection <ArrowRight size={16} /></Link></div>}
+      {emptyBag && <div className="mt-8 rounded-3xl border border-border bg-card p-8 text-center sm:p-12"><p className="font-serif text-3xl">Your suitcase is waiting for a piece.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Explore the collection <ArrowRight size={16} /></Link></div>}
 
       {!loading && !loadError && hasItems && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
@@ -173,13 +173,13 @@ export default function CheckoutPage() {
         </div>
 
         <aside className="h-fit rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="summary-heading">
-          {paymentComplete ? <div className="py-3 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"><BadgeCheck size={28} /></span><h2 id="summary-heading" className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Stripe confirmed your payment. Your bag has been cleared on this device.</p><p className="mt-3 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Continue shopping</Link></div> : <>
+          {paymentComplete ? <div className="py-3 text-center"><span className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"><BadgeCheck size={28} /></span><h2 id="summary-heading" className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Stripe confirmed your payment. Your suitcase has been cleared on this device.</p><p className="mt-3 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Continue shopping</Link></div> : <>
             <h2 id="summary-heading" className="font-serif text-2xl">Your order</h2>
             <div className="mt-5 divide-y divide-border">{items.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 py-4"><div className="min-w-0"><p className="truncate text-sm">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">One of one · Qty 1</p></div><p className="shrink-0 text-sm font-medium tabular-nums">{money.format(item.amount * item.quantity)}</p></div>)}</div>
             <div className="mt-5 flex items-center justify-between border-t border-border pt-5"><span className="text-sm text-muted-foreground">Item subtotal</span><span className="text-sm tabular-nums">{money.format(subtotal)}</span></div>
             <div className="mt-3 flex items-center justify-between border-t border-border pt-4"><span className="text-sm font-medium">Items total</span><span className="text-xl font-semibold tabular-nums">{money.format(subtotal)}</span></div>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">Delivery and any promotions available for this checkout are handled securely by Stripe.</p>
-            {paymentState === 'cancelled' && <p role="status" className="mt-4 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">Checkout was canceled. Your bag is still here.</p>}
+            {paymentState === 'cancelled' && <p role="status" className="mt-4 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">Checkout was canceled. Your suitcase is still here.</p>}
             {(paymentState === 'failed' || paymentError) && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{paymentError}</p>}
             {guestCatalog && <p role="status" className="mt-4 text-sm leading-6 text-muted-foreground">Guest checkout uses the public catalog prices, which may not reflect recent changes. Please review the total in Stripe before paying.</p>}
             <button type="button" onClick={() => void beginCheckout()} disabled={!canCheckout || paymentState === 'opening' || paymentState === 'verifying'} className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60">{paymentState === 'opening' ? 'Opening secure checkout…' : 'Continue to secure checkout'} <ArrowRight size={16} /></button>
