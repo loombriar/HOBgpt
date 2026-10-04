@@ -58,7 +58,7 @@ function validateListingInput(body = {}) {
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
   const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
-  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : '';
+  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'Made in Multiple';
   const alterationsAvailable = body.alterationsAvailable === true;
   const takesRequests = body.takesRequests === true;
 
