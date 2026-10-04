@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { ArrowLeft, Heart, Ruler, ShoppingBag, Sparkles } from '@/lib/icons';
+import { ArrowLeft, Heart, Ruler, Share2, ShoppingBag, Sparkles } from '@/lib/icons';
 import { Link, useParams } from 'react-router-dom';
 import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import HouseShell from '@/components/HouseShell';
 import InquiryForm from '@/components/InquiryForm';
+import ProductInquiryForm from '@/components/ProductInquiryForm';
 import { getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, getProductImages, getProductVisual, money, setPersistentFavorite, slugify } from '@/lib/marketplace';
 
 export default function ProductPage() {
@@ -80,6 +81,11 @@ export default function ProductPage() {
     window.dispatchEvent(new Event('house-of-briar-cart'));
   };
 
+  const shareListing = async () => {
+    const url=window.location.href;
+    try { if(navigator.share) await navigator.share({title:name,text:`${name} by ${designer} on House of Briar`,url}); else { await navigator.clipboard.writeText(url); window.alert('Listing link copied.'); } } catch (error) { if((error as Error)?.name!=='AbortError') window.alert('Copy this listing URL from your browser to share it.'); }
+  };
+
   const toggleSaved = () => {
     const next=!saved;
     setSaved(next);
@@ -101,10 +107,10 @@ export default function ProductPage() {
         <h1 className="mt-3 font-serif text-5xl leading-none sm:text-6xl">{name}</h1>
         <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(getFieldNumber(product, '@price', 'Price') ?? 0)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button></div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button><button type="button" onClick={()=>void shareListing()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary"><Share2 size={17}/> Share</button></div>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
-    <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Made for your measurements</p><h2 className="mt-3 font-serif text-4xl">Request custom sizing.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Send your measurements and an item-specific customization request directly to the designer. This is a structured request, not an open conversation.</p></div><InquiryForm productName={name} productId={product.id} designerName={designer} /></div></section>
+    <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><ProductInquiryForm productId={product.id} productName={name} designerName={designer}/></div></section>\n    <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Made for your measurements</p><h2 className="mt-3 font-serif text-4xl">Request custom sizing.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Send your measurements and an item-specific customization request directly to the designer. This is a structured request, not an open conversation.</p></div><InquiryForm productName={name} productId={product.id} designerName={designer} /></div></section>
   </HouseShell>;
 }
