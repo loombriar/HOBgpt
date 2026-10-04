@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "com.houseofbriar.market",
       "sha256_cert_fingerprints": [
-        "B6:1B:2C:8D:45:9F:C7:B0:C5:D1:99:EC:76:80:6F:55:AB:5B:24:3C:41:3B:13:3F:EB:4F:92:2A:EB:8B:58:02"
+        "B6:1B:2C:8D:45:9F:C7:B0:C5:D1:99:EC:76:80:6F:55:AB:5B:24:3C:41:3B:13:3F:EB:4F:92:2A:EB:8B:58:02",
+        "FD:C7:AE:0B:2E:FC:95:5A:5C:A6:95:5A:04:E8:0B:86:22:23:81:78:9A:30:76:A8:33:91:EE:31:BD:E9:4B:C8"
       ]
     }
   }
