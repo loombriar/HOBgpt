@@ -689,3 +689,14 @@ main>section:not(.hero){position:relative}
 .primary-button{border:2px solid #1d3025!important;background:linear-gradient(180deg,#344d3d,#18291f)!important;box-shadow:inset 0 0 0 1px rgba(221,195,137,.2)}.secondary-button{border:2px solid #72573a!important;background:#fff8e9!important;color:#453321!important}
 .app-dialog{border:5px double #80603f!important;border-radius:24px!important;background:linear-gradient(180deg,#fffaf0,#efe2c9)!important;box-shadow:0 24px 70px rgba(25,20,14,.35)!important}
 @media(max-width:760px){.product-section,.story-section,.curation-section,.newsletter-section{padding-top:58px!important}.story-grid{padding:18px!important}.section-heading h2{font-size:2rem!important}.feature-inline>div+div:before{display:none}}
+
+/* Exact uploaded House of Briar artwork */
+.artwork-header{position:sticky;top:0;z-index:1000;background:#fffdf8!important;border:0!important;box-shadow:0 3px 12px rgba(48,34,20,.12)}
+.botanical-nav-art{position:relative;width:100%;max-width:2048px;margin:0 auto;line-height:0}
+.botanical-nav-art>img{display:block;width:100%;height:auto;max-height:178px;object-fit:contain;object-position:center}
+.nav-hotspot{position:absolute;display:block;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;cursor:pointer;z-index:5}
+.hot-shop{left:22.1%;top:39%;width:7%;height:24%}.hot-story{left:29.1%;top:39%;width:10%;height:24%}.hot-support{left:39.3%;top:39%;width:14%;height:24%}.hot-journal{left:53.2%;top:39%;width:8%;height:24%}.hot-visitor{left:65.5%;top:15%;width:8.5%;height:70%}.hot-designer{left:74.1%;top:15%;width:8.5%;height:70%}.hot-suitcase{left:83.2%;top:13%;width:10%;height:72%}
+.nav-hotspot:focus-visible{outline:4px solid #b78b45!important;outline-offset:2px;border-radius:8px!important}
+.enchanted-boutique-page{position:relative}.enchanted-boutique-page:before{content:"";position:fixed;inset:0;z-index:-2;background:#f9f5ea url("/public/House%20of%20Briar%20Enchanted%20Boutique.png") center top/cover no-repeat;opacity:.09;pointer-events:none}
+.enchanted-boutique-page .hero{margin-top:0}
+@media(max-width:800px){.botanical-nav-art{min-width:760px;transform-origin:left top}.artwork-header{overflow-x:auto}.botanical-nav-art>img{max-height:none}.nav-hotspot:focus-visible{outline-width:3px!important}}
