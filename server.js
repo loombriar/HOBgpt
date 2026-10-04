@@ -58,7 +58,8 @@ function validateListingInput(body = {}) {
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
   const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
-  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'Made in Multiple';
+  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'One of a Kind';
+  const availability = typeof body.availability === 'string' ? body.availability.trim() : 'floor';
   const alterationsAvailable = body.alterationsAvailable === true;
   const takesRequests = body.takesRequests === true;
 
@@ -69,9 +70,10 @@ function validateListingInput(body = {}) {
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
-  if (!['One of a Kind','Upcycled','Made in Multiple'].includes(productionType)) return { error: 'Choose how this piece is offered.' };
+  if (!['One of a Kind','Made in Multiple'].includes(productionType)) return { error: 'Choose whether this is one of a kind or made in multiple.' };
+  if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, productionType, alterationsAvailable, takesRequests } };
+  return { value: { title, description, price, category, style, size, aesthetic, productionType, availability, alterationsAvailable, takesRequests } };
 }
 
 function createApp(options = {}) {
@@ -233,6 +235,7 @@ function createApp(options = {}) {
   ensureColumn('listings', 'style', 'TEXT');
   ensureColumn('listings', 'aesthetic', 'TEXT');
   ensureColumn('listings', 'production_type', 'TEXT');
+  ensureColumn('listings', 'availability', "TEXT NOT NULL DEFAULT 'floor'");
   ensureColumn('listings', 'alterations_available', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('listings', 'takes_requests', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('listings', 'size', 'TEXT');
@@ -568,6 +571,7 @@ function createApp(options = {}) {
       size: row.size || '',
       aesthetic: row.aesthetic || '',
       productionType: row.production_type || '',
+      availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
       designerId: row.designer_id,
@@ -1317,9 +1321,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, production_type, alterations_available, takes_requests, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, production_type, availability, alterations_available, takes_requests, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1332,6 +1336,7 @@ function createApp(options = {}) {
       validation.value.size || null,
       validation.value.aesthetic || null,
       validation.value.productionType,
+      validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
       timestamp,
@@ -1356,7 +1361,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, production_type = ?, alterations_available = ?, takes_requests = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
