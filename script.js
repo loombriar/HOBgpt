@@ -275,7 +275,8 @@ function openProductDetails(item) {
   const copy = makeElement('div', 'product-detail-copy');
   copy.appendChild(makeElement('span', 'badge', categoryLabel(item.category)));
   copy.appendChild(makeElement('h3', '', item.title));
-  copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
+  copy.appendChild(makeElement('strong', 'price', `${Number(item.price || 0).toFixed(2)}`));
+  if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
   const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In cart' : 'Add to cart');
   addButton.type = 'button';
@@ -395,7 +396,8 @@ function readFormValues() {
     description: byId('product-description').value.trim(),
     price: byId('product-price').value,
     category: 'apparel',
-    style: byId('product-style')?.value || ''
+    style: byId('product-style')?.value || '',
+    size: byId('product-size')?.value || ''
   };
 }
 
@@ -403,6 +405,7 @@ function validateListingValues(values) {
   if (!values.title || values.title.length > 120) return 'Add a design name (1–120 characters).';
   if (values.description.length > 2000) return 'Description must be 2,000 characters or fewer.';
   if (!values.style) return 'Choose a garment type.';
+  if (!values.size) return 'Choose a size.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
   return '';
@@ -606,6 +609,7 @@ async function editListing(listingId) {
     if (byId('product-price')) byId('product-price').value = listing.price;
     if (byId('product-category')) byId('product-category').value = 'apparel';
     if (byId('product-style')) byId('product-style').value = listing.style || '';
+    if (byId('product-size')) byId('product-size').value = listing.size || '';
     if (listingFormTitle) listingFormTitle.textContent = 'Edit a design';
 
     selectedImages.forEach((image) => {
