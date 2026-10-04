@@ -1918,6 +1918,16 @@ function createApp(options = {}) {
   app.get('/House%20of%20Briar%20Enchanted%20Sewing%20Bower.png', (_req, res) =>
     res.sendFile(path.join(rootDir, 'House of Briar Enchanted Sewing Bower.png'))
   );
+  app.get('/House%20of%20Briar%20Botanical%20Navigation%20Header.png', (_req, res) => {
+    res.type('image/png');
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    res.sendFile(path.join(rootDir, 'public', 'House of Briar Botanical Navigation Header.png'));
+  });
+  app.get('/House%20of%20Briar%20Enchanted%20Boutique.png', (_req, res) => {
+    res.type('image/png');
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
+  });
 
   app.use((error, _req, res, _next) => {
     if (error instanceof multer.MulterError) {
