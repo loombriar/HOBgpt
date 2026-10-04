@@ -63,6 +63,7 @@ type GalleryItem = {
   designerId?: string;
   designerName?: string;
   status?: string;
+  sold?: boolean;
   images?: Array<{ url: string }>;
 };
 
@@ -81,7 +82,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',
       '/attributes/@descr': item.description || 'A one-of-a-kind piece made with intention.',
-      '/attributes/@statx': item.status === 'published' || !item.status ? 'Available' : item.status,
+      '/attributes/@statx': item.sold ? 'Sold' : (item.status === 'published' || !item.status ? 'Available' : item.status),
       '/attributes/@image': images[0] || '',
       '/attributes/@gally': images.join('\n'),
     },
