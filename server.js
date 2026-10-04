@@ -242,6 +242,7 @@ function createApp(options = {}) {
   ensureColumn('designer_profiles', 'categories', "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn('designer_profiles', 'portfolio_url', 'TEXT');
   ensureColumn('designer_profiles', 'social_url', 'TEXT');
+  ensureColumn('designer_profiles', 'portrait_storage_key', 'TEXT');
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -1213,8 +1214,20 @@ function createApp(options = {}) {
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
   });
 
+  app.get('/api/designers', (_req,res)=>{
+    const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
+      COUNT(l.id) piece_count,
+      SUM(CASE WHEN ir.status='sold' THEN 1 ELSE 0 END) sold_count,
+      SUM(CASE WHEN l.status='published' AND l.moderation_status='approved' AND ir.status IS NULL THEN 1 ELSE 0 END) available_count
+      FROM designer_profiles dp
+      LEFT JOIN listings l ON l.designer_id=dp.id AND l.status!='deleted'
+      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
+      WHERE dp.status='active' GROUP BY dp.id ORDER BY COALESCE(dp.brand_name,dp.display_name)`).all();
+    return res.json({designers:rows.map(d=>({id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:d.piece_count||0,soldCount:d.sold_count||0,availableCount:d.available_count||0}))});
+  });
+
   app.get('/api/designers/:designerId', (req, res) => {
-    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url
+    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key
       FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
     if (!designer) return fail(res, 404, 'designer_not_found', 'Designer storefront not found.');
     const rows = db.prepare(`SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
@@ -1222,7 +1235,33 @@ function createApp(options = {}) {
       WHERE l.designer_id=? AND l.status='published' AND l.moderation_status='approved'
       ORDER BY l.published_at DESC, l.created_at DESC`).all(designer.id);
     let categories=[]; try { categories=JSON.parse(designer.categories||'[]'); } catch {}
-    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null},items:rows.map(row=>serializeListing(row,'public'))});
+    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null},items:rows.map(row=>serializeListing(row,'public'))});
+  });
+
+  app.post('/api/my/designer-profile/portrait', authDesigner, upload.single('image'), async (req,res,next)=>{
+    try{
+      if(!req.file)return fail(res,400,'missing_image','Choose a portrait to upload.');
+      const detectedMime=detectImageMime(req.file.buffer);
+      if(!detectedMime)return fail(res,415,'unsupported_image','Upload a valid JPEG, PNG, or WebP image.');
+      const metadata=await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();
+      if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Image dimensions are too large.');
+      const profile=db.prepare("SELECT portrait_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+      if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');
+      const storageKey=`designer-${req.designerId}-portrait.webp`;
+      await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).rotate().resize(1200,1200,{fit:'cover',position:'attention'}).webp({quality:88,effort:4}).toFile(path.join(imagesDir,storageKey));
+      db.prepare('UPDATE designer_profiles SET portrait_storage_key=? WHERE id=?').run(storageKey,req.designerId);
+      return res.json({portraitUrl:`/media/designers/${encodeURIComponent(req.designerId)}/portrait`});
+    }catch(error){return next(error);}
+  });
+
+  app.delete('/api/my/designer-profile/portrait', authDesigner, async (req,res,next)=>{
+    try{const profile=db.prepare("SELECT portrait_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');if(profile.portrait_storage_key)await fs.promises.unlink(path.join(imagesDir,profile.portrait_storage_key)).catch(()=>{});db.prepare('UPDATE designer_profiles SET portrait_storage_key=NULL WHERE id=?').run(req.designerId);return res.json({removed:true});}catch(error){return next(error);}
+  });
+
+  app.get('/media/designers/:designerId/portrait', (req,res)=>{
+    const profile=db.prepare("SELECT portrait_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
+    if(!profile?.portrait_storage_key)return fail(res,404,'not_found','Designer portrait not found.');
+    res.type('image/webp');res.set('Cache-Control','public, max-age=3600');return res.sendFile(path.join(imagesDir,profile.portrait_storage_key));
   });
 
   app.patch('/api/my/designer-profile', authDesigner, (req,res) => {
