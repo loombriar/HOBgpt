@@ -1740,6 +1740,7 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'service-worker.js'));
   });
   app.get('/designers/:designerId', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
+  app.get('/checkout', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
