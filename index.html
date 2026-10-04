@@ -45,7 +45,7 @@
           <div class="header-actions">
             <button class="room-door visitor-door" type="button" id="visitor-suite-btn"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></button>
             <button class="room-door designer-door" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span aria-hidden="true">🔒</span><span>Designer’s Room</span></button>
-            <button class="primary-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items">Suitcase (0)</button>
+            <button class="primary-button suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><span class="suitcase-handle" aria-hidden="true"></span><span class="suitcase-cart" aria-hidden="true">🛒</span><span id="suitcase-label">Suitcase (0)</span></button>
           </div>
           <div class="room-tooltips" aria-live="polite"><span class="room-tooltip visitor-tooltip">Your private shopping room: saved measurements, hearts, purchases, and favorite designers.</span><span class="room-tooltip designer-tooltip">Designer workspace for managing pieces and your storefront. Designers can shop in the Visitor’s Suite too.</span></div>
         </div>
@@ -88,32 +88,14 @@
                 <p class="eyebrow">Shop the market</p>
                 <h2>One-of-a-kind clothing</h2>
               </div>
-              <div class="shop-category-windows" aria-label="Discover pieces">
-                <button type="button" data-shop-window="all">All Pieces</button>
-                <button type="button" data-shop-window="new">Newly Added</button>
-                <button type="button" data-shop-window="low">Price: Low–High</button>
-                <button type="button" data-shop-window="high">Price: High–Low</button>
-                <button type="button" data-shop-window="one">One of a Kind</button>
-                <button type="button" data-shop-window="multiple">Multiple Available</button>
-              </div><div class="shop-filter-selects" aria-label="Shop filters">
-                <label for="shop-garment-filter">Garment type
-                  <select id="shop-garment-filter">
-                    <option value="apparel">All clothing</option>
-                    <option value="Dress">Dresses</option><option value="Skirt">Skirts</option><option value="Top">Tops</option>
-                    <option value="Set / Outfit">Sets & Outfits</option><option value="Jacket / Outerwear">Jackets & Outerwear</option>
-                    <option value="Pants / Shorts">Pants & Shorts</option><option value="Jumpsuit / Romper">Jumpsuits & Rompers</option>
-                    <option value="Costume">Costumes</option><option value="Other clothing">Other</option>
-                  </select>
-                </label>
-                <label for="shop-aesthetic-filter">Aesthetic
-                  <select id="shop-aesthetic-filter">
-                    <option value="all">All styles</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option>
-                    <option value="Fairycore">Fairycore</option><option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option>
-                    <option value="Romantic">Romantic</option><option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option>
-                    <option value="Minimalist">Minimalist</option><option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </label>
+              <div class="shop-search-controls">
+                <label class="shop-search" for="shop-search-input"><span>What are you looking for?</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet skirt”, or a designer…" /></label>
+                <div class="shop-drop-windows" aria-label="Shop filters">
+                  <label class="shop-drop-window"><span>Garment</span><select id="shop-garment-filter"><option value="apparel">All clothing</option><option value="Dress">Dresses</option><option value="Skirt">Skirts</option><option value="Top">Tops</option><option value="Set / Outfit">Sets & Outfits</option><option value="Jacket / Outerwear">Outerwear</option><option value="Pants / Shorts">Pants & Shorts</option><option value="Jumpsuit / Romper">Jumpsuits & Rompers</option><option value="Costume">Costumes</option><option value="Other clothing">Other</option></select></label>
+                  <label class="shop-drop-window"><span>Aesthetic</span><select id="shop-aesthetic-filter"><option value="all">All styles</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option><option value="Fairycore">Fairycore</option><option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option><option value="Romantic">Romantic</option><option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option><option value="Minimalist">Minimalist</option><option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option><option value="Other">Other</option></select></label>
+                  <label class="shop-drop-window"><span>Price / New</span><select id="shop-sort-filter"><option value="all">Featured</option><option value="new">Newly added</option><option value="low">Price low–high</option><option value="high">Price high–low</option></select></label>
+                  <label class="shop-drop-window"><span>Piece type</span><select id="shop-piece-filter"><option value="all">All pieces</option><option value="one">One of a Kind</option><option value="multiple">Multiple available</option></select></label>
+                </div>
               </div>
             </div>
             <p id="shop-status" class="notice" role="status" aria-live="polite">Loading the latest pieces…</p>
