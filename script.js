@@ -346,6 +346,23 @@ function openProductDetails(item) {
   const copy = makeElement('div', 'product-detail-copy');
   copy.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
   if (item.aesthetic) copy.appendChild(makeElement('span', 'badge', item.aesthetic));
+  if (item.productionType) {
+    const productionButton = makeElement('button', 'badge production-info-button', item.productionType);
+    productionButton.type = 'button';
+    productionButton.addEventListener('click', () => {
+      const info = {
+        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your cart does not reserve it; it is secured when checkout begins.',
+        'Upcycled': 'This piece gives existing materials or garments a new life through the designer’s creative work.',
+        'Made in Multiple': 'This design can be made more than once. Individual pieces may still vary because they are independently made.'
+      };
+      byId('production-info-title').textContent = item.productionType;
+      byId('production-info-content').replaceChildren(makeElement('p', '', info[item.productionType] || 'Ask the designer for details about this piece.'));
+      byId('production-info-dialog')?.showModal();
+    });
+    copy.appendChild(productionButton);
+  }
+  if (item.alterationsAvailable) copy.appendChild(makeElement('p', 'notice', 'Alterations available — this designer can adjust this piece.'));
+  if (item.takesRequests) copy.appendChild(makeElement('p', 'notice', 'Takes requests — this designer welcomes inquiries about custom or related work.'));
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
@@ -480,7 +497,10 @@ function readFormValues() {
     category: 'apparel',
     style: byId('product-style')?.value || '',
     size: byId('product-size')?.value || '',
-    aesthetic: byId('product-aesthetic')?.value || ''
+    aesthetic: byId('product-aesthetic')?.value || '',
+    productionType: byId('product-production-type')?.value || '',
+    alterationsAvailable: Boolean(byId('product-alterations')?.checked),
+    takesRequests: Boolean(byId('product-requests')?.checked)
   };
 }
 
@@ -490,6 +510,7 @@ function validateListingValues(values) {
   if (!values.style) return 'Choose a garment type.';
   if (!values.size) return 'Choose a size.';
   if (!values.aesthetic) return 'Choose an aesthetic style.';
+  if (!values.productionType) return 'Choose One of a Kind, Upcycled, or Made in Multiple.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
   return '';
@@ -694,6 +715,10 @@ async function editListing(listingId) {
     if (byId('product-category')) byId('product-category').value = 'apparel';
     if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (byId('product-size')) byId('product-size').value = listing.size || '';
+    if (byId('product-aesthetic')) byId('product-aesthetic').value = listing.aesthetic || '';
+    if (byId('product-production-type')) byId('product-production-type').value = listing.productionType || '';
+    if (byId('product-alterations')) byId('product-alterations').checked = Boolean(listing.alterationsAvailable);
+    if (byId('product-requests')) byId('product-requests').checked = Boolean(listing.takesRequests);
     if (listingFormTitle) listingFormTitle.textContent = 'Edit a design';
 
     selectedImages.forEach((image) => {
@@ -945,3 +970,5 @@ adminSignoutBtn?.addEventListener('click', () => {
   setMessage(adminReviewMessage, '');
 });
 
+
+byId('production-info-close')?.addEventListener('click', () => byId('production-info-dialog')?.close());

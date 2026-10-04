@@ -42,7 +42,8 @@
           </nav>
 
           <div class="header-actions">
-            <button class="ghost-button" type="button" id="designer-login-btn">Designer portal</button>
+            <a class="room-door visitor-door" href="#measurements"><span class="door-knob" aria-hidden="true"></span><span>Visitor’s Suite</span></a>
+            <button class="room-door designer-door" type="button" id="designer-login-btn"><span class="door-knob" aria-hidden="true"></span><span>Designer’s Room</span></button>
             <button class="primary-button" type="button" id="cart-btn" aria-label="Shopping bag, 0 items">Cart (0)</button>
           </div>
         </div>
@@ -97,7 +98,7 @@
                 </label>
                 <label for="shop-aesthetic-filter">Aesthetic
                   <select id="shop-aesthetic-filter">
-                    <option value="all">All styles</option><option value="One of a Kind">One of a Kind</option><option value="Upcycled">Upcycled</option><option value="Made in Multiple">Made in Multiple</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option>
+                    <option value="all">All styles</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option>
                     <option value="Fairycore">Fairycore</option><option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option>
                     <option value="Romantic">Romantic</option><option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option>
                     <option value="Minimalist">Minimalist</option><option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option>
@@ -138,8 +139,8 @@
         <section id="measurements" class="newsletter-section">
           <div class="container newsletter-box">
             <div>
-              <p class="eyebrow">Fit profile</p>
-              <h2>Save your measurements</h2>
+              <p class="eyebrow">Visitor’s Suite</p>
+              <h2>Your fit profile</h2>
               <p>Keep your measurements together so you can share them with an independent designer when discussing fit or custom work.</p>
             </div>
             <form id="measurements-form" class="stack-form">
@@ -185,7 +186,7 @@
 
     <dialog id="designer-modal" class="app-dialog designer-dialog" aria-labelledby="designer-dialog-title">
       <div class="dialog-header">
-        <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer studio</h2></div>
+        <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer’s Room</h2></div>
         <button class="icon-button" id="modal-close" type="button" aria-label="Close designer portal">×</button>
       </div>
       <section id="designer-login-panel" class="login-panel">
@@ -225,15 +226,20 @@
                 <option value="Pants / Shorts">Pants / Shorts</option><option value="Jumpsuit / Romper">Jumpsuit / Romper</option>
                 <option value="Other clothing">Other clothing</option>
               </select>
+              <label for="product-production-type">Availability</label>
+              <select id="product-production-type" name="productionType" required>
+                <option value="">Choose availability</option>
+                <option value="One of a Kind">One of a Kind</option><option value="Upcycled">Upcycled</option><option value="Made in Multiple">Made in Multiple</option>
+              </select>
               <label for="product-aesthetic">Aesthetic style</label>
               <select id="product-aesthetic" name="aesthetic" required>
                 <option value="">Choose an aesthetic</option>
-                <option value="One of a Kind">One of a Kind</option><option value="Upcycled">Upcycled</option><option value="Made in Multiple">Made in Multiple</option>
                 <option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option><option value="Fairycore">Fairycore</option>
                 <option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option><option value="Romantic">Romantic</option>
                 <option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option><option value="Minimalist">Minimalist</option>
                 <option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option><option value="Other">Other</option>
               </select>
+              <div class="form-row"><label class="check-row"><input id="product-alterations" type="checkbox" /> Alterations available</label><label class="check-row"><input id="product-requests" type="checkbox" /> Takes requests</label></div>
               <label for="product-size">Size</label>
               <select id="product-size" name="size" required>
                 <option value="">Choose a size</option>
@@ -300,11 +306,17 @@
         <button id="cart-dialog-close" class="icon-button" type="button" aria-label="Close cart">×</button>
       </div>
       <div id="cart-items" class="designer-products"></div>
+      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your cart does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable if another customer reaches checkout first.</p>
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
         <button id="continue-shopping-btn" class="secondary-button" type="button">Continue shopping</button>
         <button id="checkout-btn" class="primary-button" type="button">Continue to payment</button>
       </div>
+    </dialog>
+
+    <dialog id="production-info-dialog" class="app-dialog" aria-labelledby="production-info-title">
+      <div class="dialog-header"><div><p class="eyebrow">How this piece is made</p><h2 id="production-info-title">Availability</h2></div><button id="production-info-close" class="icon-button" type="button" aria-label="Close">×</button></div>
+      <div id="production-info-content"></div>
     </dialog>
 
     <dialog id="photo-lightbox" class="photo-lightbox" aria-label="Full product photo">

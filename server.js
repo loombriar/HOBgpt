@@ -58,6 +58,9 @@ function validateListingInput(body = {}) {
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
   const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
+  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'Made in Multiple';
+  const alterationsAvailable = body.alterationsAvailable === true;
+  const takesRequests = body.takesRequests === true;
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -66,8 +69,9 @@ function validateListingInput(body = {}) {
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
+  if (!['One of a Kind','Upcycled','Made in Multiple'].includes(productionType)) return { error: 'Choose how this piece is offered.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic } };
+  return { value: { title, description, price, category, style, size, aesthetic, productionType, alterationsAvailable, takesRequests } };
 }
 
 function createApp(options = {}) {
@@ -228,6 +232,9 @@ function createApp(options = {}) {
   ensureColumn('listings', 'moderation_reason', 'TEXT');
   ensureColumn('listings', 'style', 'TEXT');
   ensureColumn('listings', 'aesthetic', 'TEXT');
+  ensureColumn('listings', 'production_type', 'TEXT');
+  ensureColumn('listings', 'alterations_available', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('listings', 'takes_requests', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('listings', 'size', 'TEXT');
   ensureColumn('designer_applications', 'location', 'TEXT');
   ensureColumn('designer_applications', 'social_url', 'TEXT');
@@ -560,6 +567,9 @@ function createApp(options = {}) {
       style: row.style || '',
       size: row.size || '',
       aesthetic: row.aesthetic || '',
+      productionType: row.production_type || '',
+      alterationsAvailable: Boolean(row.alterations_available),
+      takesRequests: Boolean(row.takes_requests),
       designerId: row.designer_id,
       designerName: row.designer_name || undefined,
       status: row.status,
@@ -1307,9 +1317,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, production_type, alterations_available, takes_requests, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1321,6 +1331,9 @@ function createApp(options = {}) {
       validation.value.style || null,
       validation.value.size || null,
       validation.value.aesthetic || null,
+      validation.value.productionType,
+      validation.value.alterationsAvailable ? 1 : 0,
+      validation.value.takesRequests ? 1 : 0,
       timestamp,
       timestamp
     );
@@ -1343,7 +1356,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, production_type = ?, alterations_available = ?, takes_requests = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1356,6 +1369,9 @@ function createApp(options = {}) {
       validation.value.style || null,
       validation.value.size || null,
       validation.value.aesthetic || null,
+      validation.value.productionType,
+      validation.value.alterationsAvailable ? 1 : 0,
+      validation.value.takesRequests ? 1 : 0,
       timestamp,
       row.id
     );
