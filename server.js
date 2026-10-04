@@ -290,6 +290,23 @@ function createApp(options = {}) {
 
   db.exec(`CREATE INDEX IF NOT EXISTS buyer_favorites_subject_created ON buyer_favorites(buyer_subject, created_at DESC)`);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS collector_notes (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    buyer_subject TEXT NOT NULL,
+    designer_id TEXT NOT NULL,
+    note TEXT NOT NULL,
+    designer_reply TEXT,
+    created_at TEXT NOT NULL,
+    replied_at TEXT,
+    UNIQUE(order_id, listing_id, buyer_subject),
+    FOREIGN KEY(listing_id) REFERENCES listings(id),
+    FOREIGN KEY(order_id) REFERENCES orders(id),
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS collector_notes_listing_created ON collector_notes(listing_id, created_at DESC)`);
+
   db.exec(`CREATE TABLE IF NOT EXISTS listing_inquiries (
     id TEXT PRIMARY KEY,
     listing_id TEXT NOT NULL,
@@ -1060,7 +1077,7 @@ function createApp(options = {}) {
   function markOrderInventorySold(orderId) {
     const now = new Date().toISOString();
     db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
-    db.prepare("UPDATE listings SET status = 'archived', updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    // Sold work remains published as part of the designer's gallery; inventory_reservations is the source of truth for checkout availability.\n    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
   }
 
   function releaseOrderInventory(orderId) {
@@ -1188,10 +1205,9 @@ function createApp(options = {}) {
 
   app.get('/api/gallery', (_req, res) => {
     const rows = db.prepare(`
-      SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
+      SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name, CASE WHEN ir.status='sold' THEN 1 ELSE 0 END AS sold
       FROM listings l
-      JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'
-      WHERE l.status = 'published' AND l.moderation_status = 'approved'
+      JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'\n      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'\n      WHERE l.status = 'published' AND l.moderation_status = 'approved'
       ORDER BY l.published_at DESC, l.created_at DESC
     `).all();
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
@@ -1668,6 +1684,45 @@ function createApp(options = {}) {
     const now=new Date().toISOString(); let merged=0;
     db.transaction(()=>{for(const id of ids){if(available.get(id)){const result=insert.run(req.buyerSubject,id,now);merged+=result.changes;}}})();
     return res.json({merged});
+  });
+
+  app.get('/api/listings/:listingId/collector-notes', (req,res)=>{
+    const notes=db.prepare(`SELECT n.id,n.note,n.designer_reply,n.created_at,n.replied_at
+      FROM collector_notes n JOIN orders o ON o.id=n.order_id
+      WHERE n.listing_id=? AND o.status='paid' AND COALESCE(o.refund_status,'')!='succeeded'
+      ORDER BY n.created_at DESC`).all(req.params.listingId);
+    return res.json({notes:notes.map(n=>({id:n.id,note:n.note,designerReply:n.designer_reply||null,createdAt:n.created_at,repliedAt:n.replied_at||null,verifiedPurchase:true}))});
+  });
+
+  app.post('/api/listings/:listingId/collector-notes', authBuyer, (req,res)=>{
+    const purchase=db.prepare(`SELECT o.id order_id,oi.designer_id FROM orders o JOIN order_items oi ON oi.order_id=o.id
+      WHERE o.buyer_subject=? AND oi.listing_id=? AND o.status='paid' AND COALESCE(o.refund_status,'')!='succeeded'
+      ORDER BY o.paid_at DESC LIMIT 1`).get(req.buyerSubject,req.params.listingId);
+    if(!purchase)return fail(res,403,'verified_purchase_required','Collector Notes are available only after a verified purchase.');
+    const note=String(req.body?.note||'').trim();
+    if(!note||note.length>1200)return fail(res,422,'validation_error','Write a Collector Note between 1 and 1,200 characters.');
+    const existing=db.prepare('SELECT id FROM collector_notes WHERE order_id=? AND listing_id=? AND buyer_subject=?').get(purchase.order_id,req.params.listingId,req.buyerSubject);
+    if(existing)return fail(res,409,'note_exists','You have already left a Collector Note for this purchase.');
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare('INSERT INTO collector_notes (id,listing_id,order_id,buyer_subject,designer_id,note,created_at) VALUES (?,?,?,?,?,?,?)').run(id,req.params.listingId,purchase.order_id,req.buyerSubject,purchase.designer_id,note,now);
+    return res.status(201).json({note:{id,note,designerReply:null,createdAt:now,verifiedPurchase:true}});
+  });
+
+  app.get('/api/my/collector-notes', authDesigner, (req,res)=>{
+    const notes=db.prepare(`SELECT n.id,n.listing_id,n.note,n.designer_reply,n.created_at,n.replied_at,l.title
+      FROM collector_notes n JOIN listings l ON l.id=n.listing_id WHERE n.designer_id=? ORDER BY n.created_at DESC`).all(req.designerId);
+    return res.json({notes:notes.map(n=>({id:n.id,listingId:n.listing_id,title:n.title,note:n.note,designerReply:n.designer_reply||null,createdAt:n.created_at,repliedAt:n.replied_at||null,verifiedPurchase:true}))});
+  });
+
+  app.post('/api/my/collector-notes/:noteId/reply', authDesigner, (req,res)=>{
+    const existing=db.prepare('SELECT id,designer_reply FROM collector_notes WHERE id=? AND designer_id=?').get(req.params.noteId,req.designerId);
+    if(!existing)return fail(res,404,'note_not_found','Collector Note not found.');
+    if(existing.designer_reply)return fail(res,409,'reply_exists','This Collector Note already has a designer reply.');
+    const reply=String(req.body?.reply||'').trim();
+    if(!reply||reply.length>800)return fail(res,422,'validation_error','Write a reply between 1 and 800 characters.');
+    const now=new Date().toISOString();
+    db.prepare('UPDATE collector_notes SET designer_reply=?,replied_at=? WHERE id=?').run(reply,now,existing.id);
+    return res.json({reply,repliedAt:now});
   });
 
   app.get('/api/my/donations', authBuyer, (req,res) => {
