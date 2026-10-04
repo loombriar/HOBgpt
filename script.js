@@ -178,7 +178,10 @@ function renderGallery() {
   if (!productGrid) return;
   productGrid.replaceChildren();
 
-  const items = galleryItems.filter((item) => activeFilter === 'all' || item.category === activeFilter);
+  const items = galleryItems.filter((item) => {
+    if (activeFilter === 'all' || activeFilter === 'apparel') return item.category === 'apparel';
+    return item.category === 'apparel' && item.style === activeFilter;
+  });
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
     productGrid.appendChild(empty);
@@ -210,7 +213,7 @@ function renderGallery() {
 
     const body = makeElement('span', 'product-body');
     const meta = makeElement('span', 'meta-row');
-    meta.appendChild(makeElement('span', 'badge', categoryLabel(item.category)));
+    meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
     meta.appendChild(makeElement('span', 'price', `$${Number(item.price || 0).toFixed(2)}`));
     body.appendChild(meta);
     body.appendChild(makeElement('span', 'card-title', item.title));
@@ -273,7 +276,7 @@ function openProductDetails(item) {
   });
 
   const copy = makeElement('div', 'product-detail-copy');
-  copy.appendChild(makeElement('span', 'badge', categoryLabel(item.category)));
+  copy.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
