@@ -804,7 +804,11 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 });
 
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
-  if (designerToken) {
+  if (!designerToken) {
+    if (loginPanel) loginPanel.classList.remove('hidden');
+    if (designerWorkspace) designerWorkspace.classList.add('hidden');
+    setMessage(designerAuthMessage, '🔒 Designer’s Room is locked. Designer access is required to enter.', '');
+  } else {
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
   }
