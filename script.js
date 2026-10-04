@@ -141,6 +141,34 @@ checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutC
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
 byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
 
+const MEASUREMENTS_KEY = 'house-of-briar:measurements';
+
+function loadMeasurements() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MEASUREMENTS_KEY) || '{}');
+    [['measure-bust','bust'],['measure-waist','waist'],['measure-hips','hips'],['measure-inseam','inseam'],['measure-height','height'],['measure-unit','unit'],['measure-notes','notes']].forEach(([id,key]) => {
+      const field = byId(id);
+      if (field && saved[key] != null) field.value = saved[key];
+    });
+  } catch {}
+}
+
+byId('measurements-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const measurements = {
+    bust: byId('measure-bust')?.value || '',
+    waist: byId('measure-waist')?.value || '',
+    hips: byId('measure-hips')?.value || '',
+    inseam: byId('measure-inseam')?.value || '',
+    height: byId('measure-height')?.value || '',
+    unit: byId('measure-unit')?.value || 'in',
+    notes: byId('measure-notes')?.value?.trim() || ''
+  };
+  localStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(measurements));
+  setMessage(byId('measurements-message'), 'Measurements saved on this device.', 'success');
+});
+loadMeasurements();
+
 function setMessage(element, message = '', kind = '') {
   if (!element) return;
   element.textContent = message;
