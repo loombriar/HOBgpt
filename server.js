@@ -502,7 +502,7 @@ function createApp(options = {}) {
       sizeBytes: image.size_bytes,
       width: image.width,
       height: image.height,
-      url: mode === 'public' ? `/media/${encodeURIComponent(image.id)}` : `/api/listings/${encodeURIComponent(listingId)}/images/${encodeURIComponent(image.id)}/content`,
+      url: mode === 'public' ? `/media/${encodeURIComponent(image.id)}` : mode === 'admin' ? `/api/admin/listings/${encodeURIComponent(listingId)}/images/${encodeURIComponent(image.id)}/content` : `/api/listings/${encodeURIComponent(listingId)}/images/${encodeURIComponent(image.id)}/content`,
       legacy: false,
     }));
   }
@@ -1299,6 +1299,18 @@ function createApp(options = {}) {
     }
   });
 
+  app.get('/api/admin/listings/:listingId/images/:imageId/content', authAdmin, (req, res) => {
+    const row = db.prepare(`
+      SELECT storage_key, mime_type
+      FROM listing_images
+      WHERE id = ? AND listing_id = ? AND upload_status = 'ready'
+    `).get(req.params.imageId, req.params.listingId);
+    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    res.type(row.mime_type);
+    res.set('Cache-Control', 'private, no-store');
+    return res.sendFile(path.join(imagesDir, row.storage_key));
+  });
+
   app.get('/api/listings/:listingId/images/:imageId/content', authDesigner, (req, res) => {
     const row = db.prepare(`
       SELECT i.storage_key, i.mime_type
@@ -1381,7 +1393,7 @@ function createApp(options = {}) {
 
   app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
     const rows = db.prepare("SELECT * FROM listings WHERE status = 'pending_review' AND moderation_status = 'pending' ORDER BY updated_at ASC").all();
-    return res.json({ items: rows.map(row => serializeListing(row, 'private')) });
+    return res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
 
   app.post('/api/admin/listings/:listingId/approve', authAdmin, (req, res) => {
