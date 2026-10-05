@@ -1473,3 +1473,6 @@ main>section:not(.hero){position:relative}
 .supporter-thanks{color:#805345!important;font-style:italic}
 .supporter-badge{display:inline-flex!important;align-items:center;gap:7px!important;background:#fff7ee!important;color:#714b3d!important;border:1px solid #c7ab68!important;padding:5px 10px 5px 5px!important}
 .supporter-badge-art{width:36px!important;height:36px!important;object-fit:contain!important;border-radius:50%;flex:none}
+
+/* Matching mint suitcase keeps purchase verification distinct from support. */
+.verified-badge{display:inline-flex!important;align-items:center;gap:7px!important;background:#edf4e9!important;color:#46594a!important;border:1px solid #c7ab68!important;padding:5px 10px 5px 5px!important}

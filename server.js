@@ -2160,6 +2160,7 @@ function createApp(options = {}) {
     'sewing-navigation-v2.webp',
     'sewing-hero-v2.webp',
     'heart-of-the-house-v1.webp',
+    'verified-buyer-v1.webp',
     'Botanical Garment Selector Banner-1.png',
     'Ornate Woodland Aesthetic Dropdown UI-2.png',
     'Enchanted Woodland Price Selector-3.png',
