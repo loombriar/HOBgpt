@@ -118,9 +118,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 251, 245, 0.9);
-  border: 2px solid rgba(174, 132, 89, 0.85);
-  border-radius: 20px;
+  background: rgba(255, 251, 245, 0.94);
+  border: 2px solid rgba(175, 136, 94, 0.7);
+  border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 10px 22px rgba(75, 52, 29, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -134,12 +134,47 @@
 }
 
 .product-card .product-image {
-  border-bottom: 1px solid rgba(173, 132, 89, 0.45);
-  background: #f3ead8;
+  position: relative;
+  padding: 0.75rem 0.75rem 0;
+  background: linear-gradient(180deg, #f8f1e7 0%, #f2e7d7 100%);
+}
+
+.product-card .product-image::before,
+.product-card .product-image::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: rgba(138, 95, 61, 0.6);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.product-card .product-image::before {
+  top: 10px;
+  left: 10px;
+  border-width: 2px 0 0 2px;
+  border-radius: 6px 0 0 0;
+}
+
+.product-card .product-image::after {
+  right: 10px;
+  bottom: 10px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 8px 0;
+}
+
+.product-card .product-image img {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(146, 108, 70, 0.35);
 }
 
 .product-card .product-body {
-  padding: 0.8rem 0.85rem 0.9rem;
+  padding: 0.85rem 0.9rem 1rem;
 }
 
 .product-card .meta-row {
@@ -151,6 +186,23 @@
   border: 1px solid rgba(146, 108, 70, 0.4);
   border-radius: 999px;
   background: rgba(247, 238, 225, 0.9);
+}
+
+.product-card .card-title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: #2d2a27;
+}
+
+.product-card .card-description {
+  color: #534b46;
+  font-size: 0.9rem;
+}
+
+.product-card .product-image {
+  border-bottom: 1px solid rgba(173, 132, 89, 0.45);
+  background: #f3ead8;
 }
 
 /* Hero readability polish */
