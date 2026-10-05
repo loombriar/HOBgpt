@@ -1330,3 +1330,14 @@ main>section:not(.hero){position:relative}
     transform: none !important;
   }
 }
+
+
+/* Final story/newsletter composition: prevent stale decorative frame overrides from reintroducing baked-text collisions. */
+.story-section .story-grid{min-height:0!important;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)!important;align-items:center!important;padding:54px 64px!important;background:#fffaf0!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:28px!important;box-shadow:0 12px 32px rgba(70,48,28,.06)!important}
+.story-section .story-visual{min-height:0!important;background:transparent!important;border:0!important}
+.story-section .story-panel{position:static!important;background:transparent!important}
+.story-section .story-copy{position:static!important;padding:0!important;background:transparent!important;border-radius:0!important}
+.newsletter-section .newsletter-box{min-height:0!important;padding:44px 64px!important;display:grid!important;background:#fffaf0!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:28px!important;box-shadow:0 12px 32px rgba(70,48,28,.06)!important}
+.newsletter-section .newsletter-box::after{content:none!important;display:none!important}
+@media(max-width:900px){.story-section .story-grid{grid-template-columns:1fr!important}}
+@media(max-width:700px){.story-section .story-grid,.newsletter-section .newsletter-box{padding:34px 24px!important}}
