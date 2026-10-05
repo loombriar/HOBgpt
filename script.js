@@ -106,7 +106,7 @@ function getItemBadges(item = {}) {
   const supportFlag = item.supporterBadge || item.donationBadge || item.supporter || item.hasSupporterBadge || item.supporterBadge === true || normalized.includes('supporter') || normalized.includes('donation');
   const verifiedFlag = item.verifiedBadge || item.verified || item.isVerified || item.verifiedBuyer || normalized.includes('verified');
 
-  if (supportFlag) badges.push({ key: 'supporter', label: 'Supporter' });
+  if (supportFlag) badges.push({ key: 'supporter', label: 'House Supporter' });
   if (verifiedFlag) badges.push({ key: 'verified', label: 'Verified' });
   return badges;
 }
@@ -114,6 +114,14 @@ function getItemBadges(item = {}) {
 function createBadgePill(label, className = 'badge') {
   const pill = makeElement('span', className, label);
   pill.title = label;
+  if (className.includes('supporter-badge')) {
+    pill.title = 'You helped keep the House in stitches. Thank you.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/heart-of-the-house-v1.webp';
+    artwork.alt = '';
+    artwork.setAttribute('aria-hidden', 'true');
+    pill.prepend(artwork);
+  }
   return pill;
 }
 
