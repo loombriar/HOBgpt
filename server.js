@@ -833,6 +833,8 @@ function createApp(options = {}) {
     if(orderId){const owned=db.prepare('SELECT id FROM orders WHERE id=? AND buyer_subject=?').get(orderId,req.buyerSubject);if(!owned)return fail(res,403,'order_not_owned','That order is not linked to this account.');}
     const id=makeId(),messageId=makeId(),now=new Date().toISOString();
     db.transaction(()=>{db.prepare("INSERT INTO support_tickets (id,buyer_subject,buyer_email,order_id,category,subject,status,priority,created_at,updated_at) VALUES (?,?,?,?,?,?,'open','normal',?,?)").run(id,req.buyerSubject,req.buyerEmail||null,orderId,category,subject,now,now);db.prepare("INSERT INTO support_messages (id,ticket_id,sender_role,body,created_at) VALUES (?,?,'customer',?,?)").run(messageId,id,message,now);})();
+    const supportEmail=String(process.env.SUPPORT_EMAIL||'').trim();
+    if(supportEmail)void sendEmail({to:supportEmail,subject:`New House of Briar Customer Service request: ${subject}`,text:`A new customer service request was submitted.\n\nCategory: ${category}\nTicket: ${id}${orderId?`\nOrder: ${orderId}`:''}\n\nOpen the House of Briar Admin Support Inbox to review and respond.`});
     return res.status(201).json({ticket:{id,category,subject,status:'open',orderId,createdAt:now,updatedAt:now}});
   });
 
@@ -847,12 +849,13 @@ function createApp(options = {}) {
     if(['resolved','closed'].includes(ticket.status))return fail(res,409,'ticket_closed','This request is closed. Start a new customer service request if you still need help.');
     const body=String(req.body?.message||'').trim();if(!body||body.length>3000)return fail(res,422,'validation_error','Write a message between 1 and 3,000 characters.');
     const id=makeId(),now=new Date().toISOString();db.transaction(()=>{db.prepare("UPDATE support_messages SET read_at=? WHERE ticket_id=? AND sender_role='support' AND read_at IS NULL").run(now,ticket.id);db.prepare("INSERT INTO support_messages (id,ticket_id,sender_role,body,created_at) VALUES (?,?,'customer',?,?)").run(id,ticket.id,body,now);db.prepare("UPDATE support_tickets SET status='open',updated_at=? WHERE id=?").run(now,ticket.id);})();
+    const supportEmail=String(process.env.SUPPORT_EMAIL||'').trim();if(supportEmail)void sendEmail({to:supportEmail,subject:`Customer replied to House of Briar ticket: ${ticket.subject}`,text:`A customer replied to support ticket ${ticket.id}. Open the House of Briar Admin Support Inbox to review the message.`});
     return res.status(201).json({message:{id,senderRole:'customer',body,createdAt:now}});
   });
 
   app.get('/api/admin/support-tickets', authAdmin, (_req,res)=>{
     const rows=db.prepare("SELECT * FROM support_tickets ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'waiting_on_customer' THEN 1 ELSE 2 END,updated_at DESC LIMIT 250").all();
-    return res.json({tickets:rows.map(t=>({id:t.id,buyerEmail:t.buyer_email,orderId:t.order_id,category:t.category,subject:t.subject,status:t.status,priority:t.priority,createdAt:t.created_at,updatedAt:t.updated_at,messages:supportMessages(t.id)}))});
+    const tickets=rows.map(t=>({id:t.id,buyerEmail:t.buyer_email,orderId:t.order_id,category:t.category,subject:t.subject,status:t.status,priority:t.priority,createdAt:t.created_at,updatedAt:t.updated_at,messages:supportMessages(t.id)})); return res.json({tickets,openCount:tickets.filter(t=>t.status==="open").length});
   });
 
   app.post('/api/admin/support-tickets/:ticketId/messages', authAdmin, (req,res)=>{
