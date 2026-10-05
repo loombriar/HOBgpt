@@ -1151,7 +1151,7 @@ function createApp(options = {}) {
   app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
     let buyerSubject = null;
     let buyerEmail = null;
-    const buyerToken = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const buyerToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (buyerToken) {
       try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
@@ -1896,6 +1896,11 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
+  const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
+  const reactIndexFile = path.join(reactDistDir, 'index.html');
+  const hasReactBuild = fs.existsSync(reactIndexFile);
+  if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
+
   app.get('/manifest.webmanifest', (_req, res) => {
     res.type('application/manifest+json');
     res.sendFile(path.join(rootDir, 'manifest.webmanifest'));
@@ -1906,11 +1911,15 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(rootDir, 'service-worker.js'));
   });
-  app.get('/designers/:designerId', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/account', (_req, res) => res.redirect('/#visitor-suite'));
-  app.get('/checkout', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
+  const sendFrontend = (_req, res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html'));
+  app.get('/designers/:designerId', sendFrontend);
+  app.get('/account', hasReactBuild ? sendFrontend : (_req, res) => res.redirect('/#visitor-suite'));
+  app.get('/checkout', sendFrontend);
+  app.get('/', sendFrontend);
+  app.get('/index.html', sendFrontend);
+  if (hasReactBuild) {
+    app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
+  }
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
   app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
