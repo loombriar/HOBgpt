@@ -741,3 +741,14 @@
 @media(max-width:700px){
   .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
 }
+
+
+/* Restore the approved category-box composition from 2575884 while keeping live category selects. */
+.product-section .shop-search-controls{width:min(1120px,100%)!important;margin:0 auto 18px!important}
+.product-section .shop-drop-windows{display:grid!important;width:min(100%,900px)!important;grid-template-columns:repeat(4,minmax(0,180px))!important;justify-content:center!important;align-items:start!important;gap:14px!important;margin:18px auto 0!important}
+.product-section .illustrated-select{position:relative!important;display:grid!important;grid-template-rows:auto auto!important;align-content:start!important;gap:8px!important;width:100%!important;max-width:180px!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:800/260!important;padding:8px!important;overflow:hidden!important;border:1px solid #d7c6aa!important;border-radius:12px!important;background:#fffaf0!important;box-shadow:0 8px 18px rgba(68,46,25,.08)!important;filter:none!important}
+.product-section .illustrated-select>img.category-window-art{position:static!important;display:block!important;width:100%!important;height:100%!important;min-height:0!important;aspect-ratio:auto!important;object-fit:cover!important;object-position:center!important;border-radius:0!important;background:transparent!important}
+.product-section .category-window-current{display:none!important}
+.product-section .illustrated-select>select{position:absolute!important;inset:auto 12% 7% 12%!important;width:76%!important;height:auto!important;min-height:30px!important;max-height:none!important;padding:.25rem .5rem!important;border:1px solid rgba(31,23,17,.18)!important;border-radius:8px!important;background:rgba(255,251,245,.94)!important;color:#2c2b29!important;opacity:1!important;appearance:auto!important;font-size:.78rem!important;line-height:normal!important;z-index:2!important;cursor:pointer!important}
+@media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,180px))!important}}
+@media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:minmax(0,180px)!important}.product-section .illustrated-select{max-width:180px!important}}
