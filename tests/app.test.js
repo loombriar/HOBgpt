@@ -80,8 +80,8 @@ test('serves the storefront HTML, stylesheet, and current frontend script from t
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
   assert.match(html, /^<!doctype html>/i);
-  assert.match(html, /href="\/styles\.css"/);
-  assert.match(html, /src="\/script\.js"/);
+  assert.match(html, /href="\/styles\.css(?:\?[^" ]+)?"/);
+  assert.match(html, /src="\/script\.js(?:\?[^" ]+)?"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
   const css = await cssResponse.text();
