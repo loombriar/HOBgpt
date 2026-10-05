@@ -227,6 +227,16 @@ function createApp(options = {}) {
     CREATE INDEX IF NOT EXISTS listing_images_listing ON listing_images(listing_id, upload_status, position);
   `);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL
+  )`);
+  function recordMigration(version, name) {
+    db.prepare('INSERT OR IGNORE INTO schema_migrations (version,name,applied_at) VALUES (?,?,?)').run(version, name, new Date().toISOString());
+  }
+  recordMigration(1, 'baseline_schema');
+
   function ensureColumn(table, name, definition) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
@@ -271,6 +281,22 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'tracking_status', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_verified_at', 'TEXT');
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
+  recordMigration(2, 'marketplace_profile_order_and_tracking_columns');
+
+  db.exec(`CREATE TABLE IF NOT EXISTS email_outbox (
+    id TEXT PRIMARY KEY,
+    recipient TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body_text TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','sent','failed')) DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    sent_at TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
+  recordMigration(3, 'durable_email_outbox');
 
   db.exec(`CREATE TABLE IF NOT EXISTS designer_identities (
     subject TEXT PRIMARY KEY,
@@ -355,7 +381,8 @@ function createApp(options = {}) {
   for (const designerId of new Set(Object.values(designerTokens).map(value => String(value || '').trim()).filter(Boolean))) {
     ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
   }
-  const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
+  const adminTokens = [options.adminToken ?? process.env.ADMIN_TOKEN ?? '', ...(process.env.ADMIN_TOKENS || '').split(',')]
+    .map(value => String(value || '').trim()).filter(Boolean);
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
 
@@ -403,6 +430,12 @@ function createApp(options = {}) {
   db.prepare(`UPDATE listings
     SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
     WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
+
+  function log(level, event, details = {}) {
+    const payload = { timestamp: new Date().toISOString(), level, event, ...details };
+    const line = JSON.stringify(payload);
+    if (level === 'error') console.error(line); else console.log(line);
+  }
 
   function fail(res, status, code, message) {
     return res.status(status).json({ error: { code, message } });
@@ -527,7 +560,7 @@ function createApp(options = {}) {
   function authAdmin(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
-    if (!adminToken || !safeEqual(token, adminToken)) {
+    if (!adminTokens.length || !adminTokens.some(candidate => safeEqual(token, candidate))) {
       return fail(res, 403, 'forbidden', 'Administrator access is required.');
     }
     return next();
@@ -755,8 +788,6 @@ function createApp(options = {}) {
   }));
   app.use(express.json({ limit: '64kb' }));
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
-
   app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
     const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
     if(!listing)return fail(res,404,'listing_not_found','This listing is not available for inquiries.');
@@ -907,23 +938,42 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  async function sendEmail({ to, subject, text }) {
+  async function deliverEmail({ to, subject, text }) {
     if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from || !to) return false;
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [to], subject, text })
-      });
-      if (!response.ok) console.error('Resend email failed:', response.status, await response.text());
-      return response.ok;
-    } catch (error) {
-      console.error('Resend email failed:', error);
-      return false;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text })
+    });
+    if (!response.ok) throw new Error(`Resend returned ${response.status}: ${(await response.text()).slice(0,300)}`);
+    return true;
+  }
+
+  async function processEmailOutbox(limit = 20) {
+    const rows = db.prepare("SELECT * FROM email_outbox WHERE status IN ('pending','failed') AND next_attempt_at <= ? ORDER BY created_at LIMIT ?").all(new Date().toISOString(), limit);
+    for (const row of rows) {
+      try {
+        const sent = await deliverEmail({ to: row.recipient, subject: row.subject, text: row.body_text });
+        if (!sent) continue;
+        db.prepare("UPDATE email_outbox SET status='sent',attempts=attempts+1,last_error=NULL,sent_at=? WHERE id=?").run(new Date().toISOString(), row.id);
+      } catch (error) {
+        const attempts = row.attempts + 1;
+        const delayMs = Math.min(60 * 60 * 1000, 30_000 * (2 ** Math.min(attempts - 1, 7)));
+        db.prepare("UPDATE email_outbox SET status='failed',attempts=?,next_attempt_at=?,last_error=? WHERE id=?").run(attempts, new Date(Date.now()+delayMs).toISOString(), String(error.message || error).slice(0,500), row.id);
+        log('error','email_delivery_failed',{ outboxId: row.id, attempts, error: String(error.message || error).slice(0,300) });
+      }
     }
+    return rows.length;
+  }
+
+  async function sendEmail({ to, subject, text }) {
+    if (!to) return false;
+    const id = makeId(), now = new Date().toISOString();
+    db.prepare("INSERT INTO email_outbox (id,recipient,subject,body_text,status,attempts,next_attempt_at,created_at) VALUES (?,?,?,?,'pending',0,?,?)").run(id,to,subject,text,now,now);
+    await processEmailOutbox();
+    return db.prepare('SELECT status FROM email_outbox WHERE id=?').get(id)?.status === 'sent';
   }
 
   function designerOrderContact(orderId, designerId) {
@@ -2021,24 +2071,27 @@ function createApp(options = {}) {
       const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
       return fail(res, error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, code, message);
     }
-    console.error('Request failed:', error);
+    log('error','request_failed',{ error: String(error?.message || error).slice(0,500) });
     return fail(res, error.statusCode || 500, error.statusCode ? 'request_failed' : 'internal_error', error.message || 'The request could not be completed.');
   });
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts };
+  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, reconcilePendingCheckouts } = createApp();
+  const { app, db, reconcilePendingCheckouts, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
   const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
   reconciliationTimer.unref();
+  const emailTimer = setInterval(() => { void processEmailOutbox(); }, 60_000);
+  emailTimer.unref();
   void reconcilePendingCheckouts();
-  const shutdown = () => { clearInterval(reconciliationTimer); server.close(() => { db.close(); process.exit(0); }); };
+  void processEmailOutbox();
+  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
