@@ -157,3 +157,14 @@ test('stale checkout reconciliation asks Stripe before releasing one-of-one inve
 });
 
 test('standalone server schedules checkout reconciliation and clears it during shutdown',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/RECONCILIATION_INTERVAL_MS/);assert.match(server,/setInterval\(\(\) => \{ void reconcilePendingCheckouts\(\); \}/);assert.match(server,/reconciliationTimer\.unref\(\)/);assert.match(server,/clearInterval\(reconciliationTimer\)/);});
+
+
+test('schema changes are tracked and durable email outbox exists',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/CREATE TABLE IF NOT EXISTS schema_migrations/);assert.match(server,/recordMigration\(3, 'durable_email_outbox'\)/);assert.match(server,/CREATE TABLE IF NOT EXISTS email_outbox/);assert.match(server,/email_outbox_pending/);});
+
+test('admin authentication supports token rotation while retaining ADMIN_TOKEN compatibility',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/process\.env\.ADMIN_TOKENS/);assert.match(server,/adminTokens\.some\(candidate => safeEqual\(token, candidate\)\)/);assert.match(server,/process\.env\.ADMIN_TOKEN/);});
+
+test('transactional email is persisted and retried with backoff',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/async function processEmailOutbox/);assert.match(server,/INSERT INTO email_outbox/);assert.match(server,/2 \*\* Math\.min\(attempts - 1, 7\)/);assert.match(server,/setInterval\(\(\) => \{ void processEmailOutbox\(\); \}, 60_000\)/);assert.match(server,/clearInterval\(emailTimer\)/);});
+
+test('request failures use structured JSON logging',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/function log\(level, event, details = \{\}\)/);assert.match(server,/JSON\.stringify\(payload\)/);assert.match(server,/log\('error','request_failed'/);});
+
+test('only one API health route is registered',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.equal((server.match(/app\.get\('\/api\/health'/g)||[]).length,1);});
