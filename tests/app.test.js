@@ -285,3 +285,17 @@ test('listing materials care instructions and print pattern persist',async()=>{c
 test('designer listing form exposes materials care and print pattern fields',()=>{const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');const script=fs.readFileSync(path.join(__dirname,'..','script.js'),'utf8');assert.match(html,/id="product-pattern"/);assert.match(html,/value="Leopard"/);assert.match(html,/id="product-materials"/);assert.match(html,/id="product-care"/);assert.match(script,/item\.materials/);assert.match(script,/item\.careInstructions/);});
 
 // CI synchronization marker for structured listing fields.
+
+
+test('storefront exposes pattern filtering and persistent favorite controls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(html, /id="shop-pattern-filter"/);
+  assert.doesNotMatch(html, /id="shop-sort-filter"/);
+  assert.match(script, /activePattern/);
+  assert.match(script, /item\.pattern === activePattern/);
+  assert.match(script, /favorite-button/);
+  assert.match(server, /CREATE TABLE IF NOT EXISTS buyer_favorites/);
+  assert.match(server, /\/api\/my\/favorites\/:listingId/);
+});
