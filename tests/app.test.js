@@ -230,7 +230,7 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'Briar-Header-Fitted.png',
+    'sewing-navigation-v2.webp',
     'Botanical Garment Selector Banner-1.png',
     'Ornate Woodland Aesthetic Dropdown UI-2.png',
     'Botanical Accessories Dropdown Banner-4.png'
@@ -238,7 +238,7 @@ test('header and full-size category banners are served with live filters', async
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
     assert.equal(image.status, 200, `${asset} should be served`);
-    assert.match(image.headers.get('content-type'), /image\/png/);
+    assert.match(image.headers.get('content-type'), /image\/(png|webp)/);
   }
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);

@@ -1416,3 +1416,16 @@ main>section:not(.hero){position:relative}
 .product-section select option{color:#4a3828;background:#fffaf0}
 .shop-pattern-control{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:18px auto 0;color:#4a3828}
 .shop-pattern-control select{min-width:180px;min-height:36px;padding:4px 8px;color:#4a3828;background:#fffaf0;border:1px solid #aa967d;border-radius:7px}
+
+/* Text-free sewing artwork with genuine, responsive navigation buttons. */
+.sewing-header{position:relative!important;isolation:isolate;padding:26px 24px 32px!important;min-height:210px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:20px;overflow:hidden!important;background:#faf3e7!important;border-bottom:1px solid #d1b87a}
+.sewing-nav-background{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 88%;opacity:.7;z-index:-1;pointer-events:none}
+.sewing-brand{display:flex;flex-direction:column;align-items:center;color:#453522;text-decoration:none;font-family:"Cormorant Garamond",Georgia,serif;font-size:clamp(2.2rem,4vw,3.1rem);font-weight:600;line-height:1}
+.sewing-brand span{margin-top:9px;font-family:Inter,sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#665c43}
+.sewing-nav{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:9px;width:min(1180px,100%)}
+.sewing-header .nav-hotspot{position:static!important;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;width:auto!important;height:auto!important;min-height:42px;padding:10px 16px!important;border:1px solid rgba(163,126,62,.55)!important;border-radius:8px!important;background:rgba(255,251,241,.95)!important;color:#493a28!important;font-family:Inter,sans-serif;font-size:.82rem;font-weight:600;text-decoration:none;box-shadow:0 3px 8px rgba(77,52,24,.07)!important;pointer-events:auto!important;cursor:pointer!important}
+.sewing-header .room-button{background:#e4efe2!important;border-color:#94af97!important}
+.sewing-header .suitcase-button{background:#f8e3d9!important;border-color:#cfab89!important}
+.sewing-header .nav-hotspot:hover{background:#fff9e9!important;border-color:#9d7437!important}
+.sewing-header .nav-hotspot:focus-visible,.sewing-brand:focus-visible{outline:3px solid #9d7437!important;outline-offset:3px}
+@media(max-width:600px){.sewing-header{padding:22px 12px 28px!important;gap:18px}.sewing-nav{gap:8px}.sewing-header .nav-hotspot{flex:1 1 135px;font-size:.8rem;padding:9px 10px!important}.sewing-nav-background{opacity:.45}}

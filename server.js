@@ -2157,6 +2157,7 @@ function createApp(options = {}) {
   });
   const illustratedPublicAssets = [
     'Enchanted Briar House Header.png',
+    'sewing-navigation-v2.webp',
     'Botanical Garment Selector Banner-1.png',
     'Ornate Woodland Aesthetic Dropdown UI-2.png',
     'Enchanted Woodland Price Selector-3.png',
