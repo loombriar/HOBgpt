@@ -69,3 +69,45 @@
   overflow: hidden !important;
   border: 1px solid #d7c6aa !important;
 }
+
+/* Clean responsive banner override to keep the top artwork full-width and the hero content visible. */
+.hero {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: clamp(320px, 42vw, 640px) !important;
+  padding: clamp(1.5rem, 4vw, 4rem) 0 !important;
+  aspect-ratio: auto !important;
+  background:
+    linear-gradient(90deg, rgba(12, 22, 16, 0.82) 0%, rgba(12, 22, 16, 0.68) 38%, rgba(12, 22, 16, 0.18) 70%, rgba(12, 22, 16, 0.08) 100%),
+    url('/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png') center center / cover no-repeat !important;
+  background-color: #faf4e5 !important;
+}
+.hero > .container {
+  display: block !important;
+}
+.hero-copy {
+  max-width: 680px !important;
+}
+.hero .primary-button,
+.hero .secondary-button {
+  display: inline-flex !important;
+}
+.artwork-header,
+.artwork-header .botanical-nav-art,
+.artwork-header .botanical-nav-art > img {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+.artwork-header {
+  overflow: hidden !important;
+}
+.botanical-nav-art {
+  aspect-ratio: 1469 / 300 !important;
+}
