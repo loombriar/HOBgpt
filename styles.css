@@ -111,3 +111,94 @@
 .botanical-nav-art {
   aspect-ratio: 1469 / 300 !important;
 }
+
+/* Final homepage cleanup: one authoritative banner/hero override to keep the artwork full-width without hiding content. */
+.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: clamp(320px, 42vw, 640px);
+  padding: clamp(1.5rem, 4vw, 4rem) 0;
+  background:
+    linear-gradient(90deg, rgba(12, 22, 16, 0.82) 0%, rgba(12, 22, 16, 0.68) 38%, rgba(12, 22, 16, 0.18) 70%, rgba(12, 22, 16, 0.08) 100%),
+    url('/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png') center center / cover no-repeat;
+  background-color: #faf4e5;
+}
+.hero > .container {
+  display: block;
+  width: 100%;
+}
+.hero-copy {
+  max-width: 680px;
+}
+.hero .primary-button,
+.hero .secondary-button {
+  display: inline-flex;
+}
+.artwork-header,
+.artwork-header .botanical-nav-art,
+.artwork-header .botanical-nav-art > img {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+}
+.artwork-header {
+  overflow: hidden;
+}
+.botanical-nav-art {
+  aspect-ratio: 1469 / 300;
+}
+.story-grid,
+.newsletter-box {
+  min-height: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.product-section .shop-drop-windows {
+  display: grid;
+  width: min(100%, 900px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center;
+  align-items: start;
+  gap: 14px;
+  margin: 18px auto 0;
+}
+.product-section .illustrated-select {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 800 / 260;
+  overflow: hidden;
+  border: 1px solid #d7c6aa;
+  border-radius: 12px;
+}
+.product-section .illustrated-select > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+@media (max-width: 900px) {
+  .hero {
+    min-height: 300px;
+  }
+  .product-section .shop-drop-windows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 520px) {
+  .hero {
+    min-height: 220px;
+    background-position: center;
+  }
+  .product-section .shop-drop-windows {
+    grid-template-columns: 1fr;
+  }
+}
