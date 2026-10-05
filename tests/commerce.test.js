@@ -144,3 +144,8 @@ test('checkout does not advertise or calculate unsupported local coupon discount
 
 test('every Designer Studio marketplace category is accepted by listing validation',async()=>{for(const category of ['one-of-a-kind','upcycled','vintage-inspired','handmade','botanical','limited edition','statement piece','costumes']){const created=await json('/api/listings',{method:'POST',headers:{Authorization:'Bearer '+DESIGNER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({title:'Category '+category,description:'Category compatibility test',price:25,category})});assert.equal(created.response.status,201,category);assert.equal(created.body.item.category,category);}});
 
+
+
+test('checkout recognizes a normal Bearer token for buyer identity',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/const buyerToken = req\.get\('authorization'\)\?\.match\(\/\^Bearer\\s\+\(\.\+\)\$\/i\)/);assert.doesNotMatch(server,/const buyerToken = req\.get\('authorization'\)\?\.match\(\/\^Bearer\\\\s/);});
+
+test('Express serves the React marketplace build when it is available',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/apps', 'default', 'dist/);assert.match(server,/hasReactBuild/);assert.match(server,/express\.static\(reactDistDir/);assert.match(server,/const sendFrontend/);assert.match(server,/app\.get\('\/account', hasReactBuild \? sendFrontend/);});
