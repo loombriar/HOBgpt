@@ -230,10 +230,7 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'sewing-navigation-v2.webp',
-    'Botanical Garment Selector Banner-1.png',
-    'Ornate Woodland Aesthetic Dropdown UI-2.png',
-    'Botanical Accessories Dropdown Banner-4.png'
+    'sewing-navigation-v2.webp'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
@@ -256,9 +253,9 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'Botanical%20Garment%20Selector%20Banner-1.png'],
-    ['shop-aesthetic-filter', 'Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png'],
-    ['shop-accessory-filter', 'Botanical%20Accessories%20Dropdown%20Banner-4.png']
+    ['shop-garment-filter', 'sewing-navigation-v2.webp'],
+    ['shop-aesthetic-filter', 'sewing-navigation-v2.webp'],
+    ['shop-accessory-filter', 'sewing-navigation-v2.webp']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
@@ -292,7 +289,7 @@ test('storefront exposes pattern filtering and persistent favorite controls', ()
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(html, /id="shop-pattern-filter"/);
   assert.match(html, /id="shop-sort-filter" aria-label="Sort shop results"/);
-  assert.match(html, /Enchanted%20Woodland%20Price%20Selector-3\.png/);
+  assert.match(html, /Price \/ New/);
   assert.match(script, /activePattern/);
   assert.match(script, /item\.pattern === activePattern/);
   assert.match(script, /favorite-button/);

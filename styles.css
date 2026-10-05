@@ -1429,3 +1429,19 @@ main>section:not(.hero){position:relative}
 .sewing-header .nav-hotspot:hover{background:#fff9e9!important;border-color:#9d7437!important}
 .sewing-header .nav-hotspot:focus-visible,.sewing-brand:focus-visible{outline:3px solid #9d7437!important;outline-offset:3px}
 @media(max-width:600px){.sewing-header{padding:22px 12px 28px!important;gap:18px}.sewing-nav{gap:8px}.sewing-header .nav-hotspot{flex:1 1 135px;font-size:.8rem;padding:9px 10px!important}.sewing-nav-background{opacity:.45}}
+
+/* One sewing window per category, sharing the navigation artwork and palette.
+   The native selector itself supplies the visible value and readable popup. */
+.product-section .shop-drop-window{display:block!important;isolation:isolate;aspect-ratio:auto!important;height:136px!important;padding:0!important;gap:0!important;border:1px solid #c7ab68!important;border-radius:16px!important;background:#faf3e7!important;box-shadow:0 4px 12px rgba(77,52,24,.07)!important;overflow:hidden!important}
+.product-section .shop-drop-window::after{content:"";position:absolute;inset:7px;border:1px dashed rgba(163,126,62,.5);border-radius:11px;pointer-events:none;z-index:1}
+.product-section .shop-drop-window .category-window-art{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:left bottom!important;opacity:.45!important;z-index:-1;pointer-events:none!important}
+.product-section .aesthetic-window .category-window-art{object-position:35% bottom!important}
+.product-section .price-window .category-window-art{object-position:65% bottom!important}
+.product-section .accessories-window .category-window-art{object-position:right bottom!important}
+.product-section .shop-drop-window .category-window-title{position:absolute!important;display:block!important;inset:24px 18px auto!important;padding:0!important;border:0!important;background:transparent!important;color:#493a28!important;font-family:"Cormorant Garamond",Georgia,serif!important;font-size:1.5rem!important;font-weight:600!important;line-height:1.2!important;text-align:center!important;pointer-events:none!important}
+.product-section .shop-drop-window .category-window-current{display:none!important}
+.product-section .shop-drop-window>select{position:absolute!important;inset:64px 18px auto!important;width:calc(100% - 36px)!important;height:48px!important;min-height:48px!important;opacity:1!important;color:#493a28!important;background:transparent!important;border:0!important;border-radius:8px!important;padding:8px 12px!important;font:inherit!important;font-size:.9rem!important;appearance:auto!important;text-align:center!important;cursor:pointer!important;z-index:8!important}
+.product-section .shop-drop-window>select option{color:#493a28!important;background:#fffaf0!important}
+.product-section .shop-drop-window:hover{border-color:#9d7437!important}
+.product-section .shop-drop-window:focus-within{outline:3px solid #9d7437;outline-offset:3px}
+.product-section .shop-drop-window>select:focus-visible{outline:none!important;background:rgba(228,239,226,.7)!important}
