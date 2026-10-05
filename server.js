@@ -2137,8 +2137,8 @@ function createApp(options = {}) {
   if (hasReactBuild) {
     app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
   }
-  app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
-  app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
+  app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
+  app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
     res.sendFile(path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png'))
   );

@@ -779,7 +779,7 @@ main>section:not(.hero){position:relative}
   background-color:#faf4e5!important;
 }
 .hero::after{display:none!important}
-.hero>.container{display:none!important}
+
 @media(max-width:700px){
   .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
 }
@@ -1283,7 +1283,7 @@ main>section:not(.hero){position:relative}
   background-color:#faf4e5!important;
 }
 .hero::after{display:none!important}
-.hero>.container{display:none!important}
+
 @media(max-width:700px){
   .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
 }
