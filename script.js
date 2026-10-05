@@ -837,6 +837,22 @@ byId('shop-sort-filter')?.addEventListener('change',event=>{activeShopWindow=eve
 byId('shop-accessory-filter')?.addEventListener('change',event=>{activeAccessory=event.target.value;renderGallery();});
 byId('shop-search-input')?.addEventListener('input',event=>{shopSearch=event.target.value.trim().toLowerCase();renderGallery();});
 
+// The filter banners include their default caption in the artwork. When a
+// shopper chooses another value, replace only that caption with live text.
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter']) {
+  const select = byId(id);
+  const windowLabel = select?.closest('.shop-drop-window');
+  const caption = windowLabel?.querySelector('.category-window-current');
+  if (!select || !windowLabel || !caption) continue;
+  const syncCaption = () => {
+    const selected = select.options[select.selectedIndex];
+    caption.textContent = selected?.textContent?.trim() || '';
+    windowLabel.classList.toggle('has-changed-selection', select.selectedIndex !== 0);
+  };
+  select.addEventListener('change', syncCaption);
+  syncCaption();
+}
+
 if (designerLoginBtn) designerLoginBtn.addEventListener('click', () => {
   if (!designerToken) {
     if (loginPanel) loginPanel.classList.remove('hidden');

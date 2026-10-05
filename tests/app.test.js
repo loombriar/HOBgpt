@@ -225,50 +225,56 @@ test('uploaded product photos fit fully in gallery, detail, upload, designer, an
   assert.match(finalImageFitRules, /object-position:\s*center\s*!important/);
 });
 
-test('header and category artwork are sized to their authored panels with live filters below', async () => {
+test('header and full-size category banners are served with live filters', async () => {
   const pageResponse = await fetch(`${baseUrl}/`);
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
     'Briar-Header-Fitted.png',
-    'Briar-Garment-Art.png',
-    'Briar-Aesthetic-Art.png',
-    'Briar-Price-Art.png',
-    'Briar-Accessories-Art.png'
+    'Botanical Garment Selector Banner-1.png',
+    'Ornate Woodland Aesthetic Dropdown UI-2.png',
+    'price-selector-transparent.png',
+    'Botanical Accessories Dropdown Banner-4.png'
   ]) {
-    assert.ok(html.includes(asset), `storefront should reference ${asset}`);
-    const image = await fetch(`${baseUrl}/${asset}`);
+    assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
+    const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
     assert.equal(image.status, 200, `${asset} should be served`);
     assert.match(image.headers.get('content-type'), /image\/png/);
   }
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
   const css = await cssResponse.text();
-  const finalFitRules = css.slice(css.lastIndexOf('/* Fit the true header artwork'));
-  assert.ok(finalFitRules.length > 0, 'final header/category fit rules should be present');
-  assert.match(finalFitRules, /aspect-ratio:\s*1469\s*\/\s*300\s*!important/);
-  assert.match(finalFitRules, /\.botanical-nav-art\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
-  assert.match(finalFitRules, /\.hero\.hero-artwork\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
-  assert.match(finalFitRules, /\.illustrated-select\s*>\s*img[\s\S]*?object-fit:\s*contain\s*!important/);
-  assert.match(finalFitRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*static\s*!important/);
+  const bannerRules = css.slice(css.lastIndexOf('/* Full botanical category-window banners'));
+  assert.ok(bannerRules.length > 0, 'final banner-window rules should be present');
+  assert.match(bannerRules, /\.category-window-art\s*\{[\s\S]*?object-fit:\s*contain\s*!important/);
+  assert.match(bannerRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*absolute\s*!important/);
+  assert.match(bannerRules, /opacity:\s*\.001\s*!important/);
+  assert.match(bannerRules, /\.illustrated-select\.has-changed-selection\s+\.category-window-current\s*\{\s*display:\s*flex/);
 });
 
-test('filter windows show real category headings and stay still while hero drift remains bounded', async () => {
+test('filter windows use their full botanical artwork and keep accessible live captions', async () => {
   const pageResponse = await fetch(`${baseUrl}/`);
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
-  for (const heading of ['Garment', 'Aesthetic', 'Price / New', 'Accessories']) {
-    assert.ok(html.includes(`class="category-window-title" aria-hidden="true">${heading}</span>`), `${heading} should be a visible window title`);
+  for (const [id, asset] of [
+    ['shop-garment-filter', 'Botanical%20Garment%20Selector%20Banner-1.png'],
+    ['shop-aesthetic-filter', 'Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png'],
+    ['shop-sort-filter', 'price-selector-transparent.png'],
+    ['shop-accessory-filter', 'Botanical%20Accessories%20Dropdown%20Banner-4.png']
+  ]) {
+    assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
+    assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
+  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each banner should have a live selected-value caption');
+  assert.match(html, /<option value="all">All prices<\/option>/, 'default sort-window label should match its banner caption');
   assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
   const css = await cssResponse.text();
-  const titleAndMotionRules = css.slice(css.lastIndexOf('/* Readable titles stay inside each filter window'));
-  assert.ok(titleAndMotionRules.length > 0);
-  assert.match(titleAndMotionRules, /\.category-window-title\s*\{[\s\S]*?position:\s*absolute\s*!important/);
-  assert.match(titleAndMotionRules, /\.illustrated-select[\s\S]*?animation:\s*none\s*!important[\s\S]*?transform:\s*none\s*!important/);
-  assert.match(titleAndMotionRules, /\.hero\.hero-artwork\s*\{[\s\S]*?contain:\s*paint\s*!important[\s\S]*?overflow:\s*hidden\s*!important/);
-  assert.match(titleAndMotionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
-  assert.match(titleAndMotionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
+  const motionRules = css.slice(css.lastIndexOf('/* Readable titles stay inside each filter window'));
+  assert.ok(motionRules.length > 0);
+  assert.match(motionRules, /\.illustrated-select[\s\S]*?animation:\s*none\s*!important[\s\S]*?transform:\s*none\s*!important/);
+  assert.match(motionRules, /\.hero\.hero-artwork\s*\{[\s\S]*?contain:\s*paint\s*!important[\s\S]*?overflow:\s*hidden\s*!important/);
+  assert.match(motionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
+  assert.match(motionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
 });

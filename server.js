@@ -1934,6 +1934,7 @@ function createApp(options = {}) {
     'Botanical Garment Selector Banner-1.png',
     'Ornate Woodland Aesthetic Dropdown UI-2.png',
     'Enchanted Woodland Price Selector-3.png',
+    'price-selector-transparent.png',
     'Botanical Accessories Dropdown Banner-4.png',
     'Briar-Header.png',
     'Briar-Garment.png',
