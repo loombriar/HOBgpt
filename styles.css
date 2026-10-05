@@ -1379,3 +1379,13 @@ main>section:not(.hero){position:relative}
 .product-card .product-body{padding:.85rem .9rem 1rem}
 .product-card .card-title{font-family:"Cormorant Garamond",serif;font-size:1.6rem;line-height:1.1;color:#2d2a27}
 .product-card .card-description{color:#534b46;font-size:.9rem}
+
+
+/* Safe responsive artwork sizing: preserve authored art without cropping. */
+.artwork-header{width:100%;height:auto;overflow:hidden}
+.botanical-nav-art{position:relative;width:100%;max-width:none;height:auto;aspect-ratio:1469/300;margin:0;overflow:hidden}
+.botanical-nav-art>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.product-section .shop-drop-windows{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-content:center;align-items:start}
+.product-section .illustrated-select>img{object-fit:contain!important;object-position:center}
+@media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr}}
