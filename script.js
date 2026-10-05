@@ -48,7 +48,7 @@ let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
-let activeShopWindow = 'all';
+let activePattern = 'all';
 let shopSearch = '';
 let activeAccessory = 'all';
 let selectedImages = [];
@@ -311,32 +311,24 @@ function renderGallery() {
   productGrid.replaceChildren();
 
   let items = galleryItems.filter((item) => {
-    if (activeFilter === 'all' || activeFilter === 'apparel') return item.category === 'apparel';
-    return item.category === 'apparel' && item.style === activeFilter;
-  }).filter((item) => activeAesthetic === 'all' || item.aesthetic === activeAesthetic);
-
-  if (activeAccessory !== 'all') {
-    items = galleryItems.filter((item) => item.category === 'accessories' && item.style === activeAccessory).filter((item) => activeAesthetic === 'all' || item.aesthetic === activeAesthetic);
-  }
+    const garmentMatch = activeFilter === 'all'
+      || (item.category === 'apparel' && (activeFilter === 'apparel' || item.style === activeFilter));
+    const accessoryMatch = activeAccessory === 'all'
+      || (item.category === 'accessories' && item.style === activeAccessory);
+    const categoryMatch = activeFilter === 'all' && activeAccessory === 'all'
+      ? true
+      : activeAccessory !== 'all' ? accessoryMatch : garmentMatch;
+    const aestheticMatch = activeAesthetic === 'all' || item.aesthetic === activeAesthetic;
+    const patternMatch = activePattern === 'all' || item.pattern === activePattern;
+    return categoryMatch && aestheticMatch && patternMatch;
+  });
 
   if (shopSearch) {
     items = items.filter((item) => [
-      item.title,
-      item.description,
-      item.style,
-      item.aesthetic,
-      item.designerName,
-      item.designer,
-      item.productionType,
-      item.category
+      item.title, item.description, item.style, item.aesthetic, item.pattern,
+      item.materials, item.designerName, item.designer, item.productionType, item.category
     ].filter(Boolean).join(' ').toLowerCase().includes(shopSearch));
   }
-
-  if (activeShopWindow === 'one') items = items.filter((item) => item.productionType === 'One of a Kind');
-  if (activeShopWindow === 'multiple') items = items.filter((item) => item.productionType === 'Made in Multiple');
-  if (activeShopWindow === 'low') items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-  if (activeShopWindow === 'high') items = [...items].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-  if (activeShopWindow === 'new') items = [...items].sort((a, b) => String(b.createdAt || b.created_at || '').localeCompare(String(a.createdAt || a.created_at || '')));
 
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
@@ -1023,7 +1015,7 @@ function applyFilterButtons() {
 }
 
 byId('shop-garment-filter')?.addEventListener('change', (event) => {
-  activeFilter = event.target.value || 'apparel';
+  activeFilter = event.target.value || 'all';
   renderGallery();
 });
 byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
@@ -1033,11 +1025,11 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 
 byId('visitor-suite-btn')?.addEventListener('click', () => byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
-byId('shop-sort-filter')?.addEventListener('change', (event) => { activeShopWindow = event.target.value; renderGallery(); });
+byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; renderGallery(); });
 byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value; renderGallery(); });
 byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim().toLowerCase(); renderGallery(); });
 
-for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter']) {
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-accessory-filter']) {
   const select = byId(id);
   const windowLabel = select?.closest('.shop-drop-window');
   const caption = windowLabel?.querySelector('.category-window-current');
