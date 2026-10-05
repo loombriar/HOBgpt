@@ -1341,3 +1341,13 @@ main>section:not(.hero){position:relative}
 .newsletter-section .newsletter-box::after{content:none!important;display:none!important}
 @media(max-width:900px){.story-section .story-grid{grid-template-columns:1fr!important}}
 @media(max-width:700px){.story-section .story-grid,.newsletter-section .newsletter-box{padding:34px 24px!important}}
+
+
+/* Final cohesive artisan hero: preserve the complete authored artwork and its two actions. */
+.hero.hero-artwork{position:relative!important;width:100%!important;aspect-ratio:16/9!important;min-height:0!important;padding:0!important;display:block!important;overflow:hidden!important;background:#faf4e5!important}
+.hero.hero-artwork::after{display:none!important}
+.hero.hero-artwork>img.hero-art{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important}
+.hero-hotspot{position:absolute;z-index:5;display:block;top:52.5%;height:7.5%;border-radius:4px}
+.hero-hotspot-shop{left:5.8%;width:13.2%}
+.hero-hotspot-story{left:20.4%;width:11.5%}
+.hero-hotspot:focus-visible{outline:3px solid currentColor;outline-offset:3px}
