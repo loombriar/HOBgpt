@@ -1465,3 +1465,5 @@ main>section:not(.hero){position:relative}
 .sewing-hero-actions a:focus-visible{outline:3px solid #9d7437;outline-offset:3px}
 .story-section .story-panel h2{max-width:440px;font-size:clamp(2rem,3.5vw,3rem)!important;line-height:1.12!important}
 @media(max-width:650px){.hero.sewing-hero{min-height:480px!important;padding:48px 0!important}.sewing-hero-art{object-position:70% center;opacity:.55}.hero.sewing-hero::before{background:rgba(250,243,231,.65)}.sewing-hero-content h1{font-size:clamp(2.5rem,10vw,3.8rem)!important}.sewing-hero-content>p:not(.eyebrow){max-width:100%}.sewing-hero-actions a{flex:1 1 160px}}
+/* Override the legacy artwork-only rule that hid every hero container. */
+.hero.sewing-hero>.container.sewing-hero-content{display:block!important;visibility:visible!important;opacity:1!important;max-width:1180px!important;width:calc(100% - 48px)!important}
