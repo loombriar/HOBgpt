@@ -58,6 +58,9 @@ function validateListingInput(body = {}) {
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
   const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
+  const pattern = typeof body.pattern === 'string' ? body.pattern.trim() : '';
+  const materials = typeof body.materials === 'string' ? body.materials.trim() : '';
+  const careInstructions = typeof body.careInstructions === 'string' ? body.careInstructions.trim() : '';
   const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'One of a Kind';
   const availability = typeof body.availability === 'string' ? body.availability.trim() : 'floor';
   const alterationsAvailable = body.alterationsAvailable === true;
@@ -70,10 +73,13 @@ function validateListingInput(body = {}) {
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
+  if (pattern.length > 80) return { error: 'Print / Pattern must be 80 characters or fewer.' };
+  if (materials.length > 500) return { error: 'Materials must be 500 characters or fewer.' };
+  if (careInstructions.length > 1000) return { error: 'Care instructions must be 1,000 characters or fewer.' };
   if (!['One of a Kind','Made in Multiple'].includes(productionType)) return { error: 'Choose whether this is one of a kind or made in multiple.' };
   if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, productionType, availability, alterationsAvailable, takesRequests } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests } };
 }
 
 function createApp(options = {}) {
@@ -109,6 +115,9 @@ function createApp(options = {}) {
       price REAL NOT NULL,
       category TEXT NOT NULL,
       style TEXT,
+      pattern TEXT,
+      materials TEXT,
+      care_instructions TEXT,
       status TEXT NOT NULL CHECK (status IN ('draft','pending_review','published','rejected','archived','deleted')),
       moderation_status TEXT NOT NULL CHECK (moderation_status IN ('pending','approved','rejected')),
       legacy_image_url TEXT,
@@ -244,6 +253,9 @@ function createApp(options = {}) {
   ensureColumn('listings', 'moderation_reason', 'TEXT');
   ensureColumn('listings', 'style', 'TEXT');
   ensureColumn('listings', 'aesthetic', 'TEXT');
+  ensureColumn('listings', 'pattern', 'TEXT');
+  ensureColumn('listings', 'materials', 'TEXT');
+  ensureColumn('listings', 'care_instructions', 'TEXT');
   ensureColumn('listings', 'production_type', 'TEXT');
   ensureColumn('listings', 'availability', "TEXT NOT NULL DEFAULT 'floor'");
   ensureColumn('listings', 'alterations_available', 'INTEGER NOT NULL DEFAULT 0');
@@ -633,6 +645,9 @@ function createApp(options = {}) {
       style: row.style || '',
       size: row.size || '',
       aesthetic: row.aesthetic || '',
+      pattern: row.pattern || '',
+      materials: row.materials || '',
+      careInstructions: row.care_instructions || '',
       productionType: row.production_type || '',
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
@@ -1429,9 +1444,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, production_type, availability, alterations_available, takes_requests, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1443,6 +1458,9 @@ function createApp(options = {}) {
       validation.value.style || null,
       validation.value.size || null,
       validation.value.aesthetic || null,
+      validation.value.pattern || null,
+      validation.value.materials || null,
+      validation.value.careInstructions || null,
       validation.value.productionType,
       validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
@@ -1469,7 +1487,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
