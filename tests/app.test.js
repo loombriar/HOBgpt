@@ -230,11 +230,11 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'Briar-Header-Fitted.png',
-    'Botanical Garment Selector Banner-1.png',
-    'Ornate Woodland Aesthetic Dropdown UI-2.png',
-    'price-selector-transparent.png',
-    'Botanical Accessories Dropdown Banner-4.png'
+    'Briar-Header.png',
+    'Briar-Garment.png',
+    'Briar-Aesthetic.png',
+    'Briar-Price.png',
+    'Briar-Accessories.png'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
@@ -257,10 +257,10 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'Botanical%20Garment%20Selector%20Banner-1.png'],
-    ['shop-aesthetic-filter', 'Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png'],
-    ['shop-sort-filter', 'price-selector-transparent.png'],
-    ['shop-accessory-filter', 'Botanical%20Accessories%20Dropdown%20Banner-4.png']
+    ['shop-garment-filter', 'Briar-Garment.png'],
+    ['shop-aesthetic-filter', 'Briar-Aesthetic.png'],
+    ['shop-sort-filter', 'Briar-Price.png'],
+    ['shop-accessory-filter', 'Briar-Accessories.png']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
