@@ -1988,13 +1988,12 @@ function createApp(options = {}) {
       taskadeGateway: 'external'
     };
     const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || persistentStorageConfigured);
-    return res.status(ready ? 200 : 503).json({
-      status: ready ? 'ok' : 'degraded',
-      database,
-      persistentStorageConfigured,
-      reactBuild: hasReactBuild,
-      directorDependencies
-    });
+    res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
+    res.set('X-HOB-Database', database);
+    res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
+    res.set('X-HOB-React-Build', hasReactBuild ? 'present' : 'absent');
+    res.set('X-HOB-Director-Dependencies', Object.keys(directorDependencies).join(','));
+    return res.status(ready ? 200 : 503).json({ ok: ready });
   });
 
   app.get('/manifest.webmanifest', (_req, res) => {
