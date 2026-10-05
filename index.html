@@ -36,9 +36,10 @@
           <button class="nav-hotspot hot-designer" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"></button>
           <button class="nav-hotspot hot-suitcase" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><span id="suitcase-label" class="sr-only">Suitcase (0)</span></button>
         </div>
-      </header>      <main id="top">
+      </header>
+      <main id="top">
         <section class="hero hero-artwork" aria-label="House of Briar — Made by someone, not everyone.">
-          <img class="hero-art" src="/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png" alt="House of Briar wearable artisan marketplace with antique scissors, sewing notions, flowers, and the words Made by someone, not everyone.">
+          <img class="hero-art" src="/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png" alt="House of Briar wearable artisan marketplace with antique scissors, sewing notions, flowers, and the phrase 'Made by someone, not everyone.'" />
         </section>
 
         <section class="feature-bar">
@@ -57,12 +58,67 @@
                 <h2>Shop the Briar</h2>
               </div>
               <div class="shop-search-controls">
-                <label class="shop-search" for="shop-search-input"><span>What are you looking for?</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet skirt”, or a designer…" /></label>
+                <label class="shop-search" for="shop-search-input"><span>What are you looking for?</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <div class="shop-drop-windows" aria-label="Shop filters">
-                  <label class="shop-drop-window illustrated-select garment-window"><img class="category-window-art" src="/Botanical%20Garment%20Selector%20Banner-1.png" alt="" aria-hidden="true"><span class="category-window-current" aria-hidden="true"></span><span class="sr-only">Garment</span><select id="shop-garment-filter" aria-label="Garment"><option value="apparel">All clothing</option><option value="Dress">Dresses</option><option value="Skirt">Skirts</option><option value="Top">Tops</option><option value="Set / Outfit">Sets & Outfits</option><option value="Jacket / Outerwear">Outerwear</option><option value="Pants / Shorts">Pants & Shorts</option><option value="Jumpsuit / Romper">Jumpsuits & Rompers</option><option value="Costume">Costumes</option><option value="Other clothing">Other</option></select></label>
-                  <label class="shop-drop-window illustrated-select aesthetic-window"><img class="category-window-art" src="/Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png" alt="" aria-hidden="true"><span class="category-window-current" aria-hidden="true"></span><span class="sr-only">Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Aesthetic"><option value="all">All styles</option><option value="Boho">Boho</option><option value="Cottagecore">Cottagecore</option><option value="Fairycore">Fairycore</option><option value="Gothic">Gothic</option><option value="Vintage / Retro">Vintage / Retro</option><option value="Romantic">Romantic</option><option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option><option value="Minimalist">Minimalist</option><option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option><option value="Other">Other</option></select></label>
-                  <label class="shop-drop-window illustrated-select price-window"><img class="category-window-art" src="/price-selector-transparent.png" alt="" aria-hidden="true"><span class="category-window-current" aria-hidden="true"></span><span class="sr-only">Price / New</span><select id="shop-sort-filter" aria-label="Price and newness"><option value="all">All prices</option><option value="new">Newly added</option><option value="low">Price low–high</option><option value="high">Price high–low</option></select></label>
-                  <label class="shop-drop-window illustrated-select accessories-window"><img class="category-window-art" src="/Botanical%20Accessories%20Dropdown%20Banner-4.png" alt="" aria-hidden="true"><span class="category-window-current" aria-hidden="true"></span><span class="sr-only">Accessories</span><select id="shop-accessory-filter" aria-label="Accessories"><option value="all">All accessories</option><option value="Belt">Belts</option><option value="Purse / Bag">Purses & Bags</option><option value="Scarf / Wrap">Scarves & Wraps</option><option value="Hat / Headwear">Hats & Headwear</option><option value="Jewelry">Jewelry</option><option value="Gloves">Gloves</option><option value="Hair Accessory">Hair Accessories</option><option value="Other accessory">Other Accessories</option></select></label>
+                  <label class="shop-drop-window illustrated-select garment-window">
+                    <img class="category-window-art" src="/Botanical%20Garment%20Selector%20Banner-1.png" alt="" aria-hidden="true" />
+                    <span class="category-window-current">All clothing</span>
+                    <select id="shop-garment-filter" aria-label="Filter by garment type">
+                      <option value="apparel">All clothing</option>
+                      <option value="Dress">Dress</option>
+                      <option value="Skirt">Skirt</option>
+                      <option value="Top">Top</option>
+                      <option value="Set / Outfit">Set / Outfit</option>
+                      <option value="Jacket / Outerwear">Jacket / Outerwear</option>
+                      <option value="Costume">Costume</option>
+                      <option value="Pants / Shorts">Pants / Shorts</option>
+                      <option value="Jumpsuit / Romper">Jumpsuit / Romper</option>
+                    </select>
+                  </label>
+
+                  <label class="shop-drop-window illustrated-select aesthetic-window">
+                    <img class="category-window-art" src="/Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png" alt="" aria-hidden="true" />
+                    <span class="category-window-current">All aesthetics</span>
+                    <select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
+                      <option value="all">All aesthetics</option>
+                      <option value="Boho">Boho</option>
+                      <option value="Cottagecore">Cottagecore</option>
+                      <option value="Fairycore">Fairycore</option>
+                      <option value="Gothic">Gothic</option>
+                      <option value="Vintage / Retro">Vintage / Retro</option>
+                      <option value="Romantic">Romantic</option>
+                      <option value="Whimsical">Whimsical</option>
+                      <option value="Streetwear">Streetwear</option>
+                      <option value="Minimalist">Minimalist</option>
+                      <option value="Western">Western</option>
+                      <option value="Punk / Alternative">Punk / Alternative</option>
+                    </select>
+                  </label>
+
+                  <label class="shop-drop-window illustrated-select price-window">
+                    <img class="category-window-art" src="/price-selector-transparent.png" alt="" aria-hidden="true" />
+                    <span class="category-window-current">Sort by</span>
+                    <select id="shop-sort-filter" aria-label="Sort shop results">
+                      <option value="all">Sort by</option>
+                      <option value="new">Newest</option>
+                      <option value="low">Price: low to high</option>
+                      <option value="high">Price: high to low</option>
+                      <option value="one">One of a Kind</option>
+                      <option value="multiple">Made in Multiple</option>
+                    </select>
+                  </label>
+
+                  <label class="shop-drop-window illustrated-select accessories-window">
+                    <img class="category-window-art" src="/Botanical%20Accessories%20Dropdown%20Banner-4.png" alt="" aria-hidden="true" />
+                    <span class="category-window-current">Accessories</span>
+                    <select id="shop-accessory-filter" aria-label="Filter accessories">
+                      <option value="all">Accessories</option>
+                      <option value="bag">Bags</option>
+                      <option value="jewelry">Jewelry</option>
+                      <option value="headwear">Headwear</option>
+                      <option value="belts">Belts</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
@@ -86,10 +142,8 @@
           <div class="container">
             <div class="section-heading narrow"><div><p class="eyebrow">Support the house</p><h2>Help independent fashion grow</h2></div></div>
             <div class="curation-grid">
-              <article class="curation-card"><span class="curation-number">♡</span><h3>Support House of Briar</h3><p>Donations help support the marketplace and its independent-designer community.</p>
-                <form id="donation-form" class="donation-form"><label for="donation-amount">Donation amount</label><div class="donation-row"><span>$</span><input id="donation-amount" type="number" min="1" max="1000" step="1" value="5" required /><button class="primary-button" type="submit">Donate</button></div><p id="donation-message" class="form-message" role="status" aria-live="polite"></p></form>
-              </article>
-              <article class="curation-card"><span class="curation-number">★</span><h3>Supporter badge</h3><p>A $5 or greater completed donation can earn a Supporter badge when the donation is connected to a signed-in buyer account.</p></article>
+              <article class="curation-card"><span class="curation-number">♡</span><h3>Support House of Briar</h3><p>Donations help support the marketplace and its independent-designer community.</p><form id="donation-form" class="donation-form"><label for="donation-amount">Donation amount</label><div class="donation-row"><span>$</span><input id="donation-amount" type="number" min="1" max="1000" step="1" placeholder="25" /><button class="primary-button" type="submit">Give</button></div><p id="donation-message" class="form-message" role="status"></p></form></article>
+              <article class="curation-card"><span class="curation-number">★</span><h3>Supporter badge</h3><p>A $5 or greater completed donation can earn a Supporter badge when the donation is connected to this storefront.</p></article>
               <article class="curation-card"><span class="curation-number">✓</span><h3>Verified Buyer badge</h3><p>A Verified Buyer badge shows that the account has completed a purchase through House of Briar.</p></article>
             </div>
           </div>
@@ -110,7 +164,7 @@
       <footer class="site-footer">
         <div class="container footer-inner">
           <div><p class="brand-name">House of Briar</p><p class="footer-copy">Independent designers. One-of-a-kind pieces.</p></div>
-          <nav class="footer-links" aria-label="Footer navigation"><a href="#shop">Shop</a><a href="#story">Story</a><a href="#support">Support & Badges</a><a href="#journal">Journal</a><a href="#admin-review">Approval Admin</a></nav>
+          <nav class="footer-links" aria-label="Footer navigation"><a href="#shop">Shop</a><a href="#story">Story</a><a href="#support">Support & Badges</a><a href="#journal">Journal</a><a href="#top">Top</a></nav>
           <p class="copyright">© <span id="year"></span> House of Briar</p>
         </div>
       </footer>
@@ -119,19 +173,18 @@
     <dialog id="visitor-suite-modal" class="app-dialog visitor-suite-dialog" aria-labelledby="visitor-suite-title">
       <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Visitor’s Suite</h2></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Visitor’s Suite">×</button></div>
       <section id="visitor-suite" class="visitor-suite-section">
-          <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
-          <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer until you submit that item’s request.</p>
-          <form id="measurement-profile-form" class="stack-form">
-            <label>Profile name<input id="measurement-profile-name" maxlength="80" placeholder="Me, Mom, Partner…" required></label>
-            <div class="form-row"><label>Bust / chest<input id="measurement-profile-bust" inputmode="decimal"></label><label>Waist<input id="measurement-profile-waist" inputmode="decimal"></label><label>Hips<input id="measurement-profile-hips" inputmode="decimal"></label><label>Height<input id="measurement-profile-height"></label></div>
-            <label>Fit notes<textarea id="measurement-profile-notes" rows="2"></textarea></label>
-            <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
-          </form>
-          <div id="measurement-profile-list" class="designer-products"></div>
-          <p class="small-print">Hearts and previous purchases will appear here as the signed-in shopper account features are connected to this storefront.</p>
+        <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
+        <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer unless you choose to send them.</p>
+        <form id="measurement-profile-form" class="stack-form">
+          <label>Profile name<input id="measurement-profile-name" maxlength="80" placeholder="Me, Mom, Partner…" required></label>
+          <div class="form-row"><label>Bust / chest<input id="measurement-profile-bust" inputmode="decimal"></label><label>Waist<input id="measurement-profile-waist" inputmode="decimal"></label><label>Hips<input id="measurement-profile-hips" inputmode="decimal"></label></div>
+          <div class="form-row"><label>Height<input id="measurement-profile-height" inputmode="decimal"></label><label>Inseam<input id="measurement-profile-inseam" inputmode="decimal"></label></div>
+          <label>Fit notes<textarea id="measurement-profile-notes" rows="2"></textarea></label>
+          <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
+        </form>
+        <div id="measurement-profile-list" class="designer-products"></div>
+        <p class="small-print">Hearts and previous purchases will appear here as the signed-in shopper account features are connected to this storefront.</p>
       </section>
-
-
     </dialog>
 
     <dialog id="designer-modal" class="app-dialog designer-dialog" aria-labelledby="designer-dialog-title">
@@ -189,7 +242,7 @@
                 <option value="Whimsical">Whimsical</option><option value="Streetwear">Streetwear</option><option value="Minimalist">Minimalist</option>
                 <option value="Western">Western</option><option value="Punk / Alternative">Punk / Alternative</option><option value="Other">Other</option>
               </select>
-              <div class="form-row"><label class="check-row"><input id="product-alterations" type="checkbox" /> Alterations available</label><label class="check-row"><input id="product-requests" type="checkbox" /> Takes requests</label></div>
+              <div class="form-row"><label class="check-row"><input id="product-alterations" type="checkbox" /> Alterations available</label><label class="check-row"><input id="product-requests" type="checkbox" /> Takes custom requests</label></div>
               <label for="product-size">Size</label>
               <select id="product-size" name="size" required>
                 <option value="">Choose a size</option>
@@ -256,7 +309,7 @@
         <button id="cart-dialog-close" class="icon-button" type="button" aria-label="Close cart">×</button>
       </div>
       <div id="cart-items" class="designer-products"></div>
-      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Suitcase does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable if another customer reaches checkout first.</p>
+      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Suitcase does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable before payment is complete.</p>
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
         <button id="continue-shopping-btn" class="secondary-button" type="button">Continue shopping</button>
@@ -265,7 +318,7 @@
     </dialog>
 
     <dialog id="production-info-dialog" class="app-dialog" aria-labelledby="production-info-title">
-      <div class="dialog-header"><div><p class="eyebrow">How this piece is made</p><h2 id="production-info-title">Availability</h2></div><button id="production-info-close" class="icon-button" type="button" aria-label="Close">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow">How this piece is made</p><h2 id="production-info-title">Availability</h2></div><button id="production-info-close" class="icon-button" type="button" aria-label="Close availability info">×</button></div>
       <div id="production-info-content"></div>
     </dialog>
 
