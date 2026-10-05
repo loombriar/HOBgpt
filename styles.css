@@ -107,6 +107,52 @@
   object-position: center;
 }
 
+/* Cute listing card border */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.1rem;
+}
+
+.product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 251, 245, 0.9);
+  border: 2px solid rgba(174, 132, 89, 0.85);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(75, 52, 29, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.product-card:hover,
+.product-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(154, 94, 61, 0.92);
+  box-shadow: 0 14px 24px rgba(75, 52, 29, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.product-card .product-image {
+  border-bottom: 1px solid rgba(173, 132, 89, 0.45);
+  background: #f3ead8;
+}
+
+.product-card .product-body {
+  padding: 0.8rem 0.85rem 0.9rem;
+}
+
+.product-card .meta-row {
+  margin-bottom: 0.45rem;
+}
+
+.product-card .badge,
+.product-card .price {
+  border: 1px solid rgba(146, 108, 70, 0.4);
+  border-radius: 999px;
+  background: rgba(247, 238, 225, 0.9);
+}
+
 /* Hero readability polish */
 .hero::before {
   content: "";
