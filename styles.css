@@ -23,6 +23,18 @@
   object-position: center;
 }
 
+/* Base overlay positioning */
+.nav-hotspot {
+  position: absolute;
+  display: block;
+  z-index: 2;
+}
+
+/* Card anchor for the select overlay */
+.product-section .illustrated-select {
+  position: relative;
+}
+
 /* Hero should stay readable while still using the full-width artwork */
 .hero {
   position: relative;
@@ -101,6 +113,7 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, rgba(12, 22, 16, 0.68), rgba(12, 22, 16, 0.22) 62%, rgba(12, 22, 16, 0.05));
+  z-index: 0;
   pointer-events: none;
 }
 
@@ -176,6 +189,7 @@
   background: rgba(255, 251, 245, 0.9);
   color: #2c2b29;
   font-size: 0.78rem;
+  z-index: 2;
 }
 
 /* Mobile header/nav cleanup */
