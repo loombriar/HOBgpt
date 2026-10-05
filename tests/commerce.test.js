@@ -144,3 +144,27 @@ test('checkout does not advertise or calculate unsupported local coupon discount
 
 test('every Designer Studio marketplace category is accepted by listing validation',async()=>{for(const category of ['one-of-a-kind','upcycled','vintage-inspired','handmade','botanical','limited edition','statement piece','costumes']){const created=await json('/api/listings',{method:'POST',headers:{Authorization:'Bearer '+DESIGNER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({title:'Category '+category,description:'Category compatibility test',price:25,category})});assert.equal(created.response.status,201,category);assert.equal(created.body.item.category,category);}});
 
+
+
+test('checkout recognizes a normal Bearer token for buyer identity',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/const buyerToken = req\.get\('authorization'\)\?\.match\(\/\^Bearer\\s\+\(\.\+\)\$\/i\)/);assert.doesNotMatch(server,/const buyerToken = req\.get\('authorization'\)\?\.match\(\/\^Bearer\\\\s/);});
+
+test('Express serves the React marketplace build when it is available',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/apps', 'default', 'dist/);assert.match(server,/hasReactBuild/);assert.match(server,/express\.static\(reactDistDir/);assert.match(server,/const sendFrontend/);assert.match(server,/app\.get\('\/account', hasReactBuild \? sendFrontend/);});
+
+
+test('backend exposes deployment health including persistence and Director dependencies',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/app\.get\('\/api\/health'/);assert.match(server,/persistentStorageConfigured/);assert.match(server,/genesisAuth: 'external'/);assert.match(server,/taskadeGateway: 'external'/);assert.match(server,/X-HOB-Readiness/);assert.match(server,/json\(\{ ok: ready \}\)/);});
+
+test('stale checkout reconciliation asks Stripe before releasing one-of-one inventory',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');const start=server.indexOf('async function reconcilePendingCheckouts');const end=server.indexOf('function buildCheckoutQuote',start);const body=server.slice(start,end);assert.ok(start>0&&end>start);assert.match(body,/stripeApi\(\`checkout\/sessions\//);assert.match(body,/session\.payment_status === 'paid'/);assert.match(body,/session\.status === 'expired'/);assert.match(body,/markOrderInventorySold\(order\.id\)/);assert.match(body,/releaseOrderInventory\(order\.id\)/);assert.ok(body.indexOf('stripeApi')<body.indexOf('releaseOrderInventory'));
+});
+
+test('standalone server schedules checkout reconciliation and clears it during shutdown',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/RECONCILIATION_INTERVAL_MS/);assert.match(server,/setInterval\(\(\) => \{ void reconcilePendingCheckouts\(\); \}/);assert.match(server,/reconciliationTimer\.unref\(\)/);assert.match(server,/clearInterval\(reconciliationTimer\)/);});
+
+
+test('schema changes are tracked and durable email outbox exists',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/CREATE TABLE IF NOT EXISTS schema_migrations/);assert.match(server,/recordMigration\(3, 'durable_email_outbox'\)/);assert.match(server,/CREATE TABLE IF NOT EXISTS email_outbox/);assert.match(server,/email_outbox_pending/);});
+
+test('admin authentication supports token rotation while retaining ADMIN_TOKEN compatibility',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/process\.env\.ADMIN_TOKENS/);assert.match(server,/adminTokens\.some\(candidate => safeEqual\(token, candidate\)\)/);assert.match(server,/process\.env\.ADMIN_TOKEN/);});
+
+test('transactional email is persisted and retried with backoff',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/async function processEmailOutbox/);assert.match(server,/INSERT INTO email_outbox/);assert.match(server,/2 \*\* Math\.min\(attempts - 1, 7\)/);assert.match(server,/setInterval\(\(\) => \{ void processEmailOutbox\(\); \}, 60_000\)/);assert.match(server,/clearInterval\(emailTimer\)/);});
+
+test('request failures use structured JSON logging',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.match(server,/function log\(level, event, details = \{\}\)/);assert.match(server,/JSON\.stringify\(payload\)/);assert.match(server,/log\('error','request_failed'/);});
+
+test('only one API health route is registered',()=>{const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');assert.equal((server.match(/app\.get\('\/api\/health'/g)||[]).length,1);});

@@ -231,10 +231,10 @@ test('header and full-size category banners are served with live filters', async
   assert.equal(pageResponse.status, 200);
   for (const asset of [
     'Briar-Header-Fitted.png',
-    'Botanical Garment Selector Banner-1.png',
-    'Ornate Woodland Aesthetic Dropdown UI-2.png',
+    'Briar-Garment.png',
+    'Briar-Aesthetic.png',
     'price-selector-transparent.png',
-    'Botanical Accessories Dropdown Banner-4.png'
+    'Briar-Accessories.png'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
@@ -257,16 +257,16 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'Botanical%20Garment%20Selector%20Banner-1.png'],
-    ['shop-aesthetic-filter', 'Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png'],
+    ['shop-garment-filter', 'Briar-Garment.png'],
+    ['shop-aesthetic-filter', 'Briar-Aesthetic.png'],
     ['shop-sort-filter', 'price-selector-transparent.png'],
-    ['shop-accessory-filter', 'Botanical%20Accessories%20Dropdown%20Banner-4.png']
+    ['shop-accessory-filter', 'Briar-Accessories.png']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
   assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each banner should have a live selected-value caption');
-  assert.match(html, /<option value="all">All prices<\/option>/, 'default sort-window label should match its banner caption');
+  assert.match(html, /<option value="all">Sort by<\/option>/, 'default sort-window label should match its banner caption');
   assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);

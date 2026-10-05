@@ -367,3 +367,377 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep maker-uploaded photos fully visible across storefront and designer workflows. */
+.product-image {
+  background: #f7f3ed !important;
+}
+.product-image img,
+.photo-preview-item img,
+.designer-product-item img,
+.admin-review-media img,
+.product-detail-images img {
+  object-fit: contain !important;
+  object-position: center !important;
+  background-color: #f7f3ed;
+}
+
+
+/* Fit the true header artwork and separate category illustrations from live selects. */
+.artwork-header {
+  width: 100% !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+.botanical-nav-art {
+  position: relative !important;
+  width: min(100%, 1200px) !important;
+  max-width: 1200px !important;
+  height: auto !important;
+  aspect-ratio: 1469 / 300 !important;
+  margin: 0 auto !important;
+  overflow: hidden !important;
+}
+.botanical-nav-art > img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+/* Hotspots track the cropped image and the menu's actual text row. */
+.nav-hotspot.hot-shop { left: 11.8% !important; top: 13% !important; width: 8.5% !important; height: 15% !important; }
+.nav-hotspot.hot-story { left: 20.8% !important; top: 13% !important; width: 11.4% !important; height: 15% !important; }
+.nav-hotspot.hot-support { left: 32.4% !important; top: 13% !important; width: 15% !important; height: 15% !important; }
+.nav-hotspot.hot-journal { left: 48.3% !important; top: 13% !important; width: 8.5% !important; height: 15% !important; }
+.nav-hotspot.hot-visitor { left: 58% !important; top: 12% !important; width: 11.2% !important; height: 17% !important; }
+.nav-hotspot.hot-designer { left: 70.4% !important; top: 12% !important; width: 14% !important; height: 17% !important; }
+.nav-hotspot.hot-suitcase { left: 85.4% !important; top: 0 !important; width: 14.6% !important; height: 52% !important; }
+.hero.hero-artwork {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: none !important;
+}
+.hero.hero-artwork > img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+.product-section .shop-drop-windows {
+  display: grid !important;
+  width: min(100%, 900px) !important;
+  grid-template-columns: repeat(4, minmax(0, 180px)) !important;
+  justify-content: center !important;
+  align-items: start !important;
+  gap: 14px !important;
+  margin: 18px auto 0 !important;
+}
+.product-section .illustrated-select {
+  display: grid !important;
+  grid-template-rows: auto auto !important;
+  align-content: start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 180px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  padding: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid #d7c6aa !important;
+  border-radius: 14px !important;
+  background: #fffaf0 !important;
+  box-shadow: 0 4px 12px rgba(68, 46, 25, 0.12) !important;
+}
+.product-section .illustrated-select::before { display: none !important; }
+.product-section .illustrated-select > img {
+  position: static !important;
+  inset: auto !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 225 / 170 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: 8px !important;
+  background: #fffaf0 !important;
+}
+.product-section .illustrated-select > select {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: none !important;
+  padding: 4px 28px 4px 8px !important;
+  border: 1px solid #927a5e !important;
+  border-radius: 7px !important;
+  background: #fffdf8 !important;
+  font-size: 0.72rem !important;
+  line-height: 1.2 !important;
+}
+@media (max-width: 900px) {
+  .botanical-nav-art { width: 100% !important; max-width: 100% !important; }
+  .product-section .shop-drop-windows { grid-template-columns: repeat(2, minmax(0, 180px)) !important; }
+}
+@media (max-width: 520px) {
+  .product-section .shop-drop-windows { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .product-section .illustrated-select { max-width: 170px !important; }
+}
+@media (max-width: 360px) {
+  .product-section .shop-drop-windows { grid-template-columns: minmax(0, 180px) !important; }
+}
+
+
+/* Readable titles stay inside each filter window; the hero's gentle drift stays above them. */
+.product-section .category-art-frame {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  aspect-ratio: 225 / 170 !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  isolation: isolate !important;
+}
+.product-section .category-art-frame > img {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: 8px !important;
+}
+.product-section .category-window-title {
+  position: absolute !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  display: grid !important;
+  min-height: 30px !important;
+  place-items: center !important;
+  padding: 4px 6px !important;
+  border-top: 1px solid #d7c6aa !important;
+  background: rgba(255, 250, 240, 0.97) !important;
+  color: #3d2f22 !important;
+  font-family: "Cormorant Garamond", Georgia, serif !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.035em !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+/* The request is for still filter windows: explicitly avoid hover/selection movement. */
+.product-section .illustrated-select,
+.product-section .illustrated-select:hover,
+.product-section .illustrated-select:focus-within,
+.product-section .category-art-frame > img,
+.product-section .category-window-title {
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+.hero.hero-artwork {
+  position: relative !important;
+  isolation: isolate !important;
+  contain: paint !important;
+  overflow: hidden !important;
+}
+.hero.hero-artwork > img.hero-art {
+  animation: briar-drift 24s ease-in-out infinite alternate !important;
+}
+@keyframes briar-drift {
+  from { transform: scale(1.002) translate3d(-0.08%, -0.04%, 0); }
+  to { transform: scale(1.012) translate3d(0.1%, 0.05%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-artwork > img.hero-art {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* Full botanical category-window banners from the supplied House of Briar artwork. */
+.product-section .shop-drop-windows {
+  display: grid !important;
+  width: min(100%, 1180px) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  justify-content: center !important;
+  align-items: start !important;
+  gap: clamp(8px, 1.2vw, 18px) !important;
+  margin: 18px auto 0 !important;
+}
+.product-section .illustrated-select {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 4px 6px rgba(68, 46, 25, .16));
+  cursor: pointer;
+}
+.product-section .illustrated-select::before { display: none !important; }
+.product-section .category-window-art {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  pointer-events: none !important;
+}
+.product-section .category-window-current {
+  position: absolute !important;
+  z-index: 2 !important;
+  display: none;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 .16em !important;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(249, 240, 220, .98), rgba(241, 225, 195, .98));
+  color: #66583f !important;
+  font-family: "Cormorant Garamond", Georgia, serif !important;
+  font-size: clamp(.62rem, .78vw, .9rem) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none !important;
+}
+.product-section .garment-window .category-window-current {
+  left: 37.5%; top: 54%; width: 35%; height: 9.5%;
+}
+.product-section .aesthetic-window .category-window-current {
+  left: 29%; top: 43%; width: 31%; height: 10%;
+}
+.product-section .price-window .category-window-current {
+  left: 30%; top: 43%; width: 34%; height: 10%;
+}
+.product-section .accessories-window .category-window-current {
+  left: 43%; top: 41%; width: 35%; height: 12%;
+}
+.product-section .illustrated-select.has-changed-selection .category-window-current { display: flex; }
+.product-section .illustrated-select > select {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 4 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: transparent !important;
+  opacity: .001 !important;
+  appearance: none !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+}
+.product-section .illustrated-select:focus-within {
+  filter: drop-shadow(0 0 4px rgba(157, 111, 46, .8)) drop-shadow(0 4px 6px rgba(68, 46, 25, .16));
+}
+.product-section .illustrated-select > .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+@media (max-width: 900px) {
+  .product-section .shop-drop-windows { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .product-section .category-window-current { font-size: clamp(.7rem, 1.5vw, .95rem) !important; }
+}
+@media (max-width: 520px) {
+  .product-section .shop-drop-windows { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .product-section .category-window-current { font-size: clamp(.58rem, 2.2vw, .76rem) !important; }
+}
+@media (max-width: 360px) {
+  .product-section .shop-drop-windows { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* Cancel the legacy 225:170 thumbnail constraints on the full-width banner images. */
+.product-section .illustrated-select > img.category-window-art {
+  aspect-ratio: auto !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* Standardized final Briar artwork dimensions */
+.botanical-nav-art{width:100%!important;max-width:none!important;height:auto!important;aspect-ratio:2048/300!important;margin:0!important;overflow:hidden!important}
+.botanical-nav-art>img{width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;object-position:center!important}
+.shop-search-controls{width:min(1120px,100%)!important}
+.shop-drop-windows{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important}
+.illustrated-select{width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:800/260!important}
+.illustrated-select>img{width:100%!important;height:100%!important;min-height:0!important;object-fit:cover!important}
+.illustrated-select>select{left:12%!important;bottom:7%!important;width:76%!important;height:27%!important;min-height:28px!important;max-height:36px!important}
+.story-grid{background:#fffaf0 url("/Briar-Wide-Frame.png") center/100% 100% no-repeat!important;border:0!important;box-shadow:none!important;padding:54px 70px!important}
+.newsletter-box{background:#fffaf0 url("/Briar-Wide-Frame.png") center/100% 100% no-repeat!important;border:0!important;box-shadow:none!important}
+.product-section:before,.story-section:before,.curation-section:before,.newsletter-section:before,.site-footer:before{background-image:url("/Briar-Divider.png")!important;background-size:100% 100%!important;background-repeat:no-repeat!important;height:38px!important;opacity:1!important}
+@media(max-width:900px){.shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{padding:42px 34px!important}}
+@media(max-width:520px){.shop-drop-windows{grid-template-columns:1fr!important}.botanical-nav-art{min-width:680px!important;width:680px!important}.artwork-header{overflow-x:auto!important}.story-grid{padding:36px 24px!important}}
+
+/* Approved lantern-free homepage composition */
+.product-section>.container>.section-heading{display:block!important;text-align:center!important;margin-bottom:20px!important}
+.product-section>.container>.section-heading>div:first-child{margin:0 auto 18px!important}
+.product-section>.container>.section-heading .eyebrow{margin-bottom:4px!important}
+.product-section>.container>.section-heading h2{font-size:3.25rem!important;line-height:1!important;margin:0!important}
+.product-section .shop-search-controls{width:min(1180px,100%)!important;margin:0 auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.product-section .shop-search{width:min(760px,100%)!important;margin:0 auto 18px!important;text-align:left!important}
+.product-section .shop-drop-windows{width:100%!important;gap:18px!important}
+.product-section .illustrated-select{aspect-ratio:800/300!important;filter:drop-shadow(0 5px 7px rgba(68,46,25,.12))}
+.product-section .illustrated-select>select{left:10%!important;width:80%!important;bottom:6%!important;max-height:40px!important;font-size:.78rem!important}
+.product-section #shop-status{margin-top:24px!important}
+.product-grid{margin-top:12px!important}
+.story-grid{min-height:360px!important;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)!important;align-items:center!important;padding:72px 86px!important;background-color:transparent!important}
+.story-visual{min-height:210px!important;background:transparent!important;border:0!important;display:flex!important;align-items:center!important}
+.story-panel{padding:20px!important}
+.story-copy{position:relative;z-index:2;padding:28px 20px!important;background:rgba(255,250,239,.82)!important;border-radius:20px!important}
+.curation-section .section-heading{margin-bottom:26px!important}
+.curation-grid{align-items:stretch!important}.curation-card{min-height:270px!important}
+.newsletter-box{min-height:210px!important;padding:58px 95px!important;display:grid!important;grid-template-columns:1fr!important;justify-items:center!important;text-align:center!important}
+.newsletter-form{width:min(620px,100%)!important}
+@media(max-width:900px){.product-section>.container>.section-heading h2{font-size:2.7rem!important}.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.story-grid{grid-template-columns:1fr!important;padding:54px 44px!important}.story-visual{min-height:130px!important}.newsletter-box{padding:48px 42px!important}}
+@media(max-width:520px){.product-section>.container>.section-heading h2{font-size:2.25rem!important}.product-section .shop-drop-windows{grid-template-columns:1fr!important}.story-grid{padding:42px 28px!important}.newsletter-box{padding:42px 28px!important}}
+
+/* Final cohesive artisan hero: show the complete uploaded artwork */
+.hero{
+  aspect-ratio:16/9!important;
+  min-height:0!important;
+  padding:0!important;
+  display:block!important;
+  background:url('/House%20of%20Briar_%20Wearable%20Artisan%20Magic.png') center/contain no-repeat!important;
+  background-color:#faf4e5!important;
+}
+.hero::after{display:none!important}
+.hero>.container{display:none!important}
+@media(max-width:700px){
+  .hero{min-height:0!important;background-size:contain!important;background-position:center!important}
+}

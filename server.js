@@ -227,6 +227,16 @@ function createApp(options = {}) {
     CREATE INDEX IF NOT EXISTS listing_images_listing ON listing_images(listing_id, upload_status, position);
   `);
 
+  db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL
+  )`);
+  function recordMigration(version, name) {
+    db.prepare('INSERT OR IGNORE INTO schema_migrations (version,name,applied_at) VALUES (?,?,?)').run(version, name, new Date().toISOString());
+  }
+  recordMigration(1, 'baseline_schema');
+
   function ensureColumn(table, name, definition) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!columns.some(column => column.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
@@ -271,6 +281,52 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'tracking_status', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_verified_at', 'TEXT');
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
+  recordMigration(2, 'marketplace_profile_order_and_tracking_columns');
+
+  db.exec(`CREATE TABLE IF NOT EXISTS email_outbox (
+    id TEXT PRIMARY KEY,
+    recipient TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body_text TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending','sent','failed')) DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    last_error TEXT,
+    created_at TEXT NOT NULL,
+    sent_at TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
+  recordMigration(3, 'durable_email_outbox');
+
+  db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
+    category TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0,1)),
+    subject_template TEXT NOT NULL,
+    body_template TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS support_messages (
+    id TEXT PRIMARY KEY,
+    buyer_subject TEXT NOT NULL,
+    buyer_email TEXT,
+    order_id TEXT,
+    category TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','auto_replied','answered','closed')),
+    response_text TEXT,
+    auto_replied_at TEXT,
+    responded_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(order_id) REFERENCES orders(id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS support_messages_created ON support_messages(created_at DESC)');
+  const supportSeed = db.prepare('INSERT OR IGNORE INTO support_auto_responses (category,enabled,subject_template,body_template,updated_at) VALUES (?,?,?,?,?)');
+  const supportSeedAt = new Date().toISOString();
+  supportSeed.run('order_status',1,'House of Briar order {{orderId}} update','Thanks for checking on your House of Briar order {{orderId}}. Its current status is {{orderStatus}}.{{trackingLine}}\n\nIf you need anything beyond this status update, reply to this message and a person can review it.',supportSeedAt);
+  supportSeed.run('shipping',1,'House of Briar shipping update for {{orderId}}','Here is the latest shipping information for order {{orderId}}.{{trackingLine}}\n\nIf the carrier information does not answer your question, a person can review your request.',supportSeedAt);
+  supportSeed.run('general',1,'We received your House of Briar message','Thanks for contacting House of Briar. We received your message and will review it. This automatic acknowledgement does not approve refunds, cancellations, returns, or other account changes.',supportSeedAt);
+  supportSeed.run('refund',0,'Your House of Briar refund request','We received your refund request. A person will review it before any refund decision or payment change is made.',supportSeedAt);
+  recordMigration(4, 'customer_service_auto_responses');
 
   db.exec(`CREATE TABLE IF NOT EXISTS designer_identities (
     subject TEXT PRIMARY KEY,
@@ -355,7 +411,8 @@ function createApp(options = {}) {
   for (const designerId of new Set(Object.values(designerTokens).map(value => String(value || '').trim()).filter(Boolean))) {
     ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
   }
-  const adminToken = options.adminToken ?? process.env.ADMIN_TOKEN ?? '';
+  const adminTokens = [options.adminToken ?? process.env.ADMIN_TOKEN ?? '', ...(process.env.ADMIN_TOKENS || '').split(',')]
+    .map(value => String(value || '').trim()).filter(Boolean);
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
 
@@ -403,6 +460,12 @@ function createApp(options = {}) {
   db.prepare(`UPDATE listings
     SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
     WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
+
+  function log(level, event, details = {}) {
+    const payload = { timestamp: new Date().toISOString(), level, event, ...details };
+    const line = JSON.stringify(payload);
+    if (level === 'error') console.error(line); else console.log(line);
+  }
 
   function fail(res, status, code, message) {
     return res.status(status).json({ error: { code, message } });
@@ -527,7 +590,7 @@ function createApp(options = {}) {
   function authAdmin(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
-    if (!adminToken || !safeEqual(token, adminToken)) {
+    if (!adminTokens.length || !adminTokens.some(candidate => safeEqual(token, candidate))) {
       return fail(res, 403, 'forbidden', 'Administrator access is required.');
     }
     return next();
@@ -755,8 +818,6 @@ function createApp(options = {}) {
   }));
   app.use(express.json({ limit: '64kb' }));
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
-
   app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
     const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
     if(!listing)return fail(res,404,'listing_not_found','This listing is not available for inquiries.');
@@ -907,23 +968,42 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  async function sendEmail({ to, subject, text }) {
+  async function deliverEmail({ to, subject, text }) {
     if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from || !to) return false;
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [to], subject, text })
-      });
-      if (!response.ok) console.error('Resend email failed:', response.status, await response.text());
-      return response.ok;
-    } catch (error) {
-      console.error('Resend email failed:', error);
-      return false;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text })
+    });
+    if (!response.ok) throw new Error(`Resend returned ${response.status}: ${(await response.text()).slice(0,300)}`);
+    return true;
+  }
+
+  async function processEmailOutbox(limit = 20) {
+    const rows = db.prepare("SELECT * FROM email_outbox WHERE status IN ('pending','failed') AND next_attempt_at <= ? ORDER BY created_at LIMIT ?").all(new Date().toISOString(), limit);
+    for (const row of rows) {
+      try {
+        const sent = await deliverEmail({ to: row.recipient, subject: row.subject, text: row.body_text });
+        if (!sent) continue;
+        db.prepare("UPDATE email_outbox SET status='sent',attempts=attempts+1,last_error=NULL,sent_at=? WHERE id=?").run(new Date().toISOString(), row.id);
+      } catch (error) {
+        const attempts = row.attempts + 1;
+        const delayMs = Math.min(60 * 60 * 1000, 30_000 * (2 ** Math.min(attempts - 1, 7)));
+        db.prepare("UPDATE email_outbox SET status='failed',attempts=?,next_attempt_at=?,last_error=? WHERE id=?").run(attempts, new Date(Date.now()+delayMs).toISOString(), String(error.message || error).slice(0,500), row.id);
+        log('error','email_delivery_failed',{ outboxId: row.id, attempts, error: String(error.message || error).slice(0,300) });
+      }
     }
+    return rows.length;
+  }
+
+  async function sendEmail({ to, subject, text }) {
+    if (!to) return false;
+    const id = makeId(), now = new Date().toISOString();
+    db.prepare("INSERT INTO email_outbox (id,recipient,subject,body_text,status,attempts,next_attempt_at,created_at) VALUES (?,?,?,?,'pending',0,?,?)").run(id,to,subject,text,now,now);
+    await processEmailOutbox();
+    return db.prepare('SELECT status FROM email_outbox WHERE id=?').get(id)?.status === 'sent';
   }
 
   function designerOrderContact(orderId, designerId) {
@@ -1105,6 +1185,34 @@ function createApp(options = {}) {
     return true;
   }
 
+  async function reconcilePendingCheckouts() {
+    const now = new Date().toISOString();
+    const stale = db.prepare(`SELECT id, stripe_session_id FROM orders
+      WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND id IN (
+        SELECT order_id FROM inventory_reservations WHERE status = 'reserved' AND expires_at <= ?
+      )`).all(now);
+    const results = { checked: 0, paid: 0, released: 0, errors: 0 };
+    for (const order of stale) {
+      results.checked += 1;
+      try {
+        const session = await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
+        if (session.payment_status === 'paid') {
+          db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
+          markOrderInventorySold(order.id);
+          await prepareDesignerTransfers(order.id);
+          results.paid += 1;
+        } else if (session.status === 'expired') {
+          releaseOrderInventory(order.id);
+          results.released += 1;
+        }
+      } catch (error) {
+        results.errors += 1;
+        console.error('Checkout reconciliation failed:', order.id, error);
+      }
+    }
+    return results;
+  }
+
   function buildCheckoutQuote(requested) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
@@ -1151,7 +1259,7 @@ function createApp(options = {}) {
   app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
     let buyerSubject = null;
     let buyerEmail = null;
-    const buyerToken = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const buyerToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (buyerToken) {
       try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
@@ -1612,6 +1720,77 @@ function createApp(options = {}) {
   });
 
   
+  function supportCategory(message) {
+    const value=String(message||'').toLowerCase();
+    if (/refund|return|chargeback|dispute|cancel/.test(value)) return 'refund';
+    if (/ship|tracking|delivery|carrier|where is/.test(value)) return 'shipping';
+    if (/order|status|purchase/.test(value)) return 'order_status';
+    return 'general';
+  }
+  function renderSupportTemplate(template, values) {
+    return String(template||'').replace(/\\{\\{(orderId|orderStatus|trackingLine)\\}\\}/g, (_match,key)=>String(values[key]||''));
+  }
+  function supportOrderContext(orderId,buyerSubject) {
+    if(!orderId)return null;
+    const order=db.prepare('SELECT id,status FROM orders WHERE id=? AND buyer_subject=?').get(orderId,buyerSubject);
+    if(!order)return null;
+    const tracking=db.prepare("SELECT tracking_carrier,tracking_number,tracking_status FROM designer_transfers WHERE order_id=? AND tracking_number IS NOT NULL ORDER BY tracking_verified_at DESC LIMIT 1").get(order.id);
+    const trackingLine=tracking? ` Tracking: ${tracking.tracking_carrier||'carrier'} ${tracking.tracking_number} (${tracking.tracking_status||'status pending'}).` : ' Tracking has not been posted yet.';
+    return {orderId:order.id,orderStatus:order.status,trackingLine};
+  }
+
+  app.post('/api/support/messages', authBuyer, async (req,res)=>{
+    const message=String(req.body?.message||'').trim();
+    const orderId=String(req.body?.orderId||'').trim()||null;
+    if(message.length<5||message.length>1500)return fail(res,422,'validation_error','Write a support message between 5 and 1,500 characters.');
+    const orderContext=supportOrderContext(orderId,req.buyerSubject);
+    if(orderId&&!orderContext)return fail(res,404,'order_not_found','That order is not available in your account.');
+    const category=supportCategory(message);
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare('INSERT INTO support_messages (id,buyer_subject,buyer_email,order_id,category,message,created_at) VALUES (?,?,?,?,?,?,?)').run(id,req.buyerSubject,req.buyerEmail||null,orderId,category,message,now);
+    const template=db.prepare('SELECT * FROM support_auto_responses WHERE category=?').get(category);
+    let autoReply=null;
+    if(template?.enabled && req.buyerEmail){
+      const values=orderContext||{orderId:'',orderStatus:'',trackingLine:''};
+      const subject=renderSupportTemplate(template.subject_template,values);
+      autoReply=renderSupportTemplate(template.body_template,values);
+      await sendEmail({to:req.buyerEmail,subject,text:autoReply});
+      db.prepare("UPDATE support_messages SET status='auto_replied',response_text=?,auto_replied_at=? WHERE id=?").run(autoReply,new Date().toISOString(),id);
+    }
+    return res.status(201).json({message:{id,category,status:autoReply?'auto_replied':'open',autoReply}});
+  });
+
+  app.get('/api/admin/support', authAdmin, (_req,res)=>{
+    const messages=db.prepare('SELECT id,buyer_email,order_id,category,message,status,response_text,auto_replied_at,responded_at,created_at FROM support_messages ORDER BY created_at DESC LIMIT 200').all();
+    const templates=db.prepare('SELECT category,enabled,subject_template,body_template,updated_at FROM support_auto_responses ORDER BY category').all().map(row=>({...row,enabled:Boolean(row.enabled)}));
+    return res.json({messages,templates});
+  });
+
+  app.patch('/api/admin/support/templates/:category', authAdmin, (req,res)=>{
+    const category=String(req.params.category||'');
+    const existing=db.prepare('SELECT category FROM support_auto_responses WHERE category=?').get(category);
+    if(!existing)return fail(res,404,'not_found','Support response category not found.');
+    const subject=String(req.body?.subjectTemplate||'').trim();
+    const body=String(req.body?.bodyTemplate||'').trim();
+    const enabled=req.body?.enabled===true?1:0;
+    if(!subject||subject.length>180||!body||body.length>4000)return fail(res,422,'validation_error','Provide a subject and response body within the allowed lengths.');
+    const updatedAt=new Date().toISOString();
+    db.prepare('UPDATE support_auto_responses SET enabled=?,subject_template=?,body_template=?,updated_at=? WHERE category=?').run(enabled,subject,body,updatedAt,category);
+    return res.json({template:{category,enabled:Boolean(enabled),subjectTemplate:subject,bodyTemplate:body,updatedAt}});
+  });
+
+  app.post('/api/admin/support/:messageId/reply', authAdmin, async (req,res)=>{
+    const message=db.prepare('SELECT * FROM support_messages WHERE id=?').get(req.params.messageId);
+    if(!message)return fail(res,404,'not_found','Support message not found.');
+    const text=String(req.body?.text||'').trim();
+    if(!text||text.length>4000)return fail(res,422,'validation_error','Write a response of 4,000 characters or fewer.');
+    if(!message.buyer_email)return fail(res,409,'email_unavailable','This customer account does not have an email address available.');
+    await sendEmail({to:message.buyer_email,subject:'House of Briar customer service',text});
+    const respondedAt=new Date().toISOString();
+    db.prepare("UPDATE support_messages SET status='answered',response_text=?,responded_at=? WHERE id=?").run(text,respondedAt,message.id);
+    return res.json({message:{id:message.id,status:'answered',responseText:text,respondedAt}});
+  });
+
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
@@ -1896,6 +2075,28 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
+  const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
+  const reactIndexFile = path.join(reactDistDir, 'index.html');
+  const hasReactBuild = fs.existsSync(reactIndexFile);
+  if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
+
+  app.get('/api/health', (_req, res) => {
+    let database = 'ok';
+    try { db.prepare('SELECT 1').get(); } catch { database = 'error'; }
+    const persistentStorageConfigured = Boolean(options.dataDir || process.env.DATA_DIR);
+    const directorDependencies = {
+      genesisAuth: 'external',
+      taskadeGateway: 'external'
+    };
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || persistentStorageConfigured);
+    res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
+    res.set('X-HOB-Database', database);
+    res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
+    res.set('X-HOB-React-Build', hasReactBuild ? 'present' : 'absent');
+    res.set('X-HOB-Director-Dependencies', Object.keys(directorDependencies).join(','));
+    return res.status(ready ? 200 : 503).json({ ok: ready });
+  });
+
   app.get('/manifest.webmanifest', (_req, res) => {
     res.type('application/manifest+json');
     res.sendFile(path.join(rootDir, 'manifest.webmanifest'));
@@ -1906,11 +2107,15 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(rootDir, 'service-worker.js'));
   });
-  app.get('/designers/:designerId', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/account', (_req, res) => res.redirect('/#visitor-suite'));
-  app.get('/checkout', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
-  app.get('/index.html', (_req, res) => res.sendFile(path.join(rootDir, 'index.html')));
+  const sendFrontend = (_req, res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html'));
+  app.get('/designers/:designerId', sendFrontend);
+  app.get('/account', hasReactBuild ? sendFrontend : (_req, res) => res.redirect('/#visitor-suite'));
+  app.get('/checkout', sendFrontend);
+  app.get('/', sendFrontend);
+  app.get('/index.html', sendFrontend);
+  if (hasReactBuild) {
+    app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
+  }
   app.get('/styles.css', (_req, res) => res.sendFile(path.join(rootDir, 'styles.css')));
   app.get('/script.js', (_req, res) => res.sendFile(path.join(rootDir, 'script.js')));
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
@@ -1966,20 +2171,27 @@ function createApp(options = {}) {
       const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
       return fail(res, error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, code, message);
     }
-    console.error('Request failed:', error);
+    log('error','request_failed',{ error: String(error?.message || error).slice(0,500) });
     return fail(res, error.statusCode || 500, error.statusCode ? 'request_failed' : 'internal_error', error.message || 'The request could not be completed.');
   });
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired };
+  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db } = createApp();
+  const { app, db, reconcilePendingCheckouts, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
-  const shutdown = () => server.close(() => { db.close(); process.exit(0); });
+  const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
+  const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
+  reconciliationTimer.unref();
+  const emailTimer = setInterval(() => { void processEmailOutbox(); }, 60_000);
+  emailTimer.unref();
+  void reconcilePendingCheckouts();
+  void processEmailOutbox();
+  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
