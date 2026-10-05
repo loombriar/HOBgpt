@@ -495,6 +495,7 @@ function openProductDetails(item) {
   if (badgeRow.children.length) copy.appendChild(badgeRow);
   copy.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
   if (item.aesthetic) copy.appendChild(makeElement('span', 'badge', item.aesthetic));
+  if (item.pattern) copy.appendChild(makeElement('span', 'badge', item.pattern));
   if (item.productionType) {
     const productionButton = makeElement('button', 'badge production-info-button', item.productionType);
     productionButton.type = 'button';
@@ -515,6 +516,8 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
+  if (item.materials) copy.appendChild(makeElement('p', 'product-materials', `Materials: ${item.materials}`));
+  if (item.careInstructions) copy.appendChild(makeElement('p', 'product-care', `Care: ${item.careInstructions}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
 
   const sizingBox = makeElement('div', 'measurement-request');
@@ -709,6 +712,9 @@ function readFormValues() {
     style: byId('product-style')?.value || '',
     size: byId('product-size')?.value || '',
     aesthetic: byId('product-aesthetic')?.value || '',
+    pattern: byId('product-pattern')?.value || '',
+    materials: byId('product-materials')?.value.trim() || '',
+    careInstructions: byId('product-care')?.value.trim() || '',
     productionType: byId('product-production-type')?.value || '',
     alterationsAvailable: Boolean(byId('product-alterations')?.checked),
     takesRequests: Boolean(byId('product-requests')?.checked)
@@ -721,6 +727,8 @@ function validateListingValues(values) {
   if (!values.style) return 'Choose a garment type.';
   if (!values.size) return 'Choose a size.';
   if (!values.aesthetic) return 'Choose an aesthetic style.';
+  if (values.materials.length > 500) return 'Materials must be 500 characters or fewer.';
+  if (values.careInstructions.length > 1000) return 'Care instructions must be 1,000 characters or fewer.';
   if (!values.productionType) return 'Choose One of a Kind, Upcycled, or Made in Multiple.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
@@ -932,6 +940,9 @@ async function editListing(listingId) {
     if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (byId('product-size')) byId('product-size').value = listing.size || '';
     if (byId('product-aesthetic')) byId('product-aesthetic').value = listing.aesthetic || '';
+    if (byId('product-pattern')) byId('product-pattern').value = listing.pattern || '';
+    if (byId('product-materials')) byId('product-materials').value = listing.materials || '';
+    if (byId('product-care')) byId('product-care').value = listing.careInstructions || '';
     if (byId('product-production-type')) byId('product-production-type').value = listing.productionType || '';
     if (byId('product-alterations')) byId('product-alterations').checked = Boolean(listing.alterationsAvailable);
     if (byId('product-requests')) byId('product-requests').checked = Boolean(listing.takesRequests);
