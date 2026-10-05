@@ -1389,3 +1389,16 @@ main>section:not(.hero){position:relative}
 .product-section .illustrated-select>img{object-fit:contain!important;object-position:center}
 @media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr}}
+
+
+/* Final shop-filter presentation: readable, aligned controls without changing other sections. */
+.product-section .shop-drop-windows{width:min(100%,1180px)!important;gap:14px!important;margin:18px auto 0!important}
+.product-section .shop-drop-window{position:relative!important;width:100%!important;aspect-ratio:225/170!important;min-height:0!important;overflow:hidden!important;border:1px solid rgba(129,96,55,.24)!important;border-radius:14px!important;background:#fffaf0!important;box-shadow:0 7px 18px rgba(70,48,28,.07)!important}
+.product-section .shop-drop-window .category-window-art{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;object-fit:contain!important;object-position:center!important;pointer-events:none!important}
+.product-section .shop-drop-window .category-window-title{display:none!important}
+.product-section .shop-drop-window .category-window-current{display:flex!important;position:absolute!important;z-index:5!important;left:12%!important;right:12%!important;top:auto!important;bottom:8%!important;width:auto!important;height:24px!important;align-items:center!important;justify-content:center!important;padding:0 8px!important;border:1px solid rgba(129,96,55,.18)!important;border-radius:7px!important;background:rgba(255,250,240,.94)!important;color:#4a3828!important;font-family:"Cormorant Garamond",Georgia,serif!important;font-size:clamp(.72rem,.9vw,.92rem)!important;font-weight:600!important;line-height:1!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;box-shadow:0 2px 6px rgba(70,48,28,.06)!important;pointer-events:none!important}
+.product-section .pattern-window{display:flex!important;align-items:center!important;justify-content:center!important;background:radial-gradient(circle at 16% 18%,rgba(123,78,52,.12) 0 2px,transparent 3px),radial-gradient(circle at 84% 78%,rgba(94,111,65,.14) 0 3px,transparent 4px),linear-gradient(135deg,#f7ecd7,#fffaf0 52%,#efe3c8)!important}
+.product-section .pattern-window::before{content:"Print / Pattern";position:absolute;z-index:3;top:29%;left:10%;right:10%;text-align:center;font-family:Georgia,serif;font-size:clamp(.8rem,1vw,1rem);font-weight:600;color:#493523;pointer-events:none}
+.product-section .shop-drop-window>select{position:absolute!important;inset:0!important;z-index:8!important;width:100%!important;height:100%!important;opacity:.001!important;cursor:pointer!important}
+@media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr!important;max-width:320px!important}}
