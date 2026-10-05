@@ -263,7 +263,7 @@ test('filter windows use their full botanical artwork and keep accessible live c
   assert.ok(html.includes('id="shop-pattern-filter" aria-label="Filter by print or pattern"'), 'pattern filter should remain an accessible native filter');
   assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each filter should have a live selected-value caption');
   assert.match(html, /<option value="all">All prints<\/option>/, 'default pattern-window label should match its caption');
-  assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
+  assert.match(html, /class="sewing-hero-art" src="\/sewing-hero-v2\.webp"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
   const css = await cssResponse.text();
