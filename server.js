@@ -1151,7 +1151,7 @@ function createApp(options = {}) {
   app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
     let buyerSubject = null;
     let buyerEmail = null;
-    const buyerToken = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const buyerToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (buyerToken) {
       try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
@@ -1857,6 +1857,7 @@ function createApp(options = {}) {
         }
         if (order.status === 'canceled' || order.status === 'failed') return fail(res, 409, 'order_closed', 'Checkout order is no longer payable.');
         if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
+        if (order.buyer_subject) awardBadge(order.buyer_subject,'verified_buyer','order',order.id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
       }
