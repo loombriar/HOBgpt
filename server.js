@@ -1105,6 +1105,34 @@ function createApp(options = {}) {
     return true;
   }
 
+  async function reconcilePendingCheckouts() {
+    const now = new Date().toISOString();
+    const stale = db.prepare(`SELECT id, stripe_session_id FROM orders
+      WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND id IN (
+        SELECT order_id FROM inventory_reservations WHERE status = 'reserved' AND expires_at <= ?
+      )`).all(now);
+    const results = { checked: 0, paid: 0, released: 0, errors: 0 };
+    for (const order of stale) {
+      results.checked += 1;
+      try {
+        const session = await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
+        if (session.payment_status === 'paid') {
+          db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
+          markOrderInventorySold(order.id);
+          await prepareDesignerTransfers(order.id);
+          results.paid += 1;
+        } else if (session.status === 'expired') {
+          releaseOrderInventory(order.id);
+          results.released += 1;
+        }
+      } catch (error) {
+        results.errors += 1;
+        console.error('Checkout reconciliation failed:', order.id, error);
+      }
+    }
+    return results;
+  }
+
   function buildCheckoutQuote(requested) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
@@ -1901,6 +1929,24 @@ function createApp(options = {}) {
   const hasReactBuild = fs.existsSync(reactIndexFile);
   if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
 
+  app.get('/api/health', (_req, res) => {
+    let database = 'ok';
+    try { db.prepare('SELECT 1').get(); } catch { database = 'error'; }
+    const persistentStorageConfigured = Boolean(options.dataDir || process.env.DATA_DIR);
+    const directorDependencies = {
+      genesisAuth: 'external',
+      taskadeGateway: 'external'
+    };
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || persistentStorageConfigured);
+    return res.status(ready ? 200 : 503).json({
+      status: ready ? 'ok' : 'degraded',
+      database,
+      persistentStorageConfigured,
+      reactBuild: hasReactBuild,
+      directorDependencies
+    });
+  });
+
   app.get('/manifest.webmanifest', (_req, res) => {
     res.type('application/manifest+json');
     res.sendFile(path.join(rootDir, 'manifest.webmanifest'));
@@ -1981,14 +2027,18 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired };
+  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts };
 }
 
 if (require.main === module) {
-  const { app, db } = createApp();
+  const { app, db, reconcilePendingCheckouts } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
-  const shutdown = () => server.close(() => { db.close(); process.exit(0); });
+  const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
+  const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
+  reconciliationTimer.unref();
+  void reconcilePendingCheckouts();
+  const shutdown = () => { clearInterval(reconciliationTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
