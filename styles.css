@@ -1351,3 +1351,41 @@ main>section:not(.hero){position:relative}
 .hero-hotspot-shop{left:5.8%;width:13.2%}
 .hero-hotspot-story{left:20.4%;width:11.5%}
 .hero-hotspot:focus-visible{outline:3px solid currentColor;outline-offset:3px}
+
+
+/* Functional storefront controls: keep botanical art, readable labels, hearts, and click targets above decoration. */
+.shop-drop-window{position:relative!important}
+.shop-drop-window .category-window-title{position:absolute!important;z-index:4!important;left:28%!important;top:29%!important;display:block!important;font-family:Georgia,serif!important;font-size:clamp(.72rem,1.15vw,1rem)!important;color:#3f2d1e!important;pointer-events:none!important}
+.shop-drop-window .category-window-current{z-index:4!important;pointer-events:none!important}
+.shop-drop-window select{z-index:6!important;cursor:pointer!important}
+.pattern-window{background:#f6ead1!important;border:1px solid rgba(129,96,55,.35)!important;border-radius:18px!important;min-height:78px!important}
+.pattern-window .category-window-title{left:12%!important}
+.pattern-window .category-window-current{left:12%!important;right:auto!important;bottom:18%!important}
+.favorite-button{position:absolute!important;z-index:12!important;top:12px!important;right:12px!important;width:38px!important;height:38px!important;display:grid!important;place-items:center!important;border-radius:50%!important;border:1px solid rgba(96,61,35,.3)!important;background:rgba(255,250,241,.94)!important;color:#6f2f3b!important;font-size:1.55rem!important;line-height:1!important;cursor:pointer!important;opacity:1!important;visibility:visible!important}
+.favorite-button.is-favorite{color:#8b2635!important}
+.botanical-nav{position:relative!important;z-index:20!important}
+.botanical-nav .nav-hotspot,.hero-hotspot{pointer-events:auto!important;cursor:pointer!important}
+.botanical-nav-art,.hero-art{pointer-events:none!important}
+
+
+/* Artisan product cards: framed presentation without cropping maker-uploaded photos. */
+.product-card{position:relative;display:flex;flex-direction:column;background:rgba(255,251,245,.94);border:2px solid rgba(175,136,94,.7);border-radius:22px;overflow:hidden;box-shadow:0 10px 22px rgba(75,52,29,.08);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.product-card:hover,.product-card:focus-visible{transform:translateY(-3px);border-color:rgba(154,94,61,.92);box-shadow:0 14px 24px rgba(75,52,29,.13)}
+.product-card .product-image{position:relative;padding:.75rem .75rem 0;background:linear-gradient(180deg,#f8f1e7 0%,#f2e7d7 100%)}
+.product-card .product-image::before,.product-card .product-image::after{content:"";position:absolute;width:18px;height:18px;border-color:rgba(138,95,61,.6);border-style:solid;pointer-events:none}
+.product-card .product-image::before{top:10px;left:10px;border-width:2px 0 0 2px;border-radius:6px 0 0 0}
+.product-card .product-image::after{right:10px;bottom:10px;border-width:0 2px 2px 0;border-radius:0 0 8px 0}
+.product-card .product-image img{display:block;width:100%;aspect-ratio:4/3;height:auto;object-fit:contain!important;object-position:center;background:#f8f1e7;border-radius:14px;border:1px solid rgba(146,108,70,.35)}
+.product-card .product-body{padding:.85rem .9rem 1rem}
+.product-card .card-title{font-family:"Cormorant Garamond",serif;font-size:1.6rem;line-height:1.1;color:#2d2a27}
+.product-card .card-description{color:#534b46;font-size:.9rem}
+
+
+/* Safe responsive artwork sizing: preserve authored art without cropping. */
+.artwork-header{width:100%;height:auto;overflow:hidden}
+.botanical-nav-art{position:relative;width:100%;max-width:none;height:auto;aspect-ratio:1469/300;margin:0;overflow:hidden}
+.botanical-nav-art>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.product-section .shop-drop-windows{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-content:center;align-items:start}
+.product-section .illustrated-select>img{object-fit:contain!important;object-position:center}
+@media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr}}

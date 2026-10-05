@@ -233,7 +233,6 @@ test('header and full-size category banners are served with live filters', async
     'Briar-Header-Fitted.png',
     'Botanical Garment Selector Banner-1.png',
     'Ornate Woodland Aesthetic Dropdown UI-2.png',
-    'price-selector-transparent.png',
     'Botanical Accessories Dropdown Banner-4.png'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
@@ -259,14 +258,14 @@ test('filter windows use their full botanical artwork and keep accessible live c
   for (const [id, asset] of [
     ['shop-garment-filter', 'Botanical%20Garment%20Selector%20Banner-1.png'],
     ['shop-aesthetic-filter', 'Ornate%20Woodland%20Aesthetic%20Dropdown%20UI-2.png'],
-    ['shop-sort-filter', 'price-selector-transparent.png'],
     ['shop-accessory-filter', 'Botanical%20Accessories%20Dropdown%20Banner-4.png']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
-  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each banner should have a live selected-value caption');
-  assert.match(html, /<option value="all">All prices<\/option>/, 'default sort-window label should match its banner caption');
+  assert.ok(html.includes('id="shop-pattern-filter" aria-label="Filter by print or pattern"'), 'pattern filter should remain an accessible native filter');
+  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each filter should have a live selected-value caption');
+  assert.match(html, /<option value="all">All prints<\/option>/, 'default pattern-window label should match its caption');
   assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
@@ -285,3 +284,17 @@ test('listing materials care instructions and print pattern persist',async()=>{c
 test('designer listing form exposes materials care and print pattern fields',()=>{const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');const script=fs.readFileSync(path.join(__dirname,'..','script.js'),'utf8');assert.match(html,/id="product-pattern"/);assert.match(html,/value="Leopard"/);assert.match(html,/id="product-materials"/);assert.match(html,/id="product-care"/);assert.match(script,/item\.materials/);assert.match(script,/item\.careInstructions/);});
 
 // CI synchronization marker for structured listing fields.
+
+
+test('storefront exposes pattern filtering and persistent favorite controls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(html, /id="shop-pattern-filter"/);
+  assert.doesNotMatch(html, /id="shop-sort-filter"/);
+  assert.match(script, /activePattern/);
+  assert.match(script, /item\.pattern === activePattern/);
+  assert.match(script, /favorite-button/);
+  assert.match(server, /CREATE TABLE IF NOT EXISTS buyer_favorites/);
+  assert.match(server, /\/api\/my\/favorites\/:listingId/);
+});
