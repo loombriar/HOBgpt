@@ -298,6 +298,36 @@ function createApp(options = {}) {
   db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
   recordMigration(3, 'durable_email_outbox');
 
+  db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
+    category TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0,1)),
+    subject_template TEXT NOT NULL,
+    body_template TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS support_messages (
+    id TEXT PRIMARY KEY,
+    buyer_subject TEXT NOT NULL,
+    buyer_email TEXT,
+    order_id TEXT,
+    category TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','auto_replied','answered','closed')),
+    response_text TEXT,
+    auto_replied_at TEXT,
+    responded_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(order_id) REFERENCES orders(id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS support_messages_created ON support_messages(created_at DESC)');
+  const supportSeed = db.prepare('INSERT OR IGNORE INTO support_auto_responses (category,enabled,subject_template,body_template,updated_at) VALUES (?,?,?,?,?)');
+  const supportSeedAt = new Date().toISOString();
+  supportSeed.run('order_status',1,'House of Briar order {{orderId}} update','Thanks for checking on your House of Briar order {{orderId}}. Its current status is {{orderStatus}}.{{trackingLine}}\n\nIf you need anything beyond this status update, reply to this message and a person can review it.',supportSeedAt);
+  supportSeed.run('shipping',1,'House of Briar shipping update for {{orderId}}','Here is the latest shipping information for order {{orderId}}.{{trackingLine}}\n\nIf the carrier information does not answer your question, a person can review your request.',supportSeedAt);
+  supportSeed.run('general',1,'We received your House of Briar message','Thanks for contacting House of Briar. We received your message and will review it. This automatic acknowledgement does not approve refunds, cancellations, returns, or other account changes.',supportSeedAt);
+  supportSeed.run('refund',0,'Your House of Briar refund request','We received your refund request. A person will review it before any refund decision or payment change is made.',supportSeedAt);
+  recordMigration(4, 'customer_service_auto_responses');
+
   db.exec(`CREATE TABLE IF NOT EXISTS designer_identities (
     subject TEXT PRIMARY KEY,
     designer_id TEXT NOT NULL UNIQUE,
@@ -1690,6 +1720,77 @@ function createApp(options = {}) {
   });
 
   
+  function supportCategory(message) {
+    const value=String(message||'').toLowerCase();
+    if (/refund|return|chargeback|dispute|cancel/.test(value)) return 'refund';
+    if (/ship|tracking|delivery|carrier|where is/.test(value)) return 'shipping';
+    if (/order|status|purchase/.test(value)) return 'order_status';
+    return 'general';
+  }
+  function renderSupportTemplate(template, values) {
+    return String(template||'').replace(/\\{\\{(orderId|orderStatus|trackingLine)\\}\\}/g, (_match,key)=>String(values[key]||''));
+  }
+  function supportOrderContext(orderId,buyerSubject) {
+    if(!orderId)return null;
+    const order=db.prepare('SELECT id,status FROM orders WHERE id=? AND buyer_subject=?').get(orderId,buyerSubject);
+    if(!order)return null;
+    const tracking=db.prepare("SELECT tracking_carrier,tracking_number,tracking_status FROM designer_transfers WHERE order_id=? AND tracking_number IS NOT NULL ORDER BY tracking_verified_at DESC LIMIT 1").get(order.id);
+    const trackingLine=tracking? ` Tracking: ${tracking.tracking_carrier||'carrier'} ${tracking.tracking_number} (${tracking.tracking_status||'status pending'}).` : ' Tracking has not been posted yet.';
+    return {orderId:order.id,orderStatus:order.status,trackingLine};
+  }
+
+  app.post('/api/support/messages', authBuyer, async (req,res)=>{
+    const message=String(req.body?.message||'').trim();
+    const orderId=String(req.body?.orderId||'').trim()||null;
+    if(message.length<5||message.length>1500)return fail(res,422,'validation_error','Write a support message between 5 and 1,500 characters.');
+    const orderContext=supportOrderContext(orderId,req.buyerSubject);
+    if(orderId&&!orderContext)return fail(res,404,'order_not_found','That order is not available in your account.');
+    const category=supportCategory(message);
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare('INSERT INTO support_messages (id,buyer_subject,buyer_email,order_id,category,message,created_at) VALUES (?,?,?,?,?,?,?)').run(id,req.buyerSubject,req.buyerEmail||null,orderId,category,message,now);
+    const template=db.prepare('SELECT * FROM support_auto_responses WHERE category=?').get(category);
+    let autoReply=null;
+    if(template?.enabled && req.buyerEmail){
+      const values=orderContext||{orderId:'',orderStatus:'',trackingLine:''};
+      const subject=renderSupportTemplate(template.subject_template,values);
+      autoReply=renderSupportTemplate(template.body_template,values);
+      await sendEmail({to:req.buyerEmail,subject,text:autoReply});
+      db.prepare("UPDATE support_messages SET status='auto_replied',response_text=?,auto_replied_at=? WHERE id=?").run(autoReply,new Date().toISOString(),id);
+    }
+    return res.status(201).json({message:{id,category,status:autoReply?'auto_replied':'open',autoReply}});
+  });
+
+  app.get('/api/admin/support', authAdmin, (_req,res)=>{
+    const messages=db.prepare('SELECT id,buyer_email,order_id,category,message,status,response_text,auto_replied_at,responded_at,created_at FROM support_messages ORDER BY created_at DESC LIMIT 200').all();
+    const templates=db.prepare('SELECT category,enabled,subject_template,body_template,updated_at FROM support_auto_responses ORDER BY category').all().map(row=>({...row,enabled:Boolean(row.enabled)}));
+    return res.json({messages,templates});
+  });
+
+  app.patch('/api/admin/support/templates/:category', authAdmin, (req,res)=>{
+    const category=String(req.params.category||'');
+    const existing=db.prepare('SELECT category FROM support_auto_responses WHERE category=?').get(category);
+    if(!existing)return fail(res,404,'not_found','Support response category not found.');
+    const subject=String(req.body?.subjectTemplate||'').trim();
+    const body=String(req.body?.bodyTemplate||'').trim();
+    const enabled=req.body?.enabled===true?1:0;
+    if(!subject||subject.length>180||!body||body.length>4000)return fail(res,422,'validation_error','Provide a subject and response body within the allowed lengths.');
+    const updatedAt=new Date().toISOString();
+    db.prepare('UPDATE support_auto_responses SET enabled=?,subject_template=?,body_template=?,updated_at=? WHERE category=?').run(enabled,subject,body,updatedAt,category);
+    return res.json({template:{category,enabled:Boolean(enabled),subjectTemplate:subject,bodyTemplate:body,updatedAt}});
+  });
+
+  app.post('/api/admin/support/:messageId/reply', authAdmin, async (req,res)=>{
+    const message=db.prepare('SELECT * FROM support_messages WHERE id=?').get(req.params.messageId);
+    if(!message)return fail(res,404,'not_found','Support message not found.');
+    const text=String(req.body?.text||'').trim();
+    if(!text||text.length>4000)return fail(res,422,'validation_error','Write a response of 4,000 characters or fewer.');
+    if(!message.buyer_email)return fail(res,409,'email_unavailable','This customer account does not have an email address available.');
+    await sendEmail({to:message.buyer_email,subject:'House of Briar customer service',text});
+    const respondedAt=new Date().toISOString();
+    db.prepare("UPDATE support_messages SET status='answered',response_text=?,responded_at=? WHERE id=?").run(text,respondedAt,message.id);
+    return res.json({message:{id:message.id,status:'answered',responseText:text,respondedAt}});
+  });
+
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
