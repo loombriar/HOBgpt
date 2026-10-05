@@ -1403,3 +1403,16 @@ main>section:not(.hero){position:relative}
 .product-section .shop-drop-window>select{position:absolute!important;inset:0!important;z-index:8!important;width:100%!important;height:100%!important;opacity:.001!important;cursor:pointer!important}
 @media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr!important;max-width:320px!important}}
+
+/* Keep header geometry identical to its authored image so labels and hotspots align. */
+.artwork-header .botanical-nav-art{width:100%!important;min-width:0!important;height:auto!important;max-height:none!important;aspect-ratio:1469/300!important;overflow:hidden!important}
+.artwork-header .botanical-nav-art>img{width:100%!important;height:100%!important;max-height:none!important;object-fit:contain!important;object-position:center!important}
+
+/* Native visible controls keep the restored option lists readable on all browsers. */
+.product-section .shop-drop-window{display:grid!important;grid-template-rows:1fr auto!important;align-items:end!important;aspect-ratio:auto!important;padding:8px!important;gap:8px!important}
+.product-section .shop-drop-window .category-window-art{position:static!important;inset:auto!important;height:130px!important;width:100%!important;object-fit:contain!important;align-self:center!important}
+.product-section .shop-drop-window .category-window-current{display:none!important}
+.product-section .shop-drop-window>select{position:static!important;inset:auto!important;display:block!important;width:100%!important;height:36px!important;min-height:36px!important;max-height:none!important;opacity:1!important;color:#4a3828!important;background:#fffaf0!important;border:1px solid #aa967d!important;border-radius:7px!important;padding:4px 8px!important;appearance:auto!important;font:inherit!important;font-size:.85rem!important}
+.product-section select option{color:#4a3828;background:#fffaf0}
+.shop-pattern-control{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:18px auto 0;color:#4a3828}
+.shop-pattern-control select{min-width:180px;min-height:36px;padding:4px 8px;color:#4a3828;background:#fffaf0;border:1px solid #aa967d;border-radius:7px}

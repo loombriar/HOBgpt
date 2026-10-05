@@ -291,7 +291,8 @@ test('storefront exposes pattern filtering and persistent favorite controls', ()
   const script = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(html, /id="shop-pattern-filter"/);
-  assert.doesNotMatch(html, /id="shop-sort-filter"/);
+  assert.match(html, /id="shop-sort-filter" aria-label="Sort shop results"/);
+  assert.match(html, /Enchanted%20Woodland%20Price%20Selector-3\.png/);
   assert.match(script, /activePattern/);
   assert.match(script, /item\.pattern === activePattern/);
   assert.match(script, /favorite-button/);
