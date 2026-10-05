@@ -1,25 +1,12 @@
-  function awardBadge(subject,badgeType,sourceType,sourceId){if(!subject||!sourceId)return;db.prepare('INSERT OR IGNORE INTO user_badges (buyer_subject,badge_type,source_type,source_id,awarded_at) VALUES (?,?,?,?,?)').run(subject,badgeType,sourceType,sourceId,new Date().toISOString());}
-
-  function reconcileBuyerBadges(subject) {
-    if (!subject || typeof subject !== 'string') return { supporter: false, verifiedBuyer: false };
-    const trimmed = subject.trim();
-    if (!trimmed) return { supporter: false, verifiedBuyer: false };
-
-    let supporter = false;
-    const donated = db.prepare("SELECT id, amount_cents FROM donations WHERE buyer_subject = ? AND status = 'paid'").all(trimmed);
-    for (const donation of donated) {
-      if (Number(donation.amount_cents) >= 500) {
-        awardBadge(trimmed, 'supporter', 'donation', donation.id);
-        supporter = true;
-      }
-    }
-
-    let verifiedBuyer = false;
-    const purchased = db.prepare("SELECT id FROM orders WHERE buyer_subject = ? AND status = 'paid'").all(trimmed);
-    for (const order of purchased) {
-      awardBadge(trimmed, 'verified_buyer', 'order', order.id);
-      verifiedBuyer = true;
-    }
-
-    return { supporter, verifiedBuyer };
+  async function authBuyer(req, res, next) {
+    const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
+    try {
+      const profile = await resolveDesignerIdentity(req, token);
+      if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
+      req.buyerSubject = profile.sub.trim();
+      req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+      reconcileBuyerBadges(req.buyerSubject);
+      return next();
+    } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
