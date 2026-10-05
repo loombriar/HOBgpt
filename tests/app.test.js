@@ -278,3 +278,8 @@ test('filter windows use their full botanical artwork and keep accessible live c
   assert.match(motionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
   assert.match(motionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
 });
+
+
+test('listing materials care instructions and print pattern persist',async()=>{const created=await getJson('/api/listings',{method:'POST',headers:{Authorization:'Bearer '+DESIGNER_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({title:'Leopard Linen Dress',description:'Structured listing details test',price:145,category:'apparel',pattern:'Leopard',materials:'100% linen; cotton lining',careInstructions:'Hand wash cold; lay flat to dry'})});assert.equal(created.response.status,201);assert.equal(created.body.item.pattern,'Leopard');assert.equal(created.body.item.materials,'100% linen; cotton lining');assert.equal(created.body.item.careInstructions,'Hand wash cold; lay flat to dry');});
+
+test('designer listing form exposes materials care and print pattern fields',()=>{const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');const script=fs.readFileSync(path.join(__dirname,'..','script.js'),'utf8');assert.match(html,/id="product-pattern"/);assert.match(html,/value="Leopard"/);assert.match(html,/id="product-materials"/);assert.match(html,/id="product-care"/);assert.match(script,/item\.materials/);assert.match(script,/item\.careInstructions/);});
