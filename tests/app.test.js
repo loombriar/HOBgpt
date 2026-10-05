@@ -266,7 +266,7 @@ test('filter windows use their full botanical artwork and keep accessible live c
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
   assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each banner should have a live selected-value caption');
-  assert.match(html, /<option value="all">All prices<\/option>/, 'default sort-window label should match its banner caption');
+  assert.match(html, /<option value="all">Sort by<\/option>/, 'default sort-window label should match its banner caption');
   assert.match(html, /class="hero-art" src="\/House%20of%20Briar_%20Wearable%20Artisan%20Magic\.png"/);
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
