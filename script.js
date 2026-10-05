@@ -49,6 +49,7 @@ let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
 let activePattern = 'all';
+let activeShopWindow = 'all';
 let shopSearch = '';
 let activeAccessory = 'all';
 let selectedImages = [];
@@ -329,6 +330,10 @@ function renderGallery() {
       item.materials, item.designerName, item.designer, item.productionType, item.category
     ].filter(Boolean).join(' ').toLowerCase().includes(shopSearch));
   }
+
+  if (activeShopWindow === 'low') items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+  if (activeShopWindow === 'high') items = [...items].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+  if (activeShopWindow === 'new') items = [...items].sort((a, b) => String(b.createdAt || b.created_at || '').localeCompare(String(a.createdAt || a.created_at || '')));
 
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
@@ -1026,10 +1031,11 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 byId('visitor-suite-btn')?.addEventListener('click', () => byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
 byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; renderGallery(); });
+byId('shop-sort-filter')?.addEventListener('change', (event) => { activeShopWindow = event.target.value || 'all'; renderGallery(); });
 byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value; renderGallery(); });
 byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim().toLowerCase(); renderGallery(); });
 
-for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-accessory-filter']) {
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter']) {
   const select = byId(id);
   const windowLabel = select?.closest('.shop-drop-window');
   const caption = windowLabel?.querySelector('.category-window-current');
