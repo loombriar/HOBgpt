@@ -1299,3 +1299,34 @@ main>section:not(.hero){position:relative}
 @media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.product-section .category-window-current{font-size:clamp(.7rem,1.5vw,.95rem)!important}}
 @media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}.product-section .category-window-current{font-size:clamp(.58rem,2.2vw,.76rem)!important}}
 @media(max-width:360px){.product-section .shop-drop-windows{grid-template-columns:minmax(0,1fr)!important}}
+
+
+/* Preserve the useful PR #82 motion behavior without restoring its older card artwork. */
+.product-section .illustrated-select,
+.product-section .illustrated-select:hover,
+.product-section .illustrated-select:focus-within,
+.product-section .category-window-art,
+.product-section .category-window-current {
+  animation: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+.hero.hero-artwork {
+  position: relative !important;
+  isolation: isolate !important;
+  contain: paint !important;
+  overflow: hidden !important;
+}
+.hero.hero-artwork > img.hero-art {
+  animation: briar-drift 24s ease-in-out infinite alternate !important;
+}
+@keyframes briar-drift {
+  from { transform: scale(1.002) translate3d(-0.08%, -0.04%, 0); }
+  to { transform: scale(1.012) translate3d(0.1%, 0.05%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-artwork > img.hero-art {
+    animation: none !important;
+    transform: none !important;
+  }
+}
