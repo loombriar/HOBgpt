@@ -230,10 +230,10 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'Briar-Header.png',
+    'Briar-Header-Fitted.png',
     'Briar-Garment.png',
     'Briar-Aesthetic.png',
-    'Briar-Price.png',
+    'price-selector-transparent.png',
     'Briar-Accessories.png'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
@@ -259,7 +259,7 @@ test('filter windows use their full botanical artwork and keep accessible live c
   for (const [id, asset] of [
     ['shop-garment-filter', 'Briar-Garment.png'],
     ['shop-aesthetic-filter', 'Briar-Aesthetic.png'],
-    ['shop-sort-filter', 'Briar-Price.png'],
+    ['shop-sort-filter', 'price-selector-transparent.png'],
     ['shop-accessory-filter', 'Briar-Accessories.png']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
