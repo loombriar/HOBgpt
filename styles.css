@@ -1542,3 +1542,11 @@ main>section:not(.hero){position:relative}
 @media(prefers-reduced-motion:reduce){.tape-unrolling>.dropdown-measuring-tape{animation:none;opacity:1}.tape-unrolling>.dropdown-measuring-tape .measuring-tape-strip{animation:none;transform:scaleX(1)}.tape-unrolling>.dropdown-measuring-tape .measuring-tape-roll{animation:none}}
 
 .measurement-avatar{display:block;width:110px;height:172px;flex:none}.measurement-avatar-intro{display:flex;align-items:center;gap:20px;padding:16px;border:1px solid #c7ab68;border-radius:18px;background:#fffaf0;margin:18px 0}.measurement-avatar-intro p{max-width:330px;color:#71553b;font-size:.9rem;line-height:1.6}#measurement-profile-list .designer-product{display:flex;align-items:center;gap:14px}#measurement-profile-list .designer-product>div{flex:1}#measurement-profile-list .measurement-avatar{width:74px;height:116px}@media(max-width:500px){.measurement-avatar-intro{gap:10px;padding:10px}.measurement-avatar-intro .measurement-avatar{width:85px;height:134px}}
+
+
+/* Live catalog filters include the makers behind each piece. */
+.product-section .shop-drop-windows{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.product-section .shop-drop-window:focus-within{outline:3px solid #ba785f;outline-offset:4px}
+.product-section .designers-window .category-window-art{object-position:70% bottom!important}
+@media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr!important}}

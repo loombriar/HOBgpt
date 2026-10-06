@@ -4,29 +4,28 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-test('Price / New sorting composes with garment and print filtering', () => {
-  const script = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
-  const render = script.slice(script.indexOf('function renderGallery()'), script.indexOf('async function loadGallery()'));
-  const element = () => ({ children: [], classList: { add() {} }, setAttribute() {}, addEventListener() {}, append(...children) { this.children.push(...children); }, appendChild(child) { this.children.push(child); }, replaceChildren() { this.children = []; } });
-  const grid = element();
-  const context = vm.createContext({
-    document: { createElement: element }, productGrid: grid,
-    makeElement: (_, className, textContent) => Object.assign(element(), { className, textContent }),
-    getProductImages: () => [], getFavoriteIds: () => [], renderItemBadges() {}, categoryLabel: value => value,
-    galleryItems: [
-      { id: 'a', title: 'Old floral', category: 'apparel', style: 'Dress', pattern: 'Floral', price: 300, createdAt: '2026-10-01' },
-      { id: 'b', title: 'New floral', category: 'apparel', style: 'Dress', pattern: 'Floral', price: 100, created_at: '2026-10-05' },
-      { id: 'c', title: 'Solid top', category: 'apparel', style: 'Top', pattern: 'Solid', price: 200, createdAt: '2026-10-03' }
-    ], activeFilter: 'apparel', activeAccessory: 'all', activeAesthetic: 'all', activePattern: 'all', shopSearch: '', activeShopWindow: 'all'
-  });
-  vm.runInContext(render, context);
-  const titles = () => grid.children.map(card => card.children[1].children.find(child => child.className === 'card-title')?.textContent);
-  context.activeShopWindow = 'low'; vm.runInContext('renderGallery()', context);
-  assert.deepEqual(titles(), ['New floral', 'Solid top', 'Old floral']);
-  context.activeShopWindow = 'high'; vm.runInContext('renderGallery()', context);
-  assert.deepEqual(titles(), ['Old floral', 'Solid top', 'New floral']);
-  context.activeShopWindow = 'new'; vm.runInContext('renderGallery()', context);
-  assert.deepEqual(titles(), ['New floral', 'Solid top', 'Old floral']);
-  context.activeFilter = 'Dress'; context.activePattern = 'Floral'; vm.runInContext('renderGallery()', context);
-  assert.deepEqual(titles(), ['New floral', 'Old floral']);
+const source = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
+const loader = source.slice(source.indexOf('async function loadGallery()'), source.indexOf('async function loadShopDesigners()'));
+test('shop requests compose designer, print, style, search and price filters', async () => {
+  const requests = [];
+  const context = vm.createContext({ URLSearchParams, activeAccessory:'all', activeFilter:'Dress', activeAesthetic:'Boho', activePattern:'Floral', activeDesigner:'maker/a', activeShopWindow:'low', shopSearch:'velvet & gold', galleryRequest:0, shopStatus:null, productGrid:null, renderGallery(){}, apiRequest:async url => {requests.push(url); return {items:[]};} });
+  vm.runInContext(loader, context);
+  await vm.runInContext('loadGallery()', context);
+  const params = new URL(requests[0], 'http://localhost').searchParams;
+  assert.equal(params.get('style'),'Dress'); assert.equal(params.get('designer'),'maker/a');
+  assert.equal(params.get('pattern'),'Floral'); assert.equal(params.get('aesthetic'),'Boho');
+  assert.equal(params.get('sort'),'low'); assert.equal(params.get('q'),'velvet & gold');
+  context.activeAccessory = 'accessories';
+  await vm.runInContext('loadGallery()', context);
+  const accessories = new URL(requests[1], 'http://localhost').searchParams;
+  assert.equal(accessories.get('category'),'accessories'); assert.equal(accessories.has('style'),false);
+});
+test('slower earlier filter response cannot replace the latest selection', async () => {
+  const pending=[];
+  const context=vm.createContext({ URLSearchParams, activeAccessory:'all',activeFilter:'all',activeAesthetic:'all',activePattern:'all',activeDesigner:'all',activeShopWindow:'all',shopSearch:'',galleryRequest:0,shopStatus:null,productGrid:null,renderGallery(){},apiRequest:()=>new Promise(resolve=>pending.push(resolve)) });
+  vm.runInContext(loader,context);
+  const first=vm.runInContext('loadGallery()',context); context.activeFilter='Top';
+  const second=vm.runInContext('loadGallery()',context);
+  pending[1]({items:[{id:'top'}]}); await second; pending[0]({items:[{id:'dress'}]}); await first;
+  assert.equal(context.galleryItems[0].id,'top');
 });
