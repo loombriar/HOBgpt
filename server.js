@@ -50,7 +50,7 @@ function detectImageMime(buffer) {
   return null;
 }
 
-function validateListingInput(body = {}) {
+function validateListingInput(body = {}, existing = null) {
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const price = Number(body.price);
@@ -101,8 +101,8 @@ function validateListingInput(body = {}) {
   if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
   if (sku && !/^[A-Z0-9._-]{2,64}$/.test(sku)) return { error: 'SKU may use letters, numbers, periods, underscores, and hyphens.' };
   if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 100000) return { error: 'Stock quantity must be a whole number between 0 and 100,000.' };
-  if (productionType === 'One of a Kind' && stockQuantity !== 1) return { error: 'One-of-a-kind pieces must have a stock quantity of exactly 1.' };
-  if (productionType === 'Limited Quantity' && stockQuantity < 1) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
+  if (productionType === 'One of a Kind' && stockQuantity !== 1 && !(existing && stockQuantity === 0)) return { error: 'One-of-a-kind pieces must have a stock quantity of exactly 1.' };
+  if (productionType === 'Limited Quantity' && stockQuantity < 1 && !existing) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
@@ -745,9 +745,34 @@ function createApp(options = {}) {
     }));
   }
 
+  // stock_quantity is the total admitted to the ledger, including sold units.
+  // Sales consume reservations rather than decrementing this stored total.
+  function listingInventory(row) {
+    const quantities = db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN status='reserved' THEN quantity ELSE 0 END),0) reserved,
+      COALESCE(SUM(CASE WHEN status='sold' THEN quantity ELSE 0 END),0) sold
+      FROM inventory_reservations WHERE listing_id=?`).get(row.id);
+    const reserved = Number(quantities.reserved), sold = Number(quantities.sold);
+    const tracked = (row.production_type || 'One of a Kind') !== 'Made to Order';
+    return { reservedQuantity: reserved, soldQuantity: sold,
+      availableQuantity: tracked ? Math.max(0, Number(row.stock_quantity ?? 0) - reserved - sold) : null };
+  }
+
+  function inventoryChangeError(row, quantity, productionType = row.production_type || 'One of a Kind') {
+    if (!Number.isSafeInteger(quantity) || quantity < 0 || quantity > 100000)
+      return { code: 'invalid_stock', message: 'Inventory total must be a whole number between 0 and 100,000.' };
+    const inventory = listingInventory(row);
+    if (productionType === 'Made to Order' && inventory.reservedQuantity + inventory.soldQuantity > 0)
+      return { code: 'committed_inventory', message: 'A listing with reserved or sold units cannot switch to made to order.' };
+    if (quantity < inventory.reservedQuantity + inventory.soldQuantity)
+      return { code: 'reserved_inventory', message: 'Inventory total cannot be reduced below sold units plus active secure-checkout reservations.' };
+    return null;
+  }
+
   function serializeListing(row, mode = 'public') {
     if (!row) return null;
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
+    const inventory = listingInventory(row);
     const images = getImages(row.id, mode);
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
@@ -778,7 +803,9 @@ function createApp(options = {}) {
       sku: row.sku || '',
       stockQuantity: Number(row.stock_quantity ?? 0),
       lowStockThreshold: Number(row.low_stock_threshold ?? 1),
-      lowStock: Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
+      ...inventory,
+      lowStock: inventory.availableQuantity !== null && inventory.availableQuantity <= Number(row.low_stock_threshold ?? 1),
+      version: Number(row.version),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -1326,14 +1353,11 @@ function createApp(options = {}) {
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
-    const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
-    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
     const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
-      const listing=db.prepare('SELECT stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
+      const listing=db.prepare('SELECT id,stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
       if (listing?.production_type === 'Made to Order') continue;
-      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
-      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      if(!listing || item.quantity > listingInventory(listing).availableQuantity) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
       insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
@@ -1723,52 +1747,76 @@ function createApp(options = {}) {
   });
 
   app.put('/api/listings/:listingId', authDesigner, (req, res) => {
-    const row = ownedEditableListing(req, res);
-    if (!row) return;
-    const validation = validateListingInput(req.body || {});
-    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
+    const result = db.transaction(() => {
+      const row = getListing(req.params.listingId);
+      if (!row || row.designer_id !== req.designerId || row.status === 'deleted')
+        return { error: [404, 'not_found', 'Listing not found.'] };
+      if (!['draft','rejected','published'].includes(row.status))
+        return { error: [409, 'not_editable', 'Only draft, rejected, or published listings can be edited.'] };
+      const input = { ...req.body,
+        productionType: req.body?.productionType ?? row.production_type ?? 'One of a Kind',
+        stockQuantity: req.body?.stockQuantity ?? row.stock_quantity,
+        lowStockThreshold: req.body?.lowStockThreshold ?? row.low_stock_threshold };
+      const validation = validateListingInput(input, row);
+      if (validation.error) return { error: [422, 'validation_error', validation.error] };
 
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
-          status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
-          moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
-          moderation_reason = NULL, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(
-      validation.value.title,
-      validation.value.description,
-      validation.value.price,
-      validation.value.category,
-      validation.value.style || null,
-      validation.value.size || null,
-      validation.value.aesthetic || null,
-      validation.value.pattern || null,
-      validation.value.materials || null,
-      validation.value.careInstructions || null,
-      validation.value.productionType,
-      validation.value.availability,
-      validation.value.alterationsAvailable ? 1 : 0,
-      validation.value.takesRequests ? 1 : 0,
-      validation.value.seoTitle || null,
-      validation.value.seoDescription || null,
-      validation.value.seoTags || null,
-      validation.value.shareImageUrl || null,
-      validation.value.shippingCostCents,
-      validation.value.freeShippingThresholdCents,
-      validation.value.handlingDaysMin,
-      validation.value.handlingDaysMax,
-      validation.value.internationalShipping ? 1 : 0,
-      validation.value.sku || null,
-      validation.value.stockQuantity,
-      validation.value.lowStockThreshold,
-      timestamp,
-      row.id
-    );
+      const inventoryChanged = validation.value.stockQuantity !== Number(row.stock_quantity) ||
+        validation.value.productionType !== (row.production_type || 'One of a Kind');
+      const expectedVersion = req.body?.expectedVersion;
+      if ((inventoryChanged && !Number.isInteger(expectedVersion)) ||
+          (expectedVersion != null && expectedVersion !== Number(row.version)))
+        return { error: [409,'stale_listing','This listing changed. Reload it before saving inventory.'] };
+      const inventoryError = inventoryChangeError(row, validation.value.stockQuantity, validation.value.productionType);
+      if (inventoryError) return { error: [409,inventoryError.code,inventoryError.message] };
+      const timestamp = new Date().toISOString();
+      db.prepare(`
+        UPDATE listings
+        SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
+            status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
+            moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
+            moderation_reason = NULL, updated_at = ?, version = version + 1
+        WHERE id = ?
+      `).run(
+        validation.value.title,
+        validation.value.description,
+        validation.value.price,
+        validation.value.category,
+        validation.value.style || null,
+        validation.value.size || null,
+        validation.value.aesthetic || null,
+        validation.value.pattern || null,
+        validation.value.materials || null,
+        validation.value.careInstructions || null,
+        validation.value.productionType,
+        validation.value.availability,
+        validation.value.alterationsAvailable ? 1 : 0,
+        validation.value.takesRequests ? 1 : 0,
+        validation.value.seoTitle || null,
+        validation.value.seoDescription || null,
+        validation.value.seoTags || null,
+        validation.value.shareImageUrl || null,
+        validation.value.shippingCostCents,
+        validation.value.freeShippingThresholdCents,
+        validation.value.handlingDaysMin,
+        validation.value.handlingDaysMax,
+        validation.value.internationalShipping ? 1 : 0,
+        validation.value.sku || null,
+        validation.value.stockQuantity,
+        validation.value.lowStockThreshold,
+        timestamp,
+        row.id
+      );
 
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+      if (validation.value.stockQuantity !== Number(row.stock_quantity)) {
+        db.prepare(`INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at)
+          VALUES (?,?,?,?,?,'designer',?,?)`).run(makeId(),row.id,validation.value.stockQuantity-Number(row.stock_quantity),validation.value.stockQuantity,'Designer inventory update',req.designerId,timestamp);
+      }
+      return { item: serializeListing(getListing(row.id), 'private') };
+    }).immediate();
+    if (result.error) return fail(res,...result.error);
+    return res.json(result);
   });
+
 
   app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
     try {
@@ -1999,19 +2047,24 @@ function createApp(options = {}) {
   });
 
     app.post('/api/admin/listings/:listingId/inventory/adjust', authAdmin, (req,res) => {
-    const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return fail(res,404,'not_found','Listing not found.');
-    const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
-    if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
-    if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
-    if((row.production_type||'One of a Kind')==='Made to Order')return fail(res,409,'inventory_not_tracked','Made-to-order listings do not use on-hand inventory.');
-    const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
-    if((row.production_type||'One of a Kind')==='One of a Kind'&&!([0,1].includes(after)))return fail(res,409,'one_of_a_kind_limit','One-of-a-kind inventory can only be 0 (sold/unavailable) or 1 (available).');
-    const reserved=Number(db.prepare("SELECT COALESCE(SUM(quantity),0) qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'").get(row.id).qty);
-    if(after<reserved)return fail(res,409,'reserved_inventory','Inventory cannot be reduced below the quantity currently reserved in secure checkout.');
-    const now=new Date().toISOString();
-    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
-    return res.json({item:serializeListing(getListing(row.id),'admin')});
+    const result = db.transaction(() => {
+      const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return { error: [404,'not_found','Listing not found.'] };
+      const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
+      if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return { error: [422,'invalid_adjustment','Adjustment must be a non-zero whole number.'] };
+      if(!reason||reason.length>240)return { error: [422,'reason_required','Provide an inventory adjustment reason up to 240 characters.'] };
+      if((row.production_type||'One of a Kind')==='Made to Order')return { error: [409,'inventory_not_tracked','Made-to-order listings do not use on-hand inventory.'] };
+      const after=Number(row.stock_quantity??0)+delta; if(after<0)return { error: [409,'insufficient_stock','Inventory cannot be adjusted below zero.'] };
+      if((row.production_type||'One of a Kind')==='One of a Kind'&&!([0,1].includes(after)))return { error: [409,'one_of_a_kind_limit','One-of-a-kind inventory can only be 0 (sold/unavailable) or 1 (available).'] };
+      const inventoryError=inventoryChangeError(row,after);
+      if(inventoryError)return { error: [409,inventoryError.code,inventoryError.message] };
+      const now=new Date().toISOString();
+      db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
+      return {item:serializeListing(getListing(row.id),'admin')};
+    }).immediate();
+    if (result.error) return fail(res,...result.error);
+    return res.json(result);
   });
+
   app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
     const row=getListing(req.params.listingId); if(!row)return fail(res,404,'not_found','Listing not found.');
     return res.json({items:db.prepare('SELECT * FROM inventory_adjustments WHERE listing_id=? ORDER BY created_at DESC LIMIT 100').all(row.id)});

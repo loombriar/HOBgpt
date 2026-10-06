@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=sewing-8" />
-    <script src="/script.js?v=studio-6" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=sewing-avatar-10" />
+    <script src="/script.js?v=studio-avatar-8" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -214,6 +214,7 @@
       <section id="visitor-suite" class="visitor-suite-section">
         <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
         <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer unless you choose to send them.</p>
+        <div class="measurement-avatar-intro"><div id="measurement-avatar-preview"></div><p>Your little fit companion changes as you enter measurements in inches. A stylized guide; use the saved numbers for sizing. Blank measurements use a default shape.</p></div>
         <form id="measurement-profile-form" class="stack-form">
           <label>Profile name<input id="measurement-profile-name" maxlength="80" placeholder="Me, Mom, Partner…" required></label>
           <div class="form-row"><label>Bust / chest<input id="measurement-profile-bust" inputmode="decimal"></label><label>Waist<input id="measurement-profile-waist" inputmode="decimal"></label><label>Hips<input id="measurement-profile-hips" inputmode="decimal"></label></div>

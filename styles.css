@@ -1523,3 +1523,22 @@ main>section:not(.hero){position:relative}
 
 .suitcase-button .suitcase-info{left:auto!important;right:0!important;top:calc(100% + 8px)!important;width:245px!important;white-space:normal!important;text-align:left!important;line-height:1.45!important}
 .suitcase-button:hover .suitcase-info,.suitcase-button:focus-visible .suitcase-info,.suitcase-button:focus-within .suitcase-info{opacity:1!important;visibility:visible!important;pointer-events:none!important}
+
+
+/* A little sewing tape unrolls along each dropdown's lower edge. */
+.measuring-tape-window{position:relative}
+.dropdown-measuring-tape{position:absolute;left:14px;right:14px;bottom:3px;height:22px;z-index:4;pointer-events:none;opacity:0;overflow:visible}
+.shop-drop-window .dropdown-measuring-tape{bottom:8px}
+.measuring-tape-strip{position:absolute;left:9px;right:0;top:3px;height:16px;border:1px solid #a4864d;border-radius:2px 5px 5px 2px;background-color:#f7df9b;background-image:repeating-linear-gradient(90deg,#805345 0 1px,transparent 1px 8px),repeating-linear-gradient(90deg,#805345 0 1px,transparent 1px 32px);background-size:100% 4px,100% 7px;background-repeat:no-repeat;box-shadow:0 2px 3px #80534520;transform:scaleX(0);transform-origin:left center}
+.measuring-tape-numbers{position:absolute;top:6px;left:12px;font:7px/1 monospace;letter-spacing:3px;white-space:pre;color:#71553b;overflow:hidden;width:calc(100% - 14px)}
+.measuring-tape-roll{position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #a4864d;border-radius:50%;background:repeating-radial-gradient(circle at center,#f7df9b 0 2px,#bd9959 3px,#f7df9b 4px 5px);box-shadow:0 2px 4px #80534525}
+.measuring-tape-roll::after{content:"";position:absolute;inset:6px;background:#e6a099;border:1px solid #a4864d;border-radius:50%}
+.tape-unrolling>.dropdown-measuring-tape{animation:tape-appear 1.15s ease both}
+.tape-unrolling>.dropdown-measuring-tape .measuring-tape-strip{animation:tape-unroll 1.15s cubic-bezier(.22,.7,.26,1) both}
+.tape-unrolling>.dropdown-measuring-tape .measuring-tape-roll{animation:tape-spin .8s ease-out both}
+@keyframes tape-appear{0%{opacity:0}10%,80%{opacity:1}100%{opacity:0}}
+@keyframes tape-unroll{0%{transform:scaleX(.02)}65%,88%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+@keyframes tape-spin{from{transform:rotate(-220deg)}to{transform:rotate(0)}}
+@media(prefers-reduced-motion:reduce){.tape-unrolling>.dropdown-measuring-tape{animation:none;opacity:1}.tape-unrolling>.dropdown-measuring-tape .measuring-tape-strip{animation:none;transform:scaleX(1)}.tape-unrolling>.dropdown-measuring-tape .measuring-tape-roll{animation:none}}
+
+.measurement-avatar{display:block;width:110px;height:172px;flex:none}.measurement-avatar-intro{display:flex;align-items:center;gap:20px;padding:16px;border:1px solid #c7ab68;border-radius:18px;background:#fffaf0;margin:18px 0}.measurement-avatar-intro p{max-width:330px;color:#71553b;font-size:.9rem;line-height:1.6}#measurement-profile-list .designer-product{display:flex;align-items:center;gap:14px}#measurement-profile-list .designer-product>div{flex:1}#measurement-profile-list .measurement-avatar{width:74px;height:116px}@media(max-width:500px){.measurement-avatar-intro{gap:10px;padding:10px}.measurement-avatar-intro .measurement-avatar{width:85px;height:134px}}
