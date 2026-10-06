@@ -503,11 +503,14 @@ function createApp(options = {}) {
     FOREIGN KEY(order_id) REFERENCES orders(id),
     FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
   ); CREATE INDEX IF NOT EXISTS designer_notifications_designer_created ON designer_notifications(designer_id, created_at DESC);`);
+  ensureColumn('designer_notifications', 'priority', "TEXT NOT NULL DEFAULT 'normal'");
+  ensureColumn('designer_notifications', 'source', "TEXT NOT NULL DEFAULT 'system'");
+  ensureColumn('designer_notifications', 'admin_label', 'TEXT');
   function notifyDesigner(designerId,type,title,body,links={}) {
     if(!designerId)return null;
     const id=makeId(),now=new Date().toISOString();
-    db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,now);
+    db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,priority,source,admin_label,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,links.priority||'normal',links.source||'system',links.adminLabel||null,now);
     return id;
   }
 
@@ -2029,6 +2032,7 @@ function createApp(options = {}) {
       SET status = 'published', moderation_status = 'approved', moderation_reason = NULL, published_at = ?, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(timestamp, timestamp, row.id);
+    notifyDesigner(row.designer_id,'listing_review','Listing approved',`${row.title} was approved and is now published.`,{listingId:row.id,actionPath:`/shop/${row.id}`,priority:'normal',source:'admin',adminLabel:'House of Briar'});
 
     return res.json({ item: serializeListing(getListing(row.id), 'public') });
   });
@@ -2046,6 +2050,7 @@ function createApp(options = {}) {
       SET status = 'rejected', moderation_status = 'rejected', moderation_reason = ?, published_at = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(reason, timestamp, row.id);
+    notifyDesigner(row.designer_id,'listing_review','Changes requested',`${row.title} needs changes before it can be published. ${reason}`,{listingId:row.id,actionPath:'/account',priority:'important',source:'admin',adminLabel:'House of Briar'});
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
@@ -2338,10 +2343,28 @@ function createApp(options = {}) {
     return res.json({orders:[...map.values()]});
   });
 
+  app.get('/api/admin/designers', authAdmin, (_req,res)=>{
+    const items=db.prepare("SELECT id,brand_name,display_name,status FROM designer_profiles ORDER BY COALESCE(brand_name,display_name),id").all();
+    return res.json({items:items.map(d=>({id:d.id,name:d.brand_name||d.display_name,status:d.status}))});
+  });
+  app.get('/api/admin/designer-messages', authAdmin, (_req,res)=>{
+    const items=db.prepare("SELECT n.*,p.brand_name,p.display_name FROM designer_notifications n JOIN designer_profiles p ON p.id=n.designer_id WHERE n.source='admin' ORDER BY n.created_at DESC LIMIT 200").all();
+    return res.json({items:items.map(n=>({id:n.id,designerId:n.designer_id,designerName:n.brand_name||n.display_name,type:n.type,priority:n.priority,title:n.title,body:n.body,listingId:n.listing_id,orderId:n.order_id,createdAt:n.created_at,readAt:n.read_at}))});
+  });
+  app.post('/api/admin/designers/:designerId/messages', authAdmin, (req,res)=>{
+    const designer=db.prepare('SELECT id FROM designer_profiles WHERE id=?').get(req.params.designerId);
+    if(!designer)return fail(res,404,'designer_not_found','Designer not found.');
+    const title=String(req.body?.title||'').trim(),body=String(req.body?.body||'').trim(),priority=String(req.body?.priority||'normal');
+    if(!title||title.length>160||!body||body.length>2000||!['normal','important','urgent'].includes(priority))return fail(res,422,'validation_error','Add a title, message, and valid priority.');
+    const listingId=String(req.body?.listingId||'').trim()||null,orderId=String(req.body?.orderId||'').trim()||null;
+    const id=notifyDesigner(designer.id,'house_notice',title,body,{listingId,orderId,actionPath:'/account#messages',priority,source:'admin',adminLabel:'House of Briar'});
+    return res.status(201).json({message:{id,designerId:designer.id,title,body,priority}});
+  });
+
   app.get('/api/my/designer-notifications', authDesigner, (req,res)=>{
     const items=db.prepare('SELECT * FROM designer_notifications WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
     const unread=items.reduce((sum,item)=>sum+(item.read_at?0:1),0);
-    return res.json({unread,items:items.map(item=>({id:item.id,type:item.type,title:item.title,body:item.body,listingId:item.listing_id,orderId:item.order_id,inquiryId:item.inquiry_id,actionPath:item.action_path,readAt:item.read_at,createdAt:item.created_at}))});
+    return res.json({unread,items:items.map(item=>({id:item.id,type:item.type,title:item.title,body:item.body,listingId:item.listing_id,orderId:item.order_id,inquiryId:item.inquiry_id,actionPath:item.action_path,priority:item.priority||'normal',source:item.source||'system',adminLabel:item.admin_label||null,readAt:item.read_at,createdAt:item.created_at}))});
   });
   app.patch('/api/my/designer-notifications/:notificationId/read', authDesigner, (req,res)=>{
     const now=new Date().toISOString();
