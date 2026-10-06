@@ -1512,6 +1512,20 @@ function createApp(options = {}) {
   }
   syncConfiguredBrandStripeAccounts();
 
+  const configuredBrandProfiles = (()=>{try{return JSON.parse(process.env.DESIGNER_BRAND_PROFILES_JSON||'{}')}catch{return {}}})();
+  function syncConfiguredBrandProfiles(){
+    for(const [brandName,profile] of Object.entries(configuredBrandProfiles)){
+      if(!brandName||!profile||typeof profile!=='object')continue;
+      const matches=db.prepare("SELECT id FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
+      if(matches.length!==1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
+      const bio=String(profile.bio||'').trim().slice(0,2000);
+      const categories=Array.isArray(profile.categories)?profile.categories.map(v=>String(v).trim()).filter(Boolean).slice(0,12):[];
+      db.prepare('UPDATE designer_profiles SET bio=?,categories=? WHERE id=?').run(bio||null,JSON.stringify(categories),matches[0].id);
+      log('info','designer_profile_synced',{brandName,designerId:matches[0].id});
+    }
+  }
+  syncConfiguredBrandProfiles();
+
   function designerStripeAccount(designerId) {
     const profile=db.prepare("SELECT stripe_account_id FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
     const accountId=profile?.stripe_account_id || connectAccounts[designerId] || '';
