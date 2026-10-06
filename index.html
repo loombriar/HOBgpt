@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=catalog-filters-11" />
-    <script src="/script.js?v=catalog-filters-9" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=measurement-fit-12" />
+    <script src="/script.js?v=measurement-fit-11" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -80,7 +80,7 @@
                 <h2>Shop the Briar</h2>
               </div>
               <div class="shop-search-controls">
-                <label class="shop-search" for="shop-search-input"><span>What are you looking for?</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
+                <label class="shop-search" for="shop-search-input"><span>Category is…</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <div class="shop-drop-windows" aria-label="Shop filters">
                   <label class="shop-drop-window illustrated-select garment-window">
                     <span class="category-window-title" aria-hidden="true">Garment</span>
@@ -159,6 +159,23 @@
                     </select>
                   </label>
                 </div>
+                <details class="fit-search">
+                  <summary>Shop by my measurements</summary>
+                  <p>Match your body measurements to ranges supplied by designers. Pieces without every measurement you enter are excluded. Check the piece’s fit notes before buying.</p>
+                  <label>Saved profile<select id="shop-fit-profile"><option value="">Enter measurements</option></select></label>
+                  <label>Units<select id="shop-fit-unit"><option value="in">Inches</option><option value="cm">Centimeters</option></select></label>
+                  <form id="shop-fit-form">
+                    <div class="fit-fields">
+                      <label>Bust / chest<input id="shop-fit-bust" type="number" min="0.1" step="any" inputmode="decimal"></label>
+                      <label>Waist<input id="shop-fit-waist" type="number" min="0.1" step="any" inputmode="decimal"></label>
+                      <label>Hips<input id="shop-fit-hips" type="number" min="0.1" step="any" inputmode="decimal"></label>
+                      <label>Inseam<input id="shop-fit-inseam" type="number" min="0.1" step="any" inputmode="decimal"></label>
+                    </div>
+                    <button class="secondary-button" type="submit">Find measurement matches</button>
+                    <button class="text-button" id="shop-fit-remove" type="button">Remove measurement filter</button>
+                    <p id="shop-fit-message" role="status"></p>
+                  </form>
+                </details>
                   <button id="shop-clear-filters" type="button" class="btn btn-secondary">Clear filters</button>
                   <label class="shop-pattern-control">
                     <span>Print / Pattern</span>
@@ -322,6 +339,14 @@
                 <option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option><option value="3XL">3XL</option>
                 <option value="One Size">One Size</option><option value="Custom / Other">Custom / Other</option>
               </select>
+              <fieldset class="fit-ranges">
+                <legend>Body measurements this piece fits (inches)</legend>
+                <p>Optional. Enter the wearer’s minimum and maximum measurements, accounting for ease and stretch. These are body ranges, not flat garment dimensions. Fill both numbers for each range you know.</p>
+                <div class="fit-range"><span>Bust / chest</span><label>Minimum<input id="product-fit-bust-min" type="number" min="0.1" max="150" step="any"></label><label>Maximum<input id="product-fit-bust-max" type="number" min="0.1" max="150" step="any"></label></div>
+                <div class="fit-range"><span>Waist</span><label>Minimum<input id="product-fit-waist-min" type="number" min="0.1" max="150" step="any"></label><label>Maximum<input id="product-fit-waist-max" type="number" min="0.1" max="150" step="any"></label></div>
+                <div class="fit-range"><span>Hips</span><label>Minimum<input id="product-fit-hips-min" type="number" min="0.1" max="150" step="any"></label><label>Maximum<input id="product-fit-hips-max" type="number" min="0.1" max="150" step="any"></label></div>
+                <div class="fit-range"><span>Inseam</span><label>Minimum<input id="product-fit-inseam-min" type="number" min="0.1" max="150" step="any"></label><label>Maximum<input id="product-fit-inseam-max" type="number" min="0.1" max="150" step="any"></label></div>
+              </fieldset>
               <input id="product-category" name="category" type="hidden" value="apparel" />
             </div>
           </div>
