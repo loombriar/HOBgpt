@@ -1296,7 +1296,7 @@ function createApp(options = {}) {
     if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
     const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
-    return {designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null};
+    return {designerId:designer.id,onboardingUrl:link.url,expiresAt:link.expires_at||null};
   }
 
   async function stripeStatus(designer) {
