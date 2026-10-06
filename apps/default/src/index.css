@@ -100,3 +100,8 @@
 .genesis__spinner-ring { width: 20px; height: 20px; border: 1.5px solid transparent; border-top: 1.5px solid rgba(255,255,255,.6); border-radius: 50%; animation: genesis__spin 1s linear infinite; }
 @keyframes genesis__spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .genesis__spinner-ring { animation: none; border-top-color: rgba(255,255,255,.9); } }
+
+
+.briar-house-link{display:flex;align-items:center;justify-content:center;flex:0 0 126px;width:126px;height:105px;padding:36px 20px 17px;background:url('/blackberry-house-nav-frame-v1.webp') center/100% 100% no-repeat;color:#4f3825;font-size:12px;line-height:1.2;text-align:center}
+.briar-house-link:focus-visible{outline:2px solid #80612f;outline-offset:-5px}
+.briar-house-link:hover{text-decoration:underline;text-underline-offset:3px}
