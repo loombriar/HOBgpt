@@ -1740,3 +1740,17 @@ body.designer-room-open .designer-room-page{display:block}
 .seller-readiness-hint{font-size:.8rem;color:var(--text-muted);font-weight:400}
 #seller-readiness-badge[data-ready="true"]{font-weight:700}
 @media(max-width:700px){.seller-readiness-list{grid-template-columns:1fr}.seller-readiness-heading{align-items:center}}
+
+/* Designer Room readiness polish */
+.designer-room-header{position:relative;top:auto;z-index:2;margin:0 0 1.5rem;padding:0 0 1rem;border-bottom:1px solid var(--border);background:#fffdfb;backdrop-filter:none}
+.designer-room-page .login-panel,.designer-room-page #designer-workspace{padding:0}
+.designer-room-page #designer-workspace{display:grid;gap:1rem}
+.designer-room-page #designer-workspace.hidden{display:none!important}
+.seller-readiness-card{margin:0;padding:1.25rem}
+.seller-readiness-item.is-complete{border-color:rgba(48,102,69,.35);background:rgba(239,248,241,.72)}
+.seller-readiness-item.is-complete .seller-readiness-mark{border-color:#306645;background:#306645;color:#fff}
+.seller-readiness-item.is-pending{border-color:rgba(139,96,35,.28);background:rgba(255,249,237,.72)}
+.seller-readiness-action{justify-self:start;margin-top:.2rem;padding:0;text-decoration:underline}
+#seller-readiness-badge[data-ready="true"]{background:#306645;color:#fff;border-color:#306645}
+#seller-readiness-badge[data-ready="false"]{background:#fff8e8;color:#6b4b1f;border-color:rgba(139,96,35,.35)}
+@media(max-width:700px){.designer-room-header{margin:0 0 1rem;padding:0 0 1rem}.designer-room-page{padding:1rem}.seller-readiness-card{padding:1rem}}
