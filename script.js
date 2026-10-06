@@ -3,6 +3,23 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const FAVORITE_KEY = 'house-of-briar:favorites';
 
+function showCheckoutReturnStatus() {
+  const params = new URLSearchParams(window.location.search);
+  const checkout = params.get('checkout');
+  const donation = params.get('donation');
+  if (!checkout && !donation) return;
+  const notice = document.createElement('div');
+  notice.className = 'checkout-return-notice';
+  notice.setAttribute('role', 'status');
+  if (checkout === 'success') notice.textContent = 'Thank you. Your payment was submitted. Bank payments may remain pending until Stripe confirms they have cleared.';
+  else if (checkout === 'canceled') notice.textContent = 'Checkout was canceled. Your payment was not completed.';
+  else if (donation === 'success') notice.textContent = 'Thank you for supporting House of Briar. Bank donations may remain pending until Stripe confirms they have cleared.';
+  else notice.textContent = 'Your donation checkout was canceled.';
+  document.body.prepend(notice);
+  history.replaceState({}, '', window.location.pathname + window.location.hash);
+}
+window.addEventListener('DOMContentLoaded', showCheckoutReturnStatus);
+
 const byId = (id) => document.getElementById(id);
 const year = byId('year');
 if (year) year.textContent = new Date().getFullYear();
