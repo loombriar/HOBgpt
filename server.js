@@ -939,6 +939,10 @@ function createApp(options = {}) {
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
   });
+  const fabricFinderUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_IMAGE_BYTES, files: 3 }
+  });
 
   async function moderateDesignerImage(buffer,mimeType,context='designer upload') {
     const apiKey=process.env.OPENAI_API_KEY;
@@ -2661,7 +2665,7 @@ function createApp(options = {}) {
     return res.json({ok:true,updated:result.changes});
   });
 
-  app.post('/api/my/fabric-finder', authDesigner, upload.array('photos',3), async (req,res,next)=>{
+  app.post('/api/my/fabric-finder', authDesigner, fabricFinderUpload.array('photos',3), async (req,res,next)=>{
     try{
       const apiKey=process.env.OPENAI_API_KEY;
       if(!apiKey)return fail(res,503,'fabric_finder_not_configured','Fabric Finder is not configured yet.');
