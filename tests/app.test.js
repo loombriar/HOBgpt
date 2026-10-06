@@ -352,3 +352,23 @@ test('designer logos preserve proportions, ownership and public maker attributio
   const remove = await fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'DELETE', headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` } }); assert.equal(remove.status, 200);
   assert.equal((await fetch(`${baseUrl}${logoUrl}`)).status, 404);
 });
+
+test('listing reports are validated, persisted and visible only to admins', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'briar-report-'));
+  const instance = createApp({ dataDir: directory, seedProducts: [{ id: 'report-piece', title: 'Reported piece', price: 30 }], adminToken: ADMIN_TOKEN });
+  const listener = instance.app.listen(0, '127.0.0.1'); await once(listener, 'listening');
+  const origin = `http://127.0.0.1:${listener.address().port}`;
+  try {
+    const send = body => fetch(`${origin}/api/listings/report-piece/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await send({ reason: 'other' })).status, 422);
+    const created = await send({ reason: 'misleading', notes: 'The materials seem inconsistent.' }); assert.equal(created.status, 201);
+    const report = await created.json();
+    assert.equal(instance.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'open');
+    assert.equal((await fetch(`${origin}/api/admin/listing-reports`)).status, 401);
+    const headers = { Authorization: `Bearer ${ADMIN_TOKEN}` };
+    const queue = await (await fetch(`${origin}/api/admin/listing-reports`, { headers })).json(); assert.equal(queue.reports[0].notes, 'The materials seem inconsistent.');
+    assert.equal((await fetch(`${origin}/api/admin/listing-reports/${report.id}/resolve`, { method: 'POST', headers })).status, 200);
+    assert.equal(instance.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'resolved');
+    assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id=?').get('report-piece').status, 'published');
+  } finally { await new Promise(resolve => listener.close(resolve)); instance.db.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+});

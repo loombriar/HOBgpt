@@ -510,6 +510,7 @@ function createApp(options = {}) {
     };
   }
 
+  const reportLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'listing-report' });
   const signupLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'signup' });
   const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'checkout' });
 
@@ -1710,6 +1711,34 @@ function createApp(options = {}) {
     `).run(nextStatus, nextModeration, reviewRequired ? null : timestamp, timestamp, row.id);
 
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  db.exec(`CREATE TABLE IF NOT EXISTS listing_reports (
+    id TEXT PRIMARY KEY, listing_id TEXT NOT NULL, reason TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT NOT NULL, resolved_at TEXT,
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  )`);
+  app.post('/api/listings/:listingId/report', reportLimiter, (req, res) => {
+    const row = getListing(req.params.listingId);
+    if (!row || row.status !== 'published' || row.moderation_status !== 'approved') return fail(res, 404, 'not_found', 'Listing not found.');
+    const reason = String(req.body?.reason || '').trim();
+    const notes = String(req.body?.notes || '').trim();
+    if (!['misleading', 'copyright', 'prohibited', 'inappropriate', 'other'].includes(reason) || notes.length > 2000 || (reason === 'other' && !notes)) return fail(res, 422, 'validation_error', 'Choose a reason; add details for Other. Notes may be up to 2,000 characters.');
+    const id = crypto.randomUUID();
+    db.prepare('INSERT INTO listing_reports (id,listing_id,reason,notes,created_at) VALUES (?,?,?,?,?)').run(id,row.id,reason,notes,new Date().toISOString());
+    return res.status(201).json({ id, status: 'open' });
+  });
+  app.get('/api/admin/listing-reports', authAdmin, (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const reports = db.prepare(`SELECT r.*,l.title,l.status listing_status,l.designer_id FROM listing_reports r JOIN listings l ON l.id=r.listing_id ORDER BY CASE WHEN r.status='open' THEN 0 ELSE 1 END,r.created_at DESC LIMIT 300`).all();
+    res.json({ reports });
+  });
+  app.post('/api/admin/listing-reports/:reportId/resolve', authAdmin, (req, res) => {
+    const report = db.prepare('SELECT id FROM listing_reports WHERE id=?').get(req.params.reportId);
+    if (!report) return fail(res,404,'not_found','Report not found.');
+    db.prepare("UPDATE listing_reports SET status='resolved',resolved_at=? WHERE id=?").run(new Date().toISOString(),report.id);
+    res.json({ id: report.id, status: 'resolved' });
   });
 
   app.get('/api/admin/listings', authAdmin, (_req, res) => {

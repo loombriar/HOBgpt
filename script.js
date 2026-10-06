@@ -538,6 +538,23 @@ function openProductDetails(item) {
   if (item.careInstructions) copy.appendChild(makeElement('p', 'product-care', `Care: ${item.careInstructions}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
 
+  const reportSection = document.createElement('details'); reportSection.className = 'listing-report';
+  reportSection.append(makeElement('summary', 'text-button', 'Report listing'));
+  const reportForm = document.createElement('form'); reportForm.className = 'stack-form';
+  const reasonLabel = makeElement('label', '', 'Why are you reporting this piece?');
+  const reason = document.createElement('select'); reason.required = true; reason.setAttribute('aria-label', 'Report reason');
+  for (const [value, label] of [['', 'Choose a reason'], ['misleading', 'Misleading listing'], ['copyright', 'Copied work / copyright concern'], ['prohibited', 'Prohibited item'], ['inappropriate', 'Inappropriate content'], ['other', 'Other']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; reason.append(option); }
+  reasonLabel.append(reason);
+  const notesLabel = makeElement('label', '', 'Details (optional, required for Other)');
+  const notes = document.createElement('textarea'); notes.rows = 3; notes.maxLength = 2000; notes.setAttribute('aria-label', 'Report details'); notesLabel.append(notes);
+  const submit = makeElement('button', 'secondary-button', 'Send report'); submit.type = 'submit';
+  const reportMessage = makeElement('p', 'form-message'); reportMessage.setAttribute('role', 'status');
+  reportForm.append(makeElement('p', 'small-print', 'Reports are reviewed privately by House of Briar. Reporting does not automatically remove a piece.'), reasonLabel, notesLabel, submit, reportMessage);
+  reportForm.addEventListener('submit', async event => {
+    event.preventDefault(); submit.disabled = true;
+    try { await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.value, notes: notes.value.trim() }) }); setMessage(reportMessage, 'Thank you. Your report is saved for the House team to review.', 'success'); }
+    catch (error) { setMessage(reportMessage, error.message, 'error'); submit.disabled = false; }
+  }); reportSection.append(reportForm); copy.append(reportSection);
   const sizingBox = makeElement('div', 'measurement-request');
   sizingBox.appendChild(makeElement('h4', '', 'Send measurements for this piece'));
   sizingBox.appendChild(makeElement('p', 'small-print', 'Choose a saved Visitor’s Suite profile or enter measurements here. They are attached only to this piece.'));
@@ -1305,7 +1322,8 @@ async function renderAdminOverview() {
   const sections = [
     ['Operations', '/api/admin/operations'],
     ['Designer sign-ups', '/api/admin/designer-applications'],
-    ['Customer service', '/api/admin/support']
+    ['Customer service', '/api/admin/support'],
+    ['Listing reports', '/api/admin/listing-reports']
   ];
   await Promise.all(sections.map(async ([title, url]) => {
     const section = makeElement('section', 'admin-summary-section');
@@ -1316,6 +1334,23 @@ async function renderAdminOverview() {
         section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
         for (const [key, value] of Object.entries(data.summary)) section.append(makeElement('p', '', `${key.replace(/([A-Z])/g, ' $1')}: ${value}`));
         for (const order of data.orders || []) section.append(makeElement('p', '', `Order ${order.id} · ${order.status} · ${(order.subtotal_cents / 100).toFixed(2)} ${order.currency}`));
+      }
+      if (data.reports) {
+        if (!data.reports.length) section.append(makeElement('p', '', 'No listing reports yet.'));
+        for (const report of data.reports) {
+          const card = makeElement('article', 'admin-support-item');
+          card.append(makeElement('h4', '', `${report.title} · ${report.status}`), makeElement('p', '', `${report.reason} · ${report.created_at}`), makeElement('p', '', report.notes || 'No additional details.'));
+          const view = makeElement('button', 'secondary-button', 'View listing'); view.type = 'button';
+          view.addEventListener('click', async () => { try { const { items } = await adminRequest('/api/admin/listings'); const item = items.find(item => item.id === report.listing_id); if (!item) throw new Error('This listing has been deleted.'); openProductDetails(item); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); } }); card.append(view);
+          if (report.status === 'open') {
+            const resolve = makeElement('button', 'secondary-button', 'Mark reviewed'); resolve.type = 'button';
+            resolve.addEventListener('click', async () => { resolve.disabled = true; try { await adminRequest(`/api/admin/listing-reports/${encodeURIComponent(report.id)}/resolve`, { method: 'POST' }); await renderAdminOverview(); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); resolve.disabled = false; } }); card.append(resolve);
+            if (report.listing_status === 'published') {
+              const hide = makeElement('button', 'secondary-button', 'Take off the floor'); hide.type = 'button';
+              hide.addEventListener('click', async () => { hide.disabled = true; try { await adminRequest(`/api/admin/listings/${encodeURIComponent(report.listing_id)}/unpublish`, { method: 'POST' }); await loadGallery(); await renderAdminQueue(); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); hide.disabled = false; } }); card.append(hide);
+            }
+          } section.append(card);
+        }
       }
       if (data.applications) {
         if (!data.applications.length) section.append(makeElement('p', '', 'No designer sign-ups yet.'));
