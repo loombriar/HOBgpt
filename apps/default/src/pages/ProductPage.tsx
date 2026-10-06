@@ -8,6 +8,7 @@ import InquiryForm from '@/components/InquiryForm';
 import ProductInquiryForm from '@/components/ProductInquiryForm';
 import CollectorNotes from '@/components/CollectorNotes';
 import { getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, getProductImages, getProductVisual, money, setPersistentFavorite, slugify } from '@/lib/marketplace';
+import { trackCommerceEvent } from '@/lib/analytics';
 
 export default function ProductPage() {
   const auth = useAuth();
@@ -17,12 +18,15 @@ export default function ProductPage() {
   const [saved, setSaved] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [inCart, setInCart] = useState(false);
+  const [catalog, setCatalog] = useState<GenesisNode[]>([]);
+  const [boughtTogetherIds, setBoughtTogetherIds] = useState<string[]>([]);
 
   useEffect(() => {
     setActiveImageIndex(0);
     setLoading(true);
     void getCatalogProducts(auth.isAuthenticated)
       .then((items) => {
+        setCatalog(items);
         setProduct(items.find((item) => item.id === productId || slugify(getTitle(item, 'Name') ?? '') === productId) ?? null);
       })
       .catch(() => setProduct(null))
@@ -30,6 +34,8 @@ export default function ProductPage() {
   }, [productId, auth.isAuthenticated]);
 
   const resolvedProductId = product?.id;
+
+  useEffect(() => { if(!resolvedProductId)return; void fetch(`/api/recommendations/${encodeURIComponent(resolvedProductId)}`).then(r=>r.ok?r.json():Promise.reject()).then(p=>setBoughtTogetherIds(Array.isArray(p?.frequentlyBoughtTogether)?p.frequentlyBoughtTogether.map((x:{listingId:string})=>x.listingId):[])).catch(()=>setBoughtTogetherIds([])); }, [resolvedProductId]);
 
   useEffect(() => {
     if (!resolvedProductId) return;
@@ -52,6 +58,24 @@ export default function ProductPage() {
     return () => window.removeEventListener('house-of-briar-cart', refreshCart);
   }, [resolvedProductId]);
 
+  useEffect(() => {
+    if (!product) return;
+    const name = getTitle(product, 'Name') ?? 'Untitled piece'; const designer = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer'; const price = getFieldNumber(product, '@price', 'Price') ?? 0; const description = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.'; const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs')); const seoTitle = getFieldValue(product, '@seotl', 'SEO Title') || `${name} by ${designer}`; const seoDescription = getFieldValue(product, '@seods', 'SEO Description') || description; const shareImage = getFieldValue(product, '@share', 'Share Image') || images[0] || '';
+    trackCommerceEvent({ event: 'view_product', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
+    try { const old=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); const ids=Array.isArray(old)?old.filter((id):id is string=>typeof id==='string'&&id!==product.id):[]; window.localStorage.setItem('house-of-briar:recently-viewed',JSON.stringify([product.id,...ids].slice(0,12))); } catch {}
+    document.title = `${seoTitle} | House of Briar`;
+    const setMeta=(selector:string,attribute:string,value:string)=>{let el=document.querySelector(selector) as HTMLMetaElement|null;if(!el){el=document.createElement('meta');const match=selector.match(/meta\[(name|property)="([^"]+)"\]/);if(match)el.setAttribute(match[1],match[2]);document.head.appendChild(el);}el.setAttribute(attribute,value);};
+    setMeta('meta[name="description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:title"]','content',seoTitle);
+    setMeta('meta[property="og:description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:url"]','content',window.location.href);
+    if(shareImage)setMeta('meta[property="og:image"]','content',shareImage);
+    setMeta('meta[name="twitter:title"]','content',seoTitle);
+    setMeta('meta[name="twitter:description"]','content',seoDescription.slice(0,180));
+    if(shareImage)setMeta('meta[name="twitter:image"]','content',shareImage);
+    return () => { document.title = 'House of Briar'; };
+  }, [product]);
+
   if (loading) {
     return <HouseShell><section className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:px-8"><div className="aspect-[4/5] animate-pulse rounded-[2rem] bg-muted" /><div className="space-y-5 py-8"><div className="h-4 w-28 animate-pulse rounded-full bg-muted" /><div className="h-16 w-4/5 animate-pulse rounded-2xl bg-muted" /><div className="h-5 w-1/3 animate-pulse rounded-full bg-muted" /><div className="h-24 w-full animate-pulse rounded-2xl bg-muted" /><div className="h-12 w-full animate-pulse rounded-full bg-muted" /></div></section></HouseShell>;
   }
@@ -72,6 +96,33 @@ export default function ProductPage() {
   const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs'));
   const primaryImage = images[activeImageIndex] ?? images[0];
   const hasGallery = images.length > 1;
+  const price = getFieldNumber(product, '@price', 'Price') ?? 0;
+  const seoTitle = getFieldValue(product, '@seotl', 'SEO Title') || `${name} by ${designer}`;
+  const seoDescription = getFieldValue(product, '@seods', 'SEO Description') || description;
+  const shareImage = getFieldValue(product, '@share', 'Share Image') || primaryImage || '';
+  const shippingCostCents = Number(getFieldValue(product, '@shipc', 'Shipping Cost') || NaN);
+  const freeShippingThresholdCents = Number(getFieldValue(product, '@shipf', 'Free Shipping Threshold') || NaN);
+  const handlingMin = Number(getFieldValue(product, '@handl', 'Handling Min') || NaN);
+  const handlingMax = Number(getFieldValue(product, '@handx', 'Handling Max') || NaN);
+  const internationalShipping = getFieldValue(product, '@intl', 'International Shipping') === 'yes';
+
+
+
+  const boughtTogether=boughtTogetherIds.map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
+    const productTags = tags.toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
+  const recommendations = catalog.filter(item=>item.id!==product.id && (getFieldValue(item,'@statx','Status')??'Available')==='Available').map(item=>{
+    const itemTags=(getFieldValue(item,'@tagsx','Tags')??'').toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
+    const itemCategory=getFieldValue(item,'@categ','Category')??'';
+    const itemStyle=getFieldValue(item,'@style','Style')??'';
+    const style=getFieldValue(product,'@style','Style')??'';
+    const sharedTags=itemTags.filter(t=>productTags.includes(t)).length;
+    const score=sharedTags*4+(itemCategory===category?3:0)+(style&&itemStyle===style?3:0)+(getFieldValue(item,'@desig','Designer')===designer?1:0);
+    return {item,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,4).map(x=>x.item);
+  let recentIds:string[]=[];
+  try { recentIds=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); if(!Array.isArray(recentIds))recentIds=[]; } catch {}
+  const recentlyViewed=recentIds.filter(id=>id!==product.id).map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
+  const RecommendationCard=({item}:{item:GenesisNode})=>{const itemName=getTitle(item,'Name')??'Untitled piece';const itemImage=getProductImages(getFieldValue(item,'@image','Image URL'),getFieldValue(item,'@gally','Gallery URLs'))[0];return <Link to={`/shop/${item.id}`} className="group block"><div className="aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-muted">{itemImage?<img src={itemImage} alt={itemName} className="size-full object-cover transition duration-300 group-hover:scale-105"/>:null}</div><p className="mt-3 font-serif text-xl">{itemName}</p><p className="mt-1 text-sm text-muted-foreground">{money.format(getFieldNumber(item,'@price','Price')??0)}</p></Link>};
 
   const addToCart = () => {
     const raw = window.localStorage.getItem('house-of-briar:cart');
@@ -80,6 +131,7 @@ export default function ProductPage() {
     window.localStorage.setItem('house-of-briar:cart', JSON.stringify(items));
     setInCart(true);
     window.dispatchEvent(new Event('house-of-briar-cart'));
+    trackCommerceEvent({ event: 'add_to_cart', listingId: product.id, listingName: name, designer, value: price, currency: 'USD', itemCount: items.length });
   };
 
   const shareListing = async () => {
@@ -90,6 +142,7 @@ export default function ProductPage() {
   const toggleSaved = () => {
     const next=!saved;
     setSaved(next);
+    trackCommerceEvent({ event: next ? 'add_to_wishlist' : 'remove_from_wishlist', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
     void setPersistentFavorite(product.id,next,auth.user?.access_token).catch(()=>setSaved(!next));
   };
 
@@ -106,12 +159,13 @@ export default function ProductPage() {
         <Link to="/shop" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><ArrowLeft size={16} /> Back to collection</Link>
         <p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">{designerId ? <Link to={`/designers/${encodeURIComponent(designerId)}`} className="hover:underline">{designer}</Link> : designer}</p>
         <h1 className="mt-3 font-serif text-5xl leading-none sm:text-6xl">{name}</h1>
-        <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(getFieldNumber(product, '@price', 'Price') ?? 0)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
+        <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(price)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button><button type="button" onClick={()=>void shareListing()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary"><Share2 size={17}/> Share</button></div>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><div className="mt-8 rounded-2xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-sm font-semibold"><ShoppingBag size={16}/> Shipping &amp; delivery</div><p className="mt-3 text-sm leading-6 text-muted-foreground">{Number.isFinite(shippingCostCents)?shippingCostCents===0?'Free shipping for this piece':`Shipping: ${money.format(shippingCostCents/100)}`:'Exact shipping options and cost are shown before payment.'}{Number.isFinite(freeShippingThresholdCents)&&freeShippingThresholdCents>0?` Free shipping applies when the qualifying order reaches ${money.format(freeShippingThresholdCents/100)}.`:''}</p>{Number.isFinite(handlingMin)&&<p className="mt-2 text-sm text-muted-foreground">Designer handling time: {handlingMin}{Number.isFinite(handlingMax)&&handlingMax!==handlingMin?`–${handlingMax}`:''} business day{handlingMax===1?'':'s'} before carrier transit.</p>}<p className="mt-2 text-xs text-muted-foreground">{internationalShipping?'International delivery is available for this piece; destination duties or import charges may apply.':'International delivery is not currently offered for this piece.'}</p><a href="/shipping.html" className="mt-3 inline-flex text-sm font-medium text-primary hover:underline">Full shipping policy</a></div><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
+    {(boughtTogether.length>0||recommendations.length>0||recentlyViewed.length>0)&&<section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">{boughtTogether.length>0&&<div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Often chosen together</p><h2 className="mt-3 font-serif text-4xl">Pieces collectors paired in one order.</h2><div className="mt-7 grid gap-5 grid-cols-2 lg:grid-cols-4">{boughtTogether.map(item=><RecommendationCard key={item.id} item={item}/>)}</div></div>}{recommendations.length>0&&<div className={boughtTogether.length?'mt-14':''}><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Complete the story</p><h2 className="mt-3 font-serif text-4xl">Pieces that belong nearby.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Chosen from shared style, category, and collection details rather than a generic product list.</p><div className="mt-7 grid gap-5 grid-cols-2 lg:grid-cols-4">{recommendations.map(item=><RecommendationCard key={item.id} item={item}/>)}</div></div>}{recentlyViewed.length>0&&<div className={recommendations.length?'mt-14':''}><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Recently wandered</p><h2 className="mt-3 font-serif text-3xl">Pieces you passed along the way.</h2><div className="mt-7 grid gap-5 grid-cols-2 lg:grid-cols-4">{recentlyViewed.map(item=><RecommendationCard key={item.id} item={item}/>)}</div></div>}</div></section>}
     <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><ProductInquiryForm productId={product.id} productName={name} designerName={designer}/></div></section>\n    <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><CollectorNotes listingId={product.id}/></div></section>\n    <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Made for your measurements</p><h2 className="mt-3 font-serif text-4xl">Request custom sizing.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Send your measurements and an item-specific customization request directly to the designer. This is a structured request, not an open conversation.</p></div><InquiryForm productName={name} productId={product.id} designerName={designer} /></div></section>
   </HouseShell>;
 }

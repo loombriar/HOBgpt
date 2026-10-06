@@ -6,6 +6,7 @@ import HouseShell from '@/components/HouseShell';
 import { getFieldNumber, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
+import { trackCommerceEvent } from '@/lib/analytics';
 
 type SnapshotItem = { id: string; name: string; amount: number; quantity: number };
 type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number };
@@ -81,6 +82,7 @@ export default function CheckoutPage() {
       .then(() => {
         window.localStorage.removeItem(PENDING_KEY);
         setPaymentState('cancelled');
+        trackCommerceEvent({ event: 'checkout_abandoned', orderId: canceledOrderId, value: snapshot?.subtotal, currency: 'USD', itemCount: snapshot?.items.length });
       })
       .catch(() => setPaymentError('Your checkout was canceled. The reservation will release automatically if it could not be released immediately.'));
   }, [returnState, canceledOrderId, cancelToken]);
@@ -104,6 +106,7 @@ export default function CheckoutPage() {
           return;
         }
         setPaymentState('paid');
+        trackCommerceEvent({ event: 'purchase', orderId: sessionId, value: snapshot?.subtotal, currency: 'USD', itemCount: snapshot?.items.length });
         const purchasedIds = snapshot?.ids ?? [];
         const remaining = readCartIds().filter((id) => !purchasedIds.includes(id));
         window.localStorage.setItem(CART_KEY, JSON.stringify(remaining));
@@ -125,6 +128,7 @@ export default function CheckoutPage() {
     const checkoutItems: CheckoutItem[] = catalogItems.map(({ id, name, amount, quantity }) => ({ id, name, amount, quantity }));
     const nextSnapshot: CheckoutSnapshot = { ids: catalogItems.map((item) => item.id), items: catalogItems, subtotal };
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
+    trackCommerceEvent({ event: 'begin_checkout', value: subtotal, currency: 'USD', itemCount: catalogItems.length });
     try {
       const url = await createCheckoutSession(checkoutItems, auth.user?.access_token ?? '');
       window.location.assign(url);

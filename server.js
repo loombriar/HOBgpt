@@ -65,6 +65,18 @@ function validateListingInput(body = {}) {
   const availability = typeof body.availability === 'string' ? body.availability.trim() : 'floor';
   const alterationsAvailable = body.alterationsAvailable === true;
   const takesRequests = body.takesRequests === true;
+  const seoTitle = typeof body.seoTitle === 'string' ? body.seoTitle.trim() : '';
+  const seoDescription = typeof body.seoDescription === 'string' ? body.seoDescription.trim() : '';
+  const seoTags = typeof body.seoTags === 'string' ? body.seoTags.trim() : '';
+  const shareImageUrl = typeof body.shareImageUrl === 'string' ? body.shareImageUrl.trim() : '';
+  const shippingCostCents = body.shippingCostCents === '' || body.shippingCostCents == null ? null : Number(body.shippingCostCents);
+  const freeShippingThresholdCents = body.freeShippingThresholdCents === '' || body.freeShippingThresholdCents == null ? null : Number(body.freeShippingThresholdCents);
+  const handlingDaysMin = body.handlingDaysMin === '' || body.handlingDaysMin == null ? null : Number(body.handlingDaysMin);
+  const handlingDaysMax = body.handlingDaysMax === '' || body.handlingDaysMax == null ? null : Number(body.handlingDaysMax);
+  const internationalShipping = body.internationalShipping === true;
+  const sku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : '';
+  const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : 0) : Number(body.stockQuantity);
+  const lowStockThreshold = body.lowStockThreshold === '' || body.lowStockThreshold == null ? 1 : Number(body.lowStockThreshold);
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -78,8 +90,20 @@ function validateListingInput(body = {}) {
   if (careInstructions.length > 1000) return { error: 'Care instructions must be 1,000 characters or fewer.' };
   if (!['One of a Kind','Made in Multiple'].includes(productionType)) return { error: 'Choose whether this is one of a kind or made in multiple.' };
   if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
+  if (seoTitle.length > 70) return { error: 'SEO title must be 70 characters or fewer.' };
+  if (seoDescription.length > 180) return { error: 'SEO description must be 180 characters or fewer.' };
+  if (seoTags.length > 500) return { error: 'SEO tags must be 500 characters or fewer.' };
+  if (shareImageUrl && !/^https?:\/\//i.test(shareImageUrl)) return { error: 'Share image must use an absolute HTTP(S) URL.' };
+  if (shippingCostCents !== null && (!Number.isInteger(shippingCostCents) || shippingCostCents < 0 || shippingCostCents > 1000000)) return { error: 'Shipping cost must be a valid amount.' };
+  if (freeShippingThresholdCents !== null && (!Number.isInteger(freeShippingThresholdCents) || freeShippingThresholdCents < 0 || freeShippingThresholdCents > 100000000)) return { error: 'Free-shipping threshold must be a valid amount.' };
+  if (handlingDaysMin !== null && (!Number.isInteger(handlingDaysMin) || handlingDaysMin < 0 || handlingDaysMin > 365)) return { error: 'Minimum handling days must be between 0 and 365.' };
+  if (handlingDaysMax !== null && (!Number.isInteger(handlingDaysMax) || handlingDaysMax < 0 || handlingDaysMax > 365)) return { error: 'Maximum handling days must be between 0 and 365.' };
+  if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
+  if (sku && !/^[A-Z0-9._-]{2,64}$/.test(sku)) return { error: 'SKU may use letters, numbers, periods, underscores, and hyphens.' };
+  if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 100000) return { error: 'Stock quantity must be a whole number between 0 and 100,000.' };
+  if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
 }
 
 function createApp(options = {}) {
@@ -188,14 +212,15 @@ function createApp(options = {}) {
     );
 
     CREATE TABLE IF NOT EXISTS inventory_reservations (
-      listing_id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
       order_id TEXT NOT NULL,
       status TEXT NOT NULL CHECK (status IN ('reserved','sold','released')),
       reserved_at TEXT NOT NULL,
       expires_at TEXT NOT NULL,
       sold_at TEXT,
       FOREIGN KEY(listing_id) REFERENCES listings(id),
-      FOREIGN KEY(order_id) REFERENCES orders(id)
+      FOREIGN KEY(order_id) REFERENCES orders(id),
+      UNIQUE(listing_id, order_id)
     );
 
     CREATE TABLE IF NOT EXISTS order_items (
@@ -310,6 +335,51 @@ function createApp(options = {}) {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
   recordMigration(3, 'durable_email_outbox');
+
+  db.exec(`CREATE TABLE IF NOT EXISTS analytics_events (
+    id TEXT PRIMARY KEY,
+    event_name TEXT NOT NULL,
+    session_id TEXT,
+    listing_id TEXT,
+    listing_name TEXT,
+    designer TEXT,
+    value REAL,
+    currency TEXT,
+    search_query TEXT,
+    result_count INTEGER,
+    item_count INTEGER,
+    order_id TEXT,
+    source TEXT,
+    path TEXT,
+    referrer TEXT,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    created_at TEXT NOT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS analytics_events_name_created ON analytics_events(event_name,created_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS analytics_events_session_created ON analytics_events(session_id,created_at)');
+  recordMigration(4, 'first_party_commerce_analytics');
+  ensureColumn('listings', 'seo_title', 'TEXT');
+  ensureColumn('listings', 'seo_description', 'TEXT');
+  ensureColumn('listings', 'seo_tags', 'TEXT');
+  ensureColumn('listings', 'share_image_url', 'TEXT');
+  ensureColumn('listings', 'shipping_cost_cents', 'INTEGER');
+  ensureColumn('listings', 'free_shipping_threshold_cents', 'INTEGER');
+  ensureColumn('listings', 'handling_days_min', 'INTEGER');
+  ensureColumn('listings', 'handling_days_max', 'INTEGER');
+  ensureColumn('listings', 'international_shipping', 'INTEGER NOT NULL DEFAULT 0');
+  recordMigration(5, 'listing_seo_and_shipping');
+  ensureColumn('listings', 'sku', 'TEXT');
+  ensureColumn('listings', 'stock_quantity', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('listings', 'low_stock_threshold', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('inventory_reservations', 'quantity', 'INTEGER NOT NULL DEFAULT 1');
+  db.exec(`CREATE TABLE IF NOT EXISTS inventory_adjustments (
+    id TEXT PRIMARY KEY, listing_id TEXT NOT NULL, delta INTEGER NOT NULL, quantity_after INTEGER NOT NULL,
+    reason TEXT NOT NULL, actor_type TEXT NOT NULL, actor_id TEXT, created_at TEXT NOT NULL,
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  ); CREATE INDEX IF NOT EXISTS inventory_adjustments_listing ON inventory_adjustments(listing_id, created_at DESC);`);
+  recordMigration(6, 'quantity_inventory');
 
   db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
     category TEXT PRIMARY KEY,
@@ -655,6 +725,19 @@ function createApp(options = {}) {
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
+      seoTitle: row.seo_title || '',
+      seoDescription: row.seo_description || '',
+      seoTags: row.seo_tags || '',
+      shareImageUrl: row.share_image_url || '',
+      shippingCostCents: row.shipping_cost_cents == null ? null : Number(row.shipping_cost_cents),
+      freeShippingThresholdCents: row.free_shipping_threshold_cents == null ? null : Number(row.free_shipping_threshold_cents),
+      handlingDaysMin: row.handling_days_min == null ? null : Number(row.handling_days_min),
+      handlingDaysMax: row.handling_days_max == null ? null : Number(row.handling_days_max),
+      internationalShipping: Boolean(row.international_shipping),
+      sku: row.sku || '',
+      stockQuantity: Number(row.stock_quantity ?? 0),
+      lowStockThreshold: Number(row.low_stock_threshold ?? 1),
+      lowStock: Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -1175,15 +1258,14 @@ function createApp(options = {}) {
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
-    const find = db.prepare("SELECT * FROM inventory_reservations WHERE listing_id = ? AND status IN ('reserved','sold')");
-    const upsert = db.prepare(`INSERT INTO inventory_reservations (listing_id, order_id, status, reserved_at, expires_at)
-      VALUES (?, ?, 'reserved', ?, ?)
-      ON CONFLICT(listing_id) DO UPDATE SET order_id=excluded.order_id, status='reserved', reserved_at=excluded.reserved_at, expires_at=excluded.expires_at, sold_at=NULL`);
+    const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
+    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
+    const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
-      if (item.quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
-      const active = find.get(item.id);
-      if (active) throw Object.assign(new Error('One or more pieces are already reserved or sold.'), { statusCode: 409 });
-      upsert.run(item.id, orderId, now, expiresAt);
+      const listing=db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(item.id);
+      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
+      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
   }
@@ -1345,7 +1427,42 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
-  app.get('/api/gallery', (_req, res) => {
+  app.post('/api/analytics/events', express.json({ limit: '16kb' }), (req, res) => {
+    const allowed = new Set(['view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const eventName = String(body.event || '');
+    if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
+    const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
+    const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
+    db.prepare(`INSERT INTO analytics_events (
+      id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
+      text(body.designer, 200), number(body.value), text(body.currency, 12), text(body.query, 300),
+      number(body.resultCount), number(body.itemCount), text(body.orderId, 100), text(body.source, 100),
+      text(body.path, 500), text(body.referrer, 1000), text(body.utmSource, 200), text(body.utmMedium, 200),
+      text(body.utmCampaign, 300), new Date().toISOString()
+    );
+    res.status(202).json({ accepted: true });
+  });
+
+  app.get('/api/admin/analytics', authAdmin, (_req, res) => {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const events = db.prepare(`SELECT event_name, COUNT(*) count FROM analytics_events WHERE created_at >= ? GROUP BY event_name ORDER BY count DESC`).all(since);
+    const funnelNames = ['view_product','add_to_cart','begin_checkout','purchase'];
+    const counts = Object.fromEntries(funnelNames.map(name => [name, Number(events.find(row => row.event_name === name)?.count || 0)]));
+    const searches = db.prepare(`SELECT search_query query, COUNT(*) count FROM analytics_events WHERE event_name='search' AND search_query IS NOT NULL AND created_at >= ? GROUP BY search_query ORDER BY count DESC LIMIT 20`).all(since);
+    const sources = db.prepare(`SELECT COALESCE(utm_source, source, 'direct') source, COUNT(*) count, ROUND(COALESCE(SUM(value),0),2) revenue FROM analytics_events WHERE event_name='purchase' AND created_at >= ? GROUP BY COALESCE(utm_source, source, 'direct') ORDER BY revenue DESC, count DESC LIMIT 20`).all(since);
+    const revenueRow=db.prepare(`SELECT ROUND(COALESCE(SUM(value),0),2) revenue, COUNT(*) purchases, ROUND(COALESCE(AVG(value),0),2) aov FROM analytics_events WHERE event_name='purchase' AND created_at>=?`).get(since);
+    const startedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='begin_checkout' AND created_at>=?`).get(since)?.count||0);
+    const purchasedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='purchase' AND created_at>=?`).get(since)?.count||0);
+    const abandonedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT b.session_id) count FROM analytics_events b WHERE b.event_name='begin_checkout' AND b.created_at>=? AND b.created_at < datetime('now','-2 hours') AND NOT EXISTS (SELECT 1 FROM analytics_events p WHERE p.session_id=b.session_id AND p.event_name='purchase' AND p.created_at>=b.created_at)`).get(since)?.count||0);
+    const rate=(from,to)=>from>0?Math.round((to/from)*1000)/10:0;
+    const funnel={...counts, conversionRates:{viewToCart:rate(counts.view_product,counts.add_to_cart),cartToCheckout:rate(counts.add_to_cart,counts.begin_checkout),checkoutToPurchase:rate(counts.begin_checkout,counts.purchase),viewToPurchase:rate(counts.view_product,counts.purchase)},dropOff:{viewToCart:Math.max(0,counts.view_product-counts.add_to_cart),cartToCheckout:Math.max(0,counts.add_to_cart-counts.begin_checkout),checkoutToPurchase:Math.max(0,counts.begin_checkout-counts.purchase)}};
+    res.json({ periodDays: 30, events, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
+  });
+
+    app.get('/api/gallery', (_req, res) => {
     const rows = db.prepare(`
       SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name, CASE WHEN ir.status='sold' THEN 1 ELSE 0 END AS sold
       FROM listings l
@@ -1353,6 +1470,20 @@ function createApp(options = {}) {
       ORDER BY l.published_at DESC, l.created_at DESC
     `).all();
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
+  });
+
+  app.get('/api/recommendations/:listingId', (req,res) => {
+    const listingId=String(req.params.listingId||'');
+    const boughtTogether=db.prepare(`
+      SELECT oi2.listing_id, COUNT(DISTINCT oi.order_id) AS pair_count
+      FROM order_items oi
+      JOIN orders o ON o.id=oi.order_id AND o.status='paid'
+      JOIN order_items oi2 ON oi2.order_id=oi.order_id AND oi2.listing_id<>oi.listing_id
+      JOIN listings l ON l.id=oi2.listing_id AND l.status='published' AND l.moderation_status='approved'
+      WHERE oi.listing_id=?
+      GROUP BY oi2.listing_id ORDER BY pair_count DESC LIMIT 6
+    `).all(listingId);
+    return res.json({frequentlyBoughtTogether:boughtTogether.map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
   });
 
   app.get('/api/designers', (_req,res)=>{
@@ -1475,9 +1606,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1496,6 +1627,18 @@ function createApp(options = {}) {
       validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
+      validation.value.seoTitle || null,
+      validation.value.seoDescription || null,
+      validation.value.seoTags || null,
+      validation.value.shareImageUrl || null,
+      validation.value.shippingCostCents,
+      validation.value.freeShippingThresholdCents,
+      validation.value.handlingDaysMin,
+      validation.value.handlingDaysMax,
+      validation.value.internationalShipping ? 1 : 0,
+      validation.value.sku || null,
+      validation.value.stockQuantity,
+      validation.value.lowStockThreshold,
       timestamp,
       timestamp
     );
@@ -1518,7 +1661,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1538,6 +1681,18 @@ function createApp(options = {}) {
       validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
+      validation.value.seoTitle || null,
+      validation.value.seoDescription || null,
+      validation.value.seoTags || null,
+      validation.value.shareImageUrl || null,
+      validation.value.shippingCostCents,
+      validation.value.freeShippingThresholdCents,
+      validation.value.handlingDaysMin,
+      validation.value.handlingDaysMax,
+      validation.value.internationalShipping ? 1 : 0,
+      validation.value.sku || null,
+      validation.value.stockQuantity,
+      validation.value.lowStockThreshold,
       timestamp,
       row.id
     );
@@ -1747,7 +1902,48 @@ function createApp(options = {}) {
     res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
 
-  app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
+  app.patch('/api/admin/listings/bulk', authAdmin, (req, res) => {
+    const ids = Array.isArray(req.body?.listingIds) ? Array.from(new Set(req.body.listingIds.filter(id => typeof id === 'string'))).slice(0, 100) : [];
+    if (!ids.length) return fail(res, 422, 'listings_required', 'Choose at least one listing.');
+    const availability = req.body?.availability;
+    const status = req.body?.status;
+    const priceDeltaPercent = req.body?.priceDeltaPercent == null || req.body.priceDeltaPercent === '' ? null : Number(req.body.priceDeltaPercent);
+    if (availability != null && !['floor','backstock'].includes(availability)) return fail(res, 422, 'invalid_availability', 'Choose floor or backstock.');
+    if (status != null && !['draft','archived'].includes(status)) return fail(res, 422, 'invalid_status', 'Bulk status changes can only move listings to draft or archived. Publishing requires individual moderation approval.');
+    if (priceDeltaPercent !== null && (!Number.isFinite(priceDeltaPercent) || priceDeltaPercent < -100 || priceDeltaPercent > 1000)) return fail(res, 422, 'invalid_price_adjustment', 'Price adjustment must be between -100% and 1000%.');
+    if (availability == null && status == null && priceDeltaPercent === null) return fail(res, 422, 'changes_required', 'Choose at least one bulk change.');
+    const timestamp = new Date().toISOString();
+    const update = db.transaction(() => {
+      for (const id of ids) {
+        const row = getListing(id);
+        if (!row || row.status === 'deleted') continue;
+        if (availability != null) db.prepare('UPDATE listings SET availability=?,updated_at=?,version=version+1 WHERE id=?').run(availability,timestamp,id);
+        if (priceDeltaPercent !== null) db.prepare('UPDATE listings SET price=ROUND(price*(1+?/100.0),2),updated_at=?,version=version+1 WHERE id=?').run(priceDeltaPercent,timestamp,id);
+        if (status != null) db.prepare("UPDATE listings SET status=?, published_at=CASE WHEN ?='archived' THEN published_at ELSE NULL END, updated_at=?,version=version+1 WHERE id=?").run(status,status,timestamp,id);
+      }
+    });
+    update();
+    const placeholders=ids.map(()=>'?').join(',');
+    const rows=db.prepare(`SELECT * FROM listings WHERE id IN (${placeholders}) AND status!='deleted' ORDER BY updated_at DESC`).all(...ids);
+    return res.json({ items: rows.map(row=>serializeListing(row,'admin')) });
+  });
+
+    app.post('/api/admin/listings/:listingId/inventory/adjust', authAdmin, (req,res) => {
+    const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return fail(res,404,'not_found','Listing not found.');
+    const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
+    if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
+    if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
+    const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
+    const now=new Date().toISOString();
+    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
+    return res.json({item:serializeListing(getListing(row.id),'admin')});
+  });
+  app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
+    const row=getListing(req.params.listingId); if(!row)return fail(res,404,'not_found','Listing not found.');
+    return res.json({items:db.prepare('SELECT * FROM inventory_adjustments WHERE listing_id=? ORDER BY created_at DESC LIMIT 100').all(row.id)});
+  });
+
+    app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
     const rows = db.prepare("SELECT * FROM listings WHERE status = 'pending_review' AND moderation_status = 'pending' ORDER BY updated_at ASC").all();
     return res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });

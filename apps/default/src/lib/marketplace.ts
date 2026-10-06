@@ -64,6 +64,8 @@ type GalleryItem = {
   designerName?: string;
   status?: string;
   images?: Array<{ url: string }>;
+  seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
+  shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
 };
 
 function galleryItemToGenesis(item: GalleryItem): GenesisNode {
@@ -84,6 +86,15 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@statx': item.status === 'published' || !item.status ? 'Available' : item.status,
       '/attributes/@image': images[0] || '',
       '/attributes/@gally': images.join('\n'),
+      '/attributes/@seotl': item.seoTitle || '',
+      '/attributes/@seods': item.seoDescription || '',
+      '/attributes/@seotg': item.seoTags || '',
+      '/attributes/@share': item.shareImageUrl || '',
+      '/attributes/@shipc': item.shippingCostCents == null ? '' : String(item.shippingCostCents),
+      '/attributes/@shipf': item.freeShippingThresholdCents == null ? '' : String(item.freeShippingThresholdCents),
+      '/attributes/@handl': item.handlingDaysMin == null ? '' : String(item.handlingDaysMin),
+      '/attributes/@handx': item.handlingDaysMax == null ? '' : String(item.handlingDaysMax),
+      '/attributes/@intl': item.internationalShipping ? 'yes' : 'no',
     },
   };
 }
