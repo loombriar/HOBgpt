@@ -1017,6 +1017,17 @@ function createApp(options = {}) {
       const event = JSON.parse(req.body.toString('utf8'));
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
+        const specialOfferId=session?.metadata?.special_offer_id;
+        if(specialOfferId&&session.payment_status==='paid'){
+          const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=? AND stripe_session_id=?').get(specialOfferId,session.id);
+          if(offer&&Number(session.amount_total)===offer.deposit_cents&&String(session.currency||'').toLowerCase()==='usd'&&offer.status==='offered'){
+            const paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:null;
+            db.prepare("UPDATE special_order_offers SET status='deposit_paid',accepted_at=?,deposit_paid_at=?,stripe_payment_intent_id=? WHERE id=?").run(new Date().toISOString(),new Date().toISOString(),paymentIntent,offer.id);
+            const accountId=designerStripeAccount(offer.designer_id),designerShare=Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10));
+            if(accountId&&designerShare>0){try{const transfer=await stripeApi('transfers',{method:'POST',body:new URLSearchParams({amount:String(designerShare),currency:'usd',destination:accountId,transfer_group:`special-${offer.id}`,'metadata[special_offer_id]':offer.id,'metadata[designer_id]':offer.designer_id}).toString(),idempotencyKey:`hob-special-transfer-${offer.id}`});db.prepare('UPDATE special_order_offers SET stripe_transfer_id=? WHERE id=?').run(transfer.id,offer.id);}catch(error){console.error('Special order deposit transfer failed:',offer.id,error);}}
+            notifyDesigner(offer.designer_id,'special_order_deposit','Special-order deposit paid',`The deposit for ${offer.title} has been paid. Lead time: ${offer.lead_days_min}–${offer.lead_days_max} days.`,{inquiryId:offer.inquiry_id,actionPath:'/account#inquiries',priority:'important',eventKey:`special-deposit:${offer.id}`});
+          }
+        }
         const orderId = session?.metadata?.order_id;
         if (orderId) releaseOrderInventory(orderId);
       }
@@ -2650,6 +2661,40 @@ function createApp(options = {}) {
     const total=Math.round(Number(req.body?.total)*100),deposit=Math.round(Number(req.body?.deposit)*100),leadMin=Math.round(Number(req.body?.leadDaysMin)),leadMax=Math.round(Number(req.body?.leadDaysMax)),revisions=Math.max(0,Math.round(Number(req.body?.revisionsIncluded)||0));
     if(!Number.isInteger(total)||total<=0||!Number.isInteger(deposit)||deposit<=0||deposit>total||!Number.isInteger(leadMin)||!Number.isInteger(leadMax)||leadMin<1||leadMax<leadMin)return fail(res,422,'invalid_offer','Add a valid total, deposit, and lead-time range.');
     const id=makeId();db.prepare("INSERT INTO special_order_offers (id,inquiry_id,designer_id,buyer_subject,title,total_cents,deposit_cents,lead_days_min,lead_days_max,revisions_included,terms,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'offered',?)").run(id,inquiry.id,req.designerId,inquiry.buyer_subject,String(req.body?.title||inquiry.message||'Special order').slice(0,200),total,deposit,leadMin,leadMax,revisions,String(req.body?.terms||'').slice(0,2000),new Date().toISOString());res.status(201).json({id,status:'offered'});
+  });
+
+  app.get('/api/my/special-offers', authBuyer, (req,res)=>{
+    const rows=db.prepare(`SELECT so.*,COALESCE(dp.brand_name,dp.display_name,so.designer_id) designer_name FROM special_order_offers so LEFT JOIN designer_profiles dp ON dp.id=so.designer_id WHERE so.buyer_subject=? ORDER BY so.created_at DESC`).all(req.buyerSubject);
+    res.json({offers:rows.map(o=>({id:o.id,title:o.title,designerId:o.designer_id,designerName:o.designer_name,totalCents:o.total_cents,depositCents:o.deposit_cents,leadDaysMin:o.lead_days_min,leadDaysMax:o.lead_days_max,revisionsIncluded:o.revisions_included,terms:o.terms,status:o.status,depositPaidAt:o.deposit_paid_at||null}))});
+  });
+  app.post('/api/my/special-offers/:id/deposit', authBuyer, checkoutLimiter, async (req,res,next)=>{
+    try{
+      const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND buyer_subject=?").get(req.params.id,req.buyerSubject);
+      if(!offer)return fail(res,404,'offer_not_found','Special-order offer not found.');
+      if(offer.status!=='offered')return fail(res,409,'offer_unavailable','This offer is no longer awaiting a deposit.');
+      const origin=trustedAppOrigin(req),body=new URLSearchParams({mode:'payment',success_url:`${origin}/account?special_order=deposit_paid`,cancel_url:`${origin}/account?special_order=deposit_canceled`,'metadata[special_offer_id]':offer.id,'payment_intent_data[metadata][special_offer_id]':offer.id});
+      body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]',`Deposit: ${offer.title}`);body.set('line_items[0][price_data][unit_amount]',String(offer.deposit_cents));body.set('line_items[0][quantity]','1');
+      const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-special-deposit-${offer.id}`});
+      db.prepare('UPDATE special_order_offers SET stripe_session_id=? WHERE id=?').run(session.id,offer.id);res.status(201).json({url:session.url});
+    }catch(error){return next(error);}
+  });
+  app.post('/api/admin/orders/:orderId/designers/:designerId/refund', authAdmin, async (req,res,next)=>{
+    try{
+      const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);if(!order)return fail(res,404,'order_not_found','Paid order not found.');
+      const items=db.prepare('SELECT * FROM order_items WHERE order_id=? AND designer_id=?').all(order.id,req.params.designerId);if(!items.length)return fail(res,404,'seller_order_not_found','Seller portion not found.');
+      const refundCents=items.reduce((s,i)=>s+i.line_total_cents,0);const designerCents=items.reduce((s,i)=>s+i.designer_amount_cents,0);
+      let paymentIntent=order.stripe_payment_intent_id;if(!paymentIntent&&order.stripe_session_id){const session=await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:'';if(paymentIntent)db.prepare('UPDATE orders SET stripe_payment_intent_id=? WHERE id=?').run(paymentIntent,order.id);}
+      if(!paymentIntent)return fail(res,409,'payment_reference_missing','Stripe payment reference is unavailable.');
+      const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(order.id,req.params.designerId);
+      if(transfer?.status==='paid'&&transfer.stripe_transfer_id&&Number(transfer.refunded_cents||0)<designerCents){
+        const amount=designerCents-Number(transfer.refunded_cents||0);const reversal=await stripeApi(`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(amount),'metadata[order_id]':order.id,'metadata[designer_id]':req.params.designerId}).toString(),idempotencyKey:`hob-seller-refund-reversal-${order.id}-${req.params.designerId}`});
+        db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,refunded_cents=?,release_reason='seller_refund' WHERE id=?").run(reversal.id,designerCents,transfer.id);
+      }
+      const refund=await stripeApi('refunds',{method:'POST',body:new URLSearchParams({payment_intent:paymentIntent,amount:String(refundCents),reason:'requested_by_customer','metadata[order_id]':order.id,'metadata[designer_id]':req.params.designerId}).toString(),idempotencyKey:`hob-seller-refund-${order.id}-${req.params.designerId}`});
+      db.prepare("UPDATE orders SET refund_status='partial' WHERE id=? AND COALESCE(refund_status,'')!='succeeded'").run(order.id);
+      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund of ${(refundCents/100).toFixed(2)} was issued for one designer shipment in order ${order.id}.`});
+      res.json({ok:true,refundId:refund.id,status:refund.status,amountCents:refundCents,designerId:req.params.designerId});
+    }catch(error){return next(error);}
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
