@@ -1902,6 +1902,8 @@ function createApp(options = {}) {
     return res.json({frequentlyBoughtTogether:boughtTogether.map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
   });
 
+  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,options});
+
   app.get('/api/designers', (_req,res)=>{
     const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
       COUNT(l.id) piece_count,
@@ -3013,6 +3015,7 @@ function createApp(options = {}) {
   });
   const sendFrontend = (_req, res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html'));
   const collectionPages = {
+    'winter-briar': {title:'Winter Briar',description:'Velvet, golden details, and a candlelit winter edit from independent designers.'},
     'autumn-atelier': {title:'The Autumn Atelier',description:'Velvet and rich textures from independent designers. Explore the autumn edit at House of Briar.'},
     'garden-party': {title:'The Garden Party',description:'Romantic dresses and botanical daydreams. Discover the Garden Party collection at House of Briar.'},
     'independent-by-design': {title:'Independent by Design',description:'Small runs and singular ideas. Meet independent designers and their wearable art at House of Briar.'}
