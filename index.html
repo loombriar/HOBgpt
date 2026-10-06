@@ -15,8 +15,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=sewing-6" />
-    <script src="/script.js?v=studio-4" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=sewing-7" />
+    <script src="/script.js?v=studio-5" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -237,6 +237,14 @@
           </div>
         </div>
         <p id="designer-listings-message" class="form-message" role="status" aria-live="polite"></p>
+        <form id="designer-brand-form" class="stack-form">
+          <h3>Your designer identity</h3>
+          <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
+          <label for="designer-logo">Upload your logo (PNG, JPEG or WebP)</label><input id="designer-logo" type="file" accept="image/png,image/jpeg,image/webp" />
+          <img id="designer-logo-preview" class="designer-logo-preview hidden" alt="Your designer logo" />
+          <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
+          <p id="designer-brand-message" role="status" class="form-message"></p>
+        </form>
         <div id="designer-products" class="designer-products" aria-live="polite"></div>
         <hr class="soft-rule" />
         <form id="product-form" class="stack-form" novalidate>
@@ -337,6 +345,7 @@
       </section>
     </dialog>
 
+    <dialog id="designer-storefront-dialog" class="app-dialog" aria-labelledby="storefront-title"><div class="dialog-header"><h2 id="storefront-title">Designer storefront</h2><button id="storefront-close" class="icon-button" type="button" aria-label="Close designer storefront">×</button></div><div id="storefront-content"></div></dialog>
     <dialog id="product-dialog" class="app-dialog product-dialog" aria-labelledby="product-detail-title">
       <div class="dialog-header">
         <div><p class="eyebrow">House of Briar selection</p><h2 id="product-detail-title">Design details</h2></div>

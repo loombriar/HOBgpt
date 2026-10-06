@@ -1497,3 +1497,5 @@ main>section:not(.hero){position:relative}
 .stack-form .check-row input[type="checkbox"]{width:18px!important;height:18px!important;min-height:0!important;flex:0 0 18px;padding:0!important;margin:0;accent-color:#805345}
 
 .admin-summary-section{border-top:1px solid #c7ab68;margin-top:24px;padding-top:18px}.admin-support-item{border:1px solid #c7ab68;border-radius:10px;padding:16px;margin:12px 0}.admin-support-item textarea{display:block;width:100%;margin:10px 0}.admin-summary-section p{overflow-wrap:anywhere}
+
+.designer-card-link{display:flex;align-items:center;gap:8px;font-weight:600;color:#805345;margin-bottom:10px;min-height:32px}.designer-card-link img{width:36px;height:36px;object-fit:contain;background:#fffaf0;border-radius:6px}.designer-logo-preview{width:100px;height:100px;object-fit:contain}#designer-brand-form{border:1px solid #c7ab68;border-radius:12px;padding:18px;margin:18px 0}#storefront-content .secondary-button{margin:6px}

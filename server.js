@@ -275,6 +275,7 @@ function createApp(options = {}) {
   ensureColumn('designer_profiles', 'portfolio_url', 'TEXT');
   ensureColumn('designer_profiles', 'social_url', 'TEXT');
   ensureColumn('designer_profiles', 'portrait_storage_key', 'TEXT');
+  ensureColumn('designer_profiles', 'logo_storage_key', 'TEXT');
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -634,6 +635,7 @@ function createApp(options = {}) {
 
   function serializeListing(row, mode = 'public') {
     if (!row) return null;
+    const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
     const images = getImages(row.id, mode);
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
@@ -653,7 +655,8 @@ function createApp(options = {}) {
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
       designerId: row.designer_id,
-      designerName: row.designer_name || undefined,
+      designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
+      designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
       status: row.status,
       moderationStatus: row.moderation_status,
       moderationReason: mode === 'private' ? (row.moderation_reason || null) : undefined,
@@ -882,7 +885,7 @@ function createApp(options = {}) {
     const originalityConfirmed=req.body?.originalityConfirmed===true;
     const marketplaceTermsAccepted=req.body?.marketplaceTermsAccepted===true;
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||!location||location.length>160||statement.length>2000||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||priceRange.length>100||productionMethod.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)||!originalityConfirmed||!marketplaceTermsAccepted)return fail(res,422,'validation_error','Complete the required designer profile fields and confirmations.');
-    const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE lower(email)=?").get(email);
+    const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE lower(email)=?").get(email);
     if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
     const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
     if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
@@ -928,9 +931,9 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
-    const designer=db.prepare("SELECT id,email,display_name,brand_name,status FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+    const designer=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
-    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status}});
+    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null}});
   });
 
   app.post('/api/my/stripe-onboarding', authDesigner, async (req,res,next)=>{
@@ -1399,6 +1402,32 @@ function createApp(options = {}) {
     const profile=db.prepare("SELECT portrait_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
     if(!profile?.portrait_storage_key)return fail(res,404,'not_found','Designer portrait not found.');
     res.type('image/webp');res.set('Cache-Control','public, max-age=3600');return res.sendFile(path.join(imagesDir,profile.portrait_storage_key));
+  });
+
+  app.post('/api/my/designer-profile/logo', authDesigner, upload.single('image'), async (req,res,next)=>{
+    try{
+      if(!req.file)return fail(res,400,'missing_image','Choose a logo to upload.');
+      const detectedMime=detectImageMime(req.file.buffer);
+      if(!detectedMime)return fail(res,415,'unsupported_image','Upload a valid JPEG, PNG, or WebP image.');
+      const metadata=await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();
+      if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Image dimensions are too large.');
+      const profile=db.prepare("SELECT logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+      if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');
+      const storageKey=`designer-${req.designerId}-logo.webp`;
+      await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).rotate().resize(600,600,{fit:'inside',withoutEnlargement:true}).webp({quality:88,effort:4}).toFile(path.join(imagesDir,storageKey));
+      db.prepare('UPDATE designer_profiles SET logo_storage_key=? WHERE id=?').run(storageKey,req.designerId);
+      return res.json({logoUrl:`/media/designers/${encodeURIComponent(req.designerId)}/logo`});
+    }catch(error){return next(error);}
+  });
+
+  app.delete('/api/my/designer-profile/logo', authDesigner, async (req,res,next)=>{
+    try{const profile=db.prepare("SELECT logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');if(profile.logo_storage_key)await fs.promises.unlink(path.join(imagesDir,profile.logo_storage_key)).catch(()=>{});db.prepare('UPDATE designer_profiles SET logo_storage_key=NULL WHERE id=?').run(req.designerId);return res.json({removed:true});}catch(error){return next(error);}
+  });
+
+  app.get('/media/designers/:designerId/logo', (req,res)=>{
+    const profile=db.prepare("SELECT logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
+    if(!profile?.logo_storage_key)return fail(res,404,'not_found','Designer logo not found.');
+    res.type('image/webp');res.set('Cache-Control','no-cache');return res.sendFile(path.join(imagesDir,profile.logo_storage_key));
   });
 
   app.patch('/api/my/designer-profile', authDesigner, (req,res) => {
