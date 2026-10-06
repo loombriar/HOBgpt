@@ -16,6 +16,24 @@ const PRICE_RANGES = [
   { value: '500-plus', label: '$500 and above' },
 ] as const;
 
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  scissors: ['shears','sheers','snips'], shears: ['scissors','sheers','snips'], antique: ['vintage','heritage','old'], vintage: ['antique','heritage'],
+  bag: ['purse','handbag','tote','suitcase'], purse: ['bag','handbag'], jewelry: ['jewellery','accessory','accessories'], jewellery: ['jewelry','accessory'],
+  floral: ['flower','flowers','botanical'], flower: ['floral','botanical'], woodland: ['forest','moss','cottagecore'], forest: ['woodland','moss'],
+  scent: ['fragrance','perfume','aroma'], fragrance: ['scent','perfume','aroma'], pina: ['pineapple'], colada: ['coconut','tropical'],
+  purple: ['violet','lavender','plum'], green: ['moss','sage','emerald'], handmade: ['handcrafted','artisan'], handcrafted: ['handmade','artisan'],
+};
+const normalizeSearch=(value:string)=>value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const editDistance=(a:string,b:string)=>{const dp=Array.from({length:a.length+1},(_,i)=>i);for(let j=1;j<=b.length;j++){let prev=dp[0];dp[0]=j;for(let i=1;i<=a.length;i++){const hold=dp[i];dp[i]=Math.min(dp[i]+1,dp[i-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=hold;}}return dp[a.length];};
+function searchMatches(query:string, fields:string[]) {
+  const q=normalizeSearch(query); if(!q)return true;
+  const hay=normalizeSearch(fields.join(' ')); const words=Array.from(new Set(hay.split(' ').filter(Boolean)));
+  return q.split(' ').filter(Boolean).every(token=>{
+    const variants=[token,...(SEARCH_SYNONYMS[token]??[])];
+    return variants.some(v=>hay.includes(v)||words.some(w=>w.startsWith(v)||v.startsWith(w)||(v.length>=4&&w.length>=4&&editDistance(v,w)<=Math.max(1,Math.floor(Math.min(v.length,w.length)/5)))));
+  });
+}
+
 function matchesPriceRange(price: number, range: string) {
   if (range === 'under-200') return price < 200;
   if (range === '200-299') return price >= 200 && price < 300;
@@ -103,7 +121,7 @@ export default function ShopPage() {
     const tags = getFieldValue(product, '@tagsx', 'Tags') ?? '';
     const productDesigner = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
     const price = getFieldNumber(product, '@price', 'Price') ?? 0;
-    const matchesQuery = `${name} ${tags} ${productDesigner}`.toLowerCase().includes(query.toLowerCase());
+    const description = getFieldValue(product, '@descr', 'Description') ?? ''; const material = getFieldValue(product, '@mater', 'Material') ?? ''; const productStyleForSearch = getFieldValue(product, '@style', 'Style') ?? ''; const productCategoryForSearch = getFieldValue(product, '@categ', 'Category') ?? ''; const matchesQuery = searchMatches(query, [name, tags, productDesigner, description, material, productStyleForSearch, productCategoryForSearch]);
     const matchesCategory = category === 'All pieces' || getFieldValue(product, '@categ', 'Category') === category;
     const matchesDesigner = designerFilter === 'All designers' || productDesigner === designerFilter;
     const productStyle = getFieldValue(product, '@style', 'Style') ?? '';
