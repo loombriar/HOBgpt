@@ -474,6 +474,36 @@ function createApp(options = {}) {
     SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
     WHERE status != 'deleted' AND id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
 
+  db.exec(`CREATE TABLE IF NOT EXISTS public_names (
+    name_key TEXT PRIMARY KEY, owner_id TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL
+  )`);
+  const normalizePublicName = name => String(name || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+  const publicNameKey = name => normalizePublicName(name).toLowerCase();
+  function claimPublicName(owner, name) {
+    const display = normalizePublicName(name);
+    if (!display || display.length > 120 || /[\u0000-\u001f\u007f]/.test(display)) return false;
+    const collision = db.prepare('SELECT owner_id FROM public_names WHERE name_key=?').get(publicNameKey(display));
+    if (collision && collision.owner_id !== owner) return false;
+    db.prepare(`INSERT INTO public_names (name_key,owner_id,display_name) VALUES (?,?,?)
+      ON CONFLICT(owner_id) DO UPDATE SET name_key=excluded.name_key,display_name=excluded.display_name`).run(publicNameKey(display),owner,display);
+    return true;
+  }
+  function assignPublicName(owner, preferred) {
+    const existing = db.prepare('SELECT display_name FROM public_names WHERE owner_id=?').get(owner);
+    if (existing) return existing.display_name;
+    const base = normalizePublicName(preferred).slice(0, 105) || 'Visitor';
+    let name = base, suffix = 2;
+    while (!claimPublicName(owner, name)) name = `${base} (${suffix++})`;
+    return name;
+  }
+  // Register existing makers deterministically without changing account IDs or access.
+  db.transaction(() => {
+    for (const profile of db.prepare('SELECT id,brand_name,display_name FROM designer_profiles ORDER BY created_at,id').all()) {
+      const name = assignPublicName(`designer:${profile.id}`, profile.brand_name || profile.display_name);
+      db.prepare('UPDATE designer_profiles SET brand_name=? WHERE id=?').run(name, profile.id);
+    }
+  })();
+
   function log(level, event, details = {}) {
     const payload = { timestamp: new Date().toISOString(), level, event, ...details };
     const line = JSON.stringify(payload);
@@ -542,6 +572,10 @@ function createApp(options = {}) {
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
       req.buyerSubject = profile.sub.trim();
       req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+      const linked = db.prepare('SELECT designer_id FROM designer_identities WHERE subject=?').get(req.buyerSubject);
+      const designer = linked || (profile.email_verified === true && req.buyerEmail ? db.prepare('SELECT id AS designer_id FROM designer_profiles WHERE lower(email)=?').get(req.buyerEmail) : null);
+      req.publicNameOwner = designer ? `designer:${designer.designer_id}` : `buyer:${req.buyerSubject}`;
+      req.publicName = assignPublicName(req.publicNameOwner, profile.preferred_username || profile.name || 'Visitor');
       return next();
     } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
@@ -891,6 +925,7 @@ function createApp(options = {}) {
     const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
     if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
+    if (!claimPublicName(`designer:${designerId}`, brandName)) return fail(res,409,'name_taken','That public name is already taken. Please choose another brand name.');
     db.transaction(()=>{
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,?,?,'approved',?,?,?,?,?,?,?,?,1,1)").run(id,email,displayName,brandName,portfolioUrl||null,statement,designerId,now,now,location,socialUrl||null,JSON.stringify(categories),priceRange||null,productionMethod||null);
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,?,?,?,?,?,?)").run(designerId,email,displayName,brandName,id,now,statement||null,location,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null);
@@ -929,6 +964,17 @@ function createApp(options = {}) {
 
   app.post('/api/session', authDesigner, (req, res) => {
     res.json({ ok: true, designerId: req.designerId });
+  });
+
+  app.get('/api/my/public-profile', authBuyer, (req,res) => {
+    res.set('Cache-Control','no-store'); res.json({ publicName:req.publicName });
+  });
+  app.patch('/api/my/public-profile', authBuyer, (req,res) => {
+    const name = normalizePublicName(req.body?.publicName);
+    if (!name || name.length>120) return fail(res,422,'validation_error','Choose a public name of 1–120 characters.');
+    if (!claimPublicName(req.publicNameOwner,name)) return fail(res,409,'name_taken','That public name is already taken. Please choose another name.');
+    if (req.publicNameOwner.startsWith('designer:')) db.prepare('UPDATE designer_profiles SET brand_name=? WHERE id=?').run(name,req.publicNameOwner.slice(9));
+    res.json({publicName:name});
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
@@ -1442,6 +1488,7 @@ function createApp(options = {}) {
     const socialUrl=String(req.body?.socialUrl??current.social_url??'').trim();
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(v=>String(v).trim()).filter(Boolean))]:(()=>{try{return JSON.parse(current.categories||'[]')}catch{return[]}})();
     if(!brandName||brandName.length>120||bio.length>2000||location.length>160||productionMethod.length>120||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||categories.length>12||categories.some(v=>v.length>80))return fail(res,422,'validation_error','Check the storefront profile fields and links.');
+    if (!claimPublicName(`designer:${req.designerId}`, brandName)) return fail(res,409,'name_taken','That public name is already taken. Please choose another brand name.');
     db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,req.designerId);
     return res.json({ok:true,storefrontUrl:`/designers/${encodeURIComponent(req.designerId)}`});
   });

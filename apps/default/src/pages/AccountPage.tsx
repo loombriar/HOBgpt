@@ -237,6 +237,33 @@ function StudioContent() {
   </section>{designerInquiriesSection}{collectorNotesSection}</div>;
 }
 
+function PublicNameSettings() {
+  const auth = useAuth();
+  const [publicName, setPublicName] = useState('');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const token = auth.user?.access_token;
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    fetch('/api/my/public-profile', { headers: { Authorization: `Bearer ${token}` } }).then(async response => {
+      const data = await response.json(); if (!response.ok) throw new Error(data.error?.message || 'Could not load public name.');
+      if (active) setPublicName(data.publicName);
+    }).catch(error => { if (active) setMessage(error.message); });
+    return () => { active = false; };
+  }, [token]);
+  if (!auth.isAuthenticated) return null;
+  return <form className="my-6 rounded-2xl border border-border p-5" onSubmit={async event => {
+    event.preventDefault(); setSaving(true);
+    try {
+      const response = await fetch('/api/my/public-profile', { method:'PATCH', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({publicName}) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error?.message || 'Could not save public name.');
+      setPublicName(data.publicName); setMessage('Public name saved.');
+    } catch(error) { setMessage(error instanceof Error ? error.message : 'Could not save public name.'); }
+    finally { setSaving(false); }
+  }}><label className="block font-medium">Your unique public name<input required maxLength={120} value={publicName} onChange={event => setPublicName(event.target.value)} className="mt-2 block w-full rounded-xl border border-border px-3 py-2" /></label><p className="mt-2 text-sm text-muted-foreground">Public names are shared across shoppers and designers. If you are also a designer, this is your brand name.</p><button type="submit" disabled={saving} className="mt-3 rounded-full bg-primary px-4 py-2 text-primary-foreground">{saving ? 'Saving…' : 'Save public name'}</button><p role="status" className="mt-2 text-sm">{message}</p></form>;
+}
+
 export default function AccountPage() {
-  return <HouseShell><StudioContent /></HouseShell>;
+  return <HouseShell><PublicNameSettings /><StudioContent /></HouseShell>;
 }
