@@ -1590,14 +1590,51 @@ function createApp(options = {}) {
     res.json({ periodDays: 30, events, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
   });
 
-    app.get('/api/gallery', (_req, res) => {
+    app.get('/api/gallery', (req, res) => {
+    const filters = {};
+    for (const key of ['category', 'style', 'aesthetic', 'pattern', 'designer', 'q', 'sort']) {
+      const value = req.query[key];
+      if (value !== undefined && (typeof value !== 'string' || value.length > (key === 'q' ? 200 : 100))) {
+        return fail(res, 400, 'invalid_filter', 'Choose a valid shop filter.');
+      }
+      filters[key] = (value || '').trim();
+    }
+    if (filters.category && filters.category !== 'all' && !ALLOWED_CATEGORIES.has(filters.category)) {
+      return fail(res, 400, 'invalid_filter', 'Choose a supported category.');
+    }
+    if (filters.sort && !['all', 'new', 'low', 'high'].includes(filters.sort)) {
+      return fail(res, 400, 'invalid_filter', 'Choose a supported sort order.');
+    }
+    const conditions = ["l.status = 'published'", "l.moderation_status = 'approved'"];
+    const values = [];
+    for (const key of ['category', 'style', 'aesthetic', 'pattern']) {
+      if (filters[key] && filters[key] !== 'all') {
+        conditions.push(`LOWER(TRIM(l.${key})) = LOWER(?)`);
+        values.push(filters[key]);
+      }
+    }
+    if (filters.designer && filters.designer !== 'all') {
+      conditions.push('l.designer_id = ?');
+      values.push(filters.designer);
+    }
+    const order = filters.sort === 'low' ? 'l.price ASC, l.id ASC'
+      : filters.sort === 'high' ? 'l.price DESC, l.id ASC'
+      : 'l.published_at DESC, l.created_at DESC, l.id ASC';
     const rows = db.prepare(`
       SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name, CASE WHEN ir.status='sold' THEN 1 ELSE 0 END AS sold
       FROM listings l
-      JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'\n      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'\n      WHERE l.status = 'published' AND l.moderation_status = 'approved'
-      ORDER BY l.published_at DESC, l.created_at DESC
-    `).all();
-    res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
+      JOIN designer_profiles dp ON dp.id = l.designer_id AND dp.status = 'active'
+      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
+      WHERE ${conditions.join(' AND ')} ORDER BY ${order}
+    `).all(...values);
+    let items = rows.map((row) => serializeListing(row, 'public'));
+    if (filters.q) {
+      const query = filters.q.toLowerCase();
+      items = items.filter(item => [item.title, item.description, item.style, item.aesthetic,
+        item.pattern, item.materials, item.designerName, item.designer, item.productionType, item.category]
+        .filter(Boolean).join(' ').toLowerCase().includes(query));
+    }
+    res.json({ items });
   });
 
   app.get('/api/recommendations/:listingId', (req,res) => {
