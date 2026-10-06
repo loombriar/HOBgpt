@@ -1197,7 +1197,11 @@ if (designerSignupForm) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Designer sign up could not be completed.');
       designerSignupForm.reset();
-      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Your designer profile has been created.';
+      if (!payload.accessToken) throw new Error('Your profile was created, but studio access could not be started.');
+      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Opening your Designer’s Room…';
+      await signIn(payload.accessToken);
+      byId('designer-welcome')?.classList.remove('hidden');
+      requestAnimationFrame(() => byId('designer-welcome')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     } catch (error) {
       if (designerSignupMessage) designerSignupMessage.textContent = error instanceof Error ? error.message : 'Designer sign up could not be completed.';
     }
@@ -1221,6 +1225,7 @@ if (modalClose) modalClose.addEventListener('click', () => designerModal.close()
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
+byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
@@ -1495,6 +1500,9 @@ async function loadDesignerBrand() {
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
     byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
+    if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
+    if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
+    if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
     const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
     if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
     byId('designer-logo-remove').classList.toggle('hidden', !designer.logoUrl);
@@ -1503,10 +1511,15 @@ async function loadDesignerBrand() {
 byId('designer-brand-form')?.addEventListener('submit', async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   try {
-    await apiRequest('/api/my/designer-profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brandName: byId('designer-brand-name').value.trim() }) });
+    await apiRequest('/api/my/designer-profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      brandName: byId('designer-brand-name').value.trim(),
+      bio: byId('designer-bio')?.value.trim() || '',
+      categories: (byId('designer-categories')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
+      socialUrl: byId('designer-social')?.value.trim() || ''
+    }) });
     const file = byId('designer-logo').files[0];
     if (file) { if (file.size > 8 * 1024 * 1024) throw new Error('Please choose a logo smaller than 8 MB.'); const body = new FormData(); body.append('image', file); await apiRequest('/api/my/designer-profile/logo', { method: 'POST', body }); }
-    byId('designer-logo').value = ''; await loadDesignerBrand(); await loadGallery(); setMessage(byId('designer-brand-message'), 'Your brand and logo are saved.', 'success');
+    byId('designer-logo').value = ''; await loadDesignerBrand(); await loadGallery(); byId('designer-welcome')?.classList.add('hidden'); setMessage(byId('designer-brand-message'), 'Your designer profile is saved. Now list your first piece below.', 'success'); byId('product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
   finally { button.disabled = false; }
 });
