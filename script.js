@@ -1414,3 +1414,33 @@ async function openDesignerStorefront(id) {
   } catch (error) { content.append(makeElement('p', 'form-message', error.message)); }
 }
 byId('storefront-close')?.addEventListener('click', () => byId('designer-storefront-dialog').close());
+
+
+// Decorative measuring tapes keep the native dropdowns fully usable.
+function unrollDropdownTape(select) {
+  if (!(select instanceof HTMLSelectElement)) return;
+  const window = select.closest('.shop-drop-window') || select.parentElement;
+  if (!window) return;
+  if (Date.now() - Number(window.dataset.tapePlayedAt || 0) < 250) return;
+  window.dataset.tapePlayedAt = String(Date.now());
+  window.classList.add('measuring-tape-window');
+  let tape = window.querySelector(':scope > .dropdown-measuring-tape');
+  if (!tape) {
+    tape = document.createElement('span'); tape.className = 'dropdown-measuring-tape'; tape.setAttribute('aria-hidden', 'true');
+    const strip = document.createElement('span'); strip.className = 'measuring-tape-strip';
+    const markings = document.createElement('span'); markings.className = 'measuring-tape-numbers'; markings.textContent = '1     2     3     4     5     6     7     8';
+    strip.append(markings);
+    const roll = document.createElement('span'); roll.className = 'measuring-tape-roll'; tape.append(strip, roll); window.append(tape);
+  }
+  window.classList.remove('tape-unrolling');
+  void tape.offsetWidth;
+  window.classList.add('tape-unrolling');
+  clearTimeout(window.dropdownTapeTimer);
+  window.dropdownTapeTimer = setTimeout(() => window.classList.remove('tape-unrolling'), 1200);
+}
+document.addEventListener('pointerdown', event => unrollDropdownTape(event.target));
+document.addEventListener('focusin', event => unrollDropdownTape(event.target));
+document.addEventListener('change', event => unrollDropdownTape(event.target));
+document.addEventListener('keydown', event => {
+  if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) unrollDropdownTape(event.target);
+});
