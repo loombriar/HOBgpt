@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=paypal-28" />
-    <script src="/script.js?v=paypal-28" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=seller-onboarding-29" />
+    <script src="/script.js?v=seller-onboarding-29" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
     <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
@@ -306,6 +306,7 @@
             <label>Designer or brand name<input name="brandName" type="text" required /></label>
             <label>Email<input name="email" type="email" autocomplete="email" required /></label>
             <label>What do you create?<input name="categories" type="text" placeholder="Fashion, winter wear, art, accessories…" required /></label>
+            <label class="seller-terms-check"><input name="sellerTermsAccepted" type="checkbox" required /> <span>I agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a>, including marketplace fees, shipping responsibilities, returns, prohibited items, and payout rules.</span></label>
             <button class="primary-button" type="submit">Join the Designer List</button>
           </form>
           <p id="designer-signup-message" class="form-message" role="status" aria-live="polite"></p>
@@ -320,6 +321,7 @@
           </div>
         </div>
         <p id="designer-listings-message" class="form-message" role="status" aria-live="polite"></p>
+        <section class="payout-setup-card" aria-labelledby="payout-setup-title"><p class="eyebrow">Step 2 · Get paid</p><h3 id="payout-setup-title">Set up designer payouts</h3><p id="stripe-payout-status">Connect Stripe to verify your seller details and choose where House of Briar sends your earnings. You can draft pieces before this is finished, but they cannot go on sale until payouts are ready.</p><div class="form-actions"><button id="stripe-onboarding-btn" class="primary-button" type="button">Set up payouts with Stripe</button><button id="stripe-status-btn" class="secondary-button" type="button">Check payout status</button></div></section>
         <div id="designer-welcome" class="designer-welcome hidden">
           <p class="eyebrow">Welcome to House of Briar</p>
           <h3>Your Designer’s Room is ready.</h3>
