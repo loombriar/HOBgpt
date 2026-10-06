@@ -1487,10 +1487,36 @@ function createApp(options = {}) {
   }
 
   const connectAccounts = parseDesignerTokens(options.connectAccounts ?? process.env.STRIPE_CONNECT_ACCOUNTS_JSON);
+  const platformStripeAccountId = String(options.platformStripeAccountId ?? process.env.STRIPE_PLATFORM_ACCOUNT_ID ?? '').trim();
+  const brandStripeAccounts = parseDesignerTokens(options.brandStripeAccounts ?? process.env.STRIPE_BRAND_ACCOUNTS_JSON);
+
+  function syncConfiguredBrandStripeAccounts() {
+    for (const [brandName, accountIdRaw] of Object.entries(brandStripeAccounts)) {
+      const accountId=String(accountIdRaw||'').trim();
+      if(!brandName||!accountId.startsWith('acct_'))continue;
+      if(platformStripeAccountId&&accountId===platformStripeAccountId){
+        log('error','seller_stripe_mapping_rejected',{brandName,reason:'platform_account'});
+        continue;
+      }
+      const matches=db.prepare("SELECT id FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
+      if(matches.length!==1){
+        log('error','seller_stripe_mapping_not_unique',{brandName,matchCount:matches.length});
+        continue;
+      }
+      db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,matches[0].id);
+      log('info','seller_stripe_mapping_synced',{brandName,designerId:matches[0].id});
+    }
+  }
+  syncConfiguredBrandStripeAccounts();
 
   function designerStripeAccount(designerId) {
     const profile=db.prepare("SELECT stripe_account_id FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
-    return profile?.stripe_account_id || connectAccounts[designerId] || '';
+    const accountId=profile?.stripe_account_id || connectAccounts[designerId] || '';
+    if(platformStripeAccountId&&accountId===platformStripeAccountId){
+      log('error','platform_account_blocked_as_seller',{designerId});
+      return '';
+    }
+    return accountId;
   }
 
   function prepareDesignerTransfers(orderId) {
