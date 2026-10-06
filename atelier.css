@@ -53,7 +53,7 @@ body[data-collection='garden-party'] .house-editorial{background:linear-gradient
 .sewing-header .sewing-nav .nav-hotspot{flex:0 1 auto!important;width:auto!important;height:auto!important;min-height:44px!important;padding:10px 12px!important;background:transparent!important;border-radius:8px!important;font-size:12px!important}
 .sewing-header .sewing-nav .room-button{flex:0 0 146px!important;width:146px!important;height:122px!important;min-height:122px!important;padding:42px 23px 20px!important;background:url('/blackberry-house-nav-frame-v1.webp') center/contain no-repeat!important;border-radius:0!important}
 .sewing-header .sewing-nav .suitcase-button{flex-direction:row!important;gap:6px!important}
-.sewing-hero::after{opacity:.85;background:radial-gradient(circle at 69% 32%,#ffe7a1 0 4px,transparent 7px),radial-gradient(circle at 82% 61%,#fff3cc 0 5px,transparent 8px),radial-gradient(circle at 92% 24%,#ffe4a2 0 3px,transparent 6px);animation:atelier-fireflies 4s ease-in-out infinite alternate}
+.hero.sewing-hero::after{display:block!important;opacity:.85;background:radial-gradient(circle at 69% 32%,#ffe7a1 0 4px,transparent 7px),radial-gradient(circle at 82% 61%,#fff3cc 0 5px,transparent 8px),radial-gradient(circle at 92% 24%,#ffe4a2 0 3px,transparent 6px);animation:atelier-fireflies 4s ease-in-out infinite alternate}
 .sewing-hero-art{transform-origin:75% 50%;animation:atelier-breathe 9s ease-in-out infinite alternate}
 .atelier-stitch .atelier-icon{animation:atelier-needle 4s ease-in-out infinite alternate}
 .product-section .shop-drop-window .dropdown-measuring-tape{display:block!important;bottom:12px!important;z-index:5!important}
