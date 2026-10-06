@@ -256,9 +256,9 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'sewing-navigation-v2.webp'],
-    ['shop-aesthetic-filter', 'sewing-navigation-v2.webp'],
-    ['shop-accessory-filter', 'sewing-navigation-v2.webp']
+    ['shop-garment-filter', 'category-garment-frame.webp'],
+    ['shop-aesthetic-filter', 'category-aesthetic-frame.webp'],
+    ['shop-accessory-filter', 'category-accessories-frame.webp']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
@@ -291,8 +291,8 @@ test('storefront exposes pattern filtering and persistent favorite controls', ()
   const script = fs.readFileSync(path.join(__dirname, '..', 'script.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(html, /id="shop-pattern-filter"/);
-  assert.match(html, /id="shop-sort-filter" aria-label="Sort shop results"/);
-  assert.match(html, /Price \/ New/);
+  assert.doesNotMatch(html, /id="shop-sort-filter"/);
+  assert.match(html, /Print \/ Pattern/);
   assert.match(script, /activePattern/);
   assert.match(script, /\['pattern', activePattern\]/);
   assert.match(script, /favorite-button/);

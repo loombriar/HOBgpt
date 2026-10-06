@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=measurement-fit-12" />
-    <script src="/script.js?v=measurement-fit-11" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=reference-frames-13" />
+    <script src="/script.js?v=reference-frames-12" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -84,7 +84,7 @@
                 <div class="shop-drop-windows" aria-label="Shop filters">
                   <label class="shop-drop-window illustrated-select garment-window">
                     <span class="category-window-title" aria-hidden="true">Garment</span>
-                    <img class="category-window-art" src="/sewing-navigation-v2.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/category-garment-frame.webp" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All clothing</span>
                     <select id="shop-garment-filter" aria-label="Filter by garment type">
                       <option value="all">All pieces</option>
@@ -103,7 +103,7 @@
 
                   <label class="shop-drop-window illustrated-select aesthetic-window">
                     <span class="category-window-title" aria-hidden="true">Aesthetic</span>
-                    <img class="category-window-art" src="/sewing-navigation-v2.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/category-aesthetic-frame.webp" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All aesthetics</span>
                     <select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
                       <option value="all">All aesthetics</option>
@@ -121,21 +121,21 @@
                     </select>
                   </label>
 
-                  <label class="shop-drop-window illustrated-select price-window">
-                    <span class="category-window-title" aria-hidden="true">Price / New</span>
-                    <img class="category-window-art" src="/sewing-navigation-v2.webp" alt="" aria-hidden="true" />
-                    <span class="category-window-current" aria-hidden="true">All prices</span>
-                    <select id="shop-sort-filter" aria-label="Sort shop results">
-                      <option value="all">All prices</option>
-                      <option value="new">Newly added</option>
-                      <option value="low">Price low–high</option>
-                      <option value="high">Price high–low</option>
+                  <label class="shop-drop-window illustrated-select pattern-window">
+                    <span class="category-window-title" aria-hidden="true">Print / Pattern</span>
+                    <img class="category-window-art" src="/category-pattern-frame.webp" alt="" aria-hidden="true" />
+                    <span class="category-window-current" aria-hidden="true">All prints</span>
+                    <select id="shop-pattern-filter" aria-label="Filter by print or pattern">
+                      <option value="all">All prints</option>
+                      <option value="Solid">Solid</option><option value="Floral">Floral</option><option value="Leopard">Leopard</option><option value="Other Animal Print">Other Animal Print</option>
+                      <option value="Plaid / Tartan">Plaid / Tartan</option><option value="Stripes">Stripes</option><option value="Polka Dot">Polka Dot</option><option value="Geometric">Geometric</option>
+                      <option value="Paisley">Paisley</option><option value="Abstract">Abstract</option><option value="Botanical">Botanical</option><option value="Novelty">Novelty</option>
+                      <option value="Tie-Dye">Tie-Dye</option><option value="Color Block">Color Block</option><option value="Mixed Print">Mixed Print</option><option value="Other">Other</option>
                     </select>
                   </label>
-
                   <label class="shop-drop-window illustrated-select accessories-window">
                     <span class="category-window-title" aria-hidden="true">Accessories</span>
-                    <img class="category-window-art" src="/sewing-navigation-v2.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/category-accessories-frame.webp" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">Accessories</span>
                     <select id="shop-accessory-filter" aria-label="Filter accessories">
                       <option value="all">Any category</option>
@@ -152,7 +152,7 @@
                   </label>
                   <label class="shop-drop-window illustrated-select designers-window">
                     <span class="category-window-title" aria-hidden="true">Designers</span>
-                    <img class="category-window-art" src="/sewing-navigation-v2.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/category-designers-frame.webp" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All designers</span>
                     <select id="shop-designer-filter" aria-label="Filter by designer">
                       <option value="all">All designers</option>
@@ -177,16 +177,7 @@
                   </form>
                 </details>
                   <button id="shop-clear-filters" type="button" class="btn btn-secondary">Clear filters</button>
-                  <label class="shop-pattern-control">
-                    <span>Print / Pattern</span>
-                    <select id="shop-pattern-filter" aria-label="Filter by print or pattern">
-                      <option value="all">All prints</option>
-                      <option value="Solid">Solid</option><option value="Floral">Floral</option><option value="Leopard">Leopard</option><option value="Other Animal Print">Other Animal Print</option>
-                      <option value="Plaid / Tartan">Plaid / Tartan</option><option value="Stripes">Stripes</option><option value="Polka Dot">Polka Dot</option><option value="Geometric">Geometric</option>
-                      <option value="Paisley">Paisley</option><option value="Abstract">Abstract</option><option value="Botanical">Botanical</option><option value="Novelty">Novelty</option>
-                      <option value="Tie-Dye">Tie-Dye</option><option value="Color Block">Color Block</option><option value="Mixed Print">Mixed Print</option><option value="Other">Other</option>
-                    </select>
-                  </label>
+
               </div>
             </div>
             <p id="shop-status" class="notice" role="status" aria-live="polite">Loading the latest pieces…</p>
