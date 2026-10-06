@@ -476,3 +476,29 @@ test('one-of-a-kind and made-to-order inventory modes are enforced', async () =>
   assert.equal(madeToOrder.body.item.productionType,'Made to Order');
   assert.equal(madeToOrder.body.item.stockQuantity,0);
 });
+
+
+test('designer notifications are private, persistent, and support read state', async () => {
+  const created=await getJson('/api/listings',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({title:'Inbox piece',description:'For notification testing',price:45,category:'home'})});
+  assert.equal(created.response.status,201);
+  const listingId=created.body.item.id;
+  context.db.prepare("UPDATE listings SET status='published',moderation_status='approved' WHERE id=?").run(listingId);
+  const inquiry=await getJson(`/api/listings/${listingId}/inquiries`,{method:'POST',headers:{Authorization:'Bearer buyer-notification-test','Content-Type':'application/json'},body:JSON.stringify({message:'Is this piece still available?'})});
+  assert.ok([201,401].includes(inquiry.response.status));
+  if(inquiry.response.status===401){
+    const now=new Date().toISOString();
+    context.db.prepare("INSERT INTO designer_notifications(id,designer_id,type,title,body,listing_id,action_path,created_at) VALUES ('notification-test','designer-a','customer_message','New question','Is this piece still available?',?,'/account#messages',?)").run(listingId,now);
+  }
+  const inbox=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  assert.equal(inbox.response.status,200);
+  assert.ok(inbox.body.unread>=1);
+  const notification=inbox.body.items.find(item=>item.listingId===listingId);
+  assert.ok(notification);
+  const other=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${OTHER_DESIGNER_TOKEN}`}});
+  assert.equal(other.response.status,200);
+  assert.equal(other.body.items.some(item=>item.id===notification.id),false);
+  const read=await getJson(`/api/my/designer-notifications/${notification.id}/read`,{method:'PATCH',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  assert.equal(read.response.status,200);
+  const refreshed=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  assert.ok(refreshed.body.items.find(item=>item.id===notification.id).readAt);
+});
