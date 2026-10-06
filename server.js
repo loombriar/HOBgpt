@@ -1610,7 +1610,7 @@ function createApp(options = {}) {
       if(token){try{const profile=await resolveDesignerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim())buyerSubject=profile.sub.trim();}catch{}}
       const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
       db.prepare("INSERT INTO donations (id,buyer_subject,amount_cents,currency,status,created_at) VALUES (?,?,?,'usd','pending',?)").run(id,buyerSubject,amountCents,now);
-      const body=new URLSearchParams({mode:'payment',success_url:`${origin}/cart?donation=success`,cancel_url:`${origin}/cart?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
+      const body=new URLSearchParams({mode:'payment',success_url:`${origin}/?donation=success`,cancel_url:`${origin}/?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
       body.append('payment_method_types[]','card');
       body.append('payment_method_types[]','us_bank_account');
       body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]','Support House of Briar');body.set('line_items[0][price_data][unit_amount]',String(amountCents));body.set('line_items[0][quantity]','1');
@@ -1635,8 +1635,8 @@ function createApp(options = {}) {
       const origin = trustedAppOrigin(req);
       const body = new URLSearchParams({
         mode: 'payment',
-        success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
+        success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
         expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
         'payment_intent_data[metadata][order_id]': orderId,
