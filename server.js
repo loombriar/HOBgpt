@@ -335,6 +335,10 @@ function createApp(options = {}) {
   ensureColumn('designer_profiles', 'social_url', 'TEXT');
   ensureColumn('designer_profiles', 'portrait_storage_key', 'TEXT');
   ensureColumn('designer_profiles', 'logo_storage_key', 'TEXT');
+  ensureColumn('designer_profiles', 'stripe_payouts_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_profiles', 'stripe_details_submitted', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_profiles', 'stripe_requirements_due', "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('designer_profiles', 'stripe_status_checked_at', 'TEXT');
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -1296,9 +1300,29 @@ function createApp(options = {}) {
   }
 
   async function stripeStatus(designer) {
-    if(!designer.stripe_account_id)return {designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false};
+    if(!designer.stripe_account_id)return {designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false,chargesEnabled:false,readyToSell:false,requirementsDue:[]};
     const account=await stripeApi(`accounts/${encodeURIComponent(designer.stripe_account_id)}`);
-    return {designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled),readyToSell:Boolean(account.details_submitted&&account.payouts_enabled),requirementsDue:Array.isArray(account.requirements?.currently_due)?account.requirements.currently_due:[]};
+    const requirementsDue=Array.isArray(account.requirements?.currently_due)?account.requirements.currently_due:[];
+    const onboardingComplete=Boolean(account.details_submitted);
+    const payoutsEnabled=Boolean(account.payouts_enabled);
+    const readyToSell=onboardingComplete&&payoutsEnabled&&requirementsDue.length===0;
+    db.prepare('UPDATE designer_profiles SET stripe_payouts_enabled=?,stripe_details_submitted=?,stripe_requirements_due=?,stripe_status_checked_at=? WHERE id=?')
+      .run(payoutsEnabled?1:0,onboardingComplete?1:0,JSON.stringify(requirementsDue),new Date().toISOString(),designer.id);
+    return {designerId:designer.id,connected:true,onboardingComplete,payoutsEnabled,chargesEnabled:Boolean(account.charges_enabled),readyToSell,requirementsDue};
+  }
+
+  async function requireStripeSellerReady(designerId) {
+    const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
+    if(!designer?.stripe_account_id)throw Object.assign(new Error('Designer must finish Stripe payout setup before this piece can go on sale.'),{statusCode:409,code:'payout_setup_required'});
+    const status=await stripeStatus(designer);
+    if(!status.readyToSell)throw Object.assign(new Error('Designer Stripe verification or payout setup still needs attention before this piece can be sold.'),{statusCode:409,code:'payout_setup_incomplete'});
+    return status;
+  }
+
+  async function requireQuoteSellersReady(quote) {
+    const ids=[...new Set((quote?.items||[]).map(item=>item.designerId).filter(Boolean))];
+    for(const designerId of ids)await requireStripeSellerReady(designerId);
+    return quote;
   }
 
   app.post('/api/session', authDesigner, (req, res) => {
@@ -1713,9 +1737,9 @@ function createApp(options = {}) {
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
     return { currency: 'usd', items: rows, subtotalCents, discountCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
   }
-  app.post('/api/checkout/quote', checkoutLimiter, (req, res) => {
-    try { return res.json(buildCheckoutQuote(req.body?.items,req.body?.promoCodes)); }
-    catch (error) { return fail(res, error.statusCode || 422, 'invalid_cart', error.message); }
+  app.post('/api/checkout/quote', checkoutLimiter, async (req, res) => {
+    try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); await requireQuoteSellersReady(quote); return res.json(quote); }
+    catch (error) { return fail(res, error.statusCode || 422, error.code || 'invalid_cart', error.message); }
   });
 
   app.post('/api/donations/session', checkoutLimiter, async (req,res,next) => {
@@ -1770,7 +1794,7 @@ function createApp(options = {}) {
     if(localOrder.status!=='paid'){const email=paypalPayerEmail(paypalOrder);db.prepare("UPDATE orders SET status='paid',paid_at=?,buyer_email=COALESCE(buyer_email,?),paypal_capture_id=? WHERE id=?").run(new Date().toISOString(),email,capture?.id||null,localOrder.id);markOrderInventorySold(localOrder.id);const subject=localOrder.buyer_subject||badgeSubjectForEmail(email);if(subject)awardBadge(subject,'verified_buyer','order',localOrder.id);await prepareDesignerTransfers(localOrder.id);await notifySale(localOrder.id);}
   }
   app.post('/api/paypal/checkout/order',checkoutLimiter,async(req,res,next)=>{
-    try{const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes);const {buyerSubject,buyerEmail}=await paypalBuyerIdentity(req);const orderId=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
+    try{const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes);await requireQuoteSellersReady(quote);const {buyerSubject,buyerEmail}=await paypalBuyerIdentity(req);const orderId=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
       db.transaction(()=>{db.prepare(`INSERT INTO orders (id,buyer_subject,buyer_email,status,currency,subtotal_cents,discount_cents,platform_fee_cents,designer_amount_cents,created_at,payment_provider) VALUES (?,?,?,'pending',?,?,?,?,?,?,'paypal')`).run(orderId,buyerSubject,buyerEmail,quote.currency,quote.subtotalCents,quote.discountCents,quote.platformFeeCents,quote.designerAmountCents,now);reserveInventory(orderId,quote.items,now);const stmt=db.prepare(`INSERT INTO order_items (id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,discount_cents,promo_code_id,platform_fee_cents,designer_amount_cents,gift_wrap_selected,gift_wrap_cents) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);quote.items.forEach(item=>stmt.run(makeId(),orderId,item.id,item.designerId,item.title,item.unitAmountCents,item.quantity,item.lineTotalCents,item.discountCents,item.promoCodeId,item.platformFeeCents,item.designerAmountCents,item.giftWrapSelected?1:0,item.giftWrapCents));})();
       try{const pp=await paypalApi('/v2/checkout/orders',{method:'POST',idempotencyKey:'hob-paypal-order-'+orderId,body:{intent:'CAPTURE',purchase_units:[{reference_id:orderId,custom_id:orderId,amount:{currency_code:'USD',value:(quote.subtotalCents/100).toFixed(2)}}],payment_source:{paypal:{experience_context:paypalExperience(origin,'order',orderId)}}}});db.prepare('UPDATE orders SET paypal_order_id=? WHERE id=?').run(pp.id,orderId);return res.status(201).json({orderId,paypalOrderId:pp.id,url:paypalApprovalUrl(pp)});}catch(error){releaseOrderInventory(orderId);throw error;}
     }catch(error){next(error);}
@@ -1795,6 +1819,7 @@ function createApp(options = {}) {
     }
     try {
       const quote = buildCheckoutQuote(req.body?.items,req.body?.promoCodes);
+      await requireQuoteSellersReady(quote);
       const orderId = makeId();
       const cancelToken = crypto.randomBytes(32).toString('base64url');
       const cancelTokenHash = crypto.createHash('sha256').update(cancelToken).digest('hex');
@@ -2522,15 +2547,15 @@ function createApp(options = {}) {
     return res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
 
-  app.post('/api/admin/listings/:listingId/approve', authAdmin, (req, res) => {
+  app.post('/api/admin/listings/:listingId/approve', authAdmin, async (req, res, next) => {
+    try {
     const row = getListing(req.params.listingId);
     if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
     if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be approved.');
 
     const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
     if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
-    const seller=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id);
-    if(!seller?.stripe_account_id)return fail(res,409,'payout_setup_required','Designer must finish Stripe payout setup before this piece can go live.');
+    await requireStripeSellerReady(row.designer_id);
 
     const timestamp = new Date().toISOString();
     db.prepare(`
@@ -2541,6 +2566,7 @@ function createApp(options = {}) {
     notifyDesigner(row.designer_id,'listing_review','Listing approved',`${row.title} was approved and is now published.`,{listingId:row.id,actionPath:`/shop/${row.id}`,priority:'normal',source:'admin',adminLabel:'House of Briar'});
 
     return res.json({ item: serializeListing(getListing(row.id), 'public') });
+    } catch(error) { if(error.statusCode)return fail(res,error.statusCode,error.code||'payout_setup_incomplete',error.message); return next(error); }
   });
 
   app.post('/api/admin/listings/:listingId/reject', authAdmin, (req, res) => {
