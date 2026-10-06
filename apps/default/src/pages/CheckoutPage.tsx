@@ -46,6 +46,8 @@ export default function CheckoutPage() {
   const [loadError, setLoadError] = useState('');
   const [paymentState, setPaymentState] = useState<'idle' | 'opening' | 'verifying' | 'paid' | 'cancelled' | 'failed'>(returnState === 'canceled' ? 'cancelled' : 'idle');
   const [paymentError, setPaymentError] = useState('');
+  const [promoInput,setPromoInput]=useState('');
+  const [promoCodes,setPromoCodes]=useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -132,7 +134,7 @@ export default function CheckoutPage() {
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
     trackCommerceEvent({ event: 'begin_checkout', value: subtotal, currency: 'USD', itemCount: catalogItems.length });
     try {
-      const url = await createCheckoutSession(checkoutItems, auth.user?.access_token ?? '');
+      const url = await createCheckoutSession(checkoutItems, auth.user?.access_token ?? '', promoCodes);
       window.location.assign(url);
     } catch (error) {
       window.localStorage.removeItem(PENDING_KEY);
@@ -180,7 +182,7 @@ export default function CheckoutPage() {
             <div className="mt-5 divide-y divide-border">{items.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 py-4"><div className="min-w-0"><p className="truncate text-sm">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">One of one · Qty 1</p></div><p className="shrink-0 text-sm font-medium tabular-nums">{money.format(item.amount * item.quantity)}</p></div>)}</div>
             <div className="mt-5 flex items-center justify-between border-t border-border pt-5"><span className="text-sm text-muted-foreground">Item subtotal</span><span className="text-sm tabular-nums">{money.format(subtotal)}</span></div>
             <div className="mt-3 flex items-center justify-between border-t border-border pt-4"><span className="text-sm font-medium">Items total</span><span className="text-xl font-semibold tabular-nums">{money.format(subtotal)}</span></div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">Delivery and any promotions available for this checkout are handled securely by Stripe.</p>
+            <div className="mt-5 border-t border-border pt-5"><label htmlFor="seller-promo" className="text-sm font-medium">Designer promo code</label><div className="mt-2 flex gap-2"><input id="seller-promo" value={promoInput} onChange={e=>setPromoInput(e.target.value.toUpperCase())} placeholder="Enter code" className="min-h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm"/><button type="button" onClick={()=>{const code=promoInput.trim().toUpperCase();if(code&&!promoCodes.includes(code))setPromoCodes(v=>[...v,code]);setPromoInput('');}} className="rounded-xl border border-border px-4 text-sm font-medium">Apply</button></div>{promoCodes.length>0&&<div className="mt-2 flex flex-wrap gap-2">{promoCodes.map(code=><button type="button" key={code} onClick={()=>setPromoCodes(v=>v.filter(x=>x!==code))} className="rounded-full bg-accent px-3 py-1 text-xs">{code} ×</button>)}</div>}<p className="mt-2 text-xs leading-5 text-muted-foreground">A designer code applies only to eligible pieces from that designer. The server recalculates every discount before payment.</p></div>
             {paymentState === 'cancelled' && <p role="status" className="mt-4 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">Checkout was canceled. Your suitcase is still here.</p>}
             {(paymentState === 'failed' || paymentError) && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{paymentError}</p>}
             {guestCatalog && <p role="status" className="mt-4 text-sm leading-6 text-muted-foreground">Guest checkout uses the public catalog prices, which may not reflect recent changes. Please review the total in Stripe before paying.</p>}
