@@ -372,3 +372,22 @@ test('listing reports are validated, persisted and visible only to admins', asyn
     assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id=?').get('report-piece').status, 'published');
   } finally { await new Promise(resolve => listener.close(resolve)); instance.db.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('public names are unique across designers and customers, ignoring case and spacing', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'briar-public-names-'));
+  const instance = createApp({ dataDir: directory, seedProducts: [{ id:'name-piece', designerId:'name-designer', title:'Piece', price:10 }], designerTokens:{ 'maker-name-token':'name-designer' }, resolveIdentity: async ({token}) => ({ sub:token, name:'Visitor', email:`${token}@example.com`, email_verified:true }) });
+  const listener = instance.app.listen(0,'127.0.0.1'); await once(listener,'listening');
+  const origin = `http://127.0.0.1:${listener.address().port}`;
+  const patch = (token,name) => fetch(`${origin}/api/my/public-profile`,{method:'PATCH',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({publicName:name})});
+  try {
+    assert.equal((await patch('buyer-one','  NAME-DESIGNER  ')).status,409);
+    assert.equal((await patch('buyer-one','Berry   Queen')).status,200);
+    assert.equal((await patch('buyer-two','berry queen')).status,409);
+    assert.equal((await patch('buyer-one','Berry Queen')).status,200);
+    const maker = await fetch(`${origin}/api/my/designer-profile`,{method:'PATCH',headers:{Authorization:'Bearer maker-name-token','Content-Type':'application/json'},body:JSON.stringify({brandName:'Ｂｅｒｒｙ Queen'})});
+    assert.equal(maker.status,409);
+    const attempts = await Promise.all([patch('buyer-one','Unique Name'),patch('buyer-two','unique name')]);
+    assert.deepEqual(attempts.map(response=>response.status).sort(),[200,409]);
+    assert.equal(instance.db.prepare('SELECT COUNT(*) count FROM public_names WHERE name_key=?').get('unique name').count,1);
+  } finally { await new Promise(resolve=>listener.close(resolve)); instance.db.close(); fs.rmSync(directory,{recursive:true,force:true}); }
+});
