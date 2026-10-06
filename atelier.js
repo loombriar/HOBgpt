@@ -34,6 +34,7 @@ async function renderHouseEditorial(){
     const payload=await apiRequest('/api/gallery');
     const items=(Array.isArray(payload.items)?payload.items:[]).filter(item=>getProductImages(item)[0]?.url);
     const featured=houseCollection?items.filter(houseCollection.match):items;
+    spread.dataset.count=String(Math.min(featured.length,3));
     if(!featured.length){spread.append(makeElement('p','atelier-empty','New pieces are on their way. Explore the market below.'));}
     featured.slice(0,3).forEach((item,index)=>{
       const card=makeElement('button','atelier-photo atelier-photo-'+index);card.type='button';card.setAttribute('aria-label',`Explore ${item.title}`);
@@ -43,7 +44,7 @@ async function renderHouseEditorial(){
     });
     for(const [slug,collection] of Object.entries(houseCollections)){
       const card=makeElement('a','atelier-collection');card.href='/collections/'+slug;
-      const item=items.find(collection.match),cover=makeElement('div','atelier-collection-cover');
+      const item=slug==='independent-by-design'?(items.find(item=>item.style==='Set / Outfit')||items.at(-1)):items.find(collection.match),cover=makeElement('div','atelier-collection-cover');
       if(item){const img=document.createElement('img');img.src=getProductImages(item)[0].url;img.alt='';img.loading='lazy';cover.append(img);}
       cover.append(houseIcon(collection.icon));
       const copy=makeElement('div','atelier-collection-copy');copy.append(makeElement('span','eyebrow',collection.season),makeElement('h3','',collection.title),makeElement('p','',collection.description),makeElement('span','atelier-collection-link','Explore the edit ↗'));
