@@ -310,11 +310,11 @@ test('deleted legacy listings stay deleted after server restart', () => {
   let instance;
   try {
     instance = createApp({ dataDir: directory, seedProducts: seeds });
-    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[0].id);
-    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[1].id);
-    instance.db.close();
+    context.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[0].id);
+    context.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[1].id);
+    context.db.close();
     instance = createApp({ dataDir: directory, seedProducts: seeds });
-    for (const seed of seeds) assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id = ?').get(seed.id).status, 'deleted');
+    for (const seed of seeds) assert.equal(context.db.prepare('SELECT status FROM listings WHERE id = ?').get(seed.id).status, 'deleted');
   } finally {
     instance?.db.close();
     fs.rmSync(directory, { recursive: true, force: true });
@@ -363,14 +363,14 @@ test('listing reports are validated, persisted and visible only to admins', asyn
     assert.equal((await send({ reason: 'other' })).status, 422);
     const created = await send({ reason: 'misleading', notes: 'The materials seem inconsistent.' }); assert.equal(created.status, 201);
     const report = await created.json();
-    assert.equal(instance.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'open');
+    assert.equal(context.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'open');
     assert.equal((await fetch(`${origin}/api/admin/listing-reports`)).status, 401);
     const headers = { Authorization: `Bearer ${ADMIN_TOKEN}` };
     const queue = await (await fetch(`${origin}/api/admin/listing-reports`, { headers })).json(); assert.equal(queue.reports[0].notes, 'The materials seem inconsistent.');
     assert.equal((await fetch(`${origin}/api/admin/listing-reports/${report.id}/resolve`, { method: 'POST', headers })).status, 200);
-    assert.equal(instance.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'resolved');
-    assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id=?').get('report-piece').status, 'published');
-  } finally { await new Promise(resolve => listener.close(resolve)); instance.db.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+    assert.equal(context.db.prepare('SELECT status FROM listing_reports WHERE id=?').get(report.id).status, 'resolved');
+    assert.equal(context.db.prepare('SELECT status FROM listings WHERE id=?').get('report-piece').status, 'published');
+  } finally { await new Promise(resolve => listener.close(resolve)); context.db.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
 
@@ -486,15 +486,15 @@ test('inventory lifecycle uses on-hand stock, reservations, and sale adjustments
   assert.equal(created.response.status,201);
   const listingId=created.body.item.id;
   const now=new Date().toISOString();
-  instance.db.prepare("INSERT INTO orders (id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at) VALUES ('lifecycle-order','pending','usd',3500,350,3150,?)").run(now);
-  instance.db.prepare("INSERT INTO order_items (id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES ('lifecycle-item','lifecycle-order',?,'designer-a','Lifecycle limited piece',3500,1,3500,350,3150)").run(listingId);
-  instance.db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,'lifecycle-order','reserved',?,?,1)").run(listingId,now,new Date(Date.now()+600000).toISOString());
-  assert.equal(instance.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,2);
-  instance.db.prepare("UPDATE inventory_reservations SET status='sold',sold_at=? WHERE listing_id=? AND order_id='lifecycle-order'").run(now,listingId);
-  instance.db.prepare('UPDATE listings SET stock_quantity=stock_quantity-1 WHERE id=?').run(listingId);
-  instance.db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES ('lifecycle-adjust',?,-1,1,'Sale completed','sale','lifecycle-order',?)").run(listingId,now);
-  assert.equal(instance.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,1);
-  const adjustment=instance.db.prepare("SELECT * FROM inventory_adjustments WHERE listing_id=? AND actor_type='sale'").get(listingId);
+  context.db.prepare("INSERT INTO orders (id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at) VALUES ('lifecycle-order','pending','usd',3500,350,3150,?)").run(now);
+  context.db.prepare("INSERT INTO order_items (id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES ('lifecycle-item','lifecycle-order',?,'designer-a','Lifecycle limited piece',3500,1,3500,350,3150)").run(listingId);
+  context.db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,'lifecycle-order','reserved',?,?,1)").run(listingId,now,new Date(Date.now()+600000).toISOString());
+  assert.equal(context.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,2);
+  context.db.prepare("UPDATE inventory_reservations SET status='sold',sold_at=? WHERE listing_id=? AND order_id='lifecycle-order'").run(now,listingId);
+  context.db.prepare('UPDATE listings SET stock_quantity=stock_quantity-1 WHERE id=?').run(listingId);
+  context.db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES ('lifecycle-adjust',?,-1,1,'Sale completed','sale','lifecycle-order',?)").run(listingId,now);
+  assert.equal(context.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,1);
+  const adjustment=context.db.prepare("SELECT * FROM inventory_adjustments WHERE listing_id=? AND actor_type='sale'").get(listingId);
   assert.equal(adjustment.delta,-1);
   assert.equal(adjustment.quantity_after,1);
 });
