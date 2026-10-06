@@ -1970,7 +1970,9 @@ function createApp(options = {}) {
     const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
     if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
     if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
+    if(row.production_type==='Made to Order')return fail(res,409,'not_stocked','Made-to-order pieces do not use on-hand inventory adjustments.');
     const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
+    if(row.production_type==='One of a Kind' && after>1)return fail(res,409,'unique_stock_limit','A one-of-a-kind piece cannot have more than one on hand.');
     const now=new Date().toISOString();
     db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);recordInventoryAdjustment(row.id,delta,after,reason,'admin','admin',now);})();
     return res.json({item:serializeListing(getListing(row.id),'admin')});
@@ -2166,8 +2168,10 @@ function createApp(options = {}) {
       const body=new URLSearchParams({payment_intent:paymentIntent,reason:'requested_by_customer','metadata[order_id]':order.id});
       const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:`hob-refund-${order.id}`});
       db.prepare("UPDATE orders SET refund_status=?,stripe_refund_id=?,refunded_at=? WHERE id=?").run(refund.status||'pending',refund.id||null,refund.status==='succeeded'?new Date().toISOString():null,order.id);
+      let restocked = 0;
+      if (refund.status === 'succeeded' && req.body?.restock === true) restocked = restockOrderInventory(order.id, String(req.body?.restockReason || 'Refunded order returned to inventory').trim().slice(0,240));
       if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund was issued for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
-      return res.json({ok:true,refundId:refund.id,status:refund.status});
+      return res.json({ok:true,refundId:refund.id,status:refund.status,restocked});
     }catch(error){return next(error);}
   });
 
