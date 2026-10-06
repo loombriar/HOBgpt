@@ -1518,3 +1518,5 @@ main>section:not(.hero){position:relative}
 .product-card .product-body{padding:16px 14px 18px!important}
 .product-card:focus-visible{outline:3px solid #a4864d;outline-offset:3px}
 @media(max-width:600px){.sewing-header .room-button{flex:1 1 135px!important}.sewing-header .room-button .room-nav-icon{width:32px;height:40px}.product-section::before,.story-section::before,.curation-section::before,.newsletter-section::before{background-size:250px 40px!important}.product-card .product-image::before,.product-card .product-image::after{width:54px!important;height:54px!important}}
+
+.listing-report{margin:18px 0;padding:12px 0;border-top:1px solid #c7ab68}.listing-report summary{cursor:pointer}.listing-report form{margin-top:12px}.admin-support-item button{margin:6px 6px 0 0}
