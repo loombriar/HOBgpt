@@ -50,7 +50,27 @@ function detectImageMime(buffer) {
   return null;
 }
 
+const FIT_KEYS = ['bust', 'waist', 'hips', 'inseam'];
+function validateFitRanges(value) {
+  if (value === undefined) return { value: null };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { error: 'Enter valid body measurement ranges.' };
+  const ranges = {};
+  for (const key of FIT_KEYS) {
+    if (value[key] === undefined) continue;
+    const range = value[key];
+    if (!range || typeof range !== 'object' || Array.isArray(range)) return { error: `Enter a minimum and maximum ${key} measurement.` };
+    const min = range.min, max = range.max;
+    if (typeof min !== 'number' || typeof max !== 'number' || !Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max > 150 || min > max) {
+      return { error: `Enter a valid ${key} range in inches, with the minimum no larger than the maximum.` };
+    }
+    ranges[key] = { min, max };
+  }
+  return { value: ranges };
+}
+
 function validateListingInput(body = {}, existing = null) {
+  const fit = validateFitRanges(body.fitMeasurements);
+  if (fit.error) return fit;
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const price = Number(body.price);
@@ -106,7 +126,7 @@ function validateListingInput(body = {}, existing = null) {
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
+  return { value: { fitMeasurements: fit.value, title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
 }
 
 function createApp(options = {}) {
@@ -280,6 +300,7 @@ function createApp(options = {}) {
   }
   ensureColumn('listings', 'moderation_reason', 'TEXT');
   ensureColumn('listings', 'style', 'TEXT');
+  ensureColumn('listings', 'fit_measurements', 'TEXT');
   ensureColumn('listings', 'aesthetic', 'TEXT');
   ensureColumn('listings', 'pattern', 'TEXT');
   ensureColumn('listings', 'materials', 'TEXT');
@@ -804,6 +825,7 @@ function createApp(options = {}) {
       category: row.category,
       style: row.style || '',
       size: row.size || '',
+      fitMeasurements: (() => { try { return JSON.parse(row.fit_measurements || '{}'); } catch { return {}; } })(),
       aesthetic: row.aesthetic || '',
       pattern: row.pattern || '',
       materials: row.materials || '',
@@ -1590,10 +1612,23 @@ function createApp(options = {}) {
     res.json({ periodDays: 30, events, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
   });
 
-    app.get('/api/gallery', (req, res) => {
+    const galleryResponse = (req, res) => {
+    const input = req.method === 'POST' ? req.body?.filters || {} : req.query;
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return fail(res, 400, 'invalid_filter', 'Choose valid shop filters.');
+    const measurements = req.method === 'POST' ? req.body?.measurements : undefined;
+    if (req.method === 'POST' && measurements === undefined) return fail(res, 400, 'invalid_measurements', 'Enter at least one measurement.');
+    if (measurements !== undefined && (!measurements || typeof measurements !== 'object' || Array.isArray(measurements))) return fail(res, 400, 'invalid_measurements', 'Enter valid measurements.');
+    const fitValues = {};
+    for (const key of FIT_KEYS) {
+      if (measurements?.[key] === undefined) continue;
+      const value = measurements[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 150) return fail(res, 400, 'invalid_measurements', 'Enter measurements between 0 and 150 inches.');
+      fitValues[key] = value;
+    }
+    if (measurements !== undefined && !Object.keys(fitValues).length) return fail(res, 400, 'invalid_measurements', 'Enter at least one measurement.');
     const filters = {};
     for (const key of ['category', 'style', 'aesthetic', 'pattern', 'designer', 'q', 'sort']) {
-      const value = req.query[key];
+      const value = input[key];
       if (value !== undefined && (typeof value !== 'string' || value.length > (key === 'q' ? 200 : 100))) {
         return fail(res, 400, 'invalid_filter', 'Choose a valid shop filter.');
       }
@@ -1634,8 +1669,18 @@ function createApp(options = {}) {
         item.pattern, item.materials, item.designerName, item.designer, item.productionType, item.category]
         .filter(Boolean).join(' ').toLowerCase().includes(query));
     }
+    if (Object.keys(fitValues).length) {
+      items = items.filter(item => Object.entries(fitValues).every(([key, value]) => {
+        const range = item.fitMeasurements[key];
+        return range && Number.isFinite(range.min) && Number.isFinite(range.max) && value >= range.min && value <= range.max;
+      }));
+    }
+    res.set('Cache-Control', 'no-store');
     res.json({ items });
-  });
+  };
+  app.get('/api/gallery', galleryResponse);
+  app.post('/api/gallery/search', galleryResponse);
+
 
   app.get('/api/recommendations/:listingId', (req,res) => {
     const listingId=String(req.params.listingId||'');
@@ -1771,9 +1816,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, fit_measurements, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1784,6 +1829,7 @@ function createApp(options = {}) {
       validation.value.category,
       validation.value.style || null,
       validation.value.size || null,
+      validation.value.fitMeasurements === null ? null : JSON.stringify(validation.value.fitMeasurements),
       validation.value.aesthetic || null,
       validation.value.pattern || null,
       validation.value.materials || null,
@@ -1842,7 +1888,7 @@ function createApp(options = {}) {
       const timestamp = new Date().toISOString();
       db.prepare(`
         UPDATE listings
-        SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
+        SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, fit_measurements = COALESCE(?, fit_measurements), aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
             status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
             moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
             moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1854,6 +1900,7 @@ function createApp(options = {}) {
         validation.value.category,
         validation.value.style || null,
         validation.value.size || null,
+        validation.value.fitMeasurements === null ? null : JSON.stringify(validation.value.fitMeasurements),
         validation.value.aesthetic || null,
         validation.value.pattern || null,
         validation.value.materials || null,
