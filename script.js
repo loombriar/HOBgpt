@@ -56,6 +56,7 @@ let selectedImages = [];
 let activeFilter = 'all';
 let activeDesigner = 'all';
 let galleryRequest = 0;
+let activeMeasurements = null;
 let searchTimer;
 let activeAesthetic = 'all';
 const designerListImageUrls = new Set();
@@ -331,7 +332,7 @@ function renderGallery() {
   productGrid.replaceChildren();
 
   const items = galleryItems;
-  if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.`, 'success');
+  if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
@@ -429,7 +430,9 @@ async function loadGallery() {
   productGrid?.setAttribute('aria-busy', 'true');
   if (shopStatus) setMessage(shopStatus, 'Finding your next favorite…', '');
   try {
-    const payload = await apiRequest(`/api/gallery?${params}`);
+    const payload = activeMeasurements
+      ? await apiRequest('/api/gallery/search', { method: 'POST', body: JSON.stringify({ filters: Object.fromEntries(params), measurements: activeMeasurements }) })
+      : await apiRequest(`/api/gallery?${params}`);
     if (request !== galleryRequest) return;
     galleryItems = Array.isArray(payload.items) ? payload.items : [];
     renderGallery();
@@ -568,6 +571,8 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
+  const ranges = Object.entries(item.fitMeasurements || {}).map(([key, range]) => `${key}: ${range.min}–${range.max} in`);
+  if (ranges.length) copy.appendChild(makeElement('p', 'product-fit', `Fits body measurements — ${ranges.join(' · ')}`));
   if (item.materials) copy.appendChild(makeElement('p', 'product-materials', `Materials: ${item.materials}`));
   if (item.careInstructions) copy.appendChild(makeElement('p', 'product-care', `Care: ${item.careInstructions}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
@@ -772,6 +777,16 @@ function addFiles(fileList) {
   if (photoInput) photoInput.value = '';
 }
 
+function readFitRanges() {
+  const ranges = {};
+  for (const key of ['bust', 'waist', 'hips', 'inseam']) {
+    const min = byId(`product-fit-${key}-min`)?.value || '';
+    const max = byId(`product-fit-${key}-max`)?.value || '';
+    if (min || max) ranges[key] = { min: min ? Number(min) : null, max: max ? Number(max) : null };
+  }
+  return ranges;
+}
+
 function readFormValues() {
   return {
     title: byId('product-name').value.trim(),
@@ -780,6 +795,7 @@ function readFormValues() {
     category: 'apparel',
     style: byId('product-style')?.value || '',
     size: byId('product-size')?.value || '',
+    fitMeasurements: readFitRanges(),
     aesthetic: byId('product-aesthetic')?.value || '',
     pattern: byId('product-pattern')?.value || '',
     materials: byId('product-materials')?.value.trim() || '',
@@ -1015,6 +1031,9 @@ async function editListing(listingId) {
     if (byId('product-category')) byId('product-category').value = 'apparel';
     if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (byId('product-size')) byId('product-size').value = listing.size || '';
+    for (const key of ['bust','waist','hips','inseam']) for (const bound of ['min','max']) {
+      const input = byId(`product-fit-${key}-${bound}`); if (input) input.value = listing.fitMeasurements?.[key]?.[bound] ?? '';
+    }
     if (byId('product-aesthetic')) byId('product-aesthetic').value = listing.aesthetic || '';
     if (byId('product-pattern')) byId('product-pattern').value = listing.pattern || '';
     if (byId('product-materials')) byId('product-materials').value = listing.materials || '';
@@ -1123,6 +1142,9 @@ byId('shop-clear-filters')?.addEventListener('click', () => {
   clearTimeout(searchTimer);
   activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = 'all';
   shopSearch = '';
+  activeMeasurements = null;
+  byId('shop-fit-form')?.reset();
+  setMessage(byId('shop-fit-message'), '', '');
   byId('shop-search-input').value = '';
   for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-sort-filter', 'shop-designer-filter']) {
     const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
@@ -1499,3 +1521,36 @@ document.addEventListener('keydown', event => {
 byId('measurement-profile-form')?.addEventListener('input', updateMeasurementAvatarPreview);
 updateMeasurementAvatarPreview();
 
+
+function refreshShopFitProfiles() {
+  const select = byId('shop-fit-profile'); if (!select) return;
+  const selected = select.value;
+  select.replaceChildren(new Option('Enter measurements', ''));
+  for (const profile of loadMeasurementProfiles()) select.append(new Option(profile.label, profile.id));
+  select.value = selected;
+}
+byId('shop-fit-profile')?.addEventListener('focus', refreshShopFitProfiles);
+byId('shop-fit-profile')?.addEventListener('change', event => {
+  const profile = loadMeasurementProfiles().find(p => p.id === event.target.value);
+  if (!profile) return;
+  byId('shop-fit-unit').value = 'in';
+  for (const key of ['bust','waist','hips','inseam']) byId(`shop-fit-${key}`).value = /^\d+(?:\.\d+)?$/.test(String(profile[key] || '').trim()) ? profile[key] : '';
+  setMessage(byId('shop-fit-message'), 'Saved measurements filled in inches. Review them, then find matches.', '');
+});
+byId('shop-fit-form')?.addEventListener('submit', event => {
+  event.preventDefault();
+  const measurements = {};
+  for (const key of ['bust','waist','hips','inseam']) {
+    const raw = byId(`shop-fit-${key}`).value;
+    if (!raw) continue;
+    const value = Number(raw) / (byId('shop-fit-unit').value === 'cm' ? 2.54 : 1);
+    if (!Number.isFinite(value) || value <= 0 || value > 150) { setMessage(byId('shop-fit-message'), 'Enter valid positive measurements (up to 150 inches / 381 cm).', 'error'); return; }
+    measurements[key] = Math.round(value * 10000) / 10000;
+  }
+  if (!Object.keys(measurements).length) { setMessage(byId('shop-fit-message'), 'Enter at least one measurement to find matches.', 'error'); return; }
+  activeMeasurements = measurements;
+  setMessage(byId('shop-fit-message'), 'Measurement filter applied. Missing fit ranges are excluded; your measurements are not shared with designers.', 'success');
+  loadGallery();
+});
+byId('shop-fit-remove')?.addEventListener('click', () => { activeMeasurements = null; setMessage(byId('shop-fit-message'), 'Measurement filter removed.', ''); loadGallery(); });
+refreshShopFitProfiles();
