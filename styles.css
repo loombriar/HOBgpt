@@ -1520,3 +1520,6 @@ main>section:not(.hero){position:relative}
 @media(max-width:600px){.sewing-header .room-button{flex:1 1 135px!important}.sewing-header .room-button .room-nav-icon{width:32px;height:40px}.product-section::before,.story-section::before,.curation-section::before,.newsletter-section::before{background-size:250px 40px!important}.product-card .product-image::before,.product-card .product-image::after{width:54px!important;height:54px!important}}
 
 .listing-report{margin:18px 0;padding:12px 0;border-top:1px solid #c7ab68}.listing-report summary{cursor:pointer}.listing-report form{margin-top:12px}.admin-support-item button{margin:6px 6px 0 0}
+
+.suitcase-button .suitcase-info{left:auto!important;right:0!important;top:calc(100% + 8px)!important;width:245px!important;white-space:normal!important;text-align:left!important;line-height:1.45!important}
+.suitcase-button:hover .suitcase-info,.suitcase-button:focus-visible .suitcase-info,.suitcase-button:focus-within .suitcase-info{opacity:1!important;visibility:visible!important;pointer-events:none!important}
