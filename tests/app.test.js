@@ -230,12 +230,15 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'sewing-navigation-v2.webp'
+    'sewing-navigation-v2.webp',
+    'visitor-suite-door-v1.svg',
+    'designer-room-door-v1.svg',
+    'suitcase-cart-v1.svg'
   ]) {
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
     assert.equal(image.status, 200, `${asset} should be served`);
-    assert.match(image.headers.get('content-type'), /image\/(png|webp)/);
+    assert.match(image.headers.get('content-type'), /image\/(png|webp|svg\+xml)/);
   }
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
