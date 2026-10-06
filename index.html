@@ -72,6 +72,18 @@
           </div>
         </section>
 
+        <section id="designers-wanted" class="designer-callout-section" aria-labelledby="designers-wanted-title">
+          <div class="container designer-callout">
+            <div class="designer-callout-copy">
+              <p class="eyebrow">Designers wanted</p>
+              <h2 id="designers-wanted-title">The House is growing.<br />Bring what you make.</h2>
+              <p>We’re looking for independent designers to fill the halls of House of Briar. Fashion, jewelry, art, accessories, home goods, and wonderfully hard-to-categorize creations are welcome.</p>
+              <p class="designer-callout-line">No application. No gatekeeping. Just bring what you make.</p>
+            </div>
+            <a class="primary-button designer-callout-button" href="#designer-signup" id="designer-signup-link">Join the House →</a>
+          </div>
+        </section>
+
         <section id="shop" class="product-section">
           <div class="container">
             <div class="section-heading">
@@ -185,18 +197,6 @@
           </div>
         </section>
 
-        <section id="designers-wanted" class="designer-callout-section" aria-labelledby="designers-wanted-title">
-          <div class="container designer-callout">
-            <div class="designer-callout-copy">
-              <p class="eyebrow">Designers wanted</p>
-              <h2 id="designers-wanted-title">The House is growing.<br />Bring what you make.</h2>
-              <p>We’re looking for independent designers to fill the halls of House of Briar. Fashion, jewelry, art, accessories, home goods, and wonderfully hard-to-categorize creations are welcome.</p>
-              <p class="designer-callout-line">No application. No gatekeeping. Just bring what you make.</p>
-            </div>
-            <a class="primary-button designer-callout-button" href="/sell">Join the House →</a>
-          </div>
-        </section>
-
         <section id="story" class="story-section">
           <div class="container story-grid">
             <div class="story-visual"><div class="story-panel"><p class="eyebrow">Our story</p><h2>Built on a little stubbornness.<br />And a lot of thread.</h2></div></div>
@@ -271,6 +271,19 @@
           <button class="primary-button" type="submit">Sign in</button>
         </form>
         <p id="designer-auth-message" class="form-message" role="status" aria-live="polite"></p>
+        <div id="designer-signup" class="designer-signup-panel">
+          <p class="eyebrow">New to the House?</p>
+          <h3>Join the Designer List</h3>
+          <p>No application or portfolio required. Tell us who you are and what you make.</p>
+          <form id="designer-signup-form" class="stack-form">
+            <label>Your name<input name="displayName" type="text" autocomplete="name" required /></label>
+            <label>Designer or brand name<input name="brandName" type="text" required /></label>
+            <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label>What do you create?<input name="categories" type="text" placeholder="Fashion, jewelry, art, accessories…" required /></label>
+            <button class="primary-button" type="submit">Join the Designer List</button>
+          </form>
+          <p id="designer-signup-message" class="form-message" role="status" aria-live="polite"></p>
+        </div>
       </section>
       <section id="designer-workspace" class="hidden" aria-label="Your designer workspace">
         <div class="studio-toolbar">
