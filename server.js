@@ -1581,7 +1581,7 @@ function createApp(options = {}) {
   async function reconcileDonationBadges() {
     if(donationReconciliationRunning)return {checked:0,awarded:0,errors:0};
     donationReconciliationRunning=true;
-    const results={checked:0,awarded:0,errors:0};
+    const results={checked:0,awarded:0,errors:0,pending:0,unlinked:0,mismatch:0,unavailableSessions:0};
     try {
       const donations=db.prepare("SELECT * FROM donations d WHERE stripe_session_id IS NOT NULL AND (status='pending' OR (status='paid' AND amount_cents>=500 AND NOT EXISTS (SELECT 1 FROM user_badges b WHERE (b.source_type='donation' AND b.source_id=d.id) OR (b.buyer_subject=d.buyer_subject AND b.badge_type='supporter')))) ORDER BY created_at DESC LIMIT 100").all();
       for(const donation of donations){
@@ -1589,8 +1589,11 @@ function createApp(options = {}) {
         try {
           const session=await stripeApi(`checkout/sessions/${encodeURIComponent(donation.stripe_session_id)}`);
           if(confirmDonationBadge(donation,session))results.awarded++;
-          else if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
-        }catch{results.errors++;}
+          else if(session.payment_status!=='paid')results.pending++;
+          else if(!donation.buyer_subject&&!badgeSubjectForEmail(session.customer_details?.email||session.customer_email||donation.buyer_email))results.unlinked++;
+          else if(session.id!==donation.stripe_session_id||session.metadata?.donation_id!==donation.id||session.currency!==donation.currency||session.amount_total!==donation.amount_cents)results.mismatch++;
+          if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
+        }catch(error){results.errors++;if(/No such checkout\.session|No such checkout session/i.test(String(error?.message)))results.unavailableSessions++;}
       }
       if(results.checked)log('info','donation_badges_reconciled',results);
       return results;
