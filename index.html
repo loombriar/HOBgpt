@@ -9,18 +9,18 @@
       name="description"
       content="House of Briar brings together independent clothing designers and one-of-a-kind wearable art."
     />
-    <link rel="canonical" href="https://houseofbriar.com/" />
+    <link rel="canonical" href="https://houseofbriar.shop/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="House of Briar" />
     <meta property="og:title" content="House of Briar | Independent wearable art" />
     <meta property="og:description" content="Discover one-of-a-kind clothing and wearable art from independent designers." />
-    <meta property="og:url" content="https://houseofbriar.com/" />
-    <meta property="og:image" content="https://houseofbriar.com/house-of-briar-512.png" />
+    <meta property="og:url" content="https://houseofbriar.shop/" />
+    <meta property="og:image" content="https://houseofbriar.shop/house-of-briar-512.png" />
     <meta property="og:image:alt" content="House of Briar" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="House of Briar | Independent wearable art" />
     <meta name="twitter:description" content="Discover one-of-a-kind clothing and wearable art from independent designers." />
-    <meta name="twitter:image" content="https://houseofbriar.com/house-of-briar-512.png" />
+    <meta name="twitter:image" content="https://houseofbriar.shop/house-of-briar-512.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -29,6 +29,8 @@
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=house-nav-20" />
     <script src="/script.js?v=wishlist-19" defer></script>
+    <link rel="stylesheet" href="/atelier.css?v=atelier-1" />
+    <script src="/atelier.js?v=atelier-1" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -67,10 +69,22 @@
 
         <section class="feature-bar">
           <div class="container feature-inline">
-            <div><strong>Slow-made, not mass-made.</strong><span>Every piece has a person, a process, and a little bit of the unexpected behind it.</span></div>
-            <div><strong>A judgment-free place to begin.</strong><span>Signing up is free, and new designers can start building their corner of the briar without waiting for permission.</span></div>
-            <div><strong>Wearable art</strong><span>Clothing made with story, detail, and imagination</span></div>
+            <div data-house-icon="spool"><strong>Slow-made, not mass-made.</strong><span>Every piece has a person, a process, and a little bit of the unexpected behind it.</span></div>
+            <div data-house-icon="briar"><strong>A judgment-free place to begin.</strong><span>Signing up is free, and new designers can start building their corner of the briar without waiting for permission.</span></div>
+            <div data-house-icon="needle"><strong>Wearable art</strong><span>Clothing made with story, detail, and imagination</span></div>
           </div>
+        </section>
+
+        <section class="house-editorial" aria-labelledby="house-editorial-title">
+          <div class="container">
+            <div class="atelier-stitch" data-house-icon="needle" aria-hidden="true"></div>
+            <div class="atelier-heading"><div><p class="eyebrow">Notes from the atelier · Vol. 01</p><h2 id="house-editorial-title">Dressed for a little drama.</h2></div><p>Unexpected details. Beautiful textures. Clothes with stories to tell. Pull up a chair—your next favorite is having its moment.</p></div>
+            <div class="atelier-spread" id="house-editorial-pieces"></div>
+            <p class="atelier-footnote">Original designer photography. Every detail belongs to the piece.</p>
+          </div>
+        </section>
+        <section class="house-collections" aria-labelledby="house-collections-title">
+          <div class="container"><div class="atelier-heading"><div><p class="eyebrow">Find your kind of different</p><h2 id="house-collections-title">A mood. An occasion. A little magic.</h2></div><p>Thoughtful edits from the House. Choose a chapter and see where it takes you.</p></div><div class="atelier-collection-grid" id="house-collection-grid"></div></div>
         </section>
 
         <section id="designers-wanted" class="designer-callout-section" aria-labelledby="designers-wanted-title">
