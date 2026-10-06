@@ -528,6 +528,8 @@ async function loadGallery() {
       : await apiRequest(`/api/gallery?${params}`);
     if (request !== galleryRequest) return;
     galleryItems = Array.isArray(payload.items) ? payload.items : [];
+    const collectionSlug = (typeof location === 'object' ? location.pathname : '').match(/^\/collections\/([^/]+)/)?.[1];
+    if (collectionSlug && typeof houseCollections !== 'undefined' && houseCollections[collectionSlug]) galleryItems = galleryItems.filter(houseCollections[collectionSlug].match);
     renderGallery();
   } catch (error) {
     if (request !== galleryRequest) return;
@@ -743,6 +745,7 @@ function openProductDetails(item) {
   addButton.disabled = getCartIds().includes(item.id);
   addButton.addEventListener('click', () => addToCart(item));
   copy.appendChild(addButton);
+  if (typeof houseTryOnButton === 'function') copy.appendChild(houseTryOnButton(item));
   if (images.length > 1) copy.appendChild(makeElement('p', 'small-print', `${images.length} photos · first image is the cover`));
 
   productDetailContent.append(imageGrid, copy);
@@ -1640,6 +1643,7 @@ async function loadDesignerBrand() {
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
     if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
+    await loadHouseStudio(designer.id);
     const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
     if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
     byId('designer-logo-remove').classList.toggle('hidden', !designer.logoUrl);
@@ -1656,6 +1660,7 @@ byId('designer-brand-form')?.addEventListener('submit', async event => {
     }) });
     const file = byId('designer-logo').files[0];
     if (file) { if (file.size > 8 * 1024 * 1024) throw new Error('Please choose a logo smaller than 8 MB.'); const body = new FormData(); body.append('image', file); await apiRequest('/api/my/designer-profile/logo', { method: 'POST', body }); }
+    await saveHouseStudio();
     byId('designer-logo').value = ''; await loadDesignerBrand(); await loadGallery(); byId('designer-welcome')?.classList.add('hidden'); setMessage(byId('designer-brand-message'), 'Your designer profile is saved. Now list your first piece below.', 'success'); byId('product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
   finally { button.disabled = false; }

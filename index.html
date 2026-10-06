@@ -27,10 +27,10 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=house-nav-20" />
-    <script src="/script.js?v=wishlist-19" defer></script>
-    <link rel="stylesheet" href="/atelier.css?v=atelier-1" />
-    <script src="/atelier.js?v=atelier-1" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=room-nav-21" />
+    <script src="/script.js?v=experiences-22" defer></script>
+    <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
+    <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -38,6 +38,7 @@
     </script>
   </head>
   <body>
+    <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><button id="house-tryon-close" class="text-button" type="button">Close preview</button><h2 id="house-tryon-title">A little wardrobe daydream</h2><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
     <div class="page-shell">
       <header class="site-header sewing-header">
         
@@ -87,6 +88,8 @@
           <div class="container"><div class="atelier-heading"><div><p class="eyebrow">Find your kind of different</p><h2 id="house-collections-title">A mood. An occasion. A little magic.</h2></div><p>Thoughtful edits from the House. Choose a chapter and see where it takes you.</p></div><div class="atelier-collection-grid" id="house-collection-grid"></div></div>
         </section>
 
+        <section class="house-stories" aria-labelledby="house-stories-title"><div class="container"><p class="eyebrow">Designer spotlight stories</p><h2 id="house-stories-title">Meet the hands behind the magic.</h2><p>A peek into the process, the personality, and the occasional creative chaos.</p><div id="house-spotlights" class="atelier-spotlights"></div></div></section>
+        <section class="house-styling" aria-labelledby="house-styling-title"><div class="container"><p class="eyebrow">Your Briar styling companion</p><h2 id="house-styling-title">Main-character energy. Wardrobe assistance.</h2><p>Find ideas from pieces actually in the House. Sign in to your Visitor’s Suite or Designer’s Room to use AI styling and try-on.</p><form id="house-styling-form" class="stack-form"><label for="house-styling-prompt">What are you dressing for?</label><input id="house-styling-prompt" maxlength="500" required placeholder="An autumn wedding, romantic but a little dramatic…" /><p class="small-print">Your request and public listing details are sent to OpenAI to create suggestions. Suggestions do not confirm fit or availability.</p><button class="primary-button" type="submit">Ask the Briar stylist</button><p id="house-styling-status" role="status"></p></form><div id="house-styling-results"></div></div></section>
         <section id="designers-wanted" class="designer-callout-section" aria-labelledby="designers-wanted-title">
           <div class="container designer-callout">
             <div class="designer-callout-copy">
@@ -327,6 +330,7 @@
           <h3>Your designer identity</h3>
           <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
           <label for="designer-bio">About your work</label><textarea id="designer-bio" maxlength="2000" rows="3" placeholder="Tell shoppers about you, your process, and what you make."></textarea>
+          <label for="designer-studio-story">Behind the scenes: your studio story</label><textarea id="designer-studio-story" maxlength="2000" rows="4" placeholder="Show us your process, inspiration, or the story behind your latest piece."></textarea><label for="designer-studio-photo">Studio photo (PNG, JPEG or WebP)</label><input id="designer-studio-photo" type="file" accept="image/png,image/jpeg,image/webp" /><button id="designer-studio-remove" class="text-button" type="button">Remove studio photo</button>
           <label for="designer-categories">What you create</label><input id="designer-categories" maxlength="500" placeholder="Fashion, jewelry, art, accessories…" />
           <label for="designer-social">Social or website link</label><input id="designer-social" type="url" maxlength="500" placeholder="https://" />
           <label for="designer-logo">Upload your logo (PNG, JPEG or WebP)</label><input id="designer-logo" type="file" accept="image/png,image/jpeg,image/webp" />
