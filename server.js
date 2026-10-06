@@ -475,6 +475,30 @@ function createApp(options = {}) {
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_designer_created ON listing_inquiries(designer_id, created_at DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_buyer_created ON listing_inquiries(buyer_subject, created_at DESC)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_notifications (
+    id TEXT PRIMARY KEY,
+    designer_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    listing_id TEXT,
+    order_id TEXT,
+    inquiry_id TEXT,
+    action_path TEXT,
+    read_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id),
+    FOREIGN KEY(listing_id) REFERENCES listings(id),
+    FOREIGN KEY(order_id) REFERENCES orders(id),
+    FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
+  ); CREATE INDEX IF NOT EXISTS designer_notifications_designer_created ON designer_notifications(designer_id, created_at DESC);`);
+  function notifyDesigner(designerId,type,title,body,links={}) {
+    if(!designerId)return null;
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
+      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,now);
+    return id;
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
     buyer_subject TEXT NOT NULL,
@@ -930,6 +954,7 @@ function createApp(options = {}) {
     if(!message||message.length>800)return fail(res,422,'validation_error','Write a message between 1 and 800 characters.');
     const id=makeId(),now=new Date().toISOString();
     db.prepare(`INSERT INTO listing_inquiries (id,listing_id,designer_id,buyer_subject,buyer_email,message,created_at) VALUES (?,?,?,?,?,?,?)`).run(id,listing.id,listing.designer_id,req.buyerSubject,req.buyerEmail||null,message,now);
+    notifyDesigner(listing.designer_id,'customer_message',`New question about ${listing.title}`,message,{listingId:listing.id,inquiryId:id,actionPath:'/account#messages'});
     void sendEmail({to:listing.designer_email,subject:`New House of Briar inquiry: ${listing.title}`,text:`A customer sent a question about ${listing.title}.\n\n${message}\n\nOpen your Designer Studio to respond Available or Not available.`});
     return res.status(201).json({inquiry:{id,listingId:listing.id,title:listing.title,message,availabilityStatus:'pending',createdAt:now}});
   });
@@ -1123,6 +1148,7 @@ function createApp(options = {}) {
     for (const group of groups) {
       const contact = designerOrderContact(orderId, group.designer_id);
       if (!contact?.email) continue;
+      notifyDesigner(group.designer_id,'sale','You made a sale',`Order ${orderId}: ${contact.titles}. Earnings: ${(contact.earnings_cents / 100).toFixed(2)}.`,{orderId,actionPath:'/account#orders'});
       await sendEmail({ to: contact.email, subject: 'You made a sale on House of Briar',
         text: `A piece sold on House of Briar.\n\nOrder: ${orderId}\nItems: ${contact.titles}\nYour earnings: ${(contact.earnings_cents / 100).toFixed(2)}\n\nOpen your Designer Studio to ship the order and add tracking. Your payout remains held until carrier tracking is verified.` });
     }
@@ -1137,6 +1163,7 @@ function createApp(options = {}) {
     if (!contact?.email) return false;
     const amount = (transfer.amount_cents / 100).toFixed(2);
     const success = outcome === 'paid';
+    notifyDesigner(transfer.designer_id,success?'payout_sent':'payout_attention',success?'Payout sent':'Payout needs attention',success?`Your payout of ${amount} for order ${transfer.order_id} was sent.`:`Your payout of ${amount} for order ${transfer.order_id} could not be sent yet.`,{orderId:transfer.order_id,actionPath:'/account#orders'});
     const sent = await sendEmail({
       to: contact.email,
       subject: success ? 'Your House of Briar payout was sent' : 'Your House of Briar payout needs attention',
@@ -2274,6 +2301,23 @@ function createApp(options = {}) {
     const map=new Map();
     for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
     return res.json({orders:[...map.values()]});
+  });
+
+  app.get('/api/my/designer-notifications', authDesigner, (req,res)=>{
+    const items=db.prepare('SELECT * FROM designer_notifications WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
+    const unread=items.reduce((sum,item)=>sum+(item.read_at?0:1),0);
+    return res.json({unread,items:items.map(item=>({id:item.id,type:item.type,title:item.title,body:item.body,listingId:item.listing_id,orderId:item.order_id,inquiryId:item.inquiry_id,actionPath:item.action_path,readAt:item.read_at,createdAt:item.created_at}))});
+  });
+  app.patch('/api/my/designer-notifications/:notificationId/read', authDesigner, (req,res)=>{
+    const now=new Date().toISOString();
+    const result=db.prepare('UPDATE designer_notifications SET read_at=COALESCE(read_at,?) WHERE id=? AND designer_id=?').run(now,req.params.notificationId,req.designerId);
+    if(!result.changes)return fail(res,404,'notification_not_found','Notification not found.');
+    return res.json({ok:true,readAt:now});
+  });
+  app.post('/api/my/designer-notifications/read-all', authDesigner, (req,res)=>{
+    const now=new Date().toISOString();
+    const result=db.prepare('UPDATE designer_notifications SET read_at=? WHERE designer_id=? AND read_at IS NULL').run(now,req.designerId);
+    return res.json({ok:true,updated:result.changes});
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
