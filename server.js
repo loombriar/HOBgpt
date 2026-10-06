@@ -862,6 +862,10 @@ function createApp(options = {}) {
     if (!row) return null;
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
     const inventory = listingInventory(row);
+    const designerIdentity = db.prepare('SELECT subject FROM designer_identities WHERE designer_id = ?').get(row.designer_id);
+    const designerBadges = designerIdentity
+      ? db.prepare('SELECT badge_type FROM user_badges WHERE buyer_subject = ? ORDER BY awarded_at').all(designerIdentity.subject).map(badge => badge.badge_type)
+      : [];
     const images = getImages(row.id, mode);
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
@@ -900,6 +904,9 @@ function createApp(options = {}) {
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
+      badges: designerBadges,
+      supporterBadge: designerBadges.includes('supporter'),
+      verifiedBuyer: designerBadges.includes('verified_buyer'),
       status: row.status,
       moderationStatus: row.moderation_status,
       moderationReason: mode === 'private' ? (row.moderation_reason || null) : undefined,
