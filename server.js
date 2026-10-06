@@ -345,6 +345,27 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
   recordMigration(2, 'marketplace_profile_order_and_tracking_columns');
 
+  ensureColumn('designer_profiles', 'vacation_mode', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_profiles', 'vacation_message', 'TEXT');
+  ensureColumn('designer_profiles', 'vacation_return_at', 'TEXT');
+  ensureColumn('listings', 'paused_by_designer', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_transfers', 'shipping_cost_cents', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('designer_transfers', 'delivery_days_min', 'INTEGER');
+  ensureColumn('designer_transfers', 'delivery_days_max', 'INTEGER');
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_promo_codes (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, code TEXT NOT NULL, discount_type TEXT NOT NULL CHECK(discount_type IN ('percent','fixed')),
+    discount_value INTEGER NOT NULL, starts_at TEXT, ends_at TEXT, max_uses INTEGER, active INTEGER NOT NULL DEFAULT 1,
+    use_count INTEGER NOT NULL DEFAULT 0, revenue_cents INTEGER NOT NULL DEFAULT 0, discount_cents INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL, UNIQUE(designer_id,code), FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS special_order_offers (
+    id TEXT PRIMARY KEY, inquiry_id TEXT NOT NULL, designer_id TEXT NOT NULL, buyer_subject TEXT NOT NULL, title TEXT NOT NULL,
+    total_cents INTEGER NOT NULL, deposit_cents INTEGER NOT NULL, lead_days_min INTEGER NOT NULL, lead_days_max INTEGER NOT NULL,
+    revisions_included INTEGER NOT NULL DEFAULT 0, terms TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'offered',
+    created_at TEXT NOT NULL, accepted_at TEXT, FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
+  )`);
+  recordMigration(7, 'seller_commerce_controls');
+
   db.exec(`CREATE TABLE IF NOT EXISTS designer_access_tokens (
     token_hash TEXT PRIMARY KEY,
     designer_id TEXT NOT NULL,
@@ -2575,6 +2596,36 @@ function createApp(options = {}) {
     const now=new Date().toISOString();
     const result=db.prepare('UPDATE designer_notifications SET read_at=? WHERE designer_id=? AND read_at IS NULL').run(now,req.designerId);
     return res.json({ok:true,updated:result.changes});
+  });
+
+  app.get('/api/my/seller-settings', authDesigner, (req,res)=>{
+    const profile=db.prepare('SELECT vacation_mode,vacation_message,vacation_return_at FROM designer_profiles WHERE id=?').get(req.designerId);
+    const promos=db.prepare('SELECT id,code,discount_type discountType,discount_value discountValue,starts_at startsAt,ends_at endsAt,max_uses maxUses,active,use_count useCount,revenue_cents revenueCents,discount_cents discountCents,created_at createdAt FROM designer_promo_codes WHERE designer_id=? ORDER BY created_at DESC').all(req.designerId);
+    res.json({vacationMode:Boolean(profile?.vacation_mode),vacationMessage:profile?.vacation_message||'',vacationReturnAt:profile?.vacation_return_at||null,promos:promos.map(p=>({...p,active:Boolean(p.active)}))});
+  });
+  app.patch('/api/my/seller-settings', authDesigner, (req,res)=>{
+    const vacationMode=Boolean(req.body?.vacationMode); const message=String(req.body?.vacationMessage||'').trim().slice(0,500); const returnAt=req.body?.vacationReturnAt?String(req.body.vacationReturnAt):null;
+    db.prepare('UPDATE designer_profiles SET vacation_mode=?,vacation_message=?,vacation_return_at=? WHERE id=?').run(vacationMode?1:0,message||null,returnAt,req.designerId);
+    res.json({vacationMode,vacationMessage:message,vacationReturnAt:returnAt});
+  });
+  app.post('/api/my/promo-codes', authDesigner, (req,res)=>{
+    const code=String(req.body?.code||'').trim().toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,32); const type=req.body?.discountType==='fixed'?'fixed':'percent'; const value=Math.round(Number(req.body?.discountValue));
+    if(code.length<3||!Number.isInteger(value)||value<=0||(type==='percent'&&value>100))return fail(res,422,'invalid_promo','Add a valid promo code and discount.');
+    try{const id=makeId(),now=new Date().toISOString();db.prepare('INSERT INTO designer_promo_codes (id,designer_id,code,discount_type,discount_value,starts_at,ends_at,max_uses,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(id,req.designerId,code,type,value,req.body?.startsAt||null,req.body?.endsAt||null,Number.isInteger(Number(req.body?.maxUses))?Number(req.body.maxUses):null,now);return res.status(201).json({id,code});}catch(e){return fail(res,409,'promo_exists','That promo code already exists in your shop.');}
+  });
+  app.patch('/api/my/promo-codes/:id', authDesigner, (req,res)=>{
+    const row=db.prepare('SELECT * FROM designer_promo_codes WHERE id=? AND designer_id=?').get(req.params.id,req.designerId);if(!row)return fail(res,404,'promo_not_found','Promo code not found.');
+    db.prepare('UPDATE designer_promo_codes SET active=? WHERE id=? AND designer_id=?').run(req.body?.active?1:0,row.id,req.designerId);res.json({id:row.id,active:Boolean(req.body?.active)});
+  });
+  app.patch('/api/my/listings/:id/pause', authDesigner, (req,res)=>{
+    const row=db.prepare('SELECT id FROM listings WHERE id=? AND designer_id=?').get(req.params.id,req.designerId);if(!row)return fail(res,404,'listing_not_found','Listing not found.');
+    const paused=Boolean(req.body?.paused);db.prepare('UPDATE listings SET paused_by_designer=?,updated_at=?,version=version+1 WHERE id=?').run(paused?1:0,new Date().toISOString(),row.id);res.json({id:row.id,paused});
+  });
+  app.post('/api/my/designer-inquiries/:inquiryId/special-offer', authDesigner, (req,res)=>{
+    const inquiry=db.prepare('SELECT * FROM listing_inquiries WHERE id=? AND designer_id=?').get(req.params.inquiryId,req.designerId);if(!inquiry)return fail(res,404,'inquiry_not_found','Conversation not found.');
+    const total=Math.round(Number(req.body?.total)*100),deposit=Math.round(Number(req.body?.deposit)*100),leadMin=Math.round(Number(req.body?.leadDaysMin)),leadMax=Math.round(Number(req.body?.leadDaysMax)),revisions=Math.max(0,Math.round(Number(req.body?.revisionsIncluded)||0));
+    if(!Number.isInteger(total)||total<=0||!Number.isInteger(deposit)||deposit<=0||deposit>total||!Number.isInteger(leadMin)||!Number.isInteger(leadMax)||leadMin<1||leadMax<leadMin)return fail(res,422,'invalid_offer','Add a valid total, deposit, and lead-time range.');
+    const id=makeId();db.prepare("INSERT INTO special_order_offers (id,inquiry_id,designer_id,buyer_subject,title,total_cents,deposit_cents,lead_days_min,lead_days_max,revisions_included,terms,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'offered',?)").run(id,inquiry.id,req.designerId,inquiry.buyer_subject,String(req.body?.title||inquiry.message||'Special order').slice(0,200),total,deposit,leadMin,leadMax,revisions,String(req.body?.terms||'').slice(0,2000),new Date().toISOString());res.status(201).json({id,status:'offered'});
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
