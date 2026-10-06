@@ -476,3 +476,34 @@ test('one-of-a-kind and made-to-order inventory modes are enforced', async () =>
   assert.equal(madeToOrder.body.item.productionType,'Made to Order');
   assert.equal(madeToOrder.body.item.stockQuantity,0);
 });
+
+
+test('inventory lifecycle uses on-hand stock, reservations, and sale adjustments consistently', async () => {
+  const created = await getJson('/api/listings', {
+    method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({title:'Lifecycle limited piece',description:'Lifecycle test',price:35,category:'home',productionType:'Limited Quantity',stockQuantity:2,lowStockThreshold:1})
+  });
+  assert.equal(created.response.status,201);
+  const listingId=created.body.item.id;
+  const now=new Date().toISOString();
+  instance.db.prepare("INSERT INTO orders (id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at) VALUES ('lifecycle-order','pending','usd',3500,350,3150,?)").run(now);
+  instance.db.prepare("INSERT INTO order_items (id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES ('lifecycle-item','lifecycle-order',?,'designer-a','Lifecycle limited piece',3500,1,3500,350,3150)").run(listingId);
+  instance.db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,'lifecycle-order','reserved',?,?,1)").run(listingId,now,new Date(Date.now()+600000).toISOString());
+  assert.equal(instance.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,2);
+  instance.db.prepare("UPDATE inventory_reservations SET status='sold',sold_at=? WHERE listing_id=? AND order_id='lifecycle-order'").run(now,listingId);
+  instance.db.prepare('UPDATE listings SET stock_quantity=stock_quantity-1 WHERE id=?').run(listingId);
+  instance.db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES ('lifecycle-adjust',?,-1,1,'Sale completed','sale','lifecycle-order',?)").run(listingId,now);
+  assert.equal(instance.db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(listingId).stock_quantity,1);
+  const adjustment=instance.db.prepare("SELECT * FROM inventory_adjustments WHERE listing_id=? AND actor_type='sale'").get(listingId);
+  assert.equal(adjustment.delta,-1);
+  assert.equal(adjustment.quantity_after,1);
+});
+
+test('inventory adjustments protect unique and made-to-order semantics', async () => {
+  const unique=await getJson('/api/listings',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({title:'Unique lifecycle',description:'Unique',price:80,category:'home',productionType:'One of a Kind',stockQuantity:1})});
+  const tooMany=await getJson(`/api/admin/listings/${unique.body.item.id}/inventory/adjust`,{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:1,reason:'Should not duplicate an original'})});
+  assert.equal(tooMany.response.status,409);
+  const made=await getJson('/api/listings',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({title:'Made lifecycle',description:'Made later',price:80,category:'home',productionType:'Made to Order',stockQuantity:0})});
+  const stocked=await getJson(`/api/admin/listings/${made.body.item.id}/inventory/adjust`,{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:1,reason:'Should not stock made to order'})});
+  assert.equal(stocked.response.status,409);
+});
