@@ -11,6 +11,9 @@ const productGrid = byId('product-grid');
 const shopStatus = byId('shop-status');
 const designerModal = byId('designer-modal');
 const designerLoginBtn = byId('designer-login-btn');
+const designerSignupLink = byId('designer-signup-link');
+const designerSignupForm = byId('designer-signup-form');
+const designerSignupMessage = byId('designer-signup-message');
 const designerLoginForm = byId('designer-login-form');
 const designerTokenInput = byId('designer-token');
 const designerAuthMessage = byId('designer-auth-message');
@@ -1164,6 +1167,41 @@ for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-
   select.addEventListener('change', syncCaption);
   select.addEventListener('shop-caption', syncCaption);
   syncCaption();
+}
+
+if (designerSignupLink) {
+  designerSignupLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (designerModal && typeof designerModal.showModal === 'function') designerModal.showModal();
+    requestAnimationFrame(() => byId('designer-signup')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  });
+}
+
+if (designerSignupForm) {
+  designerSignupForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(designerSignupForm);
+    const categories = String(form.get('categories') || '').split(',').map((value) => value.trim()).filter(Boolean);
+    if (designerSignupMessage) designerSignupMessage.textContent = 'Joining the House…';
+    try {
+      const response = await fetch('/api/designer-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: String(form.get('displayName') || '').trim(),
+          brandName: String(form.get('brandName') || '').trim(),
+          email: String(form.get('email') || '').trim(),
+          categories
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Designer sign up could not be completed.');
+      designerSignupForm.reset();
+      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Your designer profile has been created.';
+    } catch (error) {
+      if (designerSignupMessage) designerSignupMessage.textContent = error instanceof Error ? error.message : 'Designer sign up could not be completed.';
+    }
+  });
 }
 
 if (designerLoginBtn) {
