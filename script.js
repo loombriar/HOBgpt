@@ -624,7 +624,7 @@ function openProductDetails(item) {
   images.forEach((image, index) => {
     const img = document.createElement('img');
     img.src = image.url;
-    img.alt = `${item.title} image ${index + 1}`;
+    img.alt = `${item.title} ${image.angle || `image ${index + 1}`}`;
     img.loading = index === 0 ? 'eager' : 'lazy';
     img.tabIndex = 0;
     img.setAttribute('role', 'button');
@@ -663,6 +663,13 @@ function openProductDetails(item) {
   }
   if (item.alterationsAvailable) copy.appendChild(makeElement('p', 'notice', 'Alterations available — this designer can adjust this piece.'));
   if (item.takesRequests) copy.appendChild(makeElement('p', 'notice', 'Takes requests — this designer welcomes inquiries about custom or related work.'));
+  if (item.giftWrapAvailable) copy.appendChild(makeElement('p', 'notice', `Gift wrapping available${Number(item.giftWrapPrice || 0) > 0 ? ` · ${Number(item.giftWrapPrice).toFixed(2)}` : ' · complimentary'}.`));
+  const clips = [[item.tryOnVideoUrl,'Try-on / fit'],[item.movementVideoUrl,'Movement / detail']].filter(([url])=>url);
+  clips.forEach(([url,label]) => {
+    const wrap=makeElement('figure','product-video');
+    const video=document.createElement('video'); video.controls=true; video.preload='metadata'; video.playsInline=true; video.src=url; video.setAttribute('aria-label',`${item.title} — ${label} clip`);
+    wrap.append(video,makeElement('figcaption','',label)); imageGrid.appendChild(wrap);
+  });
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
@@ -789,6 +796,14 @@ function renderSelectedImages() {
     const statusText = image.status === 'uploading' ? 'Uploading…' : image.status === 'ready' ? 'Ready' : image.status === 'failed' ? (image.error || 'Failed') : 'Queued';
     info.appendChild(makeElement('span', '', `${statusText}${image.size ? ` · ${formatBytes(image.size)}` : ''}`));
     item.appendChild(info);
+    const angle = document.createElement('select');
+    angle.className = 'photo-angle-select';
+    angle.setAttribute('aria-label', `Photo ${index + 1} angle`);
+    [['','Angle / view'],['Front','Front'],['Back','Back'],['Left','Left side'],['Right','Right side'],['Detail','Detail / close-up'],['Other','Other view']].forEach(([value,label]) => {
+      const option=document.createElement('option'); option.value=value; option.textContent=label; angle.appendChild(option);
+    });
+    angle.value=image.angle || ''; angle.addEventListener('change',()=>{ image.angle=angle.value; });
+    item.appendChild(angle);
 
     const actions = makeElement('div', 'photo-preview-actions');
     const moveUp = document.createElement('button');
@@ -860,7 +875,8 @@ function addFiles(fileList) {
       size: file.size,
       status: 'queued',
       objectUrl: URL.createObjectURL(file),
-      url: ''
+      url: '',
+      angle: ''
     });
   });
 
@@ -941,7 +957,12 @@ function readFormValues() {
     careInstructions: byId('product-care')?.value.trim() || '',
     productionType: byId('product-production-type')?.value || '',
     alterationsAvailable: Boolean(byId('product-alterations')?.checked),
-    takesRequests: Boolean(byId('product-requests')?.checked)
+    takesRequests: Boolean(byId('product-requests')?.checked),
+    giftWrapAvailable: Boolean(byId('product-gift-wrap')?.checked),
+    giftWrapPrice: byId('product-gift-wrap-price')?.value || '0',
+    tryOnVideoUrl: byId('product-video-tryon')?.value.trim() || '',
+    movementVideoUrl: byId('product-video-movement')?.value.trim() || '',
+    photoAngles: selectedImages.map((image) => image.angle || '')
   };
 }
 
@@ -954,6 +975,8 @@ function validateListingValues(values) {
   if (values.materials.length > 500) return 'Materials must be 500 characters or fewer.';
   if (values.careInstructions.length > 1000) return 'Care instructions must be 1,000 characters or fewer.';
   if (!values.productionType) return 'Choose One of a Kind, Upcycled, or Made in Multiple.';
+  if (values.giftWrapAvailable && (!Number.isFinite(Number(values.giftWrapPrice)) || Number(values.giftWrapPrice) < 0 || Number(values.giftWrapPrice) > 250)) return 'Gift-wrap price must be between $0 and $250.';
+  for (const url of [values.tryOnVideoUrl, values.movementVideoUrl]) if (url && !/^https:\/\//i.test(url)) return 'Video clips must use secure HTTPS links.';
   if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
   if (selectedImages.length < 1) return 'At least one photo is required.';
   return '';
@@ -1180,6 +1203,10 @@ async function editListing(listingId) {
     if (byId('product-production-type')) byId('product-production-type').value = listing.productionType || '';
     if (byId('product-alterations')) byId('product-alterations').checked = Boolean(listing.alterationsAvailable);
     if (byId('product-requests')) byId('product-requests').checked = Boolean(listing.takesRequests);
+    if (byId('product-gift-wrap')) byId('product-gift-wrap').checked = Boolean(listing.giftWrapAvailable);
+    if (byId('product-gift-wrap-price')) byId('product-gift-wrap-price').value = Number(listing.giftWrapPrice || 0).toFixed(2);
+    if (byId('product-video-tryon')) byId('product-video-tryon').value = listing.tryOnVideoUrl || '';
+    if (byId('product-video-movement')) byId('product-video-movement').value = listing.movementVideoUrl || '';
     if (listingFormTitle) listingFormTitle.textContent = 'Edit a design';
 
     selectedImages.forEach((image) => {
@@ -1203,7 +1230,8 @@ async function editListing(listingId) {
         size: 0,
         status: 'ready',
         url: image.url,
-        objectUrl
+        objectUrl,
+        angle: image.angle || ''
       });
     }
     renderSelectedImages();
