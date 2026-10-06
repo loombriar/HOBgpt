@@ -320,3 +320,14 @@ test('deleted legacy listings stay deleted after server restart', () => {
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('admin listing management requires admin authentication and omits deleted items', async () => {
+  const denied = await fetch(`${baseUrl}/api/admin/listings`);
+  assert.equal(denied.status, 401);
+  const allowed = await fetch(`${baseUrl}/api/admin/listings`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get('cache-control'), 'no-store');
+  const payload = await allowed.json();
+  assert.ok(Array.isArray(payload.items));
+  assert.ok(payload.items.every(item => item.status !== 'deleted'));
+});

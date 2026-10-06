@@ -1683,6 +1683,12 @@ function createApp(options = {}) {
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
+  app.get('/api/admin/listings', authAdmin, (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const rows = db.prepare("SELECT * FROM listings WHERE status != 'deleted' ORDER BY updated_at DESC LIMIT 300").all();
+    res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
+  });
+
   app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
     const rows = db.prepare("SELECT * FROM listings WHERE status = 'pending_review' AND moderation_status = 'pending' ORDER BY updated_at ASC").all();
     return res.json({ items: rows.map(row => serializeListing(row, 'admin')) });

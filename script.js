@@ -1157,12 +1157,15 @@ async function renderAdminQueue() {
   adminReviewList.replaceChildren();
   setMessage(adminReviewMessage, 'Loading pending clothing…');
   try {
-    const payload = await adminRequest('/api/admin/listings/review-queue');
+    const view = byId('admin-listing-view')?.value || 'pending_review';
+    const payload = await adminRequest(view === 'pending_review' ? '/api/admin/listings/review-queue' : '/api/admin/listings');
+    if (view !== 'all') payload.items = (payload.items || []).filter(item => item.status === view);
+    void renderAdminOverview();
     adminLoginPanel?.classList.add('hidden');
     adminReviewWorkspace?.classList.remove('hidden');
     setMessage(adminReviewMessage, '');
     if (!payload.items?.length) {
-      adminReviewList.appendChild(makeElement('p', 'empty-state', 'No clothing is waiting for approval.'));
+      adminReviewList.appendChild(makeElement('p', 'empty-state', 'No listings in this view.'));
       return;
     }
     for (const item of payload.items) {
@@ -1179,7 +1182,7 @@ async function renderAdminQueue() {
         media.appendChild(image);
       } else media.textContent = 'No image';
       const body = makeElement('div', 'admin-review-copy');
-      body.append(makeElement('span', 'status-badge', 'Pending review'));
+      body.append(makeElement('span', 'status-badge', item.status.replaceAll('_', ' ')));
       body.append(makeElement('h3', '', item.title));
       body.append(makeElement('p', 'admin-review-meta', `${item.designerName || item.designerId || 'Designer'} · $${Number(item.price).toFixed(2)} · ${categoryLabel(item.category)}`));
       body.append(makeElement('p', '', item.description || 'No description provided.'));
@@ -1232,8 +1235,19 @@ async function renderAdminQueue() {
           remove.disabled = false;
         }
       });
-      actions.append(approve, reject, remove);
-      body.append(reason, actions);
+      if (item.status === 'pending_review') { actions.append(approve, reject); body.append(reason); }
+      if (item.status === 'published') {
+        const hide = makeElement('button', 'secondary-button', 'Take off the floor');
+        hide.type = 'button';
+        hide.addEventListener('click', async () => {
+          hide.disabled = true;
+          try { await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/unpublish`, { method: 'POST' }); await renderAdminQueue(); await loadGallery(); }
+          catch (error) { setMessage(adminReviewMessage, error.message, 'error'); hide.disabled = false; }
+        });
+        actions.append(hide);
+      }
+      actions.append(remove);
+      body.append(actions);
       card.append(media, body);
       adminReviewList.appendChild(card);
     }
@@ -1263,6 +1277,9 @@ adminLoginForm?.addEventListener('submit', async (event) => {
   await renderAdminQueue();
 });
 adminSignoutBtn?.addEventListener('click', () => {
+  ++adminOverviewLoad;
+  byId('admin-overview')?.replaceChildren();
+  adminReviewList?.replaceChildren();
   adminToken = '';
   sessionStorage.removeItem('briarAdminToken');
   if (adminTokenInput) adminTokenInput.value = '';
@@ -1272,3 +1289,53 @@ adminSignoutBtn?.addEventListener('click', () => {
 });
 
 byId('production-info-close')?.addEventListener('click', () => byId('production-info-dialog')?.close());
+
+byId('admin-listing-view')?.addEventListener('change', renderAdminQueue);
+byId('admin-refresh-btn')?.addEventListener('click', renderAdminQueue);
+let adminOverviewLoad = 0;
+async function renderAdminOverview() {
+  const host = byId('admin-overview'); if (!host) return;
+  const load = ++adminOverviewLoad; host.replaceChildren();
+  const sections = [
+    ['Operations', '/api/admin/operations'],
+    ['Designer sign-ups', '/api/admin/designer-applications'],
+    ['Customer service', '/api/admin/support']
+  ];
+  await Promise.all(sections.map(async ([title, url]) => {
+    const section = makeElement('section', 'admin-summary-section');
+    section.append(makeElement('h3', '', title)); host.append(section);
+    try {
+      const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminToken) return;
+      if (data.summary) {
+        section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
+        for (const [key, value] of Object.entries(data.summary)) section.append(makeElement('p', '', `${key.replace(/([A-Z])/g, ' $1')}: ${value}`));
+        for (const order of data.orders || []) section.append(makeElement('p', '', `Order ${order.id} · ${order.status} · ${(order.subtotal_cents / 100).toFixed(2)} ${order.currency}`));
+      }
+      if (data.applications) {
+        if (!data.applications.length) section.append(makeElement('p', '', 'No designer sign-ups yet.'));
+        for (const item of data.applications) section.append(makeElement('p', '', `${item.brand_name || item.display_name} · ${item.email} · ${item.status}`));
+      }
+      if (data.messages) {
+        if (!data.messages.length) section.append(makeElement('p', '', 'No customer-service requests yet.'));
+        for (const item of data.messages) {
+          const card = makeElement('article', 'admin-support-item');
+          card.append(makeElement('h4', '', `${item.category} · ${item.status}`), makeElement('p', '', item.buyer_email || 'No email'), makeElement('p', '', item.message));
+          if (item.response_text) card.append(makeElement('p', '', `Last response: ${item.response_text}`));
+          if (item.buyer_email) {
+            const form = document.createElement('form'); const response = document.createElement('textarea');
+            response.required = true; response.maxLength = 4000; response.rows = 3; response.setAttribute('aria-label', `Reply to support request ${item.id}`);
+            const send = makeElement('button', 'primary-button', 'Email response'); send.type = 'submit';
+            const status = makeElement('p', 'form-message'); status.setAttribute('role', 'status');
+            form.append(response, send, status);
+            form.addEventListener('submit', async event => {
+              event.preventDefault(); send.disabled = true;
+              try { await adminRequest(`/api/admin/support/${encodeURIComponent(item.id)}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: response.value.trim() }) }); setMessage(status, 'Response sent.', 'success'); response.value = ''; }
+              catch (error) { setMessage(status, error.message, 'error'); }
+              finally { send.disabled = false; }
+            }); card.append(form);
+          } section.append(card);
+        }
+      }
+    } catch (error) { section.append(makeElement('p', 'form-message', `Could not load this section: ${error.message}`)); }
+  }));
+}
