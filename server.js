@@ -2186,7 +2186,7 @@ function createApp(options = {}) {
   ];
   illustratedPublicAssets.forEach((assetName) => {
     app.get('/' + encodeURIComponent(assetName).replace(/%20/g, '%20'), (_req, res) => {
-      res.type('image/png');
+      res.type(path.extname(assetName));
       res.set('Cache-Control', 'no-cache, must-revalidate');
       res.sendFile(path.join(rootDir, 'public', assetName));
     });
