@@ -24,6 +24,10 @@ const productForm = byId('product-form');
 const photoInput = byId('product-photos');
 const photoPreview = byId('photo-preview');
 const uploadMessage = byId('upload-message');
+const fabricFinderForm = byId('fabric-finder-form');
+const fabricFinderPhotos = byId('fabric-finder-photos');
+const fabricFinderMessage = byId('fabric-finder-message');
+const fabricFinderResult = byId('fabric-finder-result');
 const modalClose = byId('modal-close');
 const productDialog = byId('product-dialog');
 const productDetailTitle = byId('product-detail-title');
@@ -779,6 +783,49 @@ function addFiles(fileList) {
   setMessage(uploadMessage, issues.length ? issues.join(' ') : 'Photos selected. Save or submit to upload them.', issues.length ? 'error' : 'success');
   if (photoInput) photoInput.value = '';
 }
+
+function renderFabricFinderResult(analysis = {}, disclaimer = '') {
+  if (!fabricFinderResult) return;
+  fabricFinderResult.replaceChildren();
+  const title = makeElement('h4', '', analysis.fabricFamily || 'Fabric estimate');
+  fabricFinderResult.appendChild(title);
+  const rows = [
+    ['Likely fibers', Array.isArray(analysis.likelyFibers) ? analysis.likelyFibers.join(', ') : 'Not enough visual evidence'],
+    ['Construction', analysis.construction], ['Texture', analysis.texture], ['Weight', analysis.weight], ['Drape', analysis.drape],
+    ['Likely uses', Array.isArray(analysis.likelyUses) ? analysis.likelyUses.join(', ') : ''],
+    ['Care', Array.isArray(analysis.careConsiderations) ? analysis.careConsiderations.join(' · ') : ''], ['Confidence', analysis.confidence], ['Notes', analysis.notes]
+  ];
+  for (const [label, value] of rows) if (value) {
+    const p = document.createElement('p'); const strong = document.createElement('strong'); strong.textContent = label + ': ';
+    p.append(strong, document.createTextNode(String(value))); fabricFinderResult.appendChild(p);
+  }
+  const use = document.createElement('button'); use.type = 'button'; use.className = 'primary-button'; use.textContent = 'Use material & care in my listing';
+  use.addEventListener('click', () => {
+    if (byId('product-materials') && analysis.listingMaterialSuggestion) byId('product-materials').value = analysis.listingMaterialSuggestion;
+    if (byId('product-care') && Array.isArray(analysis.careConsiderations)) byId('product-care').value = analysis.careConsiderations.join('; ');
+    byId('product-materials')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  fabricFinderResult.appendChild(use);
+  if (disclaimer) fabricFinderResult.appendChild(makeElement('p', 'small-print', disclaimer));
+  fabricFinderResult.classList.remove('hidden');
+}
+
+fabricFinderForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const files = Array.from(fabricFinderPhotos?.files || []);
+  if (!files.length || files.length > 3) { setMessage(fabricFinderMessage, 'Choose between one and three fabric photos.', 'error'); return; }
+  if (files.some(file => !ALLOWED_MIME_TYPES.has(file.type) || file.size > MAX_IMAGE_BYTES)) { setMessage(fabricFinderMessage, 'Use JPEG, PNG, or WebP photos up to 10 MiB each.', 'error'); return; }
+  const button = byId('fabric-finder-submit'); if (button) button.disabled = true;
+  setMessage(fabricFinderMessage, 'Looking closely at the fabric…', 'success');
+  fabricFinderResult?.classList.add('hidden');
+  try {
+    const data = new FormData(); files.forEach(file => data.append('photos', file, file.name));
+    const payload = await apiRequest('/api/my/fabric-finder', { method: 'POST', body: data });
+    renderFabricFinderResult(payload.analysis || {}, payload.disclaimer || 'Visual estimate only.');
+    setMessage(fabricFinderMessage, 'Fabric estimate ready.', 'success');
+  } catch (error) { setMessage(fabricFinderMessage, error.message, 'error'); }
+  finally { if (button) button.disabled = false; }
+});
 
 function readFitRanges() {
   const ranges = {};
