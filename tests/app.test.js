@@ -430,7 +430,7 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
 test('quantity inventory prevents overselling and records admin adjustments', async () => {
   const created = await getJson('/api/listings', {
     method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
-    body:JSON.stringify({title:'Inventory multiple',description:'Stock test',price:25,category:'home',productionType:'Made in Multiple',sku:'HOB-TEST-2',stockQuantity:2,lowStockThreshold:1})
+    body:JSON.stringify({title:'Inventory multiple',description:'Stock test',price:25,category:'home',productionType:'Limited Quantity',sku:'HOB-TEST-2',stockQuantity:2,lowStockThreshold:1})
   });
   assert.equal(created.response.status,201);
   assert.equal(created.body.item.stockQuantity,2);
@@ -451,4 +451,28 @@ test('quantity inventory prevents overselling and records admin adjustments', as
     method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:-6,reason:'Bad count'})
   });
   assert.equal(belowZero.response.status,409);
+});
+
+
+test('one-of-a-kind and made-to-order inventory modes are enforced', async () => {
+  const invalidUnique = await getJson('/api/listings', {
+    method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({title:'Impossible duplicate original',description:'Unique piece',price:90,category:'home',productionType:'One of a Kind',stockQuantity:2})
+  });
+  assert.equal(invalidUnique.response.status,422);
+
+  const unique = await getJson('/api/listings', {
+    method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({title:'Single original',description:'Unique piece',price:90,category:'home',productionType:'One of a Kind',stockQuantity:1})
+  });
+  assert.equal(unique.response.status,201);
+  assert.equal(unique.body.item.stockQuantity,1);
+
+  const madeToOrder = await getJson('/api/listings', {
+    method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({title:'Made after purchase',description:'Commissioned piece',price:120,category:'home',productionType:'Made to Order',stockQuantity:0})
+  });
+  assert.equal(madeToOrder.response.status,201);
+  assert.equal(madeToOrder.body.item.productionType,'Made to Order');
+  assert.equal(madeToOrder.body.item.stockQuantity,0);
 });

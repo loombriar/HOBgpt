@@ -75,7 +75,7 @@ function validateListingInput(body = {}) {
   const handlingDaysMax = body.handlingDaysMax === '' || body.handlingDaysMax == null ? null : Number(body.handlingDaysMax);
   const internationalShipping = body.internationalShipping === true;
   const sku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : '';
-  const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : 0) : Number(body.stockQuantity);
+  const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : productionType === 'Made to Order' ? 0 : 1) : Number(body.stockQuantity);
   const lowStockThreshold = body.lowStockThreshold === '' || body.lowStockThreshold == null ? 1 : Number(body.lowStockThreshold);
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
@@ -88,7 +88,7 @@ function validateListingInput(body = {}) {
   if (pattern.length > 80) return { error: 'Print / Pattern must be 80 characters or fewer.' };
   if (materials.length > 500) return { error: 'Materials must be 500 characters or fewer.' };
   if (careInstructions.length > 1000) return { error: 'Care instructions must be 1,000 characters or fewer.' };
-  if (!['One of a Kind','Made in Multiple'].includes(productionType)) return { error: 'Choose whether this is one of a kind or made in multiple.' };
+  if (!['One of a Kind','Limited Quantity','Made to Order'].includes(productionType)) return { error: 'Choose one of a kind, limited quantity, or made to order.' };
   if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
   if (seoTitle.length > 70) return { error: 'SEO title must be 70 characters or fewer.' };
   if (seoDescription.length > 180) return { error: 'SEO description must be 180 characters or fewer.' };
@@ -101,6 +101,9 @@ function validateListingInput(body = {}) {
   if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
   if (sku && !/^[A-Z0-9._-]{2,64}$/.test(sku)) return { error: 'SKU may use letters, numbers, periods, underscores, and hyphens.' };
   if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 100000) return { error: 'Stock quantity must be a whole number between 0 and 100,000.' };
+  if (productionType === 'One of a Kind' && stockQuantity !== 1) return { error: 'One-of-a-kind pieces must have a stock quantity of exactly 1.' };
+  if (productionType === 'Limited Quantity' && stockQuantity < 1) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
+  if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
   return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
@@ -1262,7 +1265,8 @@ function createApp(options = {}) {
     const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
     const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
-      const listing=db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(item.id);
+      const listing=db.prepare('SELECT stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
+      if (listing?.production_type === 'Made to Order') continue;
       const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
       if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
       insert.run(item.id,orderId,now,expiresAt,item.quantity);
@@ -1327,6 +1331,7 @@ function createApp(options = {}) {
     for (const [id, quantity] of quantities) {
       const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved'").get(id);
       if (!listing) throw Object.assign(new Error('One or more pieces are no longer available.'), { statusCode: 409 });
+      if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
       const lineTotalCents = unitAmountCents * quantity;
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
