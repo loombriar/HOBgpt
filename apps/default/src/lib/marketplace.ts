@@ -66,6 +66,7 @@ type GalleryItem = {
   images?: Array<{ url: string }>;
   seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
   shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
+  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number;
 };
 
 function galleryItemToGenesis(item: GalleryItem): GenesisNode {
@@ -95,6 +96,8 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@handl': item.handlingDaysMin == null ? '' : String(item.handlingDaysMin),
       '/attributes/@handx': item.handlingDaysMax == null ? '' : String(item.handlingDaysMax),
       '/attributes/@intl': item.internationalShipping ? 'yes' : 'no',
+      '/attributes/@ptype': item.productionType || 'One of a Kind',
+      '/attributes/@stock': String(item.stockQuantity ?? (item.productionType === 'Made to Order' ? 0 : 1)),
     },
   };
 }
