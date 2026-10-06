@@ -66,6 +66,7 @@ const adminReviewList = byId('admin-review-list');
 const adminReviewMessage = byId('admin-review-message');
 const adminSignoutBtn = byId('admin-signout-btn');
 const CART_KEY = 'house-of-briar:cart';
+const GIFT_WRAP_KEY = 'house-of-briar:gift-wrap';
 
 let designerToken = localStorage.getItem('briarDesignerToken') || sessionStorage.getItem('briarDesignerToken') || '';
 let adminToken = sessionStorage.getItem('briarAdminToken') || '';
@@ -93,6 +94,9 @@ function getCartIds() {
     return [];
   }
 }
+
+function getGiftWrapIds(){try{const parsed=JSON.parse(localStorage.getItem(GIFT_WRAP_KEY)||'[]');return Array.isArray(parsed)?parsed.filter(id=>typeof id==='string'):[]}catch{return[]}}
+function setGiftWrapIds(ids){localStorage.setItem(GIFT_WRAP_KEY,JSON.stringify([...new Set(ids)]));}
 
 function setCartIds(ids) {
   localStorage.setItem(CART_KEY, JSON.stringify([...new Set(ids)]));
@@ -246,6 +250,7 @@ function addToCart(item) {
 
 function removeFromCart(item) {
   setCartIds(getCartIds().filter((id) => id !== item.id));
+  setGiftWrapIds(getGiftWrapIds().filter((id) => id !== item.id));
   setMessage(shopStatus, `${item.title} removed from your Suitcase.`, 'success');
   renderGallery();
 }
@@ -265,7 +270,7 @@ async function checkoutCart() {
     const payload = await apiRequest('/api/checkout/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1 })) })
+      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id) })) })
     });
     if (!payload?.url) throw new Error('Stripe checkout did not return a checkout link.');
     window.location.assign(payload.url);
@@ -294,7 +299,14 @@ function openCart() {
       const row = makeElement('div', 'designer-product');
       const copy = makeElement('div');
       copy.appendChild(makeElement('strong', '', item.title));
-      copy.appendChild(makeElement('p', 'price', `$${Number(item.price || 0).toFixed(2)}`));
+      copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
+      if (item.giftWrapAvailable) {
+        const wrapLabel=makeElement('label','cart-gift-wrap');
+        const wrap=document.createElement('input'); wrap.type='checkbox'; wrap.checked=getGiftWrapIds().includes(item.id);
+        const wrapPrice=Number(item.giftWrapPrice||0);
+        wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);});
+        wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
+      }
       const remove = makeElement('button', 'text-button', 'Remove from Suitcase');
       remove.type = 'button';
       remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
@@ -614,6 +626,18 @@ byId('measurement-profile-form')?.addEventListener('submit', (event) => {
 });
 renderMeasurementProfiles();
 
+function openSupportDialog(prefill=''){
+  const dialog=byId('support-dialog'); if(!dialog)return;
+  const message=byId('support-message'); if(message && prefill)message.value=prefill;
+  setMessage(byId('support-form-status'),'',''); dialog.showModal(); message?.focus();
+}
+byId('support-dialog-close')?.addEventListener('click',()=>byId('support-dialog')?.close());
+byId('support-form')?.addEventListener('submit',async event=>{
+  event.preventDefault(); const status=byId('support-form-status'); const message=byId('support-message')?.value.trim()||''; const orderId=byId('support-order-id')?.value.trim()||'';
+  try{const result=await apiRequest('/api/support/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,orderId:orderId||null})}); setMessage(status,result.message?.autoReply?'Message sent. We also emailed the available order or shipping information to you.':'Message sent to House of Briar Customer Support.','success');}
+  catch(error){setMessage(status,error.message==='Sign in to view your orders.'?'Please sign in through the Visitor’s Suite to send an in-site support message, or use the email link below.':error.message,'error');}
+});
+
 function openProductDetails(item) {
   if (!productDialog) return;
   const images = getProductImages(item);
@@ -687,7 +711,7 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
 
   const help = makeElement('div', 'product-help-links');
-  const contact = document.createElement('a'); contact.href = `mailto:houseofbriar26@gmail.com?subject=${encodeURIComponent('House of Briar help: ' + item.title)}`; contact.textContent = 'Contact Customer Support';
+  const contact = document.createElement('button'); contact.type='button'; contact.className='support-link-button'; contact.textContent = 'Contact Customer Support'; contact.addEventListener('click',()=>openSupportDialog(`Question about ${item.title} by ${item.designerName || 'an independent designer'}: `));
   const shipping = document.createElement('a'); shipping.href = '/rules#shipping-and-delays'; shipping.textContent = 'Shipping & Delivery';
   const rules = document.createElement('a'); rules.href = '/rules'; rules.textContent = 'House Rules & Returns';
   help.append(contact, shipping, rules); copy.appendChild(help);
