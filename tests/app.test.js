@@ -539,3 +539,21 @@ test('admin designer notices are private, prioritized, and auditable', async () 
   assert.equal(history.response.status,200);
   assert.ok(history.body.items.some(item=>item.id===notice.id&&item.designerId==='designer-a'));
 });
+
+
+test('admin inventory adjustments enforce piece-type guardrails and retain reasons', async () => {
+  const now=new Date().toISOString();
+  context.db.prepare("INSERT OR IGNORE INTO listings(id,designer_id,title,description,price,category,status,moderation_status,production_type,stock_quantity,low_stock_threshold,created_at,updated_at) VALUES ('admin-oak','designer-a','Admin OAK','test',20,'home','published','approved','One of a Kind',1,1,?,?)").run(now,now);
+  const bad=await getJson('/api/admin/listings/admin-oak/inventory/adjust',{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:1,reason:'Incorrect count'})});
+  assert.equal(bad.response.status,409);
+  const sold=await getJson('/api/admin/listings/admin-oak/inventory/adjust',{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:-1,reason:'Physical recount found piece sold offline'})});
+  assert.equal(sold.response.status,200);
+  assert.equal(sold.body.item.stockQuantity,0);
+  const history=await getJson('/api/admin/listings/admin-oak/inventory/history',{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}});
+  assert.equal(history.response.status,200);
+  assert.equal(history.body.items[0].delta,-1);
+  assert.equal(history.body.items[0].reason,'Physical recount found piece sold offline');
+  context.db.prepare("INSERT OR IGNORE INTO listings(id,designer_id,title,description,price,category,status,moderation_status,production_type,stock_quantity,low_stock_threshold,created_at,updated_at) VALUES ('admin-mto','designer-a','Admin MTO','test',20,'home','published','approved','Made to Order',0,1,?,?)").run(now,now);
+  const mto=await getJson('/api/admin/listings/admin-mto/inventory/adjust',{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:1,reason:'Should not apply'})});
+  assert.equal(mto.response.status,409);
+});
