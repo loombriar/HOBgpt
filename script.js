@@ -1333,7 +1333,16 @@ function renderSellerReadiness(){
   for(const [label,done,hint] of checks){
     const row=document.createElement('div');row.className='seller-readiness-item '+(done?'is-complete':'is-pending');
     const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=done?'✓':'○';mark.setAttribute('aria-hidden','true');
-    const copy=document.createElement('div');copy.append(makeElement('strong','',label));if(!done)copy.append(makeElement('span','seller-readiness-hint',hint));
+    const copy=document.createElement('div');copy.append(makeElement('strong','',label));
+    if(!done){
+      copy.append(makeElement('span','seller-readiness-hint',hint));
+      const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';
+      if(label==='Seller Terms accepted'){action.textContent='Review seller terms';action.addEventListener('click',()=>window.open('/rules#seller-terms','_blank','noopener'));}
+      else if(label==='Stripe connected'||label==='Identity & details submitted'||label==='Payouts enabled'){action.textContent=label==='Stripe connected'?'Set up payouts':'Continue Stripe setup';action.addEventListener('click',openStripeOnboarding);}
+      else if(label==='Designer profile completed'){action.textContent='Complete profile';action.addEventListener('click',()=>byId('designer-brand-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
+      else {action.textContent='Create a piece';action.addEventListener('click',()=>byId('product-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
+      copy.append(action);
+    }
     row.append(mark,copy);list.append(row);
   }
   const ready=checks.every(([,done])=>done)&&Boolean(stripe?.readyToSell);
@@ -1346,14 +1355,14 @@ async function refreshStripePayoutStatus() {
   try{
     const data=await apiRequest('/api/my/stripe-status');
     designerReadinessState.stripe=data;renderSellerReadiness();
-    if(data.readyToSell){setMessage(status,'Payouts are ready. Your approved pieces can be sold through House of Briar.','success');if(button)button.textContent='Review Stripe payout account';}
+    if(data.readyToSell){setMessage(status,'Stripe payout account connected and ready. Your approved pieces can be sold through House of Briar.','success');if(button)button.textContent='Review Stripe payout setup';}
     else if(data.connected){setMessage(status,'Stripe payout setup still needs attention. Finish the requested verification before your pieces can go on sale.','');if(button)button.textContent='Continue Stripe setup';}
     else{setMessage(status,'Set up Stripe payouts before your pieces can go on sale. You can keep building your profile and drafting listings now.','');}
   }catch(error){designerReadinessState.stripe=null;renderSellerReadiness();setMessage(status,error.message||'Payout status could not be checked.','error');}
 }
 async function openStripeOnboarding(){
   const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
-  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/?stripe=refresh',returnUrl:location.origin+'/?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
+  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/designers/room?stripe=refresh',returnUrl:location.origin+'/designers/room?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
