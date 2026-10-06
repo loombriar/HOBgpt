@@ -1054,6 +1054,19 @@ function createApp(options = {}) {
         const orderId = session?.metadata?.order_id;
         if (orderId) releaseOrderInventory(orderId);
       }
+      if (event.type === 'checkout.session.async_payment_failed') {
+        const session = event.data?.object;
+        const donationId = session?.metadata?.donation_id;
+        if (donationId) db.prepare("UPDATE donations SET status='failed' WHERE id=? AND stripe_session_id=? AND status!='paid'").run(donationId, session.id);
+        const orderId = session?.metadata?.order_id;
+        if (orderId) {
+          const order = db.prepare('SELECT * FROM orders WHERE id=? AND stripe_session_id=?').get(orderId, session.id);
+          if (order && order.status !== 'paid') {
+            db.prepare("UPDATE orders SET status='failed' WHERE id=?").run(order.id);
+            releaseOrderInventory(order.id);
+          }
+        }
+      }
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
         const session = event.data?.object;
         const donationId=session?.metadata?.donation_id;
@@ -1598,6 +1611,8 @@ function createApp(options = {}) {
       const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
       db.prepare("INSERT INTO donations (id,buyer_subject,amount_cents,currency,status,created_at) VALUES (?,?,?,'usd','pending',?)").run(id,buyerSubject,amountCents,now);
       const body=new URLSearchParams({mode:'payment',success_url:`${origin}/cart?donation=success`,cancel_url:`${origin}/cart?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
+      body.append('payment_method_types[]','card');
+      body.append('payment_method_types[]','us_bank_account');
       body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]','Support House of Briar');body.set('line_items[0][price_data][unit_amount]',String(amountCents));body.set('line_items[0][quantity]','1');
       try{const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-donation-${id}`});db.prepare('UPDATE donations SET stripe_session_id=? WHERE id=?').run(session.id,id);return res.status(201).json({url:session.url});}
       catch(error){db.prepare("UPDATE donations SET status='failed' WHERE id=?").run(id);throw error;}
@@ -1627,6 +1642,8 @@ function createApp(options = {}) {
         'payment_intent_data[metadata][order_id]': orderId,
         allow_promotion_codes: 'false'
       });
+      body.append('payment_method_types[]', 'card');
+      body.append('payment_method_types[]', 'us_bank_account');
       quote.items.forEach((item, index) => {
         body.set(`line_items[${index}][price_data][currency]`, quote.currency);
         body.set(`line_items[${index}][price_data][product_data][name]`, item.title);
