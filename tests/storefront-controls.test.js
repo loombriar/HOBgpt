@@ -29,3 +29,17 @@ test('slower earlier filter response cannot replace the latest selection', async
   pending[1]({items:[{id:'top'}]}); await second; pending[0]({items:[{id:'dress'}]}); await first;
   assert.equal(context.galleryItems[0].id,'top');
 });
+test('switching between garments and accessories clears the conflicting selection', () => {
+  const controls = new Map();
+  const byId=id=>{if(!controls.has(id))controls.set(id,{value:'all',handlers:{},addEventListener(name,fn){this.handlers[name]=fn;},dispatchEvent(){}});return controls.get(id);};
+  const start=source.indexOf("byId('shop-garment-filter')?.addEventListener('change'");
+  const end=source.indexOf("for (const id of ['shop-garment-filter', 'shop-aesthetic-filter'",start);
+  const context=vm.createContext({byId,Event,searchTimer:null,activeAccessory:'all',activeFilter:'all',activeAesthetic:'all',activeDesigner:'all',activePattern:'all',activeShopWindow:'all',shopSearch:'',loadGallery(){},setTimeout,clearTimeout});
+  vm.runInContext(source.slice(start,end),context);
+  byId('shop-accessory-filter').handlers.change({target:{value:'Purse / Bag'}});
+  assert.equal(context.activeAccessory,'Purse / Bag'); assert.equal(context.activeFilter,'all');
+  byId('shop-garment-filter').handlers.change({target:{value:'Dress'}});
+  assert.equal(context.activeFilter,'Dress'); assert.equal(context.activeAccessory,'all');
+  byId('shop-clear-filters').handlers.click();
+  assert.equal(context.activeFilter,'all'); assert.equal(context.activeDesigner,'all');
+});
