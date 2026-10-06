@@ -1703,3 +1703,10 @@ body h1,body h2,body h3,.brand-name,.product-section .shop-drop-window .category
 .sewing-header .briar-wordmark>img{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:min(32vw,360px)!important;aspect-ratio:3/1!important;object-fit:contain!important;object-position:center!important;margin:0 auto!important}
 .sewing-header .briar-wordmark>span{display:none!important}
 @media(max-width:650px){.sewing-header .briar-wordmark{width:100%!important}.sewing-header .briar-wordmark>img{max-height:34vw!important}}
+
+/* Suitcase trust panel: badges plus pre-checkout policy links. */
+.suitcase-trust-panel{display:grid!important;gap:12px!important;align-items:stretch!important}
+.suitcase-badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.suitcase-badge{display:flex;align-items:center;gap:10px;min-width:0}.suitcase-badge img{width:62px;height:62px;object-fit:contain;flex:0 0 62px}.suitcase-badge .eyebrow{margin:0 0 2px}.suitcase-badge strong{font-family:"Cormorant Garamond",serif;font-size:1.08rem;color:#54351f}.suitcase-badge p:last-child{margin:.18rem 0 0;font-size:.78rem;line-height:1.35}
+.suitcase-info-links{display:flex;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px solid rgba(111,86,58,.2)}.suitcase-info-links a{display:inline-flex;align-items:center;min-height:36px;padding:7px 11px;border:1px solid rgba(111,86,58,.3);border-radius:999px;background:#fffaf0;color:#54351f;font-size:.8rem;font-weight:700;text-decoration:none}.suitcase-info-links a:hover{text-decoration:underline}
+@media(max-width:620px){.suitcase-badges{grid-template-columns:1fr}.suitcase-badge img{width:54px;height:54px;flex-basis:54px}.suitcase-info-links a{flex:1 1 150px;justify-content:center;text-align:center}}
