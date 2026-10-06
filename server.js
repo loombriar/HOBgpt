@@ -283,6 +283,16 @@ function createApp(options = {}) {
 
     CREATE INDEX IF NOT EXISTS listing_images_listing ON listing_images(listing_id, upload_status, position);
   `);
+  db.exec(`CREATE TABLE IF NOT EXISTS listing_enhancements (
+    listing_id TEXT PRIMARY KEY,
+    gift_wrap_available INTEGER NOT NULL DEFAULT 0,
+    gift_wrap_price_cents INTEGER NOT NULL DEFAULT 0,
+    try_on_video_url TEXT,
+    movement_video_url TEXT,
+    photo_angles TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  )`);
 
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY,
@@ -890,7 +900,9 @@ function createApp(options = {}) {
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
     const inventory = listingInventory(row);
     const designerBadges = db.prepare('SELECT DISTINCT badge_type FROM user_badges WHERE buyer_subject IN (?,?) ORDER BY awarded_at').all(designerBadgeSubject(row.designer_id),`designer:${row.designer_id}`).map(badge => badge.badge_type);
-    const images = getImages(row.id, mode);
+    const enhancement = db.prepare('SELECT * FROM listing_enhancements WHERE listing_id=?').get(row.id) || {};
+    let photoAngles=[]; try { photoAngles=JSON.parse(enhancement.photo_angles || '[]'); } catch {}
+    const images = getImages(row.id, mode).map((image,index)=>({ ...image, angle: String(photoAngles[index] || '') }));
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
       id: row.id,
@@ -909,6 +921,10 @@ function createApp(options = {}) {
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
+      giftWrapAvailable: Boolean(enhancement.gift_wrap_available),
+      giftWrapPrice: Number(enhancement.gift_wrap_price_cents || 0) / 100,
+      tryOnVideoUrl: enhancement.try_on_video_url || '',
+      movementVideoUrl: enhancement.movement_video_url || '',
       seoTitle: row.seo_title || '',
       seoDescription: row.seo_description || '',
       seoTags: row.seo_tags || '',
@@ -2152,6 +2168,21 @@ function createApp(options = {}) {
     return res.json(result);
   });
 
+
+  app.put('/api/listings/:listingId/enhancements', authDesigner, (req,res) => {
+    const row=ownedEditableListing(req,res); if(!row)return;
+    const giftWrapAvailable=req.body?.giftWrapAvailable===true;
+    const giftWrapPrice=Number(req.body?.giftWrapPrice || 0);
+    if(!Number.isFinite(giftWrapPrice)||giftWrapPrice<0||giftWrapPrice>250)return fail(res,422,'validation_error','Gift-wrap price must be between $0 and $250.');
+    const tryOnVideoUrl=String(req.body?.tryOnVideoUrl||'').trim();
+    const movementVideoUrl=String(req.body?.movementVideoUrl||'').trim();
+    for(const url of [tryOnVideoUrl,movementVideoUrl]) if(url && !/^https:\/\//i.test(url)) return fail(res,422,'validation_error','Video clips must use secure HTTPS links.');
+    const photoAngles=Array.isArray(req.body?.photoAngles)?req.body.photoAngles.slice(0,10).map(v=>['Front','Back','Left','Right','Detail','Other'].includes(String(v))?String(v):''):[];
+    db.prepare(`INSERT INTO listing_enhancements (listing_id,gift_wrap_available,gift_wrap_price_cents,try_on_video_url,movement_video_url,photo_angles,updated_at)
+      VALUES (?,?,?,?,?,?,?) ON CONFLICT(listing_id) DO UPDATE SET gift_wrap_available=excluded.gift_wrap_available,gift_wrap_price_cents=excluded.gift_wrap_price_cents,try_on_video_url=excluded.try_on_video_url,movement_video_url=excluded.movement_video_url,photo_angles=excluded.photo_angles,updated_at=excluded.updated_at`)
+      .run(row.id,giftWrapAvailable?1:0,Math.round(giftWrapPrice*100),tryOnVideoUrl||null,movementVideoUrl||null,JSON.stringify(photoAngles),new Date().toISOString());
+    return res.json({item:serializeListing(getListing(row.id),'private')});
+  });
 
   app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
     try {
