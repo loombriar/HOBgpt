@@ -1184,6 +1184,7 @@ async function loadDesignerListings() {
     clearDesignerListImagePreviews();
     if (designerProductsContainer) designerProductsContainer.replaceChildren();
     const listings = payload.items || [];
+    designerReadinessState.listings=listings;renderSellerReadiness();
     if (!listings.length) {
       if (designerProductsContainer) designerProductsContainer.appendChild(makeElement('p', 'empty-state', 'No listings yet. Create a new design above.'));
       return;
@@ -1312,15 +1313,43 @@ async function editListing(listingId) {
   }
 }
 
+let designerReadinessState={profile:null,listings:[],stripe:null};
+function profileIsComplete(profile){
+  return Boolean(profile?.brandName?.trim() && profile?.bio?.trim() && Array.isArray(profile?.categories) && profile.categories.length);
+}
+function renderSellerReadiness(){
+  const list=byId('seller-readiness-list'),badge=byId('seller-readiness-badge'),summary=byId('seller-readiness-summary');
+  if(!list)return;
+  const {profile,listings,stripe}=designerReadinessState;
+  const checks=[
+    ['Seller Terms accepted',Boolean(profile?.sellerTermsAccepted),'Agree to the House of Briar Seller Terms.'],
+    ['Stripe connected',Boolean(stripe?.connected),'Connect your Stripe payout account.'],
+    ['Identity & details submitted',Boolean(stripe?.onboardingComplete),'Finish the identity/details requested by Stripe.'],
+    ['Payouts enabled',Boolean(stripe?.payoutsEnabled),'Complete any remaining Stripe payout requirements.'],
+    ['Designer profile completed',profileIsComplete(profile),'Add your brand name, bio, and what you create.'],
+    ['At least one listing created',Array.isArray(listings)&&listings.length>0,'Create your first piece.']
+  ];
+  list.replaceChildren();
+  for(const [label,done,hint] of checks){
+    const row=document.createElement('div');row.className='seller-readiness-item '+(done?'is-complete':'is-pending');
+    const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=done?'✓':'○';mark.setAttribute('aria-hidden','true');
+    const copy=document.createElement('div');copy.append(makeElement('strong','',label));if(!done)copy.append(makeElement('span','seller-readiness-hint',hint));
+    row.append(mark,copy);list.append(row);
+  }
+  const ready=checks.every(([,done])=>done)&&Boolean(stripe?.readyToSell);
+  if(badge){badge.textContent=ready?'Ready to sell':'Setup in progress';badge.dataset.ready=ready?'true':'false';}
+  if(summary)summary.textContent=ready?'Your seller setup is complete. Approved pieces can be sold through House of Briar.':'Complete the remaining steps below. You can keep building your profile and drafting pieces while setup is in progress.';
+}
 async function refreshStripePayoutStatus() {
   const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
   if(!designerToken)return;
   try{
     const data=await apiRequest('/api/my/stripe-status');
+    designerReadinessState.stripe=data;renderSellerReadiness();
     if(data.readyToSell){setMessage(status,'Payouts are ready. Your approved pieces can be sold through House of Briar.','success');if(button)button.textContent='Review Stripe payout account';}
     else if(data.connected){setMessage(status,'Stripe payout setup still needs attention. Finish the requested verification before your pieces can go on sale.','');if(button)button.textContent='Continue Stripe setup';}
     else{setMessage(status,'Set up Stripe payouts before your pieces can go on sale. You can keep building your profile and drafting listings now.','');}
-  }catch(error){setMessage(status,error.message||'Payout status could not be checked.','error');}
+  }catch(error){designerReadinessState.stripe=null;renderSellerReadiness();setMessage(status,error.message||'Payout status could not be checked.','error');}
 }
 async function openStripeOnboarding(){
   const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
@@ -1358,6 +1387,7 @@ async function signIn(tokenValue) {
 
 function signOut() {
   designerToken = '';
+  designerReadinessState={profile:null,listings:[],stripe:null};renderSellerReadiness();
   localStorage.removeItem('briarDesignerToken');
   sessionStorage.removeItem('briarDesignerToken');
   if (loginPanel) loginPanel.classList.remove('hidden');
@@ -1760,6 +1790,7 @@ async function renderAdminOverview() {
 async function loadDesignerBrand() {
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
+    designerReadinessState.profile=designer;renderSellerReadiness();
     byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
