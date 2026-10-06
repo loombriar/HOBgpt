@@ -1909,7 +1909,7 @@ function createApp(options = {}) {
     const status = req.body?.status;
     const priceDeltaPercent = req.body?.priceDeltaPercent == null || req.body.priceDeltaPercent === '' ? null : Number(req.body.priceDeltaPercent);
     if (availability != null && !['floor','backstock'].includes(availability)) return fail(res, 422, 'invalid_availability', 'Choose floor or backstock.');
-    if (status != null && !['draft','published','archived'].includes(status)) return fail(res, 422, 'invalid_status', 'Choose draft, published, or archived.');
+    if (status != null && !['draft','archived'].includes(status)) return fail(res, 422, 'invalid_status', 'Bulk status changes can only move listings to draft or archived. Publishing requires individual moderation approval.');
     if (priceDeltaPercent !== null && (!Number.isFinite(priceDeltaPercent) || priceDeltaPercent < -100 || priceDeltaPercent > 1000)) return fail(res, 422, 'invalid_price_adjustment', 'Price adjustment must be between -100% and 1000%.');
     if (availability == null && status == null && priceDeltaPercent === null) return fail(res, 422, 'changes_required', 'Choose at least one bulk change.');
     const timestamp = new Date().toISOString();
@@ -1919,7 +1919,7 @@ function createApp(options = {}) {
         if (!row || row.status === 'deleted') continue;
         if (availability != null) db.prepare('UPDATE listings SET availability=?,updated_at=?,version=version+1 WHERE id=?').run(availability,timestamp,id);
         if (priceDeltaPercent !== null) db.prepare('UPDATE listings SET price=ROUND(price*(1+?/100.0),2),updated_at=?,version=version+1 WHERE id=?').run(priceDeltaPercent,timestamp,id);
-        if (status != null) db.prepare("UPDATE listings SET status=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at,?) WHEN ?='archived' THEN published_at ELSE NULL END, moderation_status=CASE WHEN ?='published' THEN 'approved' ELSE moderation_status END, updated_at=?,version=version+1 WHERE id=?").run(status,status,timestamp,status,status,timestamp,id);
+        if (status != null) db.prepare("UPDATE listings SET status=?, published_at=CASE WHEN ?='archived' THEN published_at ELSE NULL END, updated_at=?,version=version+1 WHERE id=?").run(status,status,timestamp,id);
       }
     });
     update();
