@@ -215,6 +215,8 @@ function openCart() {
   if (!cartDialog || !cartItems) return checkoutCart();
   const ids = getCartIds();
   cartItems.replaceChildren();
+  const badgeReward = byId('cart-badge-reward');
+  if (badgeReward) badgeReward.hidden = !ids.length;
   if (!ids.length) {
     cartItems.appendChild(makeElement('p', 'notice', 'Your Suitcase is empty.'));
     if (checkoutButton) checkoutButton.disabled = true;
