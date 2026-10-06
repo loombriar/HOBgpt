@@ -238,7 +238,7 @@ test('header and full-size category banners are served with live filters', async
     assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
     assert.equal(image.status, 200, `${asset} should be served`);
-    assert.match(image.headers.get('content-type'), /image\/(png|webp|svg\+xml)/);
+    assert.match(image.headers.get('content-type'), asset.endsWith('.svg') ? /image\/svg\+xml/ : /image\/webp/);
   }
 
   const cssResponse = await fetch(`${baseUrl}/styles.css`);
