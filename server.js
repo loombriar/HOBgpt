@@ -345,6 +345,14 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
   recordMigration(2, 'marketplace_profile_order_and_tracking_columns');
 
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_access_tokens (
+    token_hash TEXT PRIMARY KEY,
+    designer_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS designer_access_tokens_designer ON designer_access_tokens(designer_id)');
+
   db.exec(`CREATE TABLE IF NOT EXISTS email_outbox (
     id TEXT PRIMARY KEY,
     recipient TEXT NOT NULL,
@@ -690,6 +698,13 @@ function createApp(options = {}) {
   async function authBuyer(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
+    const signupTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const signupAccess = db.prepare(`SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'`).get(signupTokenHash);
+    if (signupAccess?.designer_id) {
+      req.designerId = signupAccess.designer_id;
+      return next();
+    }
+
     try {
       const profile = await resolveDesignerIdentity(req, token);
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
@@ -1108,12 +1123,15 @@ function createApp(options = {}) {
     if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
 
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
+    const accessToken='hob_'+crypto.randomBytes(32).toString('base64url');
+    const accessTokenHash=crypto.createHash('sha256').update(accessToken).digest('hex');
     db.transaction(()=>{
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,NULL,'','approved',?,?,?,NULL,NULL,?,NULL,NULL,1,1)").run(id,email,displayName,brandName,designerId,now,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,NULL,NULL,NULL,?,NULL,NULL)").run(designerId,email,displayName,brandName,id,now,JSON.stringify(categories));
+      db.prepare("INSERT INTO designer_access_tokens (token_hash,designer_id,created_at) VALUES (?,?,?)").run(accessTokenHash,designerId,now);
     })();
 
-    return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false}});
+    return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false},accessToken});
   });
 
   app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
