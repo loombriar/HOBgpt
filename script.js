@@ -670,6 +670,13 @@ function openProductDetails(item) {
     const video=document.createElement('video'); video.controls=true; video.preload='metadata'; video.playsInline=true; video.src=url; video.setAttribute('aria-label',`${item.title} — ${label} clip`);
     wrap.append(video,makeElement('figcaption','',label)); imageGrid.appendChild(wrap);
   });
+  const sellerBlock = makeElement('div', 'product-seller-block');
+  sellerBlock.appendChild(makeElement('span', 'eyebrow', 'Designed & sold by'));
+  const sellerLink = makeElement('button', 'product-seller-name', item.designerName || 'Independent designer');
+  sellerLink.type = 'button';
+  if (item.designerId) sellerLink.addEventListener('click', () => { productDialog.close(); void openDesignerStorefront(item.designerId); });
+  sellerBlock.appendChild(sellerLink);
+  copy.appendChild(sellerBlock);
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
@@ -678,6 +685,12 @@ function openProductDetails(item) {
   if (item.materials) copy.appendChild(makeElement('p', 'product-materials', `Materials: ${item.materials}`));
   if (item.careInstructions) copy.appendChild(makeElement('p', 'product-care', `Care: ${item.careInstructions}`));
   copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
+
+  const help = makeElement('div', 'product-help-links');
+  const contact = document.createElement('a'); contact.href = `mailto:houseofbriar26@gmail.com?subject=${encodeURIComponent('House of Briar help: ' + item.title)}`; contact.textContent = 'Contact Customer Support';
+  const shipping = document.createElement('a'); shipping.href = '/rules#shipping-and-delays'; shipping.textContent = 'Shipping & Delivery';
+  const rules = document.createElement('a'); rules.href = '/rules'; rules.textContent = 'House Rules & Returns';
+  help.append(contact, shipping, rules); copy.appendChild(help);
 
   const reportSection = document.createElement('details'); reportSection.className = 'listing-report';
   reportSection.append(makeElement('summary', 'text-button', 'Report listing'));
