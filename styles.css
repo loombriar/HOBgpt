@@ -1563,3 +1563,51 @@ main>section:not(.hero){position:relative}
 .product-section .shop-drop-window .category-window-current{display:none!important}
 @media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.product-section .shop-drop-window .category-window-title{font-size:1rem!important}.product-section .shop-drop-window>select{font-size:.8rem!important}}
 @media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr!important;max-width:420px!important}.product-section .shop-drop-window .category-window-title{font-size:1.1rem!important}.product-section .shop-drop-window>select{font-size:.9rem!important}}
+
+
+/* Designer recruitment */
+.designer-callout-section {
+  padding: 3.5rem 0;
+  border-top: 1px solid rgba(137, 101, 48, .18);
+  border-bottom: 1px solid rgba(137, 101, 48, .18);
+  background:
+    radial-gradient(circle at 8% 20%, rgba(238, 174, 161, .16), transparent 25%),
+    radial-gradient(circle at 92% 75%, rgba(111, 139, 94, .14), transparent 28%),
+    #f7f0df;
+}
+.designer-callout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2.5rem;
+  align-items: center;
+  padding: 2.25rem 2.5rem;
+  border: 1px solid rgba(151, 113, 54, .28);
+  border-radius: 24px;
+  background: rgba(255, 252, 244, .82);
+  box-shadow: 0 14px 35px rgba(85, 65, 39, .08);
+}
+.designer-callout-copy { max-width: 760px; }
+.designer-callout h2 {
+  margin: .45rem 0 1rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(2.35rem, 5vw, 4rem);
+  line-height: .95;
+  color: #463523;
+}
+.designer-callout-copy > p:not(.eyebrow):not(.designer-callout-line) {
+  max-width: 700px;
+  line-height: 1.7;
+  color: #665846;
+}
+.designer-callout-line {
+  margin-top: 1rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #4d5f42;
+}
+.designer-callout-button { white-space: nowrap; }
+@media (max-width: 760px) {
+  .designer-callout { grid-template-columns: 1fr; padding: 1.75rem; }
+  .designer-callout-button { width: 100%; text-align: center; }
+}
