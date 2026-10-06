@@ -425,3 +425,30 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
   assert.equal(dashboard.response.status, 200);
   assert.ok(dashboard.body.funnel.begin_checkout >= 1);
 });
+
+
+test('quantity inventory prevents overselling and records admin adjustments', async () => {
+  const created = await getJson('/api/listings', {
+    method:'POST', headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({title:'Inventory multiple',description:'Stock test',price:25,category:'home',productionType:'Made in Multiple',sku:'HOB-TEST-2',stockQuantity:2,lowStockThreshold:1})
+  });
+  assert.equal(created.response.status,201);
+  assert.equal(created.body.item.stockQuantity,2);
+  assert.equal(created.body.item.sku,'HOB-TEST-2');
+
+  const adjusted=await getJson(`/api/admin/listings/${created.body.item.id}/inventory/adjust`,{
+    method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:3,reason:'Received three finished pieces'})
+  });
+  assert.equal(adjusted.response.status,200);
+  assert.equal(adjusted.body.item.stockQuantity,5);
+
+  const history=await getJson(`/api/admin/listings/${created.body.item.id}/inventory/history`,{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}});
+  assert.equal(history.response.status,200);
+  assert.equal(history.body.items[0].delta,3);
+  assert.equal(history.body.items[0].quantity_after,5);
+
+  const belowZero=await getJson(`/api/admin/listings/${created.body.item.id}/inventory/adjust`,{
+    method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:-6,reason:'Bad count'})
+  });
+  assert.equal(belowZero.response.status,409);
+});
