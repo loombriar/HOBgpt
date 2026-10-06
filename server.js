@@ -74,6 +74,9 @@ function validateListingInput(body = {}) {
   const handlingDaysMin = body.handlingDaysMin === '' || body.handlingDaysMin == null ? null : Number(body.handlingDaysMin);
   const handlingDaysMax = body.handlingDaysMax === '' || body.handlingDaysMax == null ? null : Number(body.handlingDaysMax);
   const internationalShipping = body.internationalShipping === true;
+  const sku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : '';
+  const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : 0) : Number(body.stockQuantity);
+  const lowStockThreshold = body.lowStockThreshold === '' || body.lowStockThreshold == null ? 1 : Number(body.lowStockThreshold);
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -96,8 +99,11 @@ function validateListingInput(body = {}) {
   if (handlingDaysMin !== null && (!Number.isInteger(handlingDaysMin) || handlingDaysMin < 0 || handlingDaysMin > 365)) return { error: 'Minimum handling days must be between 0 and 365.' };
   if (handlingDaysMax !== null && (!Number.isInteger(handlingDaysMax) || handlingDaysMax < 0 || handlingDaysMax > 365)) return { error: 'Maximum handling days must be between 0 and 365.' };
   if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
+  if (sku && !/^[A-Z0-9._-]{2,64}$/.test(sku)) return { error: 'SKU may use letters, numbers, periods, underscores, and hyphens.' };
+  if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 100000) return { error: 'Stock quantity must be a whole number between 0 and 100,000.' };
+  if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
 }
 
 function createApp(options = {}) {
@@ -202,11 +208,12 @@ function createApp(options = {}) {
       tracking_verified_at TEXT,
       release_reason TEXT,
       UNIQUE(order_id, designer_id),
-      FOREIGN KEY(order_id) REFERENCES orders(id)
+      FOREIGN KEY(order_id) REFERENCES orders(id),
+      UNIQUE(listing_id, order_id)
     );
 
     CREATE TABLE IF NOT EXISTS inventory_reservations (
-      listing_id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
       order_id TEXT NOT NULL,
       status TEXT NOT NULL CHECK (status IN ('reserved','sold','released')),
       reserved_at TEXT NOT NULL,
@@ -363,6 +370,16 @@ function createApp(options = {}) {
   ensureColumn('listings', 'handling_days_max', 'INTEGER');
   ensureColumn('listings', 'international_shipping', 'INTEGER NOT NULL DEFAULT 0');
   recordMigration(5, 'listing_seo_and_shipping');
+  ensureColumn('listings', 'sku', 'TEXT');
+  ensureColumn('listings', 'stock_quantity', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('listings', 'low_stock_threshold', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('inventory_reservations', 'quantity', 'INTEGER NOT NULL DEFAULT 1');
+  db.exec(`CREATE TABLE IF NOT EXISTS inventory_adjustments (
+    id TEXT PRIMARY KEY, listing_id TEXT NOT NULL, delta INTEGER NOT NULL, quantity_after INTEGER NOT NULL,
+    reason TEXT NOT NULL, actor_type TEXT NOT NULL, actor_id TEXT, created_at TEXT NOT NULL,
+    FOREIGN KEY(listing_id) REFERENCES listings(id)
+  ); CREATE INDEX IF NOT EXISTS inventory_adjustments_listing ON inventory_adjustments(listing_id, created_at DESC);`);
+  recordMigration(6, 'quantity_inventory');
 
   db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
     category TEXT PRIMARY KEY,
@@ -717,6 +734,10 @@ function createApp(options = {}) {
       handlingDaysMin: row.handling_days_min == null ? null : Number(row.handling_days_min),
       handlingDaysMax: row.handling_days_max == null ? null : Number(row.handling_days_max),
       internationalShipping: Boolean(row.international_shipping),
+      sku: row.sku || '',
+      stockQuantity: Number(row.stock_quantity ?? 0),
+      lowStockThreshold: Number(row.low_stock_threshold ?? 1),
+      lowStock: Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -1237,15 +1258,14 @@ function createApp(options = {}) {
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
-    const find = db.prepare("SELECT * FROM inventory_reservations WHERE listing_id = ? AND status IN ('reserved','sold')");
-    const upsert = db.prepare(`INSERT INTO inventory_reservations (listing_id, order_id, status, reserved_at, expires_at)
-      VALUES (?, ?, 'reserved', ?, ?)
-      ON CONFLICT(listing_id) DO UPDATE SET order_id=excluded.order_id, status='reserved', reserved_at=excluded.reserved_at, expires_at=excluded.expires_at, sold_at=NULL`);
+    const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
+    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
+    const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
-      if (item.quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
-      const active = find.get(item.id);
-      if (active) throw Object.assign(new Error('One or more pieces are already reserved or sold.'), { statusCode: 409 });
-      upsert.run(item.id, orderId, now, expiresAt);
+      const listing=db.prepare('SELECT stock_quantity FROM listings WHERE id=?').get(item.id);
+      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
+      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
   }
@@ -1566,9 +1586,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1596,6 +1616,9 @@ function createApp(options = {}) {
       validation.value.handlingDaysMin,
       validation.value.handlingDaysMax,
       validation.value.internationalShipping ? 1 : 0,
+      validation.value.sku || null,
+      validation.value.stockQuantity,
+      validation.value.lowStockThreshold,
       timestamp,
       timestamp
     );
@@ -1618,7 +1641,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1647,6 +1670,9 @@ function createApp(options = {}) {
       validation.value.handlingDaysMin,
       validation.value.handlingDaysMax,
       validation.value.internationalShipping ? 1 : 0,
+      validation.value.sku || null,
+      validation.value.stockQuantity,
+      validation.value.lowStockThreshold,
       timestamp,
       row.id
     );
@@ -1880,6 +1906,21 @@ function createApp(options = {}) {
     const placeholders=ids.map(()=>'?').join(',');
     const rows=db.prepare(`SELECT * FROM listings WHERE id IN (${placeholders}) AND status!='deleted' ORDER BY updated_at DESC`).all(...ids);
     return res.json({ items: rows.map(row=>serializeListing(row,'admin')) });
+  });
+
+    app.post('/api/admin/listings/:listingId/inventory/adjust', authAdmin, (req,res) => {
+    const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return fail(res,404,'not_found','Listing not found.');
+    const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
+    if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
+    if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
+    const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
+    const now=new Date().toISOString();
+    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
+    return res.json({item:serializeListing(getListing(row.id),'admin')});
+  });
+  app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
+    const row=getListing(req.params.listingId); if(!row)return fail(res,404,'not_found','Listing not found.');
+    return res.json({items:db.prepare('SELECT * FROM inventory_adjustments WHERE listing_id=? ORDER BY created_at DESC LIMIT 100').all(row.id)});
   });
 
     app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
