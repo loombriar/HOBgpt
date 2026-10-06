@@ -1133,7 +1133,6 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 byId('visitor-suite-btn')?.addEventListener('click', () => byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
 byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; loadGallery(); });
-byId('shop-sort-filter')?.addEventListener('change', (event) => { activeShopWindow = event.target.value || 'all'; loadGallery(); });
 byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value || 'all'; activeFilter = 'all'; byId('shop-garment-filter').value = 'all'; byId('shop-garment-filter').dispatchEvent(new Event('shop-caption')); loadGallery(); });
 byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim(); clearTimeout(searchTimer); searchTimer = setTimeout(loadGallery, 200); });
 
@@ -1146,13 +1145,13 @@ byId('shop-clear-filters')?.addEventListener('click', () => {
   byId('shop-fit-form')?.reset();
   setMessage(byId('shop-fit-message'), '', '');
   byId('shop-search-input').value = '';
-  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-sort-filter', 'shop-designer-filter']) {
+  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-designer-filter']) {
     const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
   }
   loadGallery();
 });
 
-for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter', 'shop-designer-filter']) {
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-accessory-filter', 'shop-designer-filter']) {
   const select = byId(id);
   const windowLabel = select?.closest('.shop-drop-window');
   const caption = windowLabel?.querySelector('.category-window-current');
