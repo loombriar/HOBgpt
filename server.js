@@ -740,7 +740,8 @@ function createApp(options = {}) {
       sku: row.sku || '',
       stockQuantity: Number(row.stock_quantity ?? 0),
       lowStockThreshold: Number(row.low_stock_threshold ?? 1),
-      lowStock: Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
+      lowStock: row.production_type === 'Made to Order' ? false : Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
+      inventoryLabel: row.production_type === 'One of a Kind' ? (Number(row.stock_quantity ?? 0) > 0 ? 'One of a kind' : 'Sold') : row.production_type === 'Made to Order' ? 'Made to order' : `${Number(row.stock_quantity ?? 0)} on hand`,
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -1258,17 +1259,21 @@ function createApp(options = {}) {
         AND order_id IN (SELECT id FROM orders WHERE status IN ('canceled','failed'))`).run();
   }
 
+  function recordInventoryAdjustment(listingId, delta, quantityAfter, reason, actorType, actorId, now = new Date().toISOString()) {
+    db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,?,?,?)")
+      .run(makeId(), listingId, delta, quantityAfter, reason, actorType, actorId || null, now);
+  }
+
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
     const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
-    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
     const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
       const listing=db.prepare('SELECT stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
       if (listing?.production_type === 'Made to Order') continue;
-      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
-      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      const reserved=Number(activeQty.get(item.id).qty);
+      if(!listing || reserved + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
       insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
@@ -1276,8 +1281,36 @@ function createApp(options = {}) {
 
   function markOrderInventorySold(orderId) {
     const now = new Date().toISOString();
-    db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
-    // Sold work remains published as part of the designer's gallery; inventory_reservations is the source of truth for checkout availability.\n    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    db.transaction(() => {
+      const reservations = db.prepare("SELECT ir.listing_id,ir.quantity,l.stock_quantity,l.production_type FROM inventory_reservations ir JOIN listings l ON l.id=ir.listing_id WHERE ir.order_id=? AND ir.status='reserved'").all(orderId);
+      for (const reservation of reservations) {
+        if (reservation.production_type === 'Made to Order') continue;
+        const before = Number(reservation.stock_quantity);
+        const after = before - Number(reservation.quantity);
+        if (after < 0) throw new Error('Inventory changed while payment was completing.');
+        db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,reservation.listing_id);
+        recordInventoryAdjustment(reservation.listing_id,-Number(reservation.quantity),after,'Sale completed','sale',orderId,now);
+      }
+      db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
+      db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    })();
+  }
+
+  function restockOrderInventory(orderId, reason = 'Refund restock') {
+    const now = new Date().toISOString();
+    return db.transaction(() => {
+      const reservations = db.prepare("SELECT ir.listing_id,ir.quantity,l.stock_quantity,l.production_type FROM inventory_reservations ir JOIN listings l ON l.id=ir.listing_id WHERE ir.order_id=? AND ir.status='sold'").all(orderId);
+      let restocked = 0;
+      for (const reservation of reservations) {
+        if (reservation.production_type === 'Made to Order') continue;
+        const after = Number(reservation.stock_quantity) + Number(reservation.quantity);
+        db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,reservation.listing_id);
+        recordInventoryAdjustment(reservation.listing_id,Number(reservation.quantity),after,reason,'refund',orderId,now);
+        restocked += Number(reservation.quantity);
+      }
+      db.prepare("UPDATE inventory_reservations SET status='released' WHERE order_id=? AND status='sold'").run(orderId);
+      return restocked;
+    })();
   }
 
   function releaseOrderInventory(orderId) {
@@ -1938,9 +1971,11 @@ function createApp(options = {}) {
     const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
     if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
     if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
+    if(row.production_type==='Made to Order')return fail(res,409,'not_stocked','Made-to-order pieces do not use on-hand inventory adjustments.');
     const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
+    if(row.production_type==='One of a Kind' && after>1)return fail(res,409,'unique_stock_limit','A one-of-a-kind piece cannot have more than one on hand.');
     const now=new Date().toISOString();
-    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
+    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);recordInventoryAdjustment(row.id,delta,after,reason,'admin','admin',now);})();
     return res.json({item:serializeListing(getListing(row.id),'admin')});
   });
   app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
@@ -2134,8 +2169,10 @@ function createApp(options = {}) {
       const body=new URLSearchParams({payment_intent:paymentIntent,reason:'requested_by_customer','metadata[order_id]':order.id});
       const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:`hob-refund-${order.id}`});
       db.prepare("UPDATE orders SET refund_status=?,stripe_refund_id=?,refunded_at=? WHERE id=?").run(refund.status||'pending',refund.id||null,refund.status==='succeeded'?new Date().toISOString():null,order.id);
+      let restocked = 0;
+      if (refund.status === 'succeeded' && req.body?.restock === true) restocked = restockOrderInventory(order.id, String(req.body?.restockReason || 'Refunded order returned to inventory').trim().slice(0,240));
       if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund was issued for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
-      return res.json({ok:true,refundId:refund.id,status:refund.status});
+      return res.json({ok:true,refundId:refund.id,status:refund.status,restocked});
     }catch(error){return next(error);}
   });
 
