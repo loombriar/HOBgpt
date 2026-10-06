@@ -58,6 +58,24 @@ export default function ProductPage() {
     return () => window.removeEventListener('house-of-briar-cart', refreshCart);
   }, [resolvedProductId]);
 
+  useEffect(() => {
+    if (!product) return;
+    const name = getTitle(product, 'Name') ?? 'Untitled piece'; const designer = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer'; const price = getFieldNumber(product, '@price', 'Price') ?? 0; const description = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.'; const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs')); const seoTitle = getFieldValue(product, '@seotl', 'SEO Title') || `${name} by ${designer}`; const seoDescription = getFieldValue(product, '@seods', 'SEO Description') || description; const shareImage = getFieldValue(product, '@share', 'Share Image') || images[0] || '';
+    trackCommerceEvent({ event: 'view_product', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
+    try { const old=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); const ids=Array.isArray(old)?old.filter((id):id is string=>typeof id==='string'&&id!==product.id):[]; window.localStorage.setItem('house-of-briar:recently-viewed',JSON.stringify([product.id,...ids].slice(0,12))); } catch {}
+    document.title = `${seoTitle} | House of Briar`;
+    const setMeta=(selector:string,attribute:string,value:string)=>{let el=document.querySelector(selector) as HTMLMetaElement|null;if(!el){el=document.createElement('meta');const match=selector.match(/meta\[(name|property)="([^"]+)"\]/);if(match)el.setAttribute(match[1],match[2]);document.head.appendChild(el);}el.setAttribute(attribute,value);};
+    setMeta('meta[name="description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:title"]','content',seoTitle);
+    setMeta('meta[property="og:description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:url"]','content',window.location.href);
+    if(shareImage)setMeta('meta[property="og:image"]','content',shareImage);
+    setMeta('meta[name="twitter:title"]','content',seoTitle);
+    setMeta('meta[name="twitter:description"]','content',seoDescription.slice(0,180));
+    if(shareImage)setMeta('meta[name="twitter:image"]','content',shareImage);
+    return () => { document.title = 'House of Briar'; };
+  }, [product]);
+
   if (loading) {
     return <HouseShell><section className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:px-8"><div className="aspect-[4/5] animate-pulse rounded-[2rem] bg-muted" /><div className="space-y-5 py-8"><div className="h-4 w-28 animate-pulse rounded-full bg-muted" /><div className="h-16 w-4/5 animate-pulse rounded-2xl bg-muted" /><div className="h-5 w-1/3 animate-pulse rounded-full bg-muted" /><div className="h-24 w-full animate-pulse rounded-2xl bg-muted" /><div className="h-12 w-full animate-pulse rounded-full bg-muted" /></div></section></HouseShell>;
   }
@@ -88,21 +106,7 @@ export default function ProductPage() {
   const handlingMax = Number(getFieldValue(product, '@handx', 'Handling Max') || NaN);
   const internationalShipping = getFieldValue(product, '@intl', 'International Shipping') === 'yes';
 
-  useEffect(() => {
-    trackCommerceEvent({ event: 'view_product', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
-    try { const old=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); const ids=Array.isArray(old)?old.filter((id):id is string=>typeof id==='string'&&id!==product.id):[]; window.localStorage.setItem('house-of-briar:recently-viewed',JSON.stringify([product.id,...ids].slice(0,12))); } catch {}
-    document.title = `${seoTitle} | House of Briar`;
-    const setMeta=(selector:string,attribute:string,value:string)=>document.querySelector(selector)?.setAttribute(attribute,value);
-    setMeta('meta[name="description"]','content',seoDescription.slice(0,180));
-    setMeta('meta[property="og:title"]','content',seoTitle);
-    setMeta('meta[property="og:description"]','content',seoDescription.slice(0,180));
-    setMeta('meta[property="og:url"]','content',window.location.href);
-    if(shareImage)setMeta('meta[property="og:image"]','content',shareImage);
-    setMeta('meta[name="twitter:title"]','content',seoTitle);
-    setMeta('meta[name="twitter:description"]','content',seoDescription.slice(0,180));
-    if(shareImage)setMeta('meta[name="twitter:image"]','content',shareImage);
-    return () => { document.title = 'House of Briar'; };
-  }, [product.id, name, designer, price, seoTitle, seoDescription, shareImage]);
+
 
   const boughtTogether=boughtTogetherIds.map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
     const productTags = tags.toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
