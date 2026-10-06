@@ -378,6 +378,8 @@ function createApp(options = {}) {
   ensureColumn('orders','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','promo_code_id','TEXT');
+  ensureColumn('order_items','gift_wrap_selected','INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('order_items','gift_wrap_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_transfers','refunded_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('special_order_offers','stripe_session_id','TEXT');
   ensureColumn('special_order_offers','stripe_payment_intent_id','TEXT');
@@ -1396,7 +1398,7 @@ function createApp(options = {}) {
   }
 
   function designerOrderContact(orderId, designerId) {
-    return db.prepare(`SELECT MAX(l.designer_email) AS email, GROUP_CONCAT(oi.title, ', ') AS titles,
+    return db.prepare(`SELECT MAX(l.designer_email) AS email, GROUP_CONCAT(oi.title || CASE WHEN COALESCE(oi.gift_wrap_selected,0)=1 THEN ' [GIFT WRAP]' ELSE '' END, ', ') AS titles,
       SUM(oi.designer_amount_cents) AS earnings_cents
       FROM order_items oi JOIN listings l ON l.id = oi.listing_id
       WHERE oi.order_id = ? AND oi.designer_id = ?`).get(orderId, designerId);
@@ -1664,11 +1666,13 @@ function createApp(options = {}) {
   function buildCheckoutQuote(requested, promoCodes = []) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
+    const giftWrapSelections = new Map();
     for (const item of requested) {
       const id = typeof item?.id === 'string' ? item.id : '';
       const quantity = Number(item?.quantity);
       if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error('Cart quantities must be whole numbers between 1 and 10.'), { statusCode: 422 });
       quantities.set(id, (quantities.get(id) || 0) + quantity);
+      if (item?.giftWrap === true) giftWrapSelections.set(id, true);
     }
     const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
     const rows = [];
@@ -1677,6 +1681,9 @@ function createApp(options = {}) {
       if (!listing) throw Object.assign(new Error('One or more pieces are currently unavailable.'), { statusCode: 409 });
       if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
+      const enhancement = db.prepare('SELECT gift_wrap_available,gift_wrap_price_cents FROM listing_enhancements WHERE listing_id=?').get(id) || {};
+      const giftWrapSelected = giftWrapSelections.get(id) === true && Boolean(enhancement.gift_wrap_available);
+      const giftWrapCents = giftWrapSelected ? Math.max(0, Number(enhancement.gift_wrap_price_cents || 0)) * quantity : 0;
       const grossCents = unitAmountCents * quantity;
       let discountCents=0,promoCodeId=null,promoCode=null;
       for(const code of requestedCodes){
@@ -1687,9 +1694,10 @@ function createApp(options = {}) {
         const amount=promo.discount_type==='percent'?Math.floor(grossCents*promo.discount_value/100):Math.min(grossCents,promo.discount_value);
         if(amount>discountCents){discountCents=amount;promoCodeId=promo.id;promoCode=promo.code;}
       }
-      const lineTotalCents=Math.max(0,grossCents-discountCents);
+      const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
+      const lineTotalCents=merchandiseTotalCents+giftWrapCents;
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
-      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
+      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const subtotalCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
     if(subtotalCents<50) throw Object.assign(new Error('Order total is too small to process.'),{statusCode:422});
@@ -1746,19 +1754,29 @@ function createApp(options = {}) {
       });
       body.append('payment_method_types[]', 'card');
       body.append('payment_method_types[]', 'us_bank_account');
-      quote.items.forEach((item, index) => {
-        body.set(`line_items[${index}][price_data][currency]`, quote.currency);
-        body.set(`line_items[${index}][price_data][product_data][name]`, item.title);
-        body.set(`line_items[${index}][price_data][unit_amount]`, String(Math.max(1,Math.floor(item.lineTotalCents/item.quantity))));
-        body.set(`line_items[${index}][quantity]`, String(item.quantity));
+      let stripeLineIndex=0;
+      quote.items.forEach((item) => {
+        const merchandiseCents=item.lineTotalCents-item.giftWrapCents;
+        body.set(`line_items[${stripeLineIndex}][price_data][currency]`, quote.currency);
+        body.set(`line_items[${stripeLineIndex}][price_data][product_data][name]`, item.title);
+        body.set(`line_items[${stripeLineIndex}][price_data][unit_amount]`, String(Math.max(1,Math.floor(merchandiseCents/item.quantity))));
+        body.set(`line_items[${stripeLineIndex}][quantity]`, String(item.quantity));
+        stripeLineIndex++;
+        if(item.giftWrapSelected && item.giftWrapCents>0){
+          body.set(`line_items[${stripeLineIndex}][price_data][currency]`,quote.currency);
+          body.set(`line_items[${stripeLineIndex}][price_data][product_data][name]`,`Gift wrapping — ${item.title}`);
+          body.set(`line_items[${stripeLineIndex}][price_data][unit_amount]`,String(Math.floor(item.giftWrapCents/item.quantity)));
+          body.set(`line_items[${stripeLineIndex}][quantity]`,String(item.quantity));
+          stripeLineIndex++;
+        }
       });
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
         reserveInventory(orderId, quote.items, now);
-        const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-        quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents));
+        const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
       })();
 
       let session;
