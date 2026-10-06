@@ -299,3 +299,35 @@ test('storefront exposes pattern filtering and persistent favorite controls', ()
   assert.match(server, /CREATE TABLE IF NOT EXISTS buyer_favorites/);
   assert.match(server, /\/api\/my\/favorites\/:listingId/);
 });
+
+
+test('deleted legacy listings stay deleted after server restart', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'briar-delete-restart-'));
+  const seeds = [
+    { id: 'loom-briar-lucky-outfit', title: 'Legacy outfit', price: 295 },
+    { id: 'seed-wildflower-runner', title: 'Retired demo', price: 1 }
+  ];
+  let instance;
+  try {
+    instance = createApp({ dataDir: directory, seedProducts: seeds });
+    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[0].id);
+    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[1].id);
+    instance.db.close();
+    instance = createApp({ dataDir: directory, seedProducts: seeds });
+    for (const seed of seeds) assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id = ?').get(seed.id).status, 'deleted');
+  } finally {
+    instance?.db.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('admin listing management requires admin authentication and omits deleted items', async () => {
+  const denied = await fetch(`${baseUrl}/api/admin/listings`);
+  assert.equal(denied.status, 401);
+  const allowed = await fetch(`${baseUrl}/api/admin/listings`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get('cache-control'), 'no-store');
+  const payload = await allowed.json();
+  assert.ok(Array.isArray(payload.items));
+  assert.ok(payload.items.every(item => item.status !== 'deleted'));
+});

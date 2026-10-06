@@ -439,7 +439,7 @@ function createApp(options = {}) {
     'seed-stoneware-mug-duo',
     '48a0cc6f-e6ac-4538-8a9f-a4889ce21c4c'
   ];
-  const retireSeed = db.prepare("UPDATE listings SET status = 'archived', updated_at = ? WHERE id = ?");
+  const retireSeed = db.prepare("UPDATE listings SET status = 'archived', updated_at = ? WHERE id = ? AND status != 'deleted'");
   const retireSeedNow = new Date().toISOString();
   for (const id of retiredSeedIds) retireSeed.run(retireSeedNow, id);
   const insertSeed = db.prepare(`
@@ -471,7 +471,7 @@ function createApp(options = {}) {
   // Retire old demo/seed garments. The live catalog should contain only designer-uploaded listings.
   db.prepare(`UPDATE listings
     SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
-    WHERE id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
+    WHERE status != 'deleted' AND id IN ('loom-briar-lavender-palm-outfit','loom-briar-golden-velvet-top','loom-briar-lucky-outfit')`).run(new Date().toISOString());
 
   function log(level, event, details = {}) {
     const payload = { timestamp: new Date().toISOString(), level, event, ...details };
@@ -1417,6 +1417,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/listings', authDesigner, (req, res) => {
+    res.set('Cache-Control', 'no-store');
     const rows = db.prepare(`
       SELECT * FROM listings
       WHERE designer_id = ? AND status != 'deleted'
@@ -1680,6 +1681,12 @@ function createApp(options = {}) {
     `).run(nextStatus, nextModeration, reviewRequired ? null : timestamp, timestamp, row.id);
 
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
+  });
+
+  app.get('/api/admin/listings', authAdmin, (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const rows = db.prepare("SELECT * FROM listings WHERE status != 'deleted' ORDER BY updated_at DESC LIMIT 300").all();
+    res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
 
   app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
