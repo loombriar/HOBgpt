@@ -5,20 +5,72 @@ import HouseShell from '@/components/HouseShell';
 import { MARKET_CATEGORIES } from '@/lib/marketplace';
 
 export default function SellPage() {
-  const [form,setForm]=useState({email:'',displayName:'',brandName:'',location:'',portfolioUrl:'',socialUrl:'',statement:'',categories:[] as string[],priceRange:'',productionMethod:'',originalityConfirmed:false,marketplaceTermsAccepted:false});
+  const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[]});
   const [message,setMessage]=useState('');
-  const [signupId,setApplicationId]=useState('');
+  const [signupId,setSignupId]=useState('');
   const [loading,setLoading]=useState(false);
+
   const submit=async(event:FormEvent)=>{
-    event.preventDefault();setLoading(true);setMessage('');
+    event.preventDefault();
+    setLoading(true);
+    setMessage('');
     try{
-      const response=await fetch('/api/designer-applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});
+      const response=await fetch('/api/designer-applications',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(form)
+      });
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data?.error?.message||'Your designer sign up could not be completed.');
-      setApplicationId(data.signup.id);setMessage('Designer sign up complete. Sign in with this email to open your Designer Studio and set up payouts.');
-    }catch(error){setMessage(error instanceof Error?error.message:'Your designer sign up could not be completed.');}
-    finally{setLoading(false);}
+      setSignupId(data.signup.id);
+      setMessage('Designer sign up complete. Sign in with this email to open your Designer Studio and set up payouts.');
+    }catch(error){
+      setMessage(error instanceof Error?error.message:'Your designer sign up could not be completed.');
+    }finally{
+      setLoading(false);
+    }
   };
+
   const field='mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
-  return <HouseShell><main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6"><Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft size={16}/> Home</Link><p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">Designer sign up</p><h1 className="mt-3 font-serif text-5xl">Bring your work into the Briar.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">House of Briar welcomes independent designers. Create your designer profile, then sign in to your studio and complete secure payout setup.</p>{signupId?<section className="mt-10 rounded-3xl border border-primary/20 bg-primary/5 p-7"><h2 className="font-serif text-3xl">Welcome to House of Briar.</h2><p role="status" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p><p className="mt-4 text-xs text-muted-foreground">Designer sign-up reference: {signupId}</p><Link to="/account" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold hover:border-primary hover:text-primary">Go to your account</Link></section>:<form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8"><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-medium">Your name<input required maxLength={100} autoComplete="name" value={form.displayName} onChange={e=>setForm({...form,displayName:e.target.value})} className={field}/></label><label className="text-sm font-medium">Brand or label<input required maxLength={120} autoComplete="organization" value={form.brandName} onChange={e=>setForm({...form,brandName:e.target.value})} className={field}/></label></div><label className="block text-sm font-medium">Email<input required type="email" autoComplete="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Location <span className="font-normal text-muted-foreground">(city, state/region, country)</span><input required maxLength={160} autoComplete="address-level2" value={form.location} onChange={e=>setForm({...form,location:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Portfolio or website <span className="font-normal text-muted-foreground">(optional)</span><input type="url" maxLength={500} placeholder="https://…" value={form.portfolioUrl} onChange={e=>setForm({...form,portfolioUrl:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Social link <span className="font-normal text-muted-foreground">(optional)</span><input type="url" maxLength={500} placeholder="https://…" value={form.socialUrl} onChange={e=>setForm({...form,socialUrl:e.target.value})} className={field}/></label><label className="block text-sm font-medium">Tell us about your work <span className="font-normal text-muted-foreground">(optional)</span><textarea maxLength={2000} rows={6} value={form.statement} onChange={e=>setForm({...form,statement:e.target.value})} className="mt-2 w-full rounded-xl border border-border bg-background p-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="What do you make? What materials, methods, or point of view define your work?"/></label><fieldset><legend className="text-sm font-medium">What do you make?</legend><div className="mt-3 flex flex-wrap gap-2">{MARKET_CATEGORIES.map(item=><label key={item} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm"><input type="checkbox" checked={form.categories.includes(item)} onChange={e=>setForm({...form,categories:e.target.checked?[...form.categories,item]:form.categories.filter(value=>value!==item)})}/>{item}</label>)}</div></fieldset><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-medium">Typical price range <span className="font-normal text-muted-foreground">(optional)</span><input maxLength={100} placeholder="e.g. $50–$300" value={form.priceRange} onChange={e=>setForm({...form,priceRange:e.target.value})} className={field}/></label><label className="text-sm font-medium">Production method<select required value={form.productionMethod} onChange={e=>setForm({...form,productionMethod:e.target.value})} className={field}><option value="">Choose one</option><option>Handmade</option><option>Made to order</option><option>Small batch</option><option>Manufacturing partner</option><option>Mixed methods</option></select></label></div><label className="flex items-start gap-3 text-sm leading-6"><input required type="checkbox" checked={form.originalityConfirmed} onChange={e=>setForm({...form,originalityConfirmed:e.target.checked})} className="mt-1"/><span>I confirm that the products I list are my original or independently designed work and comply with House of Briar marketplace rules.</span></label><label className="flex items-start gap-3 text-sm leading-6"><input required type="checkbox" checked={form.marketplaceTermsAccepted} onChange={e=>setForm({...form,marketplaceTermsAccepted:e.target.checked})} className="mt-1"/><span>I understand that designers receive 90% of the item sale amount and House of Briar retains 10% as the marketplace fee.</span></label>{message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}<button disabled={loading} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Submitting…':'Join House of Briar'}</button><p className="text-xs leading-5 text-muted-foreground">All independent designers are welcome. Product listings are still subject to House of Briar marketplace moderation before they go live.</p></form>}</main></HouseShell>;
+
+  return <HouseShell>
+    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+      <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft size={16}/> Home</Link>
+      <p className="mt-10 text-xs font-semibold uppercase tracking-[0.24em] text-primary">Designer sign up</p>
+      <h1 className="mt-3 font-serif text-5xl">Join the House of Briar.</h1>
+      <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">Sign up as an independent designer. There is no application or approval process—create your designer profile, then sign in to your studio when you are ready.</p>
+
+      {signupId ? <section className="mt-10 rounded-3xl border border-primary/20 bg-primary/5 p-7">
+        <h2 className="font-serif text-3xl">Welcome to House of Briar.</h2>
+        <p role="status" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
+        <p className="mt-4 text-xs text-muted-foreground">Designer sign-up reference: {signupId}</p>
+        <Link to="/account" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold hover:border-primary hover:text-primary">Go to your account</Link>
+      </section> : <form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="text-sm font-medium">Your name
+            <input required maxLength={100} autoComplete="name" value={form.displayName} onChange={e=>setForm({...form,displayName:e.target.value})} className={field}/>
+          </label>
+          <label className="text-sm font-medium">Designer or brand name
+            <input required maxLength={120} autoComplete="organization" value={form.brandName} onChange={e=>setForm({...form,brandName:e.target.value})} className={field}/>
+          </label>
+        </div>
+        <label className="block text-sm font-medium">Email
+          <input required type="email" autoComplete="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={field}/>
+        </label>
+        <fieldset>
+          <legend className="text-sm font-medium">What do you create?</legend>
+          <p className="mt-1 text-xs text-muted-foreground">Choose one or more.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {MARKET_CATEGORIES.map(item=><label key={item} className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm">
+              <input type="checkbox" checked={form.categories.includes(item)} onChange={e=>setForm({...form,categories:e.target.checked?[...form.categories,item]:form.categories.filter(value=>value!==item)})}/>
+              {item}
+            </label>)}
+          </div>
+        </fieldset>
+        {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
+        <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Join the Designer List'}</button>
+        <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created when you sign up.</p>
+      </form>}
+    </main>
+  </HouseShell>;
 }
