@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=seller-onboarding-29" />
-    <script src="/script.js?v=seller-onboarding-29" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=designer-room-30" />
+    <script src="/script.js?v=designer-room-30" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
     <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
@@ -284,10 +284,10 @@
       </section>
     </dialog>
 
-    <dialog id="designer-modal" class="app-dialog designer-dialog" aria-labelledby="designer-dialog-title">
-      <div class="dialog-header">
+    <section id="designer-modal" class="designer-room-page hidden" aria-labelledby="designer-dialog-title" tabindex="-1">
+      <div class="dialog-header designer-room-header">
         <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer’s Room</h2></div>
-        <button class="icon-button" id="modal-close" type="button" aria-label="Close designer portal">×</button>
+        <button class="secondary-button" id="modal-close" type="button" aria-label="Return to storefront">← Back to the House</button>
       </div>
       <section id="designer-login-panel" class="login-panel">
         <p>Sign in with your designer access token to manage your listings. Your identity is verified by the server.</p>
@@ -470,7 +470,7 @@
           <p class="small-print">Submission follows the server’s configured publication policy. Drafts and pending items stay out of the public gallery.</p>
         </form>
       </section>
-    </dialog>
+    </section>
 
     <dialog id="admin-review-dialog" class="app-dialog admin-review-dialog" aria-labelledby="admin-review-title">
       <div class="dialog-header">
