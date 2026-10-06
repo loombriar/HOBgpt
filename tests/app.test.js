@@ -264,7 +264,7 @@ test('filter windows use their full botanical artwork and keep accessible live c
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
   assert.ok(html.includes('id="shop-pattern-filter" aria-label="Filter by print or pattern"'), 'pattern filter should remain an accessible native filter');
-  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 4, 'each filter should have a live selected-value caption');
+  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 5, 'each filter should have a live selected-value caption');
   assert.match(html, /<option value="all">All prints<\/option>/, 'default pattern-window label should match its caption');
   assert.match(html, /class="sewing-hero-art" src="\/sewing-hero-v2\.webp"/);
 
@@ -294,7 +294,7 @@ test('storefront exposes pattern filtering and persistent favorite controls', ()
   assert.match(html, /id="shop-sort-filter" aria-label="Sort shop results"/);
   assert.match(html, /Price \/ New/);
   assert.match(script, /activePattern/);
-  assert.match(script, /item\.pattern === activePattern/);
+  assert.match(script, /\['pattern', activePattern\]/);
   assert.match(script, /favorite-button/);
   assert.match(server, /CREATE TABLE IF NOT EXISTS buyer_favorites/);
   assert.match(server, /\/api\/my\/favorites\/:listingId/);
@@ -539,3 +539,4 @@ test('admin designer notices are private, prioritized, and auditable', async () 
   assert.equal(history.response.status,200);
   assert.ok(history.body.items.some(item=>item.id===notice.id&&item.designerId==='designer-a'));
 });
+
