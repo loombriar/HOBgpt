@@ -365,6 +365,17 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL, accepted_at TEXT, FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
   )`);
   recordMigration(7, 'seller_commerce_controls');
+  ensureColumn('orders','discount_cents','INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('order_items','discount_cents','INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('order_items','promo_code_id','TEXT');
+  ensureColumn('designer_transfers','refunded_cents','INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('special_order_offers','stripe_session_id','TEXT');
+  ensureColumn('special_order_offers','stripe_payment_intent_id','TEXT');
+  ensureColumn('special_order_offers','deposit_paid_at','TEXT');
+  ensureColumn('special_order_offers','stripe_transfer_id','TEXT');
+  ensureColumn('special_order_offers','stripe_refund_id','TEXT');
+  recordMigration(8, 'seller_payment_allocations');
+
 
   db.exec(`CREATE TABLE IF NOT EXISTS designer_access_tokens (
     token_hash TEXT PRIMARY KEY,
@@ -1502,7 +1513,7 @@ function createApp(options = {}) {
     return results;
   }
 
-  function buildCheckoutQuote(requested) {
+  function buildCheckoutQuote(requested, promoCodes = []) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
     for (const item of requested) {
@@ -1511,22 +1522,35 @@ function createApp(options = {}) {
       if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error('Cart quantities must be whole numbers between 1 and 10.'), { statusCode: 422 });
       quantities.set(id, (quantities.get(id) || 0) + quantity);
     }
+    const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
     const rows = [];
     for (const [id, quantity] of quantities) {
-      const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved'").get(id);
-      if (!listing) throw Object.assign(new Error('One or more pieces are no longer available.'), { statusCode: 409 });
+      const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
+      if (!listing) throw Object.assign(new Error('One or more pieces are currently unavailable.'), { statusCode: 409 });
       if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
-      const lineTotalCents = unitAmountCents * quantity;
+      const grossCents = unitAmountCents * quantity;
+      let discountCents=0,promoCodeId=null,promoCode=null;
+      for(const code of requestedCodes){
+        const promo=db.prepare(`SELECT * FROM designer_promo_codes WHERE designer_id=? AND code=? AND active=1
+          AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?)
+          AND (max_uses IS NULL OR use_count<max_uses)`).get(listing.designer_id,code,new Date().toISOString(),new Date().toISOString());
+        if(!promo)continue;
+        const amount=promo.discount_type==='percent'?Math.floor(grossCents*promo.discount_value/100):Math.min(grossCents,promo.discount_value);
+        if(amount>discountCents){discountCents=amount;promoCodeId=promo.id;promoCode=promo.code;}
+      }
+      const lineTotalCents=Math.max(0,grossCents-discountCents);
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
-      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
+      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const subtotalCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    if(subtotalCents<50) throw Object.assign(new Error('Order total is too small to process.'),{statusCode:422});
+    const discountCents=rows.reduce((sum,item)=>sum+item.discountCents,0);
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
-    return { currency: 'usd', items: rows, subtotalCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
+    return { currency: 'usd', items: rows, subtotalCents, discountCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
   }
   app.post('/api/checkout/quote', checkoutLimiter, (req, res) => {
-    try { return res.json(buildCheckoutQuote(req.body?.items)); }
+    try { return res.json(buildCheckoutQuote(req.body?.items,req.body?.promoCodes)); }
     catch (error) { return fail(res, error.statusCode || 422, 'invalid_cart', error.message); }
   });
 
@@ -1554,7 +1578,7 @@ function createApp(options = {}) {
       try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
     try {
-      const quote = buildCheckoutQuote(req.body?.items);
+      const quote = buildCheckoutQuote(req.body?.items,req.body?.promoCodes);
       const orderId = makeId();
       const cancelToken = crypto.randomBytes(32).toString('base64url');
       const cancelTokenHash = crypto.createHash('sha256').update(cancelToken).digest('hex');
@@ -1567,21 +1591,21 @@ function createApp(options = {}) {
         expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
         'payment_intent_data[metadata][order_id]': orderId,
-        allow_promotion_codes: 'true'
+        allow_promotion_codes: 'false'
       });
       quote.items.forEach((item, index) => {
         body.set(`line_items[${index}][price_data][currency]`, quote.currency);
         body.set(`line_items[${index}][price_data][product_data][name]`, item.title);
-        body.set(`line_items[${index}][price_data][unit_amount]`, String(item.unitAmountCents));
+        body.set(`line_items[${index}][price_data][unit_amount]`, String(Math.max(1,Math.floor(item.lineTotalCents/item.quantity))));
         body.set(`line_items[${index}][quantity]`, String(item.quantity));
       });
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
-        db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
         reserveInventory(orderId, quote.items, now);
-        const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-        quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.platformFeeCents, item.designerAmountCents));
+        const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents));
       })();
 
       let session;
