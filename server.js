@@ -618,6 +618,8 @@ function createApp(options = {}) {
     for(const order of paid){const subject=order.buyer_subject||badgeSubjectForEmail(order.buyer_email);if(!subject)continue;const before=db.prepare("SELECT 1 FROM user_badges WHERE buyer_subject=? AND badge_type='verified_buyer'").get(subject);awardBadge(subject,'verified_buyer','order',order.id);if(!before)awarded++;}
     return awarded;
   }
+  const reconciledBuyerBadges = reconcileVerifiedBuyerBadges();
+  if (reconciledBuyerBadges) log('info','buyer_badges_reconciled',{awarded:reconciledBuyerBadges});
 
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   // Legacy/configured designer tokens predate designer_profiles. Backfill active profiles so
