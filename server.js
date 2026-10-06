@@ -606,6 +606,18 @@ function createApp(options = {}) {
     UNIQUE (badge_type, source_type, source_id)
   )`);
   function awardBadge(subject,badgeType,sourceType,sourceId){if(!subject||!sourceId)return;db.prepare('INSERT OR IGNORE INTO user_badges (buyer_subject,badge_type,source_type,source_id,awarded_at) VALUES (?,?,?,?,?)').run(subject,badgeType,sourceType,sourceId,new Date().toISOString());}
+  function badgeSubjectForEmail(email){
+    const normalized=typeof email==='string'?email.trim().toLowerCase():'';
+    if(!normalized)return null;
+    const identity=db.prepare(`SELECT di.subject FROM designer_identities di JOIN designer_profiles dp ON dp.id=di.designer_id WHERE lower(dp.email)=? AND dp.status='active'`).get(normalized);
+    return identity?.subject||null;
+  }
+  function reconcileVerifiedBuyerBadges(){
+    const paid=db.prepare("SELECT id,buyer_subject,buyer_email FROM orders WHERE status='paid'").all();
+    let awarded=0;
+    for(const order of paid){const subject=order.buyer_subject||badgeSubjectForEmail(order.buyer_email);if(!subject)continue;const before=db.prepare("SELECT 1 FROM user_badges WHERE buyer_subject=? AND badge_type='verified_buyer'").get(subject);awardBadge(subject,'verified_buyer','order',order.id);if(!before)awarded++;}
+    return awarded;
+  }
 
   const designerTokens = parseDesignerTokens(options.designerTokens ?? process.env.DESIGNER_TOKENS_JSON);
   // Legacy/configured designer tokens predate designer_profiles. Backfill active profiles so
@@ -1100,8 +1112,10 @@ function createApp(options = {}) {
               console.error('Stripe Checkout payment arrived for a closed order:', order.id);
               return res.status(409).send('Checkout order is no longer payable.');
             }
-            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
-            if (order.buyer_subject) awardBadge(order.buyer_subject,'verified_buyer','order',order.id);
+            const checkoutEmail = session.customer_details?.email || session.customer_email || null;
+            if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), checkoutEmail, session.payment_intent || null, order.id);
+            const badgeSubject = order.buyer_subject || badgeSubjectForEmail(checkoutEmail || order.buyer_email);
+            if (badgeSubject) awardBadge(badgeSubject,'verified_buyer','order',order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
             await notifySale(order.id);
@@ -1715,6 +1729,11 @@ function createApp(options = {}) {
       text(body.utmCampaign, 300), new Date().toISOString()
     );
     res.status(202).json({ accepted: true });
+  });
+
+  app.post('/api/admin/badges/reconcile', authAdmin, (_req,res)=>{
+    const awarded=reconcileVerifiedBuyerBadges();
+    return res.json({ok:true,awarded});
   });
 
   app.get('/api/admin/analytics', authAdmin, (_req, res) => {
