@@ -50,7 +50,7 @@ function detectImageMime(buffer) {
   return null;
 }
 
-function validateListingInput(body = {}) {
+function validateListingInput(body = {}, existing = null) {
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const price = Number(body.price);
@@ -101,8 +101,8 @@ function validateListingInput(body = {}) {
   if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
   if (sku && !/^[A-Z0-9._-]{2,64}$/.test(sku)) return { error: 'SKU may use letters, numbers, periods, underscores, and hyphens.' };
   if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 100000) return { error: 'Stock quantity must be a whole number between 0 and 100,000.' };
-  if (productionType === 'One of a Kind' && stockQuantity !== 1) return { error: 'One-of-a-kind pieces must have a stock quantity of exactly 1.' };
-  if (productionType === 'Limited Quantity' && stockQuantity < 1) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
+  if (productionType === 'One of a Kind' && stockQuantity !== 1 && !(existing && stockQuantity === 0)) return { error: 'One-of-a-kind pieces must have a stock quantity of exactly 1.' };
+  if (productionType === 'Limited Quantity' && stockQuantity < 1 && !existing) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
@@ -511,9 +511,28 @@ function createApp(options = {}) {
   function notifyDesigner(designerId,type,title,body,links={}) {
     if(!designerId)return null;
     const id=makeId(),now=new Date().toISOString();
-    try { db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,priority,source,admin_label,event_key,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,links.priority||'normal',links.source||'system',links.adminLabel||null,links.eventKey||null,now); } catch(error) { if(links.eventKey && String(error.message||error).includes('UNIQUE constraint failed')) return null; throw error; }
-    return id;
+    const inserted = db.prepare(`INSERT INTO designer_notifications
+      (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,priority,source,admin_label,event_key,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(event_key) WHERE event_key IS NOT NULL DO NOTHING`)
+      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,links.priority||'normal',links.source||'system',links.adminLabel||null,links.eventKey||null,now);
+    return inserted.changes ? id : null;
+  }
+
+  function notifyInventoryState(row, eventId, {orderId=null, previousInventory=null}={}) {
+    const inventory=listingInventory(row), type=row.production_type||'One of a Kind';
+    const links={listingId:row.id,orderId,actionPath:'/account#products',priority:'important'};
+    if(type==='One of a Kind' && inventory.availableQuantity===0 && (orderId || previousInventory?.availableQuantity>0)) {
+      const sold=inventory.soldQuantity>0;
+      notifyDesigner(row.designer_id,sold?'sold_out':'inventory_unavailable',sold?'One-of-a-kind piece sold':'Piece unavailable',
+        sold?`${row.title} has sold and is no longer available for checkout.`:`${row.title} is unavailable after an inventory adjustment.`,
+        {...links,eventKey:`inventory-unavailable:${row.id}:${eventId}`});
+    }
+    const threshold=Number(row.low_stock_threshold??1);
+    if(type==='Limited Quantity' && inventory.availableQuantity<=threshold &&
+        (!previousInventory || previousInventory.availableQuantity>threshold))
+      notifyDesigner(row.designer_id,'low_stock','Low stock',`${row.title} has ${inventory.availableQuantity} available.`,
+        {...links,eventKey:`low-stock:${row.id}:${eventId}`});
   }
 
   db.exec(`CREATE TABLE IF NOT EXISTS user_badges (
@@ -747,9 +766,34 @@ function createApp(options = {}) {
     }));
   }
 
+  // stock_quantity is the total admitted to the ledger, including sold units.
+  // Sales consume reservations rather than decrementing this stored total.
+  function listingInventory(row) {
+    const quantities = db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN status='reserved' THEN quantity ELSE 0 END),0) reserved,
+      COALESCE(SUM(CASE WHEN status='sold' THEN quantity ELSE 0 END),0) sold
+      FROM inventory_reservations WHERE listing_id=?`).get(row.id);
+    const reserved = Number(quantities.reserved), sold = Number(quantities.sold);
+    const tracked = (row.production_type || 'One of a Kind') !== 'Made to Order';
+    return { reservedQuantity: reserved, soldQuantity: sold,
+      availableQuantity: tracked ? Math.max(0, Number(row.stock_quantity ?? 0) - reserved - sold) : null };
+  }
+
+  function inventoryChangeError(row, quantity, productionType = row.production_type || 'One of a Kind') {
+    if (!Number.isSafeInteger(quantity) || quantity < 0 || quantity > 100000)
+      return { code: 'invalid_stock', message: 'Inventory total must be a whole number between 0 and 100,000.' };
+    const inventory = listingInventory(row);
+    if (productionType === 'Made to Order' && inventory.reservedQuantity + inventory.soldQuantity > 0)
+      return { code: 'committed_inventory', message: 'A listing with reserved or sold units cannot switch to made to order.' };
+    if (quantity < inventory.reservedQuantity + inventory.soldQuantity)
+      return { code: 'reserved_inventory', message: 'Inventory total cannot be reduced below sold units plus active secure-checkout reservations.' };
+    return null;
+  }
+
   function serializeListing(row, mode = 'public') {
     if (!row) return null;
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
+    const inventory = listingInventory(row);
     const images = getImages(row.id, mode);
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
@@ -780,7 +824,9 @@ function createApp(options = {}) {
       sku: row.sku || '',
       stockQuantity: Number(row.stock_quantity ?? 0),
       lowStockThreshold: Number(row.low_stock_threshold ?? 1),
-      lowStock: Number(row.stock_quantity ?? 0) <= Number(row.low_stock_threshold ?? 1),
+      ...inventory,
+      lowStock: inventory.availableQuantity !== null && inventory.availableQuantity <= Number(row.low_stock_threshold ?? 1),
+      version: Number(row.version),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -875,9 +921,8 @@ function createApp(options = {}) {
       const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
-      const wasVerified=Boolean(transfer.tracking_verified_at);
       db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
-      if (verifiedAt && !wasVerified) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Your payout can now be released.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
+      if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Your payout can now be released.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
       if (verifiedAt) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
       return res.json({ received: true });
     } catch (error) {
@@ -936,7 +981,7 @@ function createApp(options = {}) {
             if (order.buyer_subject) awardBadge(order.buyer_subject,'verified_buyer','order',order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
-            if (order.status !== 'paid') void notifySale(order.id);
+            await notifySale(order.id);
           }
         }
       }
@@ -1169,10 +1214,15 @@ function createApp(options = {}) {
     return rows.length;
   }
 
-  async function sendEmail({ to, subject, text }) {
+  ensureColumn('email_outbox', 'event_key', 'TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_event_key ON email_outbox(event_key) WHERE event_key IS NOT NULL');
+
+  async function sendEmail({ to, subject, text, eventKey=null }) {
     if (!to) return false;
     const id = makeId(), now = new Date().toISOString();
-    db.prepare("INSERT INTO email_outbox (id,recipient,subject,body_text,status,attempts,next_attempt_at,created_at) VALUES (?,?,?,?,'pending',0,?,?)").run(id,to,subject,text,now,now);
+    const inserted=db.prepare(`INSERT INTO email_outbox (id,recipient,subject,body_text,status,attempts,next_attempt_at,created_at,event_key)
+      VALUES (?,?,?,?,'pending',0,?,?,?) ON CONFLICT(event_key) WHERE event_key IS NOT NULL DO NOTHING`).run(id,to,subject,text,now,now,eventKey);
+    if(!inserted.changes)return false;
     await processEmailOutbox();
     return db.prepare('SELECT status FROM email_outbox WHERE id=?').get(id)?.status === 'sent';
   }
@@ -1188,10 +1238,9 @@ function createApp(options = {}) {
     const groups = db.prepare('SELECT DISTINCT designer_id FROM order_items WHERE order_id = ?').all(orderId);
     for (const group of groups) {
       const contact = designerOrderContact(orderId, group.designer_id);
-      if (!contact?.email) continue;
       notifyDesigner(group.designer_id,'sale','You made a sale',`Order ${orderId}: ${contact.titles}. Earnings: ${(contact.earnings_cents / 100).toFixed(2)}.`,{orderId,actionPath:'/account#orders',eventKey:`sale:${orderId}:${group.designer_id}`});
       notifyDesigner(group.designer_id,'shipping_needed','Shipment needed',`Order ${orderId} is paid. Pack the order and add carrier tracking in Designer Studio.`,{orderId,actionPath:'/account#orders',priority:'important',eventKey:`shipping-needed:${orderId}:${group.designer_id}`});
-      await sendEmail({ to: contact.email, subject: 'You made a sale on House of Briar',
+      await sendEmail({ to: contact?.email, eventKey:`sale-email:${orderId}:${group.designer_id}`, subject: 'You made a sale on House of Briar',
         text: `A piece sold on House of Briar.\n\nOrder: ${orderId}\nItems: ${contact.titles}\nYour earnings: ${(contact.earnings_cents / 100).toFixed(2)}\n\nOpen your Designer Studio to ship the order and add tracking. Your payout remains held until carrier tracking is verified.` });
     }
   }
@@ -1330,31 +1379,27 @@ function createApp(options = {}) {
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
-    const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
-    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
     const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
-      const listing=db.prepare('SELECT stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
+      const listing=db.prepare('SELECT id,stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
       if (listing?.production_type === 'Made to Order') continue;
-      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
-      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      if(!listing || item.quantity > listingInventory(listing).availableQuantity) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
       insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
   }
 
   function markOrderInventorySold(orderId) {
-    const now = new Date().toISOString();
-    const sold=db.prepare(`SELECT r.listing_id,r.quantity,l.title,l.designer_id,l.production_type,l.stock_quantity,l.low_stock_threshold
-      FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
-    db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
-    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
-    for(const item of sold){
-      const active=Number(db.prepare("SELECT COALESCE(SUM(quantity),0) qty FROM inventory_reservations WHERE listing_id=? AND status IN ('reserved','sold')").get(item.listing_id).qty);
-      const available=Math.max(0,Number(item.stock_quantity)-active);
-      if((item.production_type||'One of a Kind')==='One of a Kind'&&available===0)notifyDesigner(item.designer_id,'sold_out','One-of-a-kind piece sold',`${item.title} has sold and is no longer available for checkout.`,{listingId:item.listing_id,orderId,actionPath:'/account#products',priority:'important',eventKey:`sold-out:${item.listing_id}:${orderId}`});
-      if(item.production_type==='Limited Quantity'&&available<=Number(item.low_stock_threshold||1))notifyDesigner(item.designer_id,'low_stock','Low stock',`${item.title} has ${available} available after this sale.`,{listingId:item.listing_id,orderId,actionPath:'/account#products',priority:'important',eventKey:`low-stock:${item.listing_id}:${orderId}:${available}`});
-    }
+    db.transaction(() => {
+      const now = new Date().toISOString();
+      const sold=db.prepare(`SELECT l.* FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id
+        WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
+      db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
+      for(const item of sold){
+        db.prepare('UPDATE listings SET updated_at=?,version=version+1 WHERE id=?').run(now,item.id);
+        notifyInventoryState(item,`sale:${orderId}`,{orderId});
+      }
+    }).immediate();
   }
 
   function releaseOrderInventory(orderId) {
@@ -1382,6 +1427,7 @@ function createApp(options = {}) {
           db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
           markOrderInventorySold(order.id);
           await prepareDesignerTransfers(order.id);
+          await notifySale(order.id);
           results.paid += 1;
         } else if (session.status === 'expired') {
           releaseOrderInventory(order.id);
@@ -1735,52 +1781,78 @@ function createApp(options = {}) {
   });
 
   app.put('/api/listings/:listingId', authDesigner, (req, res) => {
-    const row = ownedEditableListing(req, res);
-    if (!row) return;
-    const validation = validateListingInput(req.body || {});
-    if (validation.error) return fail(res, 422, 'validation_error', validation.error);
+    const result = db.transaction(() => {
+      const row = getListing(req.params.listingId);
+      if (!row || row.designer_id !== req.designerId || row.status === 'deleted')
+        return { error: [404, 'not_found', 'Listing not found.'] };
+      if (!['draft','rejected','published'].includes(row.status))
+        return { error: [409, 'not_editable', 'Only draft, rejected, or published listings can be edited.'] };
+      const input = { ...req.body,
+        productionType: req.body?.productionType ?? row.production_type ?? 'One of a Kind',
+        stockQuantity: req.body?.stockQuantity ?? row.stock_quantity,
+        lowStockThreshold: req.body?.lowStockThreshold ?? row.low_stock_threshold };
+      const validation = validateListingInput(input, row);
+      if (validation.error) return { error: [422, 'validation_error', validation.error] };
 
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
-          status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
-          moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
-          moderation_reason = NULL, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(
-      validation.value.title,
-      validation.value.description,
-      validation.value.price,
-      validation.value.category,
-      validation.value.style || null,
-      validation.value.size || null,
-      validation.value.aesthetic || null,
-      validation.value.pattern || null,
-      validation.value.materials || null,
-      validation.value.careInstructions || null,
-      validation.value.productionType,
-      validation.value.availability,
-      validation.value.alterationsAvailable ? 1 : 0,
-      validation.value.takesRequests ? 1 : 0,
-      validation.value.seoTitle || null,
-      validation.value.seoDescription || null,
-      validation.value.seoTags || null,
-      validation.value.shareImageUrl || null,
-      validation.value.shippingCostCents,
-      validation.value.freeShippingThresholdCents,
-      validation.value.handlingDaysMin,
-      validation.value.handlingDaysMax,
-      validation.value.internationalShipping ? 1 : 0,
-      validation.value.sku || null,
-      validation.value.stockQuantity,
-      validation.value.lowStockThreshold,
-      timestamp,
-      row.id
-    );
+      const inventoryChanged = validation.value.stockQuantity !== Number(row.stock_quantity) ||
+        validation.value.productionType !== (row.production_type || 'One of a Kind');
+      const expectedVersion = req.body?.expectedVersion;
+      if ((inventoryChanged && !Number.isInteger(expectedVersion)) ||
+          (expectedVersion != null && expectedVersion !== Number(row.version)))
+        return { error: [409,'stale_listing','This listing changed. Reload it before saving inventory.'] };
+      const inventoryError = inventoryChangeError(row, validation.value.stockQuantity, validation.value.productionType);
+      if (inventoryError) return { error: [409,inventoryError.code,inventoryError.message] };
+      const timestamp = new Date().toISOString();
+      db.prepare(`
+        UPDATE listings
+        SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
+            status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
+            moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
+            moderation_reason = NULL, updated_at = ?, version = version + 1
+        WHERE id = ?
+      `).run(
+        validation.value.title,
+        validation.value.description,
+        validation.value.price,
+        validation.value.category,
+        validation.value.style || null,
+        validation.value.size || null,
+        validation.value.aesthetic || null,
+        validation.value.pattern || null,
+        validation.value.materials || null,
+        validation.value.careInstructions || null,
+        validation.value.productionType,
+        validation.value.availability,
+        validation.value.alterationsAvailable ? 1 : 0,
+        validation.value.takesRequests ? 1 : 0,
+        validation.value.seoTitle || null,
+        validation.value.seoDescription || null,
+        validation.value.seoTags || null,
+        validation.value.shareImageUrl || null,
+        validation.value.shippingCostCents,
+        validation.value.freeShippingThresholdCents,
+        validation.value.handlingDaysMin,
+        validation.value.handlingDaysMax,
+        validation.value.internationalShipping ? 1 : 0,
+        validation.value.sku || null,
+        validation.value.stockQuantity,
+        validation.value.lowStockThreshold,
+        timestamp,
+        row.id
+      );
 
-    return res.json({ item: serializeListing(getListing(row.id), 'private') });
+      if (validation.value.stockQuantity !== Number(row.stock_quantity)) {
+        const adjustmentId=makeId(), previousInventory=listingInventory(row);
+        db.prepare(`INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at)
+          VALUES (?,?,?,?,?,'designer',?,?)`).run(adjustmentId,row.id,validation.value.stockQuantity-Number(row.stock_quantity),validation.value.stockQuantity,'Designer inventory update',req.designerId,timestamp);
+        notifyInventoryState(getListing(row.id),`adjustment:${adjustmentId}`,{previousInventory});
+      }
+      return { item: serializeListing(getListing(row.id), 'private') };
+    }).immediate();
+    if (result.error) return fail(res,...result.error);
+    return res.json(result);
   });
+
 
   app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
     try {
@@ -2011,15 +2083,28 @@ function createApp(options = {}) {
   });
 
     app.post('/api/admin/listings/:listingId/inventory/adjust', authAdmin, (req,res) => {
-    const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return fail(res,404,'not_found','Listing not found.');
-    const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
-    if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
-    if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
-    const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
-    const now=new Date().toISOString();
-    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
-    return res.json({item:serializeListing(getListing(row.id),'admin')});
+    const result = db.transaction(() => {
+      const row=getListing(req.params.listingId); if(!row||row.status==='deleted')return { error: [404,'not_found','Listing not found.'] };
+      const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
+      if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return { error: [422,'invalid_adjustment','Adjustment must be a non-zero whole number.'] };
+      if(!reason||reason.length>240)return { error: [422,'reason_required','Provide an inventory adjustment reason up to 240 characters.'] };
+      if((row.production_type||'One of a Kind')==='Made to Order')return { error: [409,'inventory_not_tracked','Made-to-order listings do not use on-hand inventory.'] };
+      const after=Number(row.stock_quantity??0)+delta; if(after<0)return { error: [409,'insufficient_stock','Inventory cannot be adjusted below zero.'] };
+      if((row.production_type||'One of a Kind')==='One of a Kind'&&!([0,1].includes(after)))return { error: [409,'one_of_a_kind_limit','One-of-a-kind inventory can only be 0 (sold/unavailable) or 1 (available).'] };
+      const inventoryError=inventoryChangeError(row,after);
+      if(inventoryError)return { error: [409,inventoryError.code,inventoryError.message] };
+      const now=new Date().toISOString();
+      const adjustmentId=makeId(), previousInventory=listingInventory(row);
+      db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);
+      db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)")
+        .run(adjustmentId,row.id,delta,after,reason,now);
+      notifyInventoryState(getListing(row.id),`adjustment:${adjustmentId}`,{previousInventory});
+      return {item:serializeListing(getListing(row.id),'admin')};
+    }).immediate();
+    if (result.error) return fail(res,...result.error);
+    return res.json(result);
   });
+
   app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
     const row=getListing(req.params.listingId); if(!row)return fail(res,404,'not_found','Listing not found.');
     return res.json({items:db.prepare('SELECT * FROM inventory_adjustments WHERE listing_id=? ORDER BY created_at DESC LIMIT 100').all(row.id)});
@@ -2409,13 +2494,27 @@ function createApp(options = {}) {
       const carrier=String(req.body?.carrier||'').trim();const trackingNumber=String(req.body?.trackingNumber||'').trim();
       if(!carrier||trackingNumber.length<6||trackingNumber.length>100)return fail(res,422,'invalid_tracking','Add a valid carrier and tracking number.');
       prepareDesignerTransfers(order.id);
+      const current=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(order.id,req.designerId);
+      const sameShipment=transfer=>transfer.tracking_number===trackingNumber && String(transfer.tracking_carrier).toLowerCase()===carrier.toLowerCase();
+      const respondExisting=async transfer=>{
+        if(!transfer.tracking_verified_at)return res.status(202).json({verified:false,status:transfer.tracking_status});
+        const transfers=await processDesignerTransfers(order.id,req.designerId,'tracking_verified');
+        return res.json({verified:true,status:transfer.tracking_status,transfers});
+      };
+      if(sameShipment(current))return respondExisting(current);
+      if(current.tracking_verified_at)return fail(res,409,'shipment_verified','Verified shipment tracking cannot be replaced.');
       const tracker=await verifyShipmentTracking(trackingNumber,carrier);
+      const latest=db.prepare('SELECT * FROM designer_transfers WHERE id=?').get(current.id);
+      if(sameShipment(latest))return respondExisting(latest);
+      if(latest.tracking_verified_at)return fail(res,409,'shipment_verified','Verified shipment tracking cannot be replaced.');
       const verifiedAt=tracker.verified?new Date().toISOString():null;
+      db.transaction(() => {
       db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,order.id,req.designerId);
-      notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Your payout can now be released.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:`tracking:${order.id}:${req.designerId}:${tracker.id}:${tracker.verified?'verified':'submitted'}`});
+      notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Your payout can now be released.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:tracker.verified?`tracking-verified:${current.id}`:`tracking-submitted:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`});
+      }).immediate();
       const contact=designerOrderContact(order.id,req.designerId);
-      if(contact?.email)void sendEmail({to:contact.email,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
-      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}`});
+      if(contact?.email)await sendEmail({to:contact.email,eventKey:`tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
+      if(order.buyer_email)await sendEmail({to:order.buyer_email,eventKey:`buyer-tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}`});
       if(!tracker.verified)return res.status(202).json({verified:false,status:tracker.status});
       const transfers=await processDesignerTransfers(order.id,req.designerId,'tracking_verified');
       return res.json({verified:true,status:tracker.status,transfers});
@@ -2440,6 +2539,7 @@ function createApp(options = {}) {
         if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
+        await notifySale(order.id);
       }
       return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
     } catch (error) { return next(error); }
