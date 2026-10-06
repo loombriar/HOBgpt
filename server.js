@@ -2003,7 +2003,11 @@ function createApp(options = {}) {
     const delta=Number(req.body?.delta); const reason=String(req.body?.reason||'').trim();
     if(!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return fail(res,422,'invalid_adjustment','Adjustment must be a non-zero whole number.');
     if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
+    if((row.production_type||'One of a Kind')==='Made to Order')return fail(res,409,'inventory_not_tracked','Made-to-order listings do not use on-hand inventory.');
     const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
+    if((row.production_type||'One of a Kind')==='One of a Kind'&&!([0,1].includes(after)))return fail(res,409,'one_of_a_kind_limit','One-of-a-kind inventory can only be 0 (sold/unavailable) or 1 (available).');
+    const reserved=Number(db.prepare("SELECT COALESCE(SUM(quantity),0) qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'").get(row.id).qty);
+    if(after<reserved)return fail(res,409,'reserved_inventory','Inventory cannot be reduced below the quantity currently reserved in secure checkout.');
     const now=new Date().toISOString();
     db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
     return res.json({item:serializeListing(getListing(row.id),'admin')});
