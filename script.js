@@ -1532,7 +1532,14 @@ async function openDesignerStorefront(id) {
   try {
     const { designer, items } = await apiRequest(`/api/designers/${encodeURIComponent(id)}`);
     byId('storefront-title').textContent = designer.brandName || designer.displayName;
-    content.append(makeElement('p', '', designer.bio || 'Independent by design.'), makeElement('p', '', designer.location || ''));
+    const identity=makeElement('div','designer-storefront-identity');
+    if(designer.logoUrl){const logo=document.createElement('img');logo.src=designer.logoUrl;logo.alt=(designer.brandName||designer.displayName)+' logo';logo.loading='lazy';identity.appendChild(logo);}
+    const profileCopy=makeElement('div');
+    profileCopy.append(makeElement('p','',designer.bio||'Independent by design.'));
+    if(designer.location)profileCopy.append(makeElement('p','',designer.location));
+    profileCopy.append(makeElement('p','designer-like-total',`♥ ${Number(designer.totalLikes||0).toLocaleString()} total ${Number(designer.totalLikes||0)===1?'heart':'hearts'}`));
+    identity.appendChild(profileCopy);content.appendChild(identity);
+    if(Array.isArray(designer.badges)&&designer.badges.length){const badgeWrap=makeElement('div','listing-badges');designer.badges.forEach(b=>badgeWrap.appendChild(createBadgePill(b.label,b.type==='verified_buyer'?'badge verified-badge':'badge supporter-badge')));content.appendChild(badgeWrap);}
     for (const item of items || []) { const button = makeElement('button', 'secondary-button', item.title); button.type = 'button'; button.addEventListener('click', () => { dialog.close(); openProductDetails(item); }); content.append(button); }
   } catch (error) { content.append(makeElement('p', 'form-message', error.message)); }
 }
