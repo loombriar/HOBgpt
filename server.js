@@ -494,6 +494,8 @@ function createApp(options = {}) {
     paid_at TEXT
   )`);
 
+  ensureColumn('donations', 'buyer_email', 'TEXT');
+
   db.exec(`CREATE TABLE IF NOT EXISTS buyer_favorites (
     buyer_subject TEXT NOT NULL,
     listing_id TEXT NOT NULL,
@@ -610,7 +612,9 @@ function createApp(options = {}) {
     const normalized=typeof email==='string'?email.trim().toLowerCase():'';
     if(!normalized)return null;
     const identity=db.prepare(`SELECT di.subject FROM designer_identities di JOIN designer_profiles dp ON dp.id=di.designer_id WHERE lower(dp.email)=? AND dp.status='active'`).get(normalized);
-    return identity?.subject||null;
+    if(identity?.subject)return identity.subject;
+    const designer=db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND status='active'").get(normalized);
+    return designer ? designerBadgeSubject(designer.id) : null;
   }
   function reconcileVerifiedBuyerBadges(){
     const paid=db.prepare("SELECT id,buyer_subject,buyer_email FROM orders WHERE status='paid'").all();
@@ -741,18 +745,27 @@ function createApp(options = {}) {
     return userInfo.json();
   }
 
+  function designerBadgeSubject(designerId) {
+    return db.prepare('SELECT subject FROM designer_identities WHERE designer_id=?').get(designerId)?.subject || `designer:${designerId}`;
+  }
+
+  async function resolveBuyerIdentity(req, token) {
+    const hash=crypto.createHash('sha256').update(token).digest('hex');
+    const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'").get(hash);
+    const configured=Object.entries(designerTokens).find(([key])=>safeEqual(token,key))?.[1];
+    const id=access?.designer_id||configured;
+    if(id){
+      const designer=db.prepare("SELECT id,email FROM designer_profiles WHERE id=? AND status='active'").get(id);
+      return designer ? {sub:designerBadgeSubject(id),email:designer.email,designerId:id} : null;
+    }
+    return resolveDesignerIdentity(req,token);
+  }
+
   async function authBuyer(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
-    const signupTokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const signupAccess = db.prepare(`SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'`).get(signupTokenHash);
-    if (signupAccess?.designer_id) {
-      req.designerId = signupAccess.designer_id;
-      return next();
-    }
-
     try {
-      const profile = await resolveDesignerIdentity(req, token);
+      const profile = await resolveBuyerIdentity(req, token);
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
       req.buyerSubject = profile.sub.trim();
       req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
@@ -876,10 +889,7 @@ function createApp(options = {}) {
     if (!row) return null;
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
     const inventory = listingInventory(row);
-    const designerIdentity = db.prepare('SELECT subject FROM designer_identities WHERE designer_id = ?').get(row.designer_id);
-    const designerBadges = designerIdentity
-      ? db.prepare('SELECT badge_type FROM user_badges WHERE buyer_subject = ? ORDER BY awarded_at').all(designerIdentity.subject).map(badge => badge.badge_type)
-      : [];
+    const designerBadges = db.prepare('SELECT DISTINCT badge_type FROM user_badges WHERE buyer_subject IN (?,?) ORDER BY awarded_at').all(designerBadgeSubject(row.designer_id),`designer:${row.designer_id}`).map(badge => badge.badge_type);
     const images = getImages(row.id, mode);
     const primaryImage = images[0] || (row.legacy_image_url ? { url: row.legacy_image_url, legacy: true, id: `legacy-${row.id}` } : null);
     return {
@@ -1097,7 +1107,7 @@ function createApp(options = {}) {
             const currency=typeof session.currency==='string'?session.currency.toLowerCase():'',total=Number(session.amount_total);
             if(currency!==donation.currency||!Number.isInteger(total)||total!==donation.amount_cents)return res.status(400).send('Donation payment does not match this donation.');
             if(donation.status!=='paid')db.prepare("UPDATE donations SET status='paid',paid_at=? WHERE id=?").run(new Date().toISOString(),donation.id);
-            if(donation.buyer_subject && donation.amount_cents >= 500) awardBadge(donation.buyer_subject,'supporter','donation',donation.id);
+            confirmDonationBadge(donation,session);
           }
         }
         const orderId = session?.metadata?.order_id;
@@ -1554,6 +1564,39 @@ function createApp(options = {}) {
     return true;
   }
 
+  function confirmDonationBadge(donation,session) {
+    if(session.id!==donation.stripe_session_id || session.metadata?.donation_id!==donation.id || session.payment_status!=='paid' || session.currency!==donation.currency || !Number.isInteger(session.amount_total) || session.amount_total!==donation.amount_cents)return false;
+    const email=(session.customer_details?.email||session.customer_email||donation.buyer_email||'').trim().toLowerCase();
+    const subject=donation.buyer_subject||badgeSubjectForEmail(email);
+    db.prepare("UPDATE donations SET status='paid',paid_at=COALESCE(paid_at,?),buyer_subject=COALESCE(buyer_subject,?),buyer_email=COALESCE(buyer_email,?) WHERE id=?").run(new Date().toISOString(),subject,email||null,donation.id);
+    if(subject&&donation.amount_cents>=500){
+      const before=db.prepare("SELECT 1 FROM user_badges WHERE buyer_subject=? AND badge_type='supporter'").get(subject);
+      awardBadge(subject,'supporter','donation',donation.id);
+      return !before;
+    }
+    return false;
+  }
+
+  let donationReconciliationRunning=false;
+  async function reconcileDonationBadges() {
+    if(donationReconciliationRunning)return {checked:0,awarded:0,errors:0};
+    donationReconciliationRunning=true;
+    const results={checked:0,awarded:0,errors:0};
+    try {
+      const donations=db.prepare("SELECT * FROM donations d WHERE stripe_session_id IS NOT NULL AND (status='pending' OR (status='paid' AND amount_cents>=500 AND NOT EXISTS (SELECT 1 FROM user_badges b WHERE (b.source_type='donation' AND b.source_id=d.id) OR (b.buyer_subject=d.buyer_subject AND b.badge_type='supporter')))) ORDER BY created_at DESC LIMIT 100").all();
+      for(const donation of donations){
+        results.checked++;
+        try {
+          const session=await stripeApi(`checkout/sessions/${encodeURIComponent(donation.stripe_session_id)}`);
+          if(confirmDonationBadge(donation,session))results.awarded++;
+          else if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
+        }catch{results.errors++;}
+      }
+      if(results.checked)log('info','donation_badges_reconciled',results);
+      return results;
+    }finally{donationReconciliationRunning=false;}
+  }
+
   async function reconcilePendingCheckouts() {
     const now = new Date().toISOString();
     const stale = db.prepare(`SELECT id, stripe_session_id FROM orders
@@ -1628,12 +1671,13 @@ function createApp(options = {}) {
     try {
       const amountCents=Math.round(Number(req.body?.amount)*100);
       if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');
-      let buyerSubject=null;
+      let buyerSubject=null,buyerEmail=null;
       const token=req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-      if(token){try{const profile=await resolveDesignerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim())buyerSubject=profile.sub.trim();}catch{}}
+      if(token){try{const profile=await resolveBuyerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim()){buyerSubject=profile.sub.trim();buyerEmail=typeof profile.email==='string'?profile.email.trim().toLowerCase():null;}}catch{}}
       const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
-      db.prepare("INSERT INTO donations (id,buyer_subject,amount_cents,currency,status,created_at) VALUES (?,?,?,'usd','pending',?)").run(id,buyerSubject,amountCents,now);
+      db.prepare("INSERT INTO donations (id,buyer_subject,buyer_email,amount_cents,currency,status,created_at) VALUES (?,?,?,?,'usd','pending',?)").run(id,buyerSubject,buyerEmail,amountCents,now);
       const body=new URLSearchParams({mode:'payment',success_url:`${origin}/?donation=success`,cancel_url:`${origin}/?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
+      if(buyerEmail&&!buyerEmail.endsWith('@legacy.houseofbriar.invalid'))body.set('customer_email',buyerEmail);
       body.append('payment_method_types[]','card');
       body.append('payment_method_types[]','us_bank_account');
       body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]','Support House of Briar');body.set('line_items[0][price_data][unit_amount]',String(amountCents));body.set('line_items[0][quantity]','1');
@@ -1647,7 +1691,7 @@ function createApp(options = {}) {
     let buyerEmail = null;
     const buyerToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (buyerToken) {
-      try { const profile = await resolveDesignerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
+      try { const profile = await resolveBuyerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
     try {
       const quote = buildCheckoutQuote(req.body?.items,req.body?.promoCodes);
@@ -1733,9 +1777,10 @@ function createApp(options = {}) {
     res.status(202).json({ accepted: true });
   });
 
-  app.post('/api/admin/badges/reconcile', authAdmin, (_req,res)=>{
+  app.post('/api/admin/badges/reconcile', authAdmin, async (_req,res)=>{
     const awarded=reconcileVerifiedBuyerBadges();
-    return res.json({ok:true,awarded});
+    const donations=await reconcileDonationBadges();
+    return res.json({ok:true,awarded,donations});
   });
 
   app.get('/api/admin/analytics', authAdmin, (_req, res) => {
@@ -1860,7 +1905,7 @@ function createApp(options = {}) {
       ORDER BY l.published_at DESC, l.created_at DESC`).all(designer.id);
     let categories=[]; try { categories=JSON.parse(designer.categories||'[]'); } catch {}
     const likes=db.prepare(`SELECT COUNT(*) count FROM buyer_favorites bf JOIN listings l ON l.id=bf.listing_id WHERE l.designer_id=?`).get(designer.id)?.count||0;
-    const badges=db.prepare(`SELECT ub.badge_type,ub.awarded_at FROM designer_identities di JOIN user_badges ub ON ub.buyer_subject=di.subject WHERE di.designer_id=? ORDER BY ub.awarded_at ASC`).all(designer.id)
+    const badges=db.prepare(`SELECT badge_type,MIN(awarded_at) awarded_at FROM user_badges WHERE buyer_subject IN (?,?) GROUP BY badge_type ORDER BY awarded_at ASC`).all(designerBadgeSubject(designer.id),`designer:${designer.id}`)
       .map(b=>({type:b.badge_type,label:b.badge_type==='supporter'?'House Supporter':b.badge_type==='verified_buyer'?'Verified Buyer':b.badge_type,awardedAt:b.awarded_at}));
     return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges},items:rows.map(row=>serializeListing(row,'public'))});
   });
@@ -3031,21 +3076,24 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, processEmailOutbox };
+  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, reconcilePendingCheckouts, processEmailOutbox } = createApp();
+  const { app, db, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
   const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
   reconciliationTimer.unref();
+  const donationTimer = setInterval(() => { void reconcileDonationBadges(); }, reconciliationIntervalMs);
+  donationTimer.unref();
+  void reconcileDonationBadges();
   const emailTimer = setInterval(() => { void processEmailOutbox(); }, 60_000);
   emailTimer.unref();
   void reconcilePendingCheckouts();
   void processEmailOutbox();
-  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
+  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
