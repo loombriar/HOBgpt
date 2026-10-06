@@ -1059,6 +1059,11 @@ async function handleSave(event) {
   try {
     await ensureListing(values);
     await uploadQueuedImages();
+    await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/enhancements`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ giftWrapAvailable: values.giftWrapAvailable, giftWrapPrice: values.giftWrapPrice, tryOnVideoUrl: values.tryOnVideoUrl, movementVideoUrl: values.movementVideoUrl, photoAngles: selectedImages.map(image => image.angle || '') })
+    });
     const failed = selectedImages.filter((image) => image.status === 'failed');
     if (failed.length && action === 'submit') {
       setMessage(uploadMessage, 'Fix or remove failed images before submitting.', 'error');
