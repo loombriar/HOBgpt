@@ -3,7 +3,7 @@ import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, BadgeCheck, CreditCard, LockKeyhole, ShieldCheck, Truck } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
-import { getFieldNumber, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
 import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 import { trackCommerceEvent } from '@/lib/analytics';
@@ -68,9 +68,11 @@ export default function CheckoutPage() {
         name: getTitle(product, 'Name') ?? 'House of Briar piece',
         amount: getFieldNumber(product, '@price', 'Price') ?? 0,
         quantity: 1,
+        designer: getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer',
       }));
   }, [products, sourceIds]);
   const items = returnState === 'success' && snapshot ? snapshot.items : catalogItems;
+  const shipmentCount = new Set(catalogItems.map(item => 'designer' in item ? item.designer : 'House of Briar')).size;
   const subtotal = returnState === 'success' && snapshot ? snapshot.subtotal : catalogItems.reduce((sum, item) => sum + item.amount * item.quantity, 0);
   const hasItems = items.length > 0;
   const guestCatalog = !auth.isAuthenticated;
@@ -162,12 +164,8 @@ export default function CheckoutPage() {
       {!loading && !loadError && hasItems && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="delivery-heading">
-            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><Truck size={19} /></span><div><h2 id="delivery-heading" className="font-serif text-2xl">Delivery, your way</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Choose an option in secure checkout. Your delivery address and contact details stay with Stripe.</p></div></div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border p-4"><p className="font-medium">Standard</p><p className="mt-1 text-sm text-muted-foreground">5–7 business days</p><p className="mt-3 text-sm font-semibold text-primary">Free</p></div>
-              <div className="rounded-2xl border border-border p-4"><p className="font-medium">Express</p><p className="mt-1 text-sm text-muted-foreground">2–3 business days</p><p className="mt-3 text-sm font-semibold text-primary">$9.99</p></div>
-              <div className="rounded-2xl border border-border p-4"><p className="font-medium">Overnight</p><p className="mt-1 text-sm text-muted-foreground">Next business day</p><p className="mt-3 text-sm font-semibold text-primary">$24.99</p></div>
-            </div>
+            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><Truck size={19} /></span><div><h2 id="delivery-heading" className="font-serif text-2xl">Delivery, your way</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">This order contains {shipmentCount} {shipmentCount===1?'designer shipment':'designer shipments'}. Each designer fulfills separately, so packages and delivery dates can differ. Your address and payment details stay with Stripe.</p></div></div>
+            <div className="mt-6 rounded-2xl border border-border p-4"><p className="font-medium">Separate fulfillment by designer</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Shipping charges and lead times belong to each seller shipment—not to the cart as a whole. House of Briar keeps the payment combined while tracking fulfillment and payouts per designer.</p></div>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">Delivery is currently available to US addresses. Exact dates are shown by Stripe after you enter your address.</p>
           </section>
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="payment-heading">
