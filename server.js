@@ -77,6 +77,7 @@ function validateListingInput(body = {}) {
   const sku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : '';
   const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : productionType === 'Made to Order' ? 0 : 1) : Number(body.stockQuantity);
   const lowStockThreshold = body.lowStockThreshold === '' || body.lowStockThreshold == null ? 1 : Number(body.lowStockThreshold);
+  const fitNumber=v=>v===''||v==null?null:Number(v); const bustMin=fitNumber(body.bustMin),bustMax=fitNumber(body.bustMax),waistMin=fitNumber(body.waistMin),waistMax=fitNumber(body.waistMax),hipsMin=fitNumber(body.hipsMin),hipsMax=fitNumber(body.hipsMax);
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -105,8 +106,9 @@ function validateListingInput(body = {}) {
   if (productionType === 'Limited Quantity' && stockQuantity < 1) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
+  for(const [label,min,max] of [['Bust',bustMin,bustMax],['Waist',waistMin,waistMax],['Hips',hipsMin,hipsMax]]){if([min,max].some(v=>v!=null&&(!Number.isFinite(v)||v<10||v>100)))return {error:`${label} measurements must be between 10 and 100 inches.`};if(min!=null&&max!=null&&min>max)return {error:`${label} minimum cannot exceed maximum.`};}
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold, bustMin,bustMax,waistMin,waistMax,hipsMin,hipsMax } };
 }
 
 function createApp(options = {}) {
@@ -460,6 +462,11 @@ function createApp(options = {}) {
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS collector_notes_listing_created ON collector_notes(listing_id, created_at DESC)`);
 
+  ensureColumn('listings','bust_min','REAL'); ensureColumn('listings','bust_max','REAL'); ensureColumn('listings','waist_min','REAL'); ensureColumn('listings','waist_max','REAL'); ensureColumn('listings','hips_min','REAL'); ensureColumn('listings','hips_max','REAL');
+  db.exec(`CREATE TABLE IF NOT EXISTS measurement_alerts (
+    id TEXT PRIMARY KEY, buyer_subject TEXT NOT NULL, buyer_email TEXT, bust REAL, waist REAL, hips REAL, category TEXT, created_at TEXT NOT NULL,
+    UNIQUE(buyer_subject,bust,waist,hips,category)
+  )`);
   db.exec(`CREATE TABLE IF NOT EXISTS listing_inquiries (
     id TEXT PRIMARY KEY,
     listing_id TEXT NOT NULL,
@@ -765,6 +772,7 @@ function createApp(options = {}) {
       productionType: row.production_type || '',
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
+      measurements:{bustMin:row.bust_min==null?null:Number(row.bust_min),bustMax:row.bust_max==null?null:Number(row.bust_max),waistMin:row.waist_min==null?null:Number(row.waist_min),waistMax:row.waist_max==null?null:Number(row.waist_max),hipsMin:row.hips_min==null?null:Number(row.hips_min),hipsMax:row.hips_max==null?null:Number(row.hips_max)},
       takesRequests: Boolean(row.takes_requests),
       seoTitle: row.seo_title || '',
       seoDescription: row.seo_description || '',
@@ -962,8 +970,9 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
 
   app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
-    const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
+    const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,l.alterations_available,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
     if(!listing)return fail(res,404,'listing_not_found','This listing is not available for inquiries.');
+    if(!listing.alterations_available)return fail(res,403,'alterations_unavailable','This designer does not offer alterations on this item.');
     const message=String(req.body?.message||'').trim();
     if(!message||message.length>800)return fail(res,422,'validation_error','Write a message between 1 and 800 characters.');
     const id=makeId(),now=new Date().toISOString();
@@ -974,6 +983,19 @@ function createApp(options = {}) {
     return res.status(201).json({inquiry:{id,listingId:listing.id,title:listing.title,message,availabilityStatus:'pending',createdAt:now}});
   });
 
+  app.get('/api/my/measurement-alerts',authBuyer,(req,res)=>res.json({items:db.prepare('SELECT * FROM measurement_alerts WHERE buyer_subject=? ORDER BY created_at DESC').all(req.buyerSubject)}));
+  app.post('/api/my/measurement-alerts',authBuyer,(req,res)=>{
+    const num=v=>v===''||v==null?null:Number(v);const bust=num(req.body?.bust),waist=num(req.body?.waist),hips=num(req.body?.hips),category=String(req.body?.category||'').trim()||null;
+    if([bust,waist,hips].every(v=>v==null)||[bust,waist,hips].some(v=>v!=null&&(!Number.isFinite(v)||v<10||v>100)))return fail(res,422,'invalid_measurements','Add at least one valid body measurement in inches.');
+    const id=makeId(),now=new Date().toISOString();try{db.prepare('INSERT INTO measurement_alerts(id,buyer_subject,buyer_email,bust,waist,hips,category,created_at) VALUES (?,?,?,?,?,?,?,?)').run(id,req.buyerSubject,req.buyerEmail||null,bust,waist,hips,category,now);}catch(error){if(String(error.message||error).includes('UNIQUE'))return res.status(200).json({saved:true,duplicate:true});throw error;}
+    return res.status(201).json({saved:true,id});
+  });
+  app.delete('/api/my/measurement-alerts/:id',authBuyer,(req,res)=>{db.prepare('DELETE FROM measurement_alerts WHERE id=? AND buyer_subject=?').run(req.params.id,req.buyerSubject);return res.status(204).end();});
+  function notifyMeasurementMatches(listingId){
+    const l=getListing(listingId);if(!l||l.status!=='published')return;const alerts=db.prepare('SELECT * FROM measurement_alerts WHERE buyer_email IS NOT NULL AND (category IS NULL OR lower(category)=lower(?))').all(l.category);
+    const fits=(v,min,max)=>v==null||(min==null&&max==null)||(v>=Number(min??v)&&v<=Number(max??v));
+    for(const a of alerts)if(fits(a.bust,l.bust_min,l.bust_max)&&fits(a.waist,l.waist_min,l.waist_max)&&fits(a.hips,l.hips_min,l.hips_max))void sendEmail({to:a.buyer_email,subject:`A new House of Briar piece may fit your measurements`,text:`${l.title} is newly available and matches the measurements you asked House of Briar to watch. Open the gallery to see the piece.`});
+  }
   function inquiryThread(inquiryId) {
     return db.prepare("SELECT id,sender_role,message,created_at,buyer_read_at,designer_read_at FROM inquiry_messages WHERE inquiry_id=? ORDER BY created_at ASC").all(inquiryId)
       .map(m=>({id:m.id,senderRole:m.sender_role,message:m.message,createdAt:m.created_at,buyerReadAt:m.buyer_read_at,designerReadAt:m.designer_read_at}));
@@ -1676,9 +1698,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, bust_min,bust_max,waist_min,waist_max,hips_min,hips_max, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1709,6 +1731,7 @@ function createApp(options = {}) {
       validation.value.sku || null,
       validation.value.stockQuantity,
       validation.value.lowStockThreshold,
+      validation.value.bustMin, validation.value.bustMax, validation.value.waistMin, validation.value.waistMax, validation.value.hipsMin, validation.value.hipsMax,
       timestamp,
       timestamp
     );
@@ -1731,7 +1754,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?, bust_min=?, bust_max=?, waist_min=?, waist_max=?, hips_min=?, hips_max=?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1763,6 +1786,7 @@ function createApp(options = {}) {
       validation.value.sku || null,
       validation.value.stockQuantity,
       validation.value.lowStockThreshold,
+      validation.value.bustMin, validation.value.bustMax, validation.value.waistMin, validation.value.waistMax, validation.value.hipsMin, validation.value.hipsMax,
       timestamp,
       row.id
     );
@@ -2033,6 +2057,7 @@ function createApp(options = {}) {
       WHERE id = ?
     `).run(timestamp, timestamp, row.id);
     notifyDesigner(row.designer_id,'listing_review','Listing approved',`${row.title} was approved and is now published.`,{listingId:row.id,actionPath:`/shop/${row.id}`,priority:'normal',source:'admin',adminLabel:'House of Briar'});
+    notifyMeasurementMatches(row.id);
 
     return res.json({ item: serializeListing(getListing(row.id), 'public') });
   });

@@ -66,7 +66,7 @@ type GalleryItem = {
   images?: Array<{ url: string }>;
   seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
   shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
-  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number;
+  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; alterationsAvailable?:boolean; measurements?:{bustMin?:number|null;bustMax?:number|null;waistMin?:number|null;waistMax?:number|null;hipsMin?:number|null;hipsMax?:number|null};
 };
 
 function galleryItemToGenesis(item: GalleryItem): GenesisNode {
@@ -98,6 +98,10 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@intl': item.internationalShipping ? 'yes' : 'no',
       '/attributes/@ptype': item.productionType || 'One of a Kind',
       '/attributes/@stock': String(item.stockQuantity ?? (item.productionType === 'Made to Order' ? 0 : 1)),
+      '/attributes/@alter': item.alterationsAvailable?'yes':'no',
+      '/attributes/@bustn': item.measurements?.bustMin==null?'':String(item.measurements.bustMin), '/attributes/@bustx': item.measurements?.bustMax==null?'':String(item.measurements.bustMax),
+      '/attributes/@wain': item.measurements?.waistMin==null?'':String(item.measurements.waistMin), '/attributes/@waix': item.measurements?.waistMax==null?'':String(item.measurements.waistMax),
+      '/attributes/@hipsn': item.measurements?.hipsMin==null?'':String(item.measurements.hipsMin), '/attributes/@hipsx': item.measurements?.hipsMax==null?'':String(item.measurements.hipsMax),
     },
   };
 }
