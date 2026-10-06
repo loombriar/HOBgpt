@@ -59,6 +59,23 @@ test('designer donation identity, paid recovery, threshold and replay are correc
     context.db.prepare('INSERT INTO designer_access_tokens(token_hash,designer_id,created_at) VALUES (?,?,?)').run(hash,'loom',new Date().toISOString());
     assert.equal((await donate(5,'signup-token')).status,201);
     const signupRead=await fetch(origin+'/api/my/donations',{headers:{Authorization:'Bearer signup-token'}});assert.equal(signupRead.status,200);assert.equal((await signupRead.json()).donations.length,3);
+    // An operator may link a confirmed historical payment whose checkout email
+    // differs from the designer email, without changing either account identity.
+    context.db.prepare('DELETE FROM user_badges').run();
+    context.db.prepare("UPDATE donations SET buyer_subject=NULL,status='paid' WHERE id=?").run(row.id);
+    session.customer_details.email='alternate@example.test';
+    assert.equal((await context.reconcileDonationBadges()).awarded,0);
+    const priorRecoveries=process.env.DONATION_BADGE_RECOVERIES_JSON;
+    try{
+      process.env.DONATION_BADGE_RECOVERIES_JSON=JSON.stringify([{email:'alternate@example.test',designerId:'loom',amountCents:501,createdBefore:'2099-01-01T00:00:00Z'}]);
+      assert.equal((await context.reconcileDonationBadges()).awarded,0);
+      process.env.DONATION_BADGE_RECOVERIES_JSON=JSON.stringify([{email:'alternate@example.test',designerId:'loom',amountCents:500,createdBefore:'2000-01-01T00:00:00Z'}]);
+      assert.equal((await context.reconcileDonationBadges()).awarded,0);
+      process.env.DONATION_BADGE_RECOVERIES_JSON=JSON.stringify([{email:'alternate@example.test',designerId:'loom',amountCents:500,createdBefore:'2099-01-01T00:00:00Z'}]);
+      assert.equal((await context.reconcileDonationBadges()).awarded,1);
+      assert.equal((await context.reconcileDonationBadges()).awarded,0);
+      assert.equal(context.db.prepare('SELECT buyer_subject FROM donations WHERE id=?').get(row.id).buyer_subject,'designer:loom');
+    }finally{if(priorRecoveries===undefined)delete process.env.DONATION_BADGE_RECOVERIES_JSON;else process.env.DONATION_BADGE_RECOVERIES_JSON=priorRecoveries;}
   }finally{
     if(server?.listening)await new Promise(r=>server.close(r));context?.db.close();fs.rmSync(dir,{recursive:true,force:true});
     if(previous===undefined)delete process.env.STRIPE_WEBHOOK_SECRET;else process.env.STRIPE_WEBHOOK_SECRET=previous;

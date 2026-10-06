@@ -1564,10 +1564,26 @@ function createApp(options = {}) {
     return true;
   }
 
+  function donationBadgeSubject(donation,email) {
+    const linked=donation.buyer_subject||badgeSubjectForEmail(email);
+    if(linked)return linked;
+    // Operator-confirmed recovery applies only to historical payments with the
+    // exact checkout email and amount. It does not grant login or order access.
+    let recoveries=options.donationBadgeRecoveries;
+    if(!Array.isArray(recoveries)){
+      try{recoveries=JSON.parse(process.env.DONATION_BADGE_RECOVERIES_JSON||'[]');}catch{recoveries=[];}
+    }
+    if(!Array.isArray(recoveries))return null;
+    const match=recoveries.find(r=>r&&typeof r.email==='string'&&r.email.trim().toLowerCase()===email&&r.amountCents===donation.amount_cents&&Number.isFinite(Date.parse(r.createdBefore))&&Date.parse(donation.created_at)<=Date.parse(r.createdBefore)&&typeof r.designerId==='string');
+    if(!match)return null;
+    const designer=db.prepare("SELECT id FROM designer_profiles WHERE id=? AND status='active'").get(match.designerId);
+    return designer ? designerBadgeSubject(designer.id) : null;
+  }
+
   function confirmDonationBadge(donation,session) {
     if(session.id!==donation.stripe_session_id || session.metadata?.donation_id!==donation.id || session.payment_status!=='paid' || session.currency!==donation.currency || !Number.isInteger(session.amount_total) || session.amount_total!==donation.amount_cents)return false;
     const email=(session.customer_details?.email||session.customer_email||donation.buyer_email||'').trim().toLowerCase();
-    const subject=donation.buyer_subject||badgeSubjectForEmail(email);
+    const subject=donationBadgeSubject(donation,email);
     db.prepare("UPDATE donations SET status='paid',paid_at=COALESCE(paid_at,?),buyer_subject=COALESCE(buyer_subject,?),buyer_email=COALESCE(buyer_email,?) WHERE id=?").run(new Date().toISOString(),subject,email||null,donation.id);
     if(subject&&donation.amount_cents>=500){
       const before=db.prepare("SELECT 1 FROM user_badges WHERE buyer_subject=? AND badge_type='supporter'").get(subject);
@@ -1590,7 +1606,7 @@ function createApp(options = {}) {
           const session=await stripeApi(`checkout/sessions/${encodeURIComponent(donation.stripe_session_id)}`);
           if(confirmDonationBadge(donation,session))results.awarded++;
           else if(session.payment_status!=='paid')results.pending++;
-          else if(!donation.buyer_subject&&!badgeSubjectForEmail(session.customer_details?.email||session.customer_email||donation.buyer_email))results.unlinked++;
+          else if(!donationBadgeSubject(donation,(session.customer_details?.email||session.customer_email||donation.buyer_email||'').trim().toLowerCase()))results.unlinked++;
           else if(session.id!==donation.stripe_session_id||session.metadata?.donation_id!==donation.id||session.currency!==donation.currency||session.amount_total!==donation.amount_cents)results.mismatch++;
           if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
         }catch(error){results.errors++;if(/No such checkout\.session|No such checkout session/i.test(String(error?.message)))results.unavailableSessions++;}
@@ -3102,6 +3118,5 @@ if (require.main === module) {
 }
 
 module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
-
 
 
