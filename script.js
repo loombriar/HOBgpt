@@ -27,6 +27,33 @@ if (year) year.textContent = new Date().getFullYear();
 const productGrid = byId('product-grid');
 const shopStatus = byId('shop-status');
 const designerModal = byId('designer-modal');
+const storefrontMain = document.querySelector('main');
+const DESIGNER_ROOM_PATH = '/designers/room';
+function syncDesignerRoomRoute({focus=true}={}) {
+  if(!designerModal)return;
+  const open=location.pathname===DESIGNER_ROOM_PATH;
+  designerModal.classList.toggle('hidden',!open);
+  document.body.classList.toggle('designer-room-open',open);
+  if(storefrontMain)storefrontMain.classList.toggle('hidden',open);
+  if(open){
+    if(!designerToken){loginPanel?.classList.remove('hidden');designerWorkspace?.classList.add('hidden');}
+    else{loginPanel?.classList.add('hidden');designerWorkspace?.classList.remove('hidden');}
+    if(focus){designerModal.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});}
+  }
+}
+function openDesignerRoom(target=''){
+  if(location.pathname!==DESIGNER_ROOM_PATH)history.pushState({room:'designer'},'',DESIGNER_ROOM_PATH+location.search+(target||''));
+  syncDesignerRoomRoute();
+  if(target)requestAnimationFrame(()=>document.querySelector(target)?.scrollIntoView({behavior:'smooth',block:'start'}));
+}
+function closeDesignerRoom(){
+  if(location.pathname===DESIGNER_ROOM_PATH){
+    if(history.state?.room==='designer')history.back();
+    else{history.pushState({},'', '/'+location.search);syncDesignerRoomRoute();}
+  }
+}
+window.addEventListener('popstate',()=>syncDesignerRoomRoute());
+
 const designerLoginBtn = byId('designer-login-btn');
 const designerSignupLink = byId('designer-signup-link');
 const designerSignupForm = byId('designer-signup-form');
@@ -1403,8 +1430,7 @@ for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-
 if (designerSignupLink) {
   designerSignupLink.addEventListener('click', (event) => {
     event.preventDefault();
-    if (designerModal && typeof designerModal.showModal === 'function') designerModal.showModal();
-    requestAnimationFrame(() => byId('designer-signup')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    openDesignerRoom('#designer-signup');
   });
 }
 
@@ -1450,10 +1476,10 @@ if (designerLoginBtn) {
       if (loginPanel) loginPanel.classList.add('hidden');
       if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     }
-    designerModal.showModal();
+    openDesignerRoom();
   });
 }
-if (modalClose) modalClose.addEventListener('click', () => designerModal.close());
+if (modalClose) modalClose.addEventListener('click', closeDesignerRoom);
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
@@ -1500,6 +1526,7 @@ if (designerToken) {
   if (designerWorkspace) designerWorkspace.classList.remove('hidden');
   signIn(designerToken);
 }
+syncDesignerRoomRoute({focus:false});
 
 applyFilterButtons();
 loadShopDesigners();
