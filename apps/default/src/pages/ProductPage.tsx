@@ -18,12 +18,14 @@ export default function ProductPage() {
   const [saved, setSaved] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [inCart, setInCart] = useState(false);
+  const [catalog, setCatalog] = useState<GenesisNode[]>([]);
 
   useEffect(() => {
     setActiveImageIndex(0);
     setLoading(true);
     void getCatalogProducts(auth.isAuthenticated)
       .then((items) => {
+        setCatalog(items);
         setProduct(items.find((item) => item.id === productId || slugify(getTitle(item, 'Name') ?? '') === productId) ?? null);
       })
       .catch(() => setProduct(null))
@@ -85,6 +87,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     trackCommerceEvent({ event: 'view_product', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
+    try { const old=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); const ids=Array.isArray(old)?old.filter((id):id is string=>typeof id==='string'&&id!==product.id):[]; window.localStorage.setItem('house-of-briar:recently-viewed',JSON.stringify([product.id,...ids].slice(0,12))); } catch {}
     document.title = `${seoTitle} | House of Briar`;
     const setMeta=(selector:string,attribute:string,value:string)=>document.querySelector(selector)?.setAttribute(attribute,value);
     setMeta('meta[name="description"]','content',seoDescription.slice(0,180));
@@ -97,6 +100,21 @@ export default function ProductPage() {
     if(shareImage)setMeta('meta[name="twitter:image"]','content',shareImage);
     return () => { document.title = 'House of Briar'; };
   }, [product.id, name, designer, price, seoTitle, seoDescription, shareImage]);
+
+  const productTags = tags.toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
+  const recommendations = catalog.filter(item=>item.id!==product.id && (getFieldValue(item,'@statx','Status')??'Available')==='Available').map(item=>{
+    const itemTags=(getFieldValue(item,'@tagsx','Tags')??'').toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
+    const itemCategory=getFieldValue(item,'@categ','Category')??'';
+    const itemStyle=getFieldValue(item,'@style','Style')??'';
+    const style=getFieldValue(product,'@style','Style')??'';
+    const sharedTags=itemTags.filter(t=>productTags.includes(t)).length;
+    const score=sharedTags*4+(itemCategory===category?3:0)+(style&&itemStyle===style?3:0)+(getFieldValue(item,'@desig','Designer')===designer?1:0);
+    return {item,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,4).map(x=>x.item);
+  let recentIds:string[]=[];
+  try { recentIds=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); if(!Array.isArray(recentIds))recentIds=[]; } catch {}
+  const recentlyViewed=recentIds.filter(id=>id!==product.id).map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
+  const RecommendationCard=({item}:{item:GenesisNode})=>{const itemName=getTitle(item,'Name')??'Untitled piece';const itemImage=getProductImages(getFieldValue(item,'@image','Image URL'),getFieldValue(item,'@gally','Gallery URLs'))[0];return <Link to={`/shop/${item.id}`} className="group block"><div className="aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-muted">{itemImage?<img src={itemImage} alt={itemName} className="size-full object-cover transition duration-300 group-hover:scale-105"/>:null}</div><p className="mt-3 font-serif text-xl">{itemName}</p><p className="mt-1 text-sm text-muted-foreground">{money.format(getFieldNumber(item,'@price','Price')??0)}</p></Link>};
 
   const addToCart = () => {
     const raw = window.localStorage.getItem('house-of-briar:cart');
@@ -139,6 +157,7 @@ export default function ProductPage() {
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><div className="mt-8 rounded-2xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-sm font-semibold"><ShoppingBag size={16}/> Shipping &amp; delivery</div><p className="mt-3 text-sm leading-6 text-muted-foreground">{Number.isFinite(shippingCostCents)?shippingCostCents===0?'Free shipping for this piece':`Shipping: ${money.format(shippingCostCents/100)}`:'Exact shipping options and cost are shown before payment.'}{Number.isFinite(freeShippingThresholdCents)&&freeShippingThresholdCents>0?` Free shipping applies when the qualifying order reaches ${money.format(freeShippingThresholdCents/100)}.`:''}</p>{Number.isFinite(handlingMin)&&<p className="mt-2 text-sm text-muted-foreground">Designer handling time: {handlingMin}{Number.isFinite(handlingMax)&&handlingMax!==handlingMin?`–${handlingMax}`:''} business day{handlingMax===1?'':'s'} before carrier transit.</p>}<p className="mt-2 text-xs text-muted-foreground">{internationalShipping?'International delivery is available for this piece; destination duties or import charges may apply.':'International delivery is not currently offered for this piece.'}</p><a href="/shipping.html" className="mt-3 inline-flex text-sm font-medium text-primary hover:underline">Full shipping policy</a></div><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
+    {(recommendations.length>0||recentlyViewed.length>0)&&<section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">{recommendations.length>0&&<div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Complete the story</p><h2 className="mt-3 font-serif text-4xl">Pieces that belong nearby.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Chosen from shared style, category, and collection details rather than a generic product list.</p><div className="mt-7 grid gap-5 grid-cols-2 lg:grid-cols-4">{recommendations.map(item=><RecommendationCard key={item.id} item={item}/>)}</div></div>}{recentlyViewed.length>0&&<div className={recommendations.length?'mt-14':''}><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Recently wandered</p><h2 className="mt-3 font-serif text-3xl">Pieces you passed along the way.</h2><div className="mt-7 grid gap-5 grid-cols-2 lg:grid-cols-4">{recentlyViewed.map(item=><RecommendationCard key={item.id} item={item}/>)}</div></div>}</div></section>}
     <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><ProductInquiryForm productId={product.id} productName={name} designerName={designer}/></div></section>\n    <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><CollectorNotes listingId={product.id}/></div></section>\n    <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Made for your measurements</p><h2 className="mt-3 font-serif text-4xl">Request custom sizing.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Send your measurements and an item-specific customization request directly to the designer. This is a structured request, not an open conversation.</p></div><InquiryForm productName={name} productId={product.id} designerName={designer} /></div></section>
   </HouseShell>;
 }
