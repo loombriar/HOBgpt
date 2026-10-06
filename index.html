@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=checkout-return-17" />
-    <script src="/script.js?v=checkout-return-17" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=cart-badge-18" />
+    <script src="/script.js?v=cart-badge-18" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -471,6 +471,10 @@
         <button id="cart-dialog-close" class="icon-button" type="button" aria-label="Close cart">×</button>
       </div>
       <div id="cart-items" class="designer-products"></div>
+      <aside id="cart-badge-reward" class="cart-badge-reward" aria-label="Purchase badge reward">
+        <img src="/verified-buyer-v1.webp" alt="Verified Buyer badge: mint suitcase with a coral heart, gold checkmark and briars" />
+        <div><p class="eyebrow">A little something for your profile</p><strong>Verified Buyer badge</strong><p>Complete a confirmed House of Briar purchase linked to your account and this badge is added to your profile.</p></div>
+      </aside>
       <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Suitcase does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable before payment is complete.</p>
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
