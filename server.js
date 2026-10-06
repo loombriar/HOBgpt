@@ -2721,6 +2721,11 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
   const illustratedPublicAssets = [
+    'category-garment-frame.webp',
+    'category-aesthetic-frame.webp',
+    'category-pattern-frame.webp',
+    'category-accessories-frame.webp',
+    'category-designers-frame.webp',
     'Enchanted Briar House Header.png',
     'sewing-navigation-v2.webp',
     'sewing-hero-v2.webp',
