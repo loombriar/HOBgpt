@@ -2634,6 +2634,25 @@ function createApp(options = {}) {
     return res.json({ok:true,updated:result.changes});
   });
 
+  app.post('/api/my/fabric-finder', authDesigner, upload.array('photos',3), async (req,res,next)=>{
+    try{
+      const apiKey=process.env.OPENAI_API_KEY;
+      if(!apiKey)return fail(res,503,'fabric_finder_not_configured','Fabric Finder is not configured yet.');
+      const photos=Array.isArray(req.files)?req.files:[];
+      if(!photos.length)return fail(res,422,'photo_required','Take or upload at least one fabric photo.');
+      for(const photo of photos){if(!['image/jpeg','image/png','image/webp'].includes(photo.mimetype))return fail(res,415,'unsupported_image','Use a JPEG, PNG, or WebP fabric photo.');}
+      const content=[{type:'input_text',text:'Identify this fabric visually for a clothing designer. Return JSON only with keys: fabricFamily (short string), likelyFibers (array of strings, possibilities only), construction (weave or knit structure), texture, weight, drape, likelyUses (array), careConsiderations (array), confidence (low|medium|high), listingMaterialSuggestion (short string), notes (short string). Never claim exact fiber composition or percentages from a photo. State uncertainty when visual evidence is insufficient.'},
+        ...photos.map(photo=>({type:'input_image',image_url:`data:${photo.mimetype};base64,${photo.buffer.toString('base64')}`,detail:'high'}))];
+      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Fabric analysis failed.'),{statusCode:502});
+      const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
+      if(!outputText)throw Object.assign(new Error('Fabric analysis returned no result.'),{statusCode:502});
+      let analysis;try{analysis=JSON.parse(outputText);}catch{throw Object.assign(new Error('Fabric analysis returned an unreadable result.'),{statusCode:502});}
+      res.json({analysis,disclaimer:'Visual estimate only. Confirm fiber content from a manufacturer label or appropriate physical/lab testing when exact composition matters.'});
+    }catch(error){next(error);}
+  });
+
   app.get('/api/my/seller-settings', authDesigner, (req,res)=>{
     const profile=db.prepare('SELECT vacation_mode,vacation_message,vacation_return_at FROM designer_profiles WHERE id=?').get(req.designerId);
     const promos=db.prepare('SELECT id,code,discount_type discountType,discount_value discountValue,starts_at startsAt,ends_at endsAt,max_uses maxUses,active,use_count useCount,revenue_cents revenueCents,discount_cents discountCents,created_at createdAt FROM designer_promo_codes WHERE designer_id=? ORDER BY created_at DESC').all(req.designerId);
