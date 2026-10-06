@@ -1466,6 +1466,20 @@ function createApp(options = {}) {
     res.json({ items: rows.map((row) => serializeListing(row, 'public')) });
   });
 
+  app.get('/api/recommendations/:listingId', (req,res) => {
+    const listingId=String(req.params.listingId||'');
+    const boughtTogether=db.prepare(`
+      SELECT oi2.listing_id, COUNT(DISTINCT oi.order_id) AS pair_count
+      FROM order_items oi
+      JOIN orders o ON o.id=oi.order_id AND o.status='paid'
+      JOIN order_items oi2 ON oi2.order_id=oi.order_id AND oi2.listing_id<>oi.listing_id
+      JOIN listings l ON l.id=oi2.listing_id AND l.status='published' AND l.moderation_status='approved'
+      WHERE oi.listing_id=?
+      GROUP BY oi2.listing_id ORDER BY pair_count DESC LIMIT 6
+    `).all(listingId);
+    return res.json({frequentlyBoughtTogether:boughtTogether.map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
+  });
+
   app.get('/api/designers', (_req,res)=>{
     const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
       COUNT(l.id) piece_count,
