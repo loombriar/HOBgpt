@@ -289,14 +289,23 @@
         <div class="studio-toolbar">
           <div><h3>Your listings</h3><p>Only published listings appear in the public shop.</p></div>
           <div class="studio-toolbar-actions">
-            <button id="new-listing-btn" class="secondary-button" type="button">New design</button>
+            <button id="new-listing-btn" class="secondary-button" type="button">List your first piece</button>
             <button id="signout-btn" class="text-button" type="button">Sign out</button>
           </div>
         </div>
         <p id="designer-listings-message" class="form-message" role="status" aria-live="polite"></p>
+        <div id="designer-welcome" class="designer-welcome hidden">
+          <p class="eyebrow">Welcome to House of Briar</p>
+          <h3>Your Designer’s Room is ready.</h3>
+          <p>Set up your public designer identity, then add your first piece.</p>
+          <button id="start-profile-setup" class="primary-button" type="button">Set up my designer profile</button>
+        </div>
         <form id="designer-brand-form" class="stack-form">
           <h3>Your designer identity</h3>
           <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
+          <label for="designer-bio">About your work</label><textarea id="designer-bio" maxlength="2000" rows="3" placeholder="Tell shoppers about you, your process, and what you make."></textarea>
+          <label for="designer-categories">What you create</label><input id="designer-categories" maxlength="500" placeholder="Fashion, jewelry, art, accessories…" />
+          <label for="designer-social">Social or website link</label><input id="designer-social" type="url" maxlength="500" placeholder="https://" />
           <label for="designer-logo">Upload your logo (PNG, JPEG or WebP)</label><input id="designer-logo" type="file" accept="image/png,image/jpeg,image/webp" />
           <img id="designer-logo-preview" class="designer-logo-preview hidden" alt="Your designer logo" />
           <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
