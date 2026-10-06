@@ -11,7 +11,7 @@ test('Price / New sorting composes with garment and print filtering', () => {
   const grid = element();
   const context = vm.createContext({
     document: { createElement: element }, productGrid: grid,
-    makeElement: (_, __, textContent) => Object.assign(element(), { textContent }),
+    makeElement: (_, className, textContent) => Object.assign(element(), { className, textContent }),
     getProductImages: () => [], getFavoriteIds: () => [], renderItemBadges() {}, categoryLabel: value => value,
     galleryItems: [
       { id: 'a', title: 'Old floral', category: 'apparel', style: 'Dress', pattern: 'Floral', price: 300, createdAt: '2026-10-01' },
@@ -20,7 +20,7 @@ test('Price / New sorting composes with garment and print filtering', () => {
     ], activeFilter: 'apparel', activeAccessory: 'all', activeAesthetic: 'all', activePattern: 'all', shopSearch: '', activeShopWindow: 'all'
   });
   vm.runInContext(render, context);
-  const titles = () => grid.children.map(card => card.children[1].children.find(child => child.textContent && child.textContent.includes(' '))?.textContent);
+  const titles = () => grid.children.map(card => card.children[1].children.find(child => child.className === 'card-title')?.textContent);
   context.activeShopWindow = 'low'; vm.runInContext('renderGallery()', context);
   assert.deepEqual(titles(), ['New floral', 'Solid top', 'Old floral']);
   context.activeShopWindow = 'high'; vm.runInContext('renderGallery()', context);

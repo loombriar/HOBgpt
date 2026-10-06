@@ -403,7 +403,12 @@ function renderGallery() {
     meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
     if (item.aesthetic) meta.appendChild(makeElement('span', 'badge', item.aesthetic));
     meta.appendChild(makeElement('span', 'price', `$${Number(item.price || 0).toFixed(2)}`));
-    body.appendChild(meta);
+    const maker = makeElement('a', 'designer-card-link', item.designerName || 'Independent designer');
+    maker.href = `/designers/${encodeURIComponent(item.designerId)}`;
+    if (item.designerLogoUrl) { const logo = document.createElement('img'); logo.src = item.designerLogoUrl; logo.alt = ''; logo.loading = 'lazy'; maker.prepend(logo); }
+    maker.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); void openDesignerStorefront(item.designerId); });
+    maker.addEventListener('keydown', event => event.stopPropagation());
+    body.append(maker, meta);
     if (badgeRow.children.length) body.appendChild(badgeRow);
     body.appendChild(makeElement('span', 'card-title', item.title));
     body.appendChild(makeElement('span', 'card-description', item.description || 'A one-of-a-kind designation from an independent designer.'));
@@ -1015,6 +1020,7 @@ async function signIn(tokenValue) {
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     setMessage(designerAuthMessage, '', '');
     await loadDesignerListings();
+    await loadDesignerBrand();
   } catch (error) {
     designerToken = '';
     localStorage.removeItem('briarDesignerToken');
@@ -1339,3 +1345,37 @@ async function renderAdminOverview() {
     } catch (error) { section.append(makeElement('p', 'form-message', `Could not load this section: ${error.message}`)); }
   }));
 }
+
+async function loadDesignerBrand() {
+  try {
+    const { designer } = await apiRequest('/api/my/designer-profile');
+    byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
+    const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
+    if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
+    byId('designer-logo-remove').classList.toggle('hidden', !designer.logoUrl);
+  } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+}
+byId('designer-brand-form')?.addEventListener('submit', async event => {
+  event.preventDefault(); const button = event.submitter; button.disabled = true;
+  try {
+    await apiRequest('/api/my/designer-profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brandName: byId('designer-brand-name').value.trim() }) });
+    const file = byId('designer-logo').files[0];
+    if (file) { if (file.size > 8 * 1024 * 1024) throw new Error('Please choose a logo smaller than 8 MB.'); const body = new FormData(); body.append('image', file); await apiRequest('/api/my/designer-profile/logo', { method: 'POST', body }); }
+    byId('designer-logo').value = ''; await loadDesignerBrand(); await loadGallery(); setMessage(byId('designer-brand-message'), 'Your brand and logo are saved.', 'success');
+  } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+  finally { button.disabled = false; }
+});
+byId('designer-logo-remove')?.addEventListener('click', async () => {
+  try { await apiRequest('/api/my/designer-profile/logo', { method: 'DELETE' }); await loadDesignerBrand(); await loadGallery(); }
+  catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+});
+async function openDesignerStorefront(id) {
+  const dialog = byId('designer-storefront-dialog'), content = byId('storefront-content'); content.replaceChildren(); dialog.showModal();
+  try {
+    const { designer, items } = await apiRequest(`/api/designers/${encodeURIComponent(id)}`);
+    byId('storefront-title').textContent = designer.brandName || designer.displayName;
+    content.append(makeElement('p', '', designer.bio || 'Independent by design.'), makeElement('p', '', designer.location || ''));
+    for (const item of items || []) { const button = makeElement('button', 'secondary-button', item.title); button.type = 'button'; button.addEventListener('click', () => { dialog.close(); openProductDetails(item); }); content.append(button); }
+  } catch (error) { content.append(makeElement('p', 'form-message', error.message)); }
+}
+byId('storefront-close')?.addEventListener('click', () => byId('designer-storefront-dialog').close());

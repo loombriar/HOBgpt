@@ -331,3 +331,24 @@ test('admin listing management requires admin authentication and omits deleted i
   assert.ok(Array.isArray(payload.items));
   assert.ok(payload.items.every(item => item.status !== 'deleted'));
 });
+
+
+test('designer logos preserve proportions, ownership and public maker attribution', async () => {
+  const image = await sharp({ create: { width: 240, height: 80, channels: 4, background: '#a8d1ba' } }).png().toBuffer();
+  const form = new FormData(); form.append('image', new Blob([image], { type: 'image/png' }), 'logo.png');
+  const upload = await fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'POST', headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` }, body: form });
+  assert.equal(upload.status, 200);
+  const { logoUrl } = await upload.json();
+  const publicImage = await fetch(`${baseUrl}${logoUrl}`); assert.equal(publicImage.status, 200);
+  const dimensions = await sharp(Buffer.from(await publicImage.arrayBuffer())).metadata();
+  assert.equal(dimensions.width / dimensions.height, 3);
+  const unauthorized = await fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'DELETE' }); assert.equal(unauthorized.status, 401);
+  const own = await fetch(`${baseUrl}/api/my/designer-profile`, { headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` } });
+  assert.equal((await own.json()).designer.logoUrl, logoUrl);
+  const other = await fetch(`${baseUrl}/api/my/designer-profile`, { headers: { Authorization: `Bearer ${OTHER_DESIGNER_TOKEN}` } });
+  assert.equal((await other.json()).designer.logoUrl, null);
+  const gallery = await (await fetch(`${baseUrl}/api/gallery`)).json();
+  for (const item of gallery.items.filter(item => item.designerId === 'designer-a')) { assert.ok(item.designerName); assert.equal(item.designerLogoUrl, logoUrl); }
+  const remove = await fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'DELETE', headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` } }); assert.equal(remove.status, 200);
+  assert.equal((await fetch(`${baseUrl}${logoUrl}`)).status, 404);
+});
