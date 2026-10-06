@@ -1719,3 +1719,12 @@ body h1,body h2,body h3,.brand-name,.product-section .shop-drop-window .category
 .paypal-button{border:0;border-radius:999px;background:#ffc439;color:#111820;font-weight:800;padding:.78rem 1.05rem;cursor:pointer}.paypal-button:hover{filter:brightness(.98)}.paypal-button:disabled{opacity:.55;cursor:wait}.donation-row .paypal-button{white-space:nowrap}
 
 .seller-terms-check{display:flex!important;align-items:flex-start;gap:.65rem}.seller-terms-check input{width:auto;margin-top:.25rem}.seller-terms-check a{text-decoration:underline}.payout-setup-card{margin:1rem 0 1.5rem;padding:1.15rem;border:1px solid rgba(80,63,45,.22);border-radius:18px;background:rgba(255,250,240,.72)}.payout-setup-card h3{margin:.2rem 0 .5rem}.payout-setup-card p{max-width:70ch}
+
+/* Full-page Designer's Room */
+.designer-room-page{width:100%;max-width:1180px;margin:0 auto;padding:clamp(1rem,3vw,2.5rem);min-height:70vh;background:#fffdfb;border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow-lg)}
+.designer-room-page.hidden{display:none!important}
+body.designer-room-open main{display:none!important}
+body.designer-room-open .designer-room-page{display:block}
+.designer-room-header{position:sticky;top:0;z-index:20;margin:calc(clamp(1rem,3vw,2.5rem)*-1) calc(clamp(1rem,3vw,2.5rem)*-1) 1rem;padding:1rem clamp(1rem,3vw,2.5rem);background:rgba(255,253,251,.96);backdrop-filter:blur(10px)}
+.designer-room-page .login-panel,.designer-room-page #designer-workspace{padding:clamp(.25rem,2vw,1.4rem)}
+@media (max-width:700px){.designer-room-page{border-radius:0;border-left:0;border-right:0;padding:1rem}.designer-room-header{margin:-1rem -1rem 1rem;padding:1rem}.designer-room-header{align-items:flex-start}.designer-room-header #modal-close{white-space:nowrap}}
