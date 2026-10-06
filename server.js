@@ -895,6 +895,7 @@ function createApp(options = {}) {
       lowStockThreshold: Number(row.low_stock_threshold ?? 1),
       ...inventory,
       lowStock: inventory.availableQuantity !== null && inventory.availableQuantity <= Number(row.low_stock_threshold ?? 1),
+      pausedByDesigner: Boolean(row.paused_by_designer),
       version: Number(row.version),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
