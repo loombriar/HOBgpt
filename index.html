@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=fabric-finder-live-15" />
-    <script src="/script.js?v=fabric-finder-live-15" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=fit-reference-16" />
+    <script src="/script.js?v=fit-reference-16" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -171,7 +171,9 @@
                     </select>
                   </label>
                 </div>
-                <details class="fit-search">
+                <div class="fit-search-entry">
+                  <div class="fit-search-avatar" aria-hidden="true"><span class="fit-avatar-head"></span><span class="fit-avatar-body"></span></div>
+                  <details class="fit-search">
                   <summary>Shop by my measurements</summary>
                   <p>Match your body measurements to ranges supplied by designers. Pieces without every measurement you enter are excluded. Check the piece’s fit notes before buying.</p>
                   <label>Saved profile<select id="shop-fit-profile"><option value="">Enter measurements</option></select></label>
@@ -187,7 +189,8 @@
                     <button class="text-button" id="shop-fit-remove" type="button">Remove measurement filter</button>
                     <p id="shop-fit-message" role="status"></p>
                   </form>
-                </details>
+                  </details>
+                </div>
                   <button id="shop-clear-filters" type="button" class="btn btn-secondary">Clear filters</button>
 
               </div>
@@ -312,7 +315,28 @@
           <p id="designer-brand-message" role="status" class="form-message"></p>
         </form>
         <div id="designer-products" class="designer-products" aria-live="polite"></div>
-        <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
+        <section class="designer-size-reference" aria-labelledby="us-size-reference-title">
+          <p class="eyebrow">Fit reference</p>
+          <h3 id="us-size-reference-title">US Women’s Standard Size Reference</h3>
+          <p>Use this as a general body-measurement reference when describing fit. Sizing varies by brand and garment, so always list the actual measurements your piece fits when you know them.</p>
+          <div class="size-chart-scroll" role="region" aria-label="US women’s size measurement reference" tabindex="0">
+            <table class="size-reference-table">
+              <thead><tr><th>US size</th><th>Bust / chest</th><th>Waist</th><th>Hips</th></tr></thead>
+              <tbody>
+                <tr><th>00 / XXS</th><td>31–32 in</td><td>23–24 in</td><td>33–34 in</td></tr>
+                <tr><th>0–2 / XS</th><td>32–33.5 in</td><td>24–25.5 in</td><td>34–35.5 in</td></tr>
+                <tr><th>4–6 / S</th><td>34–35.5 in</td><td>26–27.5 in</td><td>36–37.5 in</td></tr>
+                <tr><th>8–10 / M</th><td>36–37.5 in</td><td>28–29.5 in</td><td>38–39.5 in</td></tr>
+                <tr><th>12–14 / L</th><td>38–40.5 in</td><td>30–32.5 in</td><td>40–42.5 in</td></tr>
+                <tr><th>16–18 / XL</th><td>41–44 in</td><td>33–36 in</td><td>43–46 in</td></tr>
+                <tr><th>20–22 / 2XL</th><td>45–48 in</td><td>37–40 in</td><td>47–50 in</td></tr>
+                <tr><th>24–26 / 3XL</th><td>49–52 in</td><td>41–44 in</td><td>51–54 in</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
+        </section>
+                <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
           <p class="eyebrow">Designer tool</p>
           <h3 id="fabric-finder-title">Fabric Finder</h3>
           <p>Upload up to three clear photos of a fabric. House of Briar will give you a best-effort visual identification, likely uses, and suggested care.</p>
