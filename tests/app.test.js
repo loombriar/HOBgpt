@@ -539,3 +539,18 @@ test('admin designer notices are private, prioritized, and auditable', async () 
   assert.equal(history.response.status,200);
   assert.ok(history.body.items.some(item=>item.id===notice.id&&item.designerId==='designer-a'));
 });
+
+
+test('item conversations require alterations and measurement alerts stay buyer-private', async () => {
+  const now=new Date().toISOString();
+  context.db.prepare("INSERT OR IGNORE INTO listings(id,designer_id,title,description,price,category,status,moderation_status,alterations_available,production_type,stock_quantity,created_at,updated_at) VALUES ('no-alter','designer-a','No Alter','test',25,'apparel','published','approved',0,'One of a Kind',1,?,?)").run(now,now);
+  const blocked=await getJson('/api/listings/no-alter/inquiries',{method:'POST',headers:{Authorization:`Bearer ${BUYER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'Can this be altered?'})});
+  assert.equal(blocked.response.status,403);
+  context.db.prepare("UPDATE listings SET alterations_available=1 WHERE id='no-alter'").run();
+  const allowed=await getJson('/api/listings/no-alter/inquiries',{method:'POST',headers:{Authorization:`Bearer ${BUYER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'Can the waist be taken in?'})});
+  assert.equal(allowed.response.status,201);
+  const alert=await getJson('/api/my/measurement-alerts',{method:'POST',headers:{Authorization:`Bearer ${BUYER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({bust:36,waist:29,hips:39,category:'apparel'})});
+  assert.equal(alert.response.status,201);
+  const mine=await getJson('/api/my/measurement-alerts',{headers:{Authorization:`Bearer ${BUYER_TOKEN}`}});
+  assert.ok(mine.body.items.some(item=>item.id===alert.body.id&&item.waist===29));
+});
