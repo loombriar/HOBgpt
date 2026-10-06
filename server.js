@@ -77,6 +77,7 @@ function validateListingInput(body = {}) {
   const sku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : '';
   const stockQuantity = body.stockQuantity === '' || body.stockQuantity == null ? (productionType === 'One of a Kind' ? 1 : productionType === 'Made to Order' ? 0 : 1) : Number(body.stockQuantity);
   const lowStockThreshold = body.lowStockThreshold === '' || body.lowStockThreshold == null ? 1 : Number(body.lowStockThreshold);
+  const fitNumber=v=>v===''||v==null?null:Number(v); const bustMin=fitNumber(body.bustMin),bustMax=fitNumber(body.bustMax),waistMin=fitNumber(body.waistMin),waistMax=fitNumber(body.waistMax),hipsMin=fitNumber(body.hipsMin),hipsMax=fitNumber(body.hipsMax);
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -105,8 +106,9 @@ function validateListingInput(body = {}) {
   if (productionType === 'Limited Quantity' && stockQuantity < 1) return { error: 'Limited-quantity pieces must have at least 1 item in stock.' };
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
+  for(const [label,min,max] of [['Bust',bustMin,bustMax],['Waist',waistMin,waistMax],['Hips',hipsMin,hipsMax]]){if([min,max].some(v=>v!=null&&(!Number.isFinite(v)||v<10||v>100)))return {error:`${label} measurements must be between 10 and 100 inches.`};if(min!=null&&max!=null&&min>max)return {error:`${label} minimum cannot exceed maximum.`};}
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold, bustMin,bustMax,waistMin,waistMax,hipsMin,hipsMax } };
 }
 
 function createApp(options = {}) {
@@ -1696,9 +1698,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, sku, stock_quantity, low_stock_threshold, bust_min,bust_max,waist_min,waist_max,hips_min,hips_max, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1729,6 +1731,7 @@ function createApp(options = {}) {
       validation.value.sku || null,
       validation.value.stockQuantity,
       validation.value.lowStockThreshold,
+      validation.value.bustMin, validation.value.bustMax, validation.value.waistMin, validation.value.waistMax, validation.value.hipsMin, validation.value.hipsMax,
       timestamp,
       timestamp
     );
@@ -1751,7 +1754,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?, sku = ?, stock_quantity = ?, low_stock_threshold = ?, bust_min=?, bust_max=?, waist_min=?, waist_max=?, hips_min=?, hips_max=?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1783,6 +1786,7 @@ function createApp(options = {}) {
       validation.value.sku || null,
       validation.value.stockQuantity,
       validation.value.lowStockThreshold,
+      validation.value.bustMin, validation.value.bustMax, validation.value.waistMin, validation.value.waistMax, validation.value.hipsMin, validation.value.hipsMax,
       timestamp,
       row.id
     );
