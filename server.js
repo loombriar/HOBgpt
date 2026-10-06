@@ -1709,7 +1709,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/designers/:designerId', (req, res) => {
-    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key
+    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key, logo_storage_key
       FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
     if (!designer) return fail(res, 404, 'designer_not_found', 'Designer storefront not found.');
     const rows = db.prepare(`SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
@@ -1717,7 +1717,18 @@ function createApp(options = {}) {
       WHERE l.designer_id=? AND l.status='published' AND l.moderation_status='approved'
       ORDER BY l.published_at DESC, l.created_at DESC`).all(designer.id);
     let categories=[]; try { categories=JSON.parse(designer.categories||'[]'); } catch {}
-    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null},items:rows.map(row=>serializeListing(row,'public'))});
+    const items = rows.map(row=>serializeListing(row,'public'));
+    const currentItems = items.filter(item=>item.availableQuantity === null || item.availableQuantity > 0);
+    const soldItems = items.filter(item=>item.soldQuantity > 0);
+    const totalLikes = Number(db.prepare(`SELECT COUNT(*) total FROM buyer_favorites bf
+      JOIN listings l ON l.id=bf.listing_id
+      WHERE l.designer_id=? AND l.status='published' AND l.moderation_status='approved'`).get(designer.id).total);
+    const subjects = new Set(db.prepare('SELECT subject FROM designer_identities WHERE designer_id=?').all(designer.id).map(row=>row.subject));
+    for (const [subject, designerId] of Object.entries(designerIdentityMap)) if (designerId===designer.id) subjects.add(subject);
+    const badgeTypes = new Set();
+    for (const subject of subjects) for (const badge of db.prepare('SELECT badge_type FROM user_badges WHERE buyer_subject=?').all(subject)) badgeTypes.add(badge.badge_type);
+    const badges = [...badgeTypes].sort().map(type=>({type}));
+    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,badges,totalLikes,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
   });
 
   app.post('/api/my/designer-profile/portrait', authDesigner, upload.single('image'), async (req,res,next)=>{
@@ -2802,4 +2813,5 @@ if (require.main === module) {
 }
 
 module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
+
 
