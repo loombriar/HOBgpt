@@ -539,3 +539,21 @@ test('admin designer notices are private, prioritized, and auditable', async () 
   assert.equal(history.response.status,200);
   assert.ok(history.body.items.some(item=>item.id===notice.id&&item.designerId==='designer-a'));
 });
+
+
+test('designer operational notifications dedupe and expose actionable alerts', async () => {
+  const now=new Date().toISOString();
+  context.db.prepare("INSERT OR IGNORE INTO listings(id,designer_id,title,description,price,category,status,moderation_status,production_type,stock_quantity,low_stock_threshold,created_at,updated_at) VALUES ('alert-piece','designer-a','Alert Piece','test',50,'home','published','approved','One of a Kind',1,1,?,?)").run(now,now);
+  context.db.prepare("INSERT OR IGNORE INTO orders(id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at) VALUES ('alert-order','paid','usd',5000,500,4500,?,?)").run(now,now);
+  context.db.prepare("INSERT OR IGNORE INTO order_items(id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES ('alert-item','alert-order','alert-piece','designer-a','Alert Piece',5000,1,5000,500,4500)").run();
+  context.db.prepare("INSERT OR IGNORE INTO inventory_reservations(listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES ('alert-piece','alert-order','sold',?,?,1)").run(now,new Date(Date.now()+60000).toISOString());
+  context.db.prepare("INSERT INTO designer_notifications(id,designer_id,type,title,body,listing_id,order_id,action_path,priority,source,event_key,created_at) VALUES ('alert-note','designer-a','sold_out','One-of-a-kind piece sold','Alert Piece has sold.','alert-piece','alert-order','/account#products','important','system','sold-out:alert-piece:alert-order',?)").run(now);
+  assert.throws(()=>context.db.prepare("INSERT INTO designer_notifications(id,designer_id,type,title,body,event_key,created_at) VALUES ('alert-note-2','designer-a','sold_out','duplicate','duplicate','sold-out:alert-piece:alert-order',?)").run(now),/UNIQUE constraint failed/);
+  const inbox=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  const note=inbox.body.items.find(item=>item.id==='alert-note');
+  assert.ok(note);
+  assert.equal(note.type,'sold_out');
+  assert.equal(note.priority,'important');
+  assert.equal(note.listingId,'alert-piece');
+  assert.equal(note.orderId,'alert-order');
+});
