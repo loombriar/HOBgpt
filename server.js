@@ -3012,6 +3012,26 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'service-worker.js'));
   });
   const sendFrontend = (_req, res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html'));
+  const collectionPages = {
+    'autumn-atelier': {title:'The Autumn Atelier',description:'Velvet and rich textures from independent designers. Explore the autumn edit at House of Briar.'},
+    'garden-party': {title:'The Garden Party',description:'Romantic dresses and botanical daydreams. Discover the Garden Party collection at House of Briar.'},
+    'independent-by-design': {title:'Independent by Design',description:'Small runs and singular ideas. Meet independent designers and their wearable art at House of Briar.'}
+  };
+  app.get('/collections/:collection', (req,res)=>{
+    const page=collectionPages[req.params.collection];
+    if(!page)return fail(res,404,'collection_not_found','Collection not found.');
+    const url=`https://houseofbriar.shop/collections/${req.params.collection}`;
+    let html=fs.readFileSync(path.join(rootDir,'index.html'),'utf8');
+    html=html.replace('<title>House of Briar</title>',`<title>${page.title} | House of Briar</title>`)
+      .replace(/(<link rel="canonical" href=")[^"]*/,`$1${url}`)
+      .replace(/(<meta property="og:url" content=")[^"]*/,`$1${url}`)
+      .replace(/(<meta property="og:title" content=")[^"]*/,`$1${page.title} | House of Briar`)
+      .replace(/(<meta name="twitter:title" content=")[^"]*/,`$1${page.title} | House of Briar`)
+      .replace(/(name="description"\s+content=")[^"]*/,`$1${page.description}`)
+      .replace(/(<meta property="og:description" content=")[^"]*/,`$1${page.description}`)
+      .replace(/(<meta name="twitter:description" content=")[^"]*/,`$1${page.description}`);
+    return res.type('html').send(html);
+  });
   app.get('/designers/:designerId', sendFrontend);
   app.get('/account', hasReactBuild ? sendFrontend : (_req, res) => res.redirect('/#visitor-suite'));
   app.get('/checkout', sendFrontend);
@@ -3020,6 +3040,7 @@ function createApp(options = {}) {
   if (hasReactBuild) {
     app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
   }
+  for(const asset of ['atelier.css','atelier.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
