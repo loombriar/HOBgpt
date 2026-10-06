@@ -311,6 +311,31 @@ function createApp(options = {}) {
   db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
   recordMigration(3, 'durable_email_outbox');
 
+  db.exec(`CREATE TABLE IF NOT EXISTS analytics_events (
+    id TEXT PRIMARY KEY,
+    event_name TEXT NOT NULL,
+    session_id TEXT,
+    listing_id TEXT,
+    listing_name TEXT,
+    designer TEXT,
+    value REAL,
+    currency TEXT,
+    search_query TEXT,
+    result_count INTEGER,
+    item_count INTEGER,
+    order_id TEXT,
+    source TEXT,
+    path TEXT,
+    referrer TEXT,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    created_at TEXT NOT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS analytics_events_name_created ON analytics_events(event_name,created_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS analytics_events_session_created ON analytics_events(session_id,created_at)');
+  recordMigration(4, 'first_party_commerce_analytics');
+
   db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
     category TEXT PRIMARY KEY,
     enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0,1)),
@@ -1345,7 +1370,36 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
-  app.get('/api/gallery', (_req, res) => {
+  app.post('/api/analytics/events', express.json({ limit: '16kb' }), (req, res) => {
+    const allowed = new Set(['view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const eventName = String(body.event || '');
+    if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
+    const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
+    const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
+    db.prepare(`INSERT INTO analytics_events (
+      id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
+      text(body.designer, 200), number(body.value), text(body.currency, 12), text(body.query, 300),
+      number(body.resultCount), number(body.itemCount), text(body.orderId, 100), text(body.source, 100),
+      text(body.path, 500), text(body.referrer, 1000), text(body.utmSource, 200), text(body.utmMedium, 200),
+      text(body.utmCampaign, 300), new Date().toISOString()
+    );
+    res.status(202).json({ accepted: true });
+  });
+
+  app.get('/api/admin/analytics', authAdmin, (_req, res) => {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const events = db.prepare(`SELECT event_name, COUNT(*) count FROM analytics_events WHERE created_at >= ? GROUP BY event_name ORDER BY count DESC`).all(since);
+    const funnelNames = ['view_product','add_to_cart','begin_checkout','purchase'];
+    const counts = Object.fromEntries(funnelNames.map(name => [name, Number(events.find(row => row.event_name === name)?.count || 0)]));
+    const searches = db.prepare(`SELECT search_query query, COUNT(*) count FROM analytics_events WHERE event_name='search' AND search_query IS NOT NULL AND created_at >= ? GROUP BY search_query ORDER BY count DESC LIMIT 20`).all(since);
+    const sources = db.prepare(`SELECT COALESCE(utm_source, source, 'direct') source, COUNT(*) count FROM analytics_events WHERE event_name='purchase' AND created_at >= ? GROUP BY COALESCE(utm_source, source, 'direct') ORDER BY count DESC LIMIT 20`).all(since);
+    res.json({ periodDays: 30, events, funnel: counts, searches, purchaseSources: sources });
+  });
+
+    app.get('/api/gallery', (_req, res) => {
     const rows = db.prepare(`
       SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name, CASE WHEN ir.status='sold' THEN 1 ELSE 0 END AS sold
       FROM listings l
