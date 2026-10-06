@@ -523,3 +523,19 @@ test('inquiry threads keep buyer identity private and authorize both sides', asy
   assert.equal(messages.length,2);
   assert.equal(messages[1].sender_role,'designer');
 });
+
+
+test('admin designer notices are private, prioritized, and auditable', async () => {
+  const sent=await getJson('/api/admin/designers/designer-a/messages',{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({title:'Studio notice',body:'Please review your shipping settings.',priority:'important'})});
+  assert.equal(sent.response.status,201);
+  const inbox=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  const notice=inbox.body.items.find(item=>item.id===sent.body.message.id);
+  assert.ok(notice);
+  assert.equal(notice.priority,'important');
+  assert.equal(notice.source,'admin');
+  const other=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${OTHER_DESIGNER_TOKEN}`}});
+  assert.equal(other.body.items.some(item=>item.id===notice.id),false);
+  const history=await getJson('/api/admin/designer-messages',{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}});
+  assert.equal(history.response.status,200);
+  assert.ok(history.body.items.some(item=>item.id===notice.id&&item.designerId==='designer-a'));
+});
