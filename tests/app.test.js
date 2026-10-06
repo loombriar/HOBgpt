@@ -230,7 +230,7 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'sewing-navigation-v2.webp',
+    'house-of-briar-blackberry-wordmark-v1.webp',
     'visitor-suite-door-v1.svg',
     'designer-room-door-v1.svg',
     'suitcase-cart-v1.svg'
