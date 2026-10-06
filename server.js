@@ -1513,6 +1513,10 @@ function createApp(options = {}) {
   syncConfiguredBrandStripeAccounts();
 
   const configuredBrandProfiles = (()=>{try{return JSON.parse(process.env.DESIGNER_BRAND_PROFILES_JSON||'{}')}catch{return {}}})();
+  configuredBrandProfiles['Loom Briar'] ||= {
+    bio: 'Loom Briar creates one-of-a-kind wearable art and imaginative pieces inspired by enchanted woods, moonlight, nature, and storybook worlds. Each piece is designed with an emphasis on individuality, artistry, and the feeling that it belongs to a world of its own.',
+    categories: ['Clothing','Wearable art','Accessories','Original art','Art prints','Home goods','Hand-painted keepsakes']
+  };
   function syncConfiguredBrandProfiles(){
     for(const [brandName,profile] of Object.entries(configuredBrandProfiles)){
       if(!brandName||!profile||typeof profile!=='object')continue;
