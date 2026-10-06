@@ -30,7 +30,7 @@ function AppRoutes() {
       <Route path="/cart" element={<Section name="Suitcase"><CartPage /></Section>} />
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
-      <Route path="/sell" element={<Section name="Apply to sell"><SellPage /></Section>} />
+      <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
     </Routes>
   </BrowserRouter>;
 }
