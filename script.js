@@ -1285,6 +1285,24 @@ async function editListing(listingId) {
   }
 }
 
+async function refreshStripePayoutStatus() {
+  const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
+  if(!designerToken)return;
+  try{
+    const data=await apiRequest('/api/my/stripe-status');
+    if(data.readyToSell){setMessage(status,'Payouts are ready. Your approved pieces can be sold through House of Briar.','success');if(button)button.textContent='Review Stripe payout account';}
+    else if(data.connected){setMessage(status,'Stripe payout setup still needs attention. Finish the requested verification before your pieces can go on sale.','');if(button)button.textContent='Continue Stripe setup';}
+    else{setMessage(status,'Set up Stripe payouts before your pieces can go on sale. You can keep building your profile and drafting listings now.','');}
+  }catch(error){setMessage(status,error.message||'Payout status could not be checked.','error');}
+}
+async function openStripeOnboarding(){
+  const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
+  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/?stripe=refresh',returnUrl:location.origin+'/?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
+  catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
+}
+byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
+byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
+
 async function signIn(tokenValue) {
   const token = tokenValue.trim();
   if (!token) {
@@ -1302,6 +1320,7 @@ async function signIn(tokenValue) {
     setMessage(designerAuthMessage, '', '');
     await loadDesignerListings();
     await loadDesignerBrand();
+    await refreshStripePayoutStatus();
   } catch (error) {
     designerToken = '';
     localStorage.removeItem('briarDesignerToken');
@@ -1403,7 +1422,8 @@ if (designerSignupForm) {
           displayName: String(form.get('displayName') || '').trim(),
           brandName: String(form.get('brandName') || '').trim(),
           email: String(form.get('email') || '').trim(),
-          categories
+          categories,
+          sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on'
         })
       });
       const payload = await response.json().catch(() => ({}));
