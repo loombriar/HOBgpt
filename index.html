@@ -436,9 +436,21 @@
               <input id="product-category" name="category" type="hidden" value="apparel" />
             </div>
           </div>
+          <fieldset class="listing-enhancements">
+            <legend>Presentation &amp; gifting</legend>
+            <label class="check-label"><input id="product-gift-wrap" type="checkbox" /> I offer gift wrapping for this piece</label>
+            <label for="product-gift-wrap-price">Gift-wrap price <span class="small-print">(0 = complimentary)</span></label>
+            <input id="product-gift-wrap-price" type="number" min="0" max="250" step="0.01" value="0" />
+            <p class="small-print">Buyers will see that gift wrapping is available and the price you set.</p>
+            <label for="product-video-tryon">Try-on / fit clip URL <span class="small-print">(optional)</span></label>
+            <input id="product-video-tryon" type="url" inputmode="url" placeholder="https://… direct MP4 or WebM clip" />
+            <label for="product-video-movement">Movement / detail clip URL <span class="small-print">(optional)</span></label>
+            <input id="product-video-movement" type="url" inputmode="url" placeholder="https://… direct MP4 or WebM clip" />
+            <p class="small-print">Use a direct HTTPS MP4 or WebM link. Short clips work best and play inside the product gallery.</p>
+          </fieldset>
           <div class="upload-heading">
             <div>
-              <label for="product-photos">Design photos</label>
+              <label for="product-photos">Design photos</label><p class="small-print">For a 360° view, add Front, Back, Left, Right, then detail/close-up photos. You can label each angle below after selecting it.</p>
               <p>JPEG, PNG, or WebP · up to 10 images · 10 MiB each · first image is the cover.</p>
             </div>
           </div>
