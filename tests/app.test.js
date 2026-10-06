@@ -502,3 +502,24 @@ test('designer notifications are private, persistent, and support read state', a
   const refreshed=await getJson('/api/my/designer-notifications',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
   assert.ok(refreshed.body.items.find(item=>item.id===notification.id).readAt);
 });
+
+
+test('inquiry threads keep buyer identity private and authorize both sides', async () => {
+  const now=new Date().toISOString();
+  context.db.prepare("INSERT OR IGNORE INTO listings(id,designer_id,title,description,price,category,status,moderation_status,created_at,updated_at) VALUES ('thread-listing','designer-a','Thread Piece','Thread test',40,'home','published','approved',?,?)").run(now,now);
+  context.db.prepare("INSERT INTO listing_inquiries(id,listing_id,designer_id,buyer_subject,buyer_email,message,created_at) VALUES ('thread-inquiry','thread-listing','designer-a','buyer-thread','private@example.com','Original question',?)").run(now);
+  context.db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,buyer_read_at) VALUES ('thread-first','thread-inquiry','buyer','buyer-thread','Original question',?,?)").run(now,now);
+  const designer=await getJson('/api/my/designer-inquiries',{headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`}});
+  assert.equal(designer.response.status,200);
+  const thread=designer.body.inquiries.find(i=>i.id==='thread-inquiry');
+  assert.ok(thread);
+  assert.equal(thread.buyerEmail,undefined);
+  assert.equal(thread.messages[0].message,'Original question');
+  const reply=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'Yes, it is available.'})});
+  assert.equal(reply.response.status,201);
+  const outsider=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${OTHER_DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'I should not be able to reply.'})});
+  assert.equal(outsider.response.status,404);
+  const messages=context.db.prepare('SELECT sender_role,message FROM inquiry_messages WHERE inquiry_id=? ORDER BY created_at').all('thread-inquiry');
+  assert.equal(messages.length,2);
+  assert.equal(messages[1].sender_role,'designer');
+});

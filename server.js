@@ -475,6 +475,17 @@ function createApp(options = {}) {
   )`);
   db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_designer_created ON listing_inquiries(designer_id, created_at DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS listing_inquiries_buyer_created ON listing_inquiries(buyer_subject, created_at DESC)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS inquiry_messages (
+    id TEXT PRIMARY KEY,
+    inquiry_id TEXT NOT NULL,
+    sender_role TEXT NOT NULL CHECK (sender_role IN ('buyer','designer')),
+    sender_subject TEXT,
+    message TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    buyer_read_at TEXT,
+    designer_read_at TEXT,
+    FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
+  ); CREATE INDEX IF NOT EXISTS inquiry_messages_inquiry_created ON inquiry_messages(inquiry_id, created_at);`);
   db.exec(`CREATE TABLE IF NOT EXISTS designer_notifications (
     id TEXT PRIMARY KEY,
     designer_id TEXT NOT NULL,
@@ -954,22 +965,46 @@ function createApp(options = {}) {
     if(!message||message.length>800)return fail(res,422,'validation_error','Write a message between 1 and 800 characters.');
     const id=makeId(),now=new Date().toISOString();
     db.prepare(`INSERT INTO listing_inquiries (id,listing_id,designer_id,buyer_subject,buyer_email,message,created_at) VALUES (?,?,?,?,?,?,?)`).run(id,listing.id,listing.designer_id,req.buyerSubject,req.buyerEmail||null,message,now);
+    db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,buyer_read_at) VALUES (?,?,'buyer',?,?,?,?)").run(makeId(),id,req.buyerSubject,message,now,now);
     notifyDesigner(listing.designer_id,'customer_message',`New question about ${listing.title}`,message,{listingId:listing.id,inquiryId:id,actionPath:'/account#messages'});
     void sendEmail({to:listing.designer_email,subject:`New House of Briar inquiry: ${listing.title}`,text:`A customer sent a question about ${listing.title}.\n\n${message}\n\nOpen your Designer Studio to respond Available or Not available.`});
     return res.status(201).json({inquiry:{id,listingId:listing.id,title:listing.title,message,availabilityStatus:'pending',createdAt:now}});
+  });
+
+  function inquiryThread(inquiryId) {
+    return db.prepare("SELECT id,sender_role,message,created_at,buyer_read_at,designer_read_at FROM inquiry_messages WHERE inquiry_id=? ORDER BY created_at ASC").all(inquiryId)
+      .map(m=>({id:m.id,senderRole:m.sender_role,message:m.message,createdAt:m.created_at,buyerReadAt:m.buyer_read_at,designerReadAt:m.designer_read_at}));
+  }
+  app.post('/api/my/inquiries/:inquiryId/messages', authBuyer, (req,res)=>{
+    const inquiry=db.prepare('SELECT i.*,l.title FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.id=? AND i.buyer_subject=?').get(req.params.inquiryId,req.buyerSubject);
+    if(!inquiry)return fail(res,404,'inquiry_not_found','Conversation not found.');
+    const message=String(req.body?.message||'').trim(); if(!message||message.length>1200)return fail(res,422,'validation_error','Write a message between 1 and 1200 characters.');
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,buyer_read_at) VALUES (?,?,'buyer',?,?,?,?)").run(id,inquiry.id,req.buyerSubject,message,now,now);
+    notifyDesigner(inquiry.designer_id,'customer_message',`New reply about ${inquiry.title}`,message,{listingId:inquiry.listing_id,inquiryId:inquiry.id,actionPath:'/account#messages'});
+    return res.status(201).json({message:{id,senderRole:'buyer',message,createdAt:now}});
+  });
+  app.post('/api/my/designer-inquiries/:inquiryId/messages', authDesigner, (req,res)=>{
+    const inquiry=db.prepare('SELECT i.*,l.title FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.id=? AND i.designer_id=?').get(req.params.inquiryId,req.designerId);
+    if(!inquiry)return fail(res,404,'inquiry_not_found','Conversation not found.');
+    const message=String(req.body?.message||'').trim(); if(!message||message.length>1200)return fail(res,422,'validation_error','Write a message between 1 and 1200 characters.');
+    const id=makeId(),now=new Date().toISOString();
+    db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,designer_read_at) VALUES (?,?,'designer',?,?,?,?)").run(id,inquiry.id,req.designerId,message,now,now);
+    if(inquiry.buyer_email)void sendEmail({to:inquiry.buyer_email,subject:`House of Briar: reply about ${inquiry.title}`,text:`The designer replied to your House of Briar conversation about ${inquiry.title}. Open your account to read and respond.`});
+    return res.status(201).json({message:{id,senderRole:'designer',message,createdAt:now}});
   });
 
   app.get('/api/my/inquiries', authBuyer, (req,res)=>{
     const inquiries=db.prepare(`SELECT i.id,i.listing_id,i.message,i.availability_status,i.created_at,i.responded_at,l.title,p.brand_name,p.display_name
       FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id JOIN designer_profiles p ON p.id=i.designer_id
       WHERE i.buyer_subject=? ORDER BY i.created_at DESC LIMIT 100`).all(req.buyerSubject);
-    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,designerName:i.brand_name||i.display_name,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at}))});
+    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,designerName:i.brand_name||i.display_name,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at,messages:inquiryThread(i.id)}))});
   });
 
   app.get('/api/my/designer-inquiries', authDesigner, (req,res)=>{
     const inquiries=db.prepare(`SELECT i.id,i.listing_id,i.buyer_email,i.message,i.availability_status,i.created_at,i.responded_at,l.title
       FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.designer_id=? ORDER BY i.created_at DESC LIMIT 100`).all(req.designerId);
-    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,buyerEmail:i.buyer_email,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at}))});
+    return res.json({inquiries:inquiries.map(i=>({id:i.id,listingId:i.listing_id,title:i.title,message:i.message,availabilityStatus:i.availability_status,createdAt:i.created_at,respondedAt:i.responded_at,messages:inquiryThread(i.id)}))});
   });
 
   app.patch('/api/my/designer-inquiries/:inquiryId', authDesigner, (req,res)=>{
