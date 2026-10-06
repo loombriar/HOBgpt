@@ -2678,6 +2678,17 @@ function createApp(options = {}) {
       db.prepare('UPDATE special_order_offers SET stripe_session_id=? WHERE id=?').run(session.id,offer.id);res.status(201).json({url:session.url});
     }catch(error){return next(error);}
   });
+  app.post('/api/my/special-offers/:id/refund-deposit', authDesigner, async (req,res,next)=>{
+    try{
+      const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND designer_id=? AND status='deposit_paid'").get(req.params.id,req.designerId);if(!offer)return fail(res,404,'offer_not_found','Paid special-order deposit not found.');
+      if(!offer.stripe_payment_intent_id)return fail(res,409,'payment_reference_missing','Deposit payment reference is unavailable.');
+      if(offer.stripe_transfer_id){const reversal=await stripeApi(`transfers/${encodeURIComponent(offer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10))),'metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-reversal-${offer.id}`});}
+      const refund=await stripeApi('refunds',{method:'POST',body:new URLSearchParams({payment_intent:offer.stripe_payment_intent_id,amount:String(offer.deposit_cents),reason:'requested_by_customer','metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-${offer.id}`});
+      db.prepare("UPDATE special_order_offers SET status='deposit_refunded',stripe_refund_id=? WHERE id=?").run(refund.id||null,offer.id);
+      res.json({ok:true,status:refund.status,refundId:refund.id});
+    }catch(error){return next(error);}
+  });
+
   app.post('/api/admin/orders/:orderId/designers/:designerId/refund', authAdmin, async (req,res,next)=>{
     try{
       const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);if(!order)return fail(res,404,'order_not_found','Paid order not found.');
