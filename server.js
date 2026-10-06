@@ -506,11 +506,13 @@ function createApp(options = {}) {
   ensureColumn('designer_notifications', 'priority', "TEXT NOT NULL DEFAULT 'normal'");
   ensureColumn('designer_notifications', 'source', "TEXT NOT NULL DEFAULT 'system'");
   ensureColumn('designer_notifications', 'admin_label', 'TEXT');
+  ensureColumn('designer_notifications', 'event_key', 'TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS designer_notifications_event_key ON designer_notifications(event_key) WHERE event_key IS NOT NULL');
   function notifyDesigner(designerId,type,title,body,links={}) {
     if(!designerId)return null;
     const id=makeId(),now=new Date().toISOString();
-    db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,priority,source,admin_label,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,links.priority||'normal',links.source||'system',links.adminLabel||null,now);
+    try { db.prepare('INSERT INTO designer_notifications (id,designer_id,type,title,body,listing_id,order_id,inquiry_id,action_path,priority,source,admin_label,event_key,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id,designerId,type,title,body,links.listingId||null,links.orderId||null,links.inquiryId||null,links.actionPath||null,links.priority||'normal',links.source||'system',links.adminLabel||null,links.eventKey||null,now); } catch(error) { if(links.eventKey && String(error.message||error).includes('UNIQUE constraint failed')) return null; throw error; }
     return id;
   }
 
@@ -873,8 +875,9 @@ function createApp(options = {}) {
       const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
+      const wasVerified=Boolean(transfer.tracking_verified_at);
       db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
-
+      if (verifiedAt && !wasVerified) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Your payout can now be released.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
       if (verifiedAt) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
       return res.json({ received: true });
     } catch (error) {
@@ -1186,7 +1189,8 @@ function createApp(options = {}) {
     for (const group of groups) {
       const contact = designerOrderContact(orderId, group.designer_id);
       if (!contact?.email) continue;
-      notifyDesigner(group.designer_id,'sale','You made a sale',`Order ${orderId}: ${contact.titles}. Earnings: ${(contact.earnings_cents / 100).toFixed(2)}.`,{orderId,actionPath:'/account#orders'});
+      notifyDesigner(group.designer_id,'sale','You made a sale',`Order ${orderId}: ${contact.titles}. Earnings: ${(contact.earnings_cents / 100).toFixed(2)}.`,{orderId,actionPath:'/account#orders',eventKey:`sale:${orderId}:${group.designer_id}`});
+      notifyDesigner(group.designer_id,'shipping_needed','Shipment needed',`Order ${orderId} is paid. Pack the order and add carrier tracking in Designer Studio.`,{orderId,actionPath:'/account#orders',priority:'important',eventKey:`shipping-needed:${orderId}:${group.designer_id}`});
       await sendEmail({ to: contact.email, subject: 'You made a sale on House of Briar',
         text: `A piece sold on House of Briar.\n\nOrder: ${orderId}\nItems: ${contact.titles}\nYour earnings: ${(contact.earnings_cents / 100).toFixed(2)}\n\nOpen your Designer Studio to ship the order and add tracking. Your payout remains held until carrier tracking is verified.` });
     }
@@ -1341,8 +1345,16 @@ function createApp(options = {}) {
 
   function markOrderInventorySold(orderId) {
     const now = new Date().toISOString();
+    const sold=db.prepare(`SELECT r.listing_id,r.quantity,l.title,l.designer_id,l.production_type,l.stock_quantity,l.low_stock_threshold
+      FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
     db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
-    // Sold work remains published as part of the designer's gallery; inventory_reservations is the source of truth for checkout availability.\n    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    for(const item of sold){
+      const active=Number(db.prepare("SELECT COALESCE(SUM(quantity),0) qty FROM inventory_reservations WHERE listing_id=? AND status IN ('reserved','sold')").get(item.listing_id).qty);
+      const available=Math.max(0,Number(item.stock_quantity)-active);
+      if((item.production_type||'One of a Kind')==='One of a Kind'&&available===0)notifyDesigner(item.designer_id,'sold_out','One-of-a-kind piece sold',`${item.title} has sold and is no longer available for checkout.`,{listingId:item.listing_id,orderId,actionPath:'/account#products',priority:'important',eventKey:`sold-out:${item.listing_id}:${orderId}`});
+      if(item.production_type==='Limited Quantity'&&available<=Number(item.low_stock_threshold||1))notifyDesigner(item.designer_id,'low_stock','Low stock',`${item.title} has ${available} available after this sale.`,{listingId:item.listing_id,orderId,actionPath:'/account#products',priority:'important',eventKey:`low-stock:${item.listing_id}:${orderId}:${available}`});
+    }
   }
 
   function releaseOrderInventory(orderId) {
@@ -2400,6 +2412,7 @@ function createApp(options = {}) {
       const tracker=await verifyShipmentTracking(trackingNumber,carrier);
       const verifiedAt=tracker.verified?new Date().toISOString():null;
       db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,order.id,req.designerId);
+      notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Your payout can now be released.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:`tracking:${order.id}:${req.designerId}:${tracker.id}:${tracker.verified?'verified':'submitted'}`});
       const contact=designerOrderContact(order.id,req.designerId);
       if(contact?.email)void sendEmail({to:contact.email,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
       if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}`});
