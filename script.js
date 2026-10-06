@@ -53,7 +53,10 @@ let activeShopWindow = 'all';
 let shopSearch = '';
 let activeAccessory = 'all';
 let selectedImages = [];
-let activeFilter = 'apparel';
+let activeFilter = 'all';
+let activeDesigner = 'all';
+let galleryRequest = 0;
+let searchTimer;
 let activeAesthetic = 'all';
 const designerListImageUrls = new Set();
 
@@ -327,29 +330,8 @@ function renderGallery() {
   if (!productGrid) return;
   productGrid.replaceChildren();
 
-  let items = galleryItems.filter((item) => {
-    const garmentMatch = activeFilter === 'all'
-      || (item.category === 'apparel' && (activeFilter === 'apparel' || item.style === activeFilter));
-    const accessoryMatch = activeAccessory === 'all'
-      || (item.category === 'accessories' && item.style === activeAccessory);
-    const categoryMatch = activeFilter === 'all' && activeAccessory === 'all'
-      ? true
-      : activeAccessory !== 'all' ? accessoryMatch : garmentMatch;
-    const aestheticMatch = activeAesthetic === 'all' || item.aesthetic === activeAesthetic;
-    const patternMatch = activePattern === 'all' || item.pattern === activePattern;
-    return categoryMatch && aestheticMatch && patternMatch;
-  });
-
-  if (shopSearch) {
-    items = items.filter((item) => [
-      item.title, item.description, item.style, item.aesthetic, item.pattern,
-      item.materials, item.designerName, item.designer, item.productionType, item.category
-    ].filter(Boolean).join(' ').toLowerCase().includes(shopSearch));
-  }
-
-  if (activeShopWindow === 'low') items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-  if (activeShopWindow === 'high') items = [...items].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-  if (activeShopWindow === 'new') items = [...items].sort((a, b) => String(b.createdAt || b.created_at || '').localeCompare(String(a.createdAt || a.created_at || '')));
+  const items = galleryItems;
+  if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.`, 'success');
 
   if (!items.length) {
     const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
@@ -431,15 +413,50 @@ function renderGallery() {
 }
 
 async function loadGallery() {
+  const request = ++galleryRequest;
+  const params = new URLSearchParams();
+  if (activeAccessory !== 'all') {
+    params.set('category', 'accessories');
+    if (activeAccessory !== 'accessories') params.set('style', activeAccessory);
+  } else if (activeFilter !== 'all') {
+    if (activeFilter === 'apparel') params.set('category', 'apparel');
+    else params.set('style', activeFilter);
+  }
+  for (const [key, value] of [['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
+    if (value !== 'all') params.set(key, value);
+  }
+  if (shopSearch) params.set('q', shopSearch.slice(0, 200));
+  productGrid?.setAttribute('aria-busy', 'true');
+  if (shopStatus) setMessage(shopStatus, 'Finding your next favorite…', '');
   try {
-    const payload = await apiRequest('/api/gallery');
+    const payload = await apiRequest(`/api/gallery?${params}`);
+    if (request !== galleryRequest) return;
     galleryItems = Array.isArray(payload.items) ? payload.items : [];
     renderGallery();
-    if (shopStatus) {
-      setMessage(shopStatus, `${galleryItems.length} published ${galleryItems.length === 1 ? 'piece' : 'pieces'} in the gallery.`, 'success');
+  } catch (error) {
+    if (request !== galleryRequest) return;
+    galleryItems = [];
+    productGrid?.replaceChildren();
+    if (shopStatus) setMessage(shopStatus, `Unable to load the gallery: ${error.message}`, 'error');
+  } finally {
+    if (request === galleryRequest) productGrid?.setAttribute('aria-busy', 'false');
+  }
+}
+
+async function loadShopDesigners() {
+  const select = byId('shop-designer-filter');
+  if (!select) return;
+  try {
+    const { designers } = await apiRequest('/api/designers');
+    for (const designer of designers || []) {
+      const option = document.createElement('option');
+      option.value = designer.id;
+      option.textContent = designer.brandName || designer.displayName;
+      select.append(option);
     }
   } catch (error) {
-    if (shopStatus) setMessage(shopStatus, `Unable to load the gallery: ${error.message}`, 'error');
+    select.disabled = true;
+    if (shopStatus) setMessage(shopStatus, `Unable to load designers: ${error.message}`, 'error');
   }
 }
 
@@ -1084,21 +1101,36 @@ function applyFilterButtons() {
 
 byId('shop-garment-filter')?.addEventListener('change', (event) => {
   activeFilter = event.target.value || 'all';
-  renderGallery();
+  activeAccessory = 'all';
+  byId('shop-accessory-filter').value = 'all';
+  byId('shop-accessory-filter').dispatchEvent(new Event('shop-caption'));
+  loadGallery();
 });
 byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   activeAesthetic = event.target.value || 'all';
-  renderGallery();
+  loadGallery();
 });
 
 byId('visitor-suite-btn')?.addEventListener('click', () => byId('visitor-suite-modal')?.showModal());
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
-byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; renderGallery(); });
-byId('shop-sort-filter')?.addEventListener('change', (event) => { activeShopWindow = event.target.value || 'all'; renderGallery(); });
-byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value; renderGallery(); });
-byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim().toLowerCase(); renderGallery(); });
+byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; loadGallery(); });
+byId('shop-sort-filter')?.addEventListener('change', (event) => { activeShopWindow = event.target.value || 'all'; loadGallery(); });
+byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value || 'all'; activeFilter = 'all'; byId('shop-garment-filter').value = 'all'; byId('shop-garment-filter').dispatchEvent(new Event('shop-caption')); loadGallery(); });
+byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim(); clearTimeout(searchTimer); searchTimer = setTimeout(loadGallery, 200); });
 
-for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter']) {
+byId('shop-designer-filter')?.addEventListener('change', event => { activeDesigner = event.target.value || 'all'; loadGallery(); });
+byId('shop-clear-filters')?.addEventListener('click', () => {
+  clearTimeout(searchTimer);
+  activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = 'all';
+  shopSearch = '';
+  byId('shop-search-input').value = '';
+  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-sort-filter', 'shop-designer-filter']) {
+    const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
+  }
+  loadGallery();
+});
+
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-filter', 'shop-accessory-filter', 'shop-designer-filter']) {
   const select = byId(id);
   const windowLabel = select?.closest('.shop-drop-window');
   const caption = windowLabel?.querySelector('.category-window-current');
@@ -1109,6 +1141,7 @@ for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-sort-fil
     windowLabel.classList.toggle('has-changed-selection', select.selectedIndex !== 0);
   };
   select.addEventListener('change', syncCaption);
+  select.addEventListener('shop-caption', syncCaption);
   syncCaption();
 }
 
@@ -1171,6 +1204,7 @@ if (designerToken) {
 }
 
 applyFilterButtons();
+loadShopDesigners();
 loadGallery();
 
 function adminHeaders(extra = {}) {
@@ -1464,3 +1498,4 @@ document.addEventListener('keydown', event => {
 
 byId('measurement-profile-form')?.addEventListener('input', updateMeasurementAvatarPreview);
 updateMeasurementAvatarPreview();
+
