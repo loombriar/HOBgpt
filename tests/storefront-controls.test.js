@@ -48,6 +48,6 @@ test('measurement searches send body values in a POST body, keeping them out of 
   let request;
   const context=vm.createContext({URLSearchParams,activeMeasurements:{bust:35,waist:33},activeAccessory:'all',activeFilter:'Dress',activeAesthetic:'all',activePattern:'all',activeDesigner:'maker',activeShopWindow:'all',shopSearch:'',galleryRequest:0,shopStatus:null,productGrid:null,renderGallery(){},apiRequest:async(url,options)=>{request={url,options};return {items:[]};}});
   vm.runInContext(loader,context);await vm.runInContext('loadGallery()',context);
-  assert.equal(request.url,'/api/gallery/search');assert.equal(request.options.method,'POST');
+  assert.equal(request.url,'/api/gallery/search');assert.equal(request.options.method,'POST');assert.equal(request.options.headers['Content-Type'],'application/json');
   assert.deepEqual(JSON.parse(request.options.body),{filters:{style:'Dress',designer:'maker'},measurements:{bust:35,waist:33}});
 });

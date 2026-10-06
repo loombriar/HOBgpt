@@ -1558,6 +1558,7 @@ function createApp(options = {}) {
     const input = req.method === 'POST' ? req.body?.filters || {} : req.query;
     if (!input || typeof input !== 'object' || Array.isArray(input)) return fail(res, 400, 'invalid_filter', 'Choose valid shop filters.');
     const measurements = req.method === 'POST' ? req.body?.measurements : undefined;
+    if (req.method === 'POST' && measurements === undefined) return fail(res, 400, 'invalid_measurements', 'Enter at least one measurement.');
     if (measurements !== undefined && (!measurements || typeof measurements !== 'object' || Array.isArray(measurements))) return fail(res, 400, 'invalid_measurements', 'Enter valid measurements.');
     const fitValues = {};
     for (const key of FIT_KEYS) {
