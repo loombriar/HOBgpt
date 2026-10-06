@@ -310,11 +310,11 @@ test('deleted legacy listings stay deleted after server restart', () => {
   let instance;
   try {
     instance = createApp({ dataDir: directory, seedProducts: seeds });
-    context.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[0].id);
-    context.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[1].id);
-    context.db.close();
+    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[0].id);
+    instance.db.prepare("UPDATE listings SET status = 'deleted' WHERE id = ?").run(seeds[1].id);
+    instance.db.close();
     instance = createApp({ dataDir: directory, seedProducts: seeds });
-    for (const seed of seeds) assert.equal(context.db.prepare('SELECT status FROM listings WHERE id = ?').get(seed.id).status, 'deleted');
+    for (const seed of seeds) assert.equal(instance.db.prepare('SELECT status FROM listings WHERE id = ?').get(seed.id).status, 'deleted');
   } finally {
     instance?.db.close();
     fs.rmSync(directory, { recursive: true, force: true });
