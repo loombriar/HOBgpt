@@ -18,7 +18,7 @@ function showCheckoutReturnStatus() {
   document.body.prepend(notice);
   history.replaceState({}, '', window.location.pathname + window.location.hash);
 }
-window.addEventListener('DOMContentLoaded', showCheckoutReturnStatus);
+window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
 
 const byId = (id) => document.getElementById(id);
 const year = byId('year');
@@ -55,6 +55,7 @@ const cartButton = byId('cart-btn');
 const cartDialog = byId('cart-dialog');
 const cartItems = byId('cart-items');
 const checkoutButton = byId('checkout-btn');
+const paypalCheckoutButton = byId('paypal-checkout-btn');
 const adminReviewBtn = byId('admin-review-btn');
 const adminReviewDialog = byId('admin-review-dialog');
 const adminReviewClose = byId('admin-review-close');
@@ -321,6 +322,7 @@ updateCartButton();
 renderVisitorFavorites();
 cartButton?.addEventListener('click', openCart);
 checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
+paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal / Venmo';}});
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
 byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
 
@@ -1461,6 +1463,8 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
     setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
   }
 });
+
+byId('paypal-donation-btn')?.addEventListener('click',async()=>{const amount=Number(byId('donation-amount')?.value),message=byId('donation-message');if(!Number.isFinite(amount)||amount<1||amount>1000){setMessage(message,'Choose a donation between $1 and $1,000.','error');return;}const button=byId('paypal-donation-btn');button.disabled=true;try{setMessage(message,'Opening PayPal…','');const payload=await apiRequest('/api/paypal/donations/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');location.assign(payload.url);}catch(error){setMessage(message,error.message||'PayPal donation could not be started.','error');button.disabled=false;}});
 
 byId('newsletter-form')?.addEventListener('submit', (event) => {
   event.preventDefault();
