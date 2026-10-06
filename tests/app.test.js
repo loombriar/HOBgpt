@@ -575,3 +575,11 @@ test('admin inventory adjustments enforce piece-type guardrails and retain reaso
   const mto=await getJson('/api/admin/listings/admin-mto/inventory/adjust',{method:'POST',headers:{Authorization:`Bearer ${ADMIN_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({delta:1,reason:'Should not apply'})});
   assert.equal(mto.response.status,409);
 });
+
+test('all five new category frames are served as WebP images', async () => {
+  for (const category of ['garment','aesthetic','pattern','accessories','designers']) {
+    const response=await fetch(`${baseUrl}/category-${category}-frame.webp`);
+    assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/webp/);
+    const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');
+  }
+});
