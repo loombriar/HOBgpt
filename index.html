@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=support-giftwrap-27" />
-    <script src="/script.js?v=support-giftwrap-27" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=paypal-28" />
+    <script src="/script.js?v=paypal-28" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
     <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
@@ -233,7 +233,7 @@
           <div class="container">
             <div class="section-heading narrow"><div><p class="eyebrow">Support the house</p><h2>Help independent fashion grow</h2></div></div>
             <div class="curation-grid">
-              <article class="curation-card"><span class="curation-number">♡</span><h3>Support House of Briar</h3><p>Donations help support the marketplace and its independent-designer community.</p><form id="donation-form" class="donation-form"><label for="donation-amount">Donation amount</label><div class="donation-row"><span>$</span><input id="donation-amount" type="number" min="1" max="1000" step="1" placeholder="25" /><button class="primary-button" type="submit">Give</button></div><p id="donation-message" class="form-message" role="status"></p></form></article>
+              <article class="curation-card"><span class="curation-number">♡</span><h3>Support House of Briar</h3><p>Donations help support the marketplace and its independent-designer community.</p><form id="donation-form" class="donation-form"><label for="donation-amount">Donation amount</label><div class="donation-row"><span>$</span><input id="donation-amount" type="number" min="1" max="1000" step="1" placeholder="25" /><button class="primary-button" type="submit">Give by card / bank</button><button id="paypal-donation-btn" class="paypal-button" type="button">PayPal / Venmo</button></div><p id="donation-message" class="form-message" role="status"></p></form></article>
               <article class="curation-card house-supporter-card"><img class="house-supporter-art" src="/heart-of-the-house-v1.webp" alt="Heart of the House: coral pincushion heart with mint thread and gold briars" /><h3>House Supporter</h3><p class="supporter-thanks">You helped keep the House in stitches. Thank you.</p><p>A completed donation of $5 or more, linked to your account, earns the Heart of the House badge.</p></article>
               <article class="curation-card"><img class="house-supporter-art" src="/verified-buyer-v1.webp" alt="Verified Buyer: mint suitcase with a coral heart, gold checkmark and briars" /><h3>Verified Buyer</h3><p class="supporter-thanks">Excellent taste. Receipt to prove it.</p><p>Earned after a confirmed purchase through House of Briar, linked to your account.</p></article>
             </div>
@@ -533,7 +533,8 @@
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
         <button id="continue-shopping-btn" class="secondary-button" type="button">Continue shopping</button>
-        <button id="checkout-btn" class="primary-button" type="button">Continue to payment</button>
+        <button id="checkout-btn" class="primary-button" type="button">Pay by card / bank</button>
+        <button id="paypal-checkout-btn" class="paypal-button" type="button">PayPal / Venmo</button>
       </div>
     </dialog>
 
