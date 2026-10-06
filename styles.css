@@ -1649,3 +1649,9 @@ main>section:not(.hero){position:relative}
 .size-reference-table th,.size-reference-table td { padding:.58rem .65rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
 .size-reference-table thead th { background:var(--bg-secondary); }
 @media (max-width:600px){ .fit-search-entry{align-items:center}.fit-search-entry .fit-search summary{font-size:.78rem;padding:.34rem .58rem}.fit-search-avatar{width:30px;height:30px;flex-basis:30px}.fit-avatar-head{left:10px}.fit-avatar-body{left:6px} }
+
+
+/* Suitcase badge reward */
+.cart-badge-reward{display:flex;align-items:center;gap:14px;margin:16px 0;padding:14px 16px;border:1px solid rgba(111,86,58,.28);border-radius:16px;background:linear-gradient(135deg,rgba(255,253,248,.98),rgba(239,244,229,.92));box-shadow:0 6px 18px rgba(68,48,27,.08)}
+.cart-badge-reward img{width:72px;height:72px;object-fit:contain;flex:0 0 72px}.cart-badge-reward .eyebrow{margin:0 0 3px}.cart-badge-reward strong{font-family:"Cormorant Garamond",serif;font-size:1.25rem;color:#54351f}.cart-badge-reward p:last-child{margin:.25rem 0 0;font-size:.88rem;line-height:1.45}.cart-badge-reward[hidden]{display:none!important}
+@media(max-width:520px){.cart-badge-reward{align-items:flex-start}.cart-badge-reward img{width:58px;height:58px;flex-basis:58px}}
