@@ -1482,3 +1482,13 @@ main>section:not(.hero){position:relative}
 .sewing-header .suitcase-nav-icon{display:block;width:47px;height:43px;object-fit:contain;flex:none;pointer-events:none}
 .sewing-header .room-button,.sewing-header .suitcase-button{gap:9px!important;min-height:64px!important;padding:8px 12px!important}
 @media(max-width:600px){.sewing-header .room-nav-icon{width:32px;height:40px}.sewing-header .suitcase-nav-icon{width:40px;height:37px}}
+
+/* Door artwork is the button; readable room names sit on its lower panel. */
+.sewing-header .room-button{position:relative!important;flex:0 0 96px!important;width:96px!important;height:118px!important;min-height:118px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:40px 40px 4px 4px!important;overflow:visible!important}
+.sewing-header .room-button:hover{background:transparent!important;transform:translateY(-2px)}
+.sewing-header .room-button .room-nav-icon{width:96px;height:118px}
+.sewing-header .door-name{position:absolute;top:57%;left:26%;width:48%;text-align:center;font-family:Georgia,serif;font-weight:700;font-size:10px;line-height:1.25;color:#493a28;pointer-events:none}
+.sewing-header .door-info{position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);width:230px;padding:12px 14px;border:1px solid #a88c51;border-radius:10px;background:#fffaf0;color:#493a28;font-size:12px;line-height:1.5;text-align:left;box-shadow:0 5px 18px #493a2826;z-index:20;visibility:hidden;opacity:0;pointer-events:none}
+.sewing-header .room-button:hover .door-info,.sewing-header .room-button:focus-visible .door-info{visibility:visible;opacity:1}
+.sewing-header{overflow:visible!important;position:relative;z-index:10}
+@media(max-width:600px){.sewing-header .room-button{flex:0 0 96px!important}.sewing-header .door-info{width:190px}}

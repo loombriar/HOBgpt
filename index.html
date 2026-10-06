@@ -15,7 +15,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=sewing-4" />
+    <link rel="stylesheet" href="/styles.css?v=sewing-5" />
     <script src="/script.js?v=badges-2" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
@@ -33,8 +33,8 @@
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
-          <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite"><img class="room-nav-icon" src="/visitor-suite-door-v1.svg" alt="" aria-hidden="true" />Visitor’s Suite</button>
-          <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><img class="room-nav-icon" src="/designer-room-door-v1.svg" alt="" aria-hidden="true" />Designer’s Room</button>
+          <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite" aria-describedby="visitor-door-info"><img class="room-nav-icon" src="/visitor-suite-door-v1.svg" alt="" aria-hidden="true" /><span class="door-name">Visitor’s<br />Suite</span><span class="door-info" id="visitor-door-info" role="tooltip">Your cozy shopping room: save measurements, revisit your hearts, and see past purchases.</span></button>
+          <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked" aria-describedby="designer-door-info"><img class="room-nav-icon" src="/designer-room-door-v1.svg" alt="" aria-hidden="true" /><span class="door-name">Designer’s<br />Room</span><span class="door-info" id="designer-door-info" role="tooltip">Your creative corner: sign in or move in to manage your profile, pieces, and orders. All designers are welcome.</span></button>
           <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span></button>
         </nav>
       </header>
