@@ -208,8 +208,7 @@ function createApp(options = {}) {
       tracking_verified_at TEXT,
       release_reason TEXT,
       UNIQUE(order_id, designer_id),
-      FOREIGN KEY(order_id) REFERENCES orders(id),
-      UNIQUE(listing_id, order_id)
+      FOREIGN KEY(order_id) REFERENCES orders(id)
     );
 
     CREATE TABLE IF NOT EXISTS inventory_reservations (
@@ -220,7 +219,8 @@ function createApp(options = {}) {
       expires_at TEXT NOT NULL,
       sold_at TEXT,
       FOREIGN KEY(listing_id) REFERENCES listings(id),
-      FOREIGN KEY(order_id) REFERENCES orders(id)
+      FOREIGN KEY(order_id) REFERENCES orders(id),
+      UNIQUE(listing_id, order_id)
     );
 
     CREATE TABLE IF NOT EXISTS order_items (
