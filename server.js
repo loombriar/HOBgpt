@@ -2975,6 +2975,7 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
   const illustratedPublicAssets = [
+    'house-of-briar-blackberry-wordmark-v1.webp',
     'category-garment-frame.webp',
     'category-aesthetic-frame.webp',
     'category-pattern-frame.webp',
@@ -3049,4 +3050,5 @@ if (require.main === module) {
 }
 
 module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
+
 

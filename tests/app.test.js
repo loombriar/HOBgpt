@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { after, before, test } = require('node:test');
+const { after, before, test, mock } = require('node:test');
 const { once } = require('node:events');
 const sharp = require('sharp');
 const { createApp } = require('../server');
@@ -15,8 +15,19 @@ let server;
 let context;
 let baseUrl;
 let tempDir;
+let moderationResult = { allow: true, needsHumanReview: false, reason: 'Safe test image' };
+let moderationStatus = 200;
+const previousApiKey = process.env.OPENAI_API_KEY;
+const originalFetch = globalThis.fetch;
 
 before(async () => {
+  process.env.OPENAI_API_KEY = 'test-only-image-review-key';
+  mock.method(globalThis, 'fetch', (url, options) => {
+    if (String(url) === 'https://api.openai.com/v1/responses') {
+      return Promise.resolve(new Response(JSON.stringify({ output_text: JSON.stringify(moderationResult) }), { status: moderationStatus, headers: { 'Content-Type': 'application/json' } }));
+    }
+    return originalFetch(url, options);
+  });
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'house-of-briar-test-'));
   context = createApp({
     dataDir: tempDir,
@@ -38,6 +49,9 @@ after(async () => {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
   context?.db.close();
+  mock.restoreAll();
+  if (previousApiKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = previousApiKey;
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -230,7 +244,7 @@ test('header and full-size category banners are served with live filters', async
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const asset of [
-    'sewing-navigation-v2.webp',
+    'house-of-briar-blackberry-wordmark-v1.webp',
     'visitor-suite-door-v1.svg',
     'designer-room-door-v1.svg',
     'suitcase-cart-v1.svg'
@@ -581,5 +595,30 @@ test('all five new category frames are served as WebP images', async () => {
     const response=await fetch(`${baseUrl}/category-${category}-frame.webp`);
     assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/webp/);
     const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');
+  }
+});
+
+
+test('image safety rejection and provider failure do not replace a designer logo', async () => {
+  const upload = async () => {
+    const form = new FormData();
+    form.append('image', new Blob([await makePng('#aacccc')], { type: 'image/png' }), 'safety.png');
+    return fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'POST', headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` }, body: form });
+  };
+  try {
+    for (const decision of [
+      { allow: false, needsHumanReview: false, reason: 'Rejected fixture' },
+      { allow: true, needsHumanReview: true, reason: 'Review required fixture' }
+    ]) {
+      moderationResult = decision;
+      assert.equal((await upload()).status, 422);
+    }
+    moderationStatus = 503;
+    assert.equal((await upload()).status, 503);
+    const own = await getJson('/api/my/designer-profile', { headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` } });
+    assert.equal(own.body.designer.logoUrl, null);
+  } finally {
+    moderationResult = { allow: true, needsHumanReview: false, reason: 'Safe test image' };
+    moderationStatus = 200;
   }
 });

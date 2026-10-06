@@ -74,6 +74,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-blackberry-wordmark-v1.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
