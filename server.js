@@ -65,6 +65,15 @@ function validateListingInput(body = {}) {
   const availability = typeof body.availability === 'string' ? body.availability.trim() : 'floor';
   const alterationsAvailable = body.alterationsAvailable === true;
   const takesRequests = body.takesRequests === true;
+  const seoTitle = typeof body.seoTitle === 'string' ? body.seoTitle.trim() : '';
+  const seoDescription = typeof body.seoDescription === 'string' ? body.seoDescription.trim() : '';
+  const seoTags = typeof body.seoTags === 'string' ? body.seoTags.trim() : '';
+  const shareImageUrl = typeof body.shareImageUrl === 'string' ? body.shareImageUrl.trim() : '';
+  const shippingCostCents = body.shippingCostCents === '' || body.shippingCostCents == null ? null : Number(body.shippingCostCents);
+  const freeShippingThresholdCents = body.freeShippingThresholdCents === '' || body.freeShippingThresholdCents == null ? null : Number(body.freeShippingThresholdCents);
+  const handlingDaysMin = body.handlingDaysMin === '' || body.handlingDaysMin == null ? null : Number(body.handlingDaysMin);
+  const handlingDaysMax = body.handlingDaysMax === '' || body.handlingDaysMax == null ? null : Number(body.handlingDaysMax);
+  const internationalShipping = body.internationalShipping === true;
 
   if (!title || title.length > 120) return { error: 'Provide a valid title between 1 and 120 characters.' };
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
@@ -78,8 +87,17 @@ function validateListingInput(body = {}) {
   if (careInstructions.length > 1000) return { error: 'Care instructions must be 1,000 characters or fewer.' };
   if (!['One of a Kind','Made in Multiple'].includes(productionType)) return { error: 'Choose whether this is one of a kind or made in multiple.' };
   if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
+  if (seoTitle.length > 70) return { error: 'SEO title must be 70 characters or fewer.' };
+  if (seoDescription.length > 180) return { error: 'SEO description must be 180 characters or fewer.' };
+  if (seoTags.length > 500) return { error: 'SEO tags must be 500 characters or fewer.' };
+  if (shareImageUrl && !/^https?:\/\//i.test(shareImageUrl)) return { error: 'Share image must use an absolute HTTP(S) URL.' };
+  if (shippingCostCents !== null && (!Number.isInteger(shippingCostCents) || shippingCostCents < 0 || shippingCostCents > 1000000)) return { error: 'Shipping cost must be a valid amount.' };
+  if (freeShippingThresholdCents !== null && (!Number.isInteger(freeShippingThresholdCents) || freeShippingThresholdCents < 0 || freeShippingThresholdCents > 100000000)) return { error: 'Free-shipping threshold must be a valid amount.' };
+  if (handlingDaysMin !== null && (!Number.isInteger(handlingDaysMin) || handlingDaysMin < 0 || handlingDaysMin > 365)) return { error: 'Minimum handling days must be between 0 and 365.' };
+  if (handlingDaysMax !== null && (!Number.isInteger(handlingDaysMax) || handlingDaysMax < 0 || handlingDaysMax > 365)) return { error: 'Maximum handling days must be between 0 and 365.' };
+  if (handlingDaysMin !== null && handlingDaysMax !== null && handlingDaysMax < handlingDaysMin) return { error: 'Maximum handling days cannot be less than minimum handling days.' };
 
-  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests } };
+  return { value: { title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping } };
 }
 
 function createApp(options = {}) {
@@ -335,6 +353,16 @@ function createApp(options = {}) {
   db.exec('CREATE INDEX IF NOT EXISTS analytics_events_name_created ON analytics_events(event_name,created_at)');
   db.exec('CREATE INDEX IF NOT EXISTS analytics_events_session_created ON analytics_events(session_id,created_at)');
   recordMigration(4, 'first_party_commerce_analytics');
+  ensureColumn('listings', 'seo_title', 'TEXT');
+  ensureColumn('listings', 'seo_description', 'TEXT');
+  ensureColumn('listings', 'seo_tags', 'TEXT');
+  ensureColumn('listings', 'share_image_url', 'TEXT');
+  ensureColumn('listings', 'shipping_cost_cents', 'INTEGER');
+  ensureColumn('listings', 'free_shipping_threshold_cents', 'INTEGER');
+  ensureColumn('listings', 'handling_days_min', 'INTEGER');
+  ensureColumn('listings', 'handling_days_max', 'INTEGER');
+  ensureColumn('listings', 'international_shipping', 'INTEGER NOT NULL DEFAULT 0');
+  recordMigration(5, 'listing_seo_and_shipping');
 
   db.exec(`CREATE TABLE IF NOT EXISTS support_auto_responses (
     category TEXT PRIMARY KEY,
@@ -680,6 +708,15 @@ function createApp(options = {}) {
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
+      seoTitle: row.seo_title || '',
+      seoDescription: row.seo_description || '',
+      seoTags: row.seo_tags || '',
+      shareImageUrl: row.share_image_url || '',
+      shippingCostCents: row.shipping_cost_cents == null ? null : Number(row.shipping_cost_cents),
+      freeShippingThresholdCents: row.free_shipping_threshold_cents == null ? null : Number(row.free_shipping_threshold_cents),
+      handlingDaysMin: row.handling_days_min == null ? null : Number(row.handling_days_min),
+      handlingDaysMax: row.handling_days_max == null ? null : Number(row.handling_days_max),
+      internationalShipping: Boolean(row.international_shipping),
       designerId: row.designer_id,
       designerName: designer?.brand_name || designer?.display_name || row.designer_name || row.designer_id,
       designerLogoUrl: designer?.logo_storage_key ? `/media/designers/${encodeURIComponent(row.designer_id)}/logo` : null,
@@ -1529,9 +1566,9 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       INSERT INTO listings (
-        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, status, moderation_status,
+        id, designer_id, idempotency_key, title, description, price, category, style, size, aesthetic, pattern, materials, care_instructions, production_type, availability, alterations_available, takes_requests, seo_title, seo_description, seo_tags, share_image_url, shipping_cost_cents, free_shipping_threshold_cents, handling_days_min, handling_days_max, international_shipping, status, moderation_status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', 'pending', ?, ?)
     `).run(
       id,
       req.designerId,
@@ -1550,6 +1587,15 @@ function createApp(options = {}) {
       validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
+      validation.value.seoTitle || null,
+      validation.value.seoDescription || null,
+      validation.value.seoTags || null,
+      validation.value.shareImageUrl || null,
+      validation.value.shippingCostCents,
+      validation.value.freeShippingThresholdCents,
+      validation.value.handlingDaysMin,
+      validation.value.handlingDaysMax,
+      validation.value.internationalShipping ? 1 : 0,
       timestamp,
       timestamp
     );
@@ -1572,7 +1618,7 @@ function createApp(options = {}) {
     const timestamp = new Date().toISOString();
     db.prepare(`
       UPDATE listings
-      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?,
+      SET title = ?, description = ?, price = ?, category = ?, style = ?, size = ?, aesthetic = ?, pattern = ?, materials = ?, care_instructions = ?, production_type = ?, availability = ?, alterations_available = ?, takes_requests = ?, seo_title = ?, seo_description = ?, seo_tags = ?, share_image_url = ?, shipping_cost_cents = ?, free_shipping_threshold_cents = ?, handling_days_min = ?, handling_days_max = ?, international_shipping = ?,
           status = CASE WHEN status = 'published' THEN 'published' ELSE 'draft' END,
           moderation_status = CASE WHEN status = 'published' THEN 'approved' ELSE 'pending' END,
           moderation_reason = NULL, updated_at = ?, version = version + 1
@@ -1592,6 +1638,15 @@ function createApp(options = {}) {
       validation.value.availability,
       validation.value.alterationsAvailable ? 1 : 0,
       validation.value.takesRequests ? 1 : 0,
+      validation.value.seoTitle || null,
+      validation.value.seoDescription || null,
+      validation.value.seoTags || null,
+      validation.value.shareImageUrl || null,
+      validation.value.shippingCostCents,
+      validation.value.freeShippingThresholdCents,
+      validation.value.handlingDaysMin,
+      validation.value.handlingDaysMax,
+      validation.value.internationalShipping ? 1 : 0,
       timestamp,
       row.id
     );
@@ -1801,7 +1856,33 @@ function createApp(options = {}) {
     res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
 
-  app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
+  app.patch('/api/admin/listings/bulk', authAdmin, (req, res) => {
+    const ids = Array.isArray(req.body?.listingIds) ? Array.from(new Set(req.body.listingIds.filter(id => typeof id === 'string'))).slice(0, 100) : [];
+    if (!ids.length) return fail(res, 422, 'listings_required', 'Choose at least one listing.');
+    const availability = req.body?.availability;
+    const status = req.body?.status;
+    const priceDeltaPercent = req.body?.priceDeltaPercent == null || req.body.priceDeltaPercent === '' ? null : Number(req.body.priceDeltaPercent);
+    if (availability != null && !['floor','backstock'].includes(availability)) return fail(res, 422, 'invalid_availability', 'Choose floor or backstock.');
+    if (status != null && !['draft','published','archived'].includes(status)) return fail(res, 422, 'invalid_status', 'Choose draft, published, or archived.');
+    if (priceDeltaPercent !== null && (!Number.isFinite(priceDeltaPercent) || priceDeltaPercent < -100 || priceDeltaPercent > 1000)) return fail(res, 422, 'invalid_price_adjustment', 'Price adjustment must be between -100% and 1000%.');
+    if (availability == null && status == null && priceDeltaPercent === null) return fail(res, 422, 'changes_required', 'Choose at least one bulk change.');
+    const timestamp = new Date().toISOString();
+    const update = db.transaction(() => {
+      for (const id of ids) {
+        const row = getListing(id);
+        if (!row || row.status === 'deleted') continue;
+        if (availability != null) db.prepare('UPDATE listings SET availability=?,updated_at=?,version=version+1 WHERE id=?').run(availability,timestamp,id);
+        if (priceDeltaPercent !== null) db.prepare('UPDATE listings SET price=ROUND(price*(1+?/100.0),2),updated_at=?,version=version+1 WHERE id=?').run(priceDeltaPercent,timestamp,id);
+        if (status != null) db.prepare("UPDATE listings SET status=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at,?) WHEN ?='archived' THEN published_at ELSE NULL END, moderation_status=CASE WHEN ?='published' THEN 'approved' ELSE moderation_status END, updated_at=?,version=version+1 WHERE id=?").run(status,status,timestamp,status,status,timestamp,id);
+      }
+    });
+    update();
+    const placeholders=ids.map(()=>'?').join(',');
+    const rows=db.prepare(`SELECT * FROM listings WHERE id IN (${placeholders}) AND status!='deleted' ORDER BY updated_at DESC`).all(...ids);
+    return res.json({ items: rows.map(row=>serializeListing(row,'admin')) });
+  });
+
+    app.get('/api/admin/listings/review-queue', authAdmin, (_req, res) => {
     const rows = db.prepare("SELECT * FROM listings WHERE status = 'pending_review' AND moderation_status = 'pending' ORDER BY updated_at ASC").all();
     return res.json({ items: rows.map(row => serializeListing(row, 'admin')) });
   });
