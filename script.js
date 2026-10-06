@@ -869,10 +869,13 @@ async function handleSave(event) {
   }
 }
 
+let designerListingsLoad = 0;
 async function loadDesignerListings() {
+  const loadId = ++designerListingsLoad;
   if (!designerToken) return;
   try {
-    const payload = await apiRequest('/api/my/listings');
+    const payload = await apiRequest('/api/my/listings', { cache: 'no-store' });
+    if (loadId !== designerListingsLoad) return;
     clearDesignerListImagePreviews();
     if (designerProductsContainer) designerProductsContainer.replaceChildren();
     const listings = payload.items || [];
@@ -892,6 +895,7 @@ async function loadDesignerListings() {
           preview.src = await loadPrivateImagePreview(images[0].url, true);
         } catch {}
       }
+      if (loadId !== designerListingsLoad) return;
       row.appendChild(preview);
 
       const info = makeElement('div', 'designer-product-info');
@@ -922,11 +926,14 @@ async function loadDesignerListings() {
         remove.disabled = true;
         try {
           await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}`, { method: 'DELETE' });
+          ++designerListingsLoad;
+          row.remove();
+          setMessage(byId('designer-listings-message'), 'Listing deleted.', 'success');
           if (currentListingId === listing.id) resetListingForm();
           await loadDesignerListings();
           await loadGallery();
         } catch (error) {
-          setMessage(designerAuthMessage, error.message, 'error');
+          setMessage(byId('designer-listings-message'), `Could not delete listing: ${error.message}`, 'error');
           remove.disabled = false;
         }
       });
