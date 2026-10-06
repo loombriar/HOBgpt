@@ -121,11 +121,77 @@ function setFavoriteIds(ids) {
   localStorage.setItem(FAVORITE_KEY, JSON.stringify([...new Set(ids)]));
 }
 
-function toggleFavorite(item) {
+async function toggleFavorite(item) {
   const ids = getFavoriteIds();
-  const next = ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id];
+  const saving = !ids.includes(item.id);
+  const next = saving ? [...ids, item.id] : ids.filter((id) => id !== item.id);
   setFavoriteIds(next);
   renderGallery();
+  renderVisitorFavorites();
+  if (!designerToken) return;
+  try {
+    await apiRequest(`/api/my/favorites/${encodeURIComponent(item.id)}`, { method: saving ? 'POST' : 'DELETE' });
+  } catch (error) {
+    setMessage(byId('visitor-favorites-message'), 'Saved on this device. Account sync will retry when you sign in again.', '');
+  }
+}
+
+async function syncAccountFavorites() {
+  if (!designerToken) return;
+  const localIds = getFavoriteIds();
+  try {
+    if (localIds.length) {
+      await apiRequest('/api/my/favorites/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingIds: localIds })
+      });
+    }
+    const data = await apiRequest('/api/my/favorites');
+    setFavoriteIds([...(data.ids || []), ...localIds]);
+    renderGallery();
+    renderVisitorFavorites(data.items || []);
+  } catch {}
+}
+
+function favoriteItemById(id, accountItems = []) {
+  return accountItems.find((item) => item.id === id) || galleryItems.find((item) => item.id === id);
+}
+
+function renderVisitorFavorites(accountItems = []) {
+  const host = byId('visitor-favorites-list');
+  const count = byId('visitor-favorites-count');
+  if (!host) return;
+  const ids = getFavoriteIds();
+  host.replaceChildren();
+  if (count) count.textContent = `${ids.length} saved`;
+  if (!ids.length) {
+    host.appendChild(makeElement('p', 'empty-state', 'No favorites yet. Tap a heart in the Shop to save a piece here.'));
+    return;
+  }
+  for (const id of ids) {
+    const item = favoriteItemById(id, accountItems);
+    const card = makeElement('article', 'wishlist-card');
+    if (!item) {
+      card.classList.add('wishlist-card-unavailable');
+      card.append(makeElement('div', 'wishlist-card-copy', 'This saved piece is currently unavailable.'));
+      const remove = makeElement('button', 'text-button', 'Remove');
+      remove.type = 'button';
+      remove.addEventListener('click', () => { setFavoriteIds(getFavoriteIds().filter((value) => value !== id)); renderVisitorFavorites(accountItems); renderGallery(); });
+      card.append(remove); host.append(card); continue;
+    }
+    const images = getProductImages(item);
+    if (images[0]?.url) {
+      const img = document.createElement('img'); img.src = images[0].url; img.alt = item.title || 'Saved piece'; card.append(img);
+    }
+    const copy = makeElement('div', 'wishlist-card-copy');
+    copy.append(makeElement('strong', '', item.title), makeElement('span', '', item.designerName || item.designer_name || ''), makeElement('span', 'price', `${Number(item.price || 0).toFixed(2)}`));
+    const actions = makeElement('div', 'wishlist-card-actions');
+    const view = makeElement('button', 'secondary-button', 'View piece'); view.type='button'; view.addEventListener('click',()=>openProductDetails(item));
+    const move = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Suitcase' : 'Move to Suitcase'); move.type='button'; move.disabled=getCartIds().includes(item.id); move.addEventListener('click',()=>{ addToCart(item); renderVisitorFavorites(accountItems); });
+    const remove = makeElement('button', 'text-button', 'Remove'); remove.type='button'; remove.addEventListener('click',()=>toggleFavorite(item));
+    actions.append(view,move,remove); copy.append(actions); card.append(copy); host.append(card);
+  }
 }
 
 function getItemBadges(item = {}) {
@@ -240,6 +306,7 @@ function openCart() {
 }
 
 updateCartButton();
+renderVisitorFavorites();
 cartButton?.addEventListener('click', openCart);
 checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
@@ -1199,7 +1266,11 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   loadGallery();
 });
 
-byId('visitor-suite-btn')?.addEventListener('click', () => byId('visitor-suite-modal')?.showModal());
+byId('visitor-suite-btn')?.addEventListener('click', () => {
+  renderVisitorFavorites();
+  byId('visitor-suite-modal')?.showModal();
+  syncAccountFavorites();
+});
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
 byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; loadGallery(); });
 byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value || 'all'; activeFilter = 'all'; byId('shop-garment-filter').value = 'all'; byId('shop-garment-filter').dispatchEvent(new Event('shop-caption')); loadGallery(); });
