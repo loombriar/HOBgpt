@@ -940,6 +940,24 @@ function createApp(options = {}) {
     limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
   });
 
+  async function moderateDesignerImage(buffer,mimeType,context='designer upload') {
+    const apiKey=process.env.OPENAI_API_KEY;
+    if(!apiKey)throw Object.assign(new Error('Image safety review is temporarily unavailable.'),{statusCode:503});
+    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},body:JSON.stringify({
+      model:process.env.IMAGE_MODERATION_MODEL||'gpt-6-luna',
+      input:[{role:'user',content:[
+        {type:'input_text',text:'Review this '+context+' for a family-friendly independent fashion marketplace. Return JSON only with allow (boolean), needsHumanReview (boolean), and reason (short string). Reject or require human review for sexual/nude imagery, graphic violence/gore, hateful/extremist symbols or propaganda, illegal-drug promotion, weapons promotion, harassment/threats, explicit profanity directed at a person/group, or imagery that appears intended to scam or impersonate. Ordinary clothing, bodies wearing normal clothing, art, brand logos, and product photography are allowed. When genuinely uncertain, set needsHumanReview true.'},
+        {type:'input_image',image_url:'data:'+mimeType+';base64,'+buffer.toString('base64'),detail:'low'}
+      ]}],
+      text:{format:{type:'json_object'}},max_output_tokens:220
+    })});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});
+    const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
+    let result;try{result=JSON.parse(outputText||'{}');}catch{throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});}
+    return {allow:result.allow===true,needsHumanReview:result.needsHumanReview===true,reason:String(result.reason||'Image requires review.').slice(0,300)};
+  }
+
   let app;
   app = express();
   app.disable('x-powered-by');
@@ -1784,7 +1802,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/designers/:designerId', (req, res) => {
-    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key
+    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key, logo_storage_key
       FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
     if (!designer) return fail(res, 404, 'designer_not_found', 'Designer storefront not found.');
     const rows = db.prepare(`SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
@@ -1792,7 +1810,10 @@ function createApp(options = {}) {
       WHERE l.designer_id=? AND l.status='published' AND l.moderation_status='approved'
       ORDER BY l.published_at DESC, l.created_at DESC`).all(designer.id);
     let categories=[]; try { categories=JSON.parse(designer.categories||'[]'); } catch {}
-    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null},items:rows.map(row=>serializeListing(row,'public'))});
+    const likes=db.prepare(`SELECT COUNT(*) count FROM buyer_favorites bf JOIN listings l ON l.id=bf.listing_id WHERE l.designer_id=?`).get(designer.id)?.count||0;
+    const badges=db.prepare(`SELECT ub.badge_type,ub.awarded_at FROM designer_identities di JOIN user_badges ub ON ub.buyer_subject=di.subject WHERE di.designer_id=? ORDER BY ub.awarded_at ASC`).all(designer.id)
+      .map(b=>({type:b.badge_type,label:b.badge_type==='supporter'?'House Supporter':b.badge_type==='verified_buyer'?'Verified Buyer':b.badge_type,awardedAt:b.awarded_at}));
+    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges},items:rows.map(row=>serializeListing(row,'public'))});
   });
 
   app.post('/api/my/designer-profile/portrait', authDesigner, upload.single('image'), async (req,res,next)=>{
@@ -1802,6 +1823,8 @@ function createApp(options = {}) {
       if(!detectedMime)return fail(res,415,'unsupported_image','Upload a valid JPEG, PNG, or WebP image.');
       const metadata=await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();
       if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Image dimensions are too large.');
+      const safety=await moderateDesignerImage(req.file.buffer,detectedMime,'designer portrait');
+      if(!safety.allow||safety.needsHumanReview)return fail(res,422,'image_requires_review',safety.reason||'This portrait needs review before it can be shown.');
       const profile=db.prepare("SELECT portrait_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
       if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');
       const storageKey=`designer-${req.designerId}-portrait.webp`;
@@ -1828,6 +1851,8 @@ function createApp(options = {}) {
       if(!detectedMime)return fail(res,415,'unsupported_image','Upload a valid JPEG, PNG, or WebP image.');
       const metadata=await sharp(req.file.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();
       if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Image dimensions are too large.');
+      const safety=await moderateDesignerImage(req.file.buffer,detectedMime,'designer brand logo');
+      if(!safety.allow||safety.needsHumanReview)return fail(res,422,'image_requires_review',safety.reason||'This logo needs review before it can be shown.');
       const profile=db.prepare("SELECT logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
       if(!profile)return fail(res,404,'designer_not_found','Active designer profile not found.');
       const storageKey=`designer-${req.designerId}-logo.webp`;
@@ -2041,6 +2066,8 @@ function createApp(options = {}) {
         return fail(res, 422, 'invalid_dimensions', 'Image dimensions must be 12,000 pixels or less on either side.');
       }
       if (metadata.pages && metadata.pages > 1) return fail(res, 415, 'animated_image', 'Animated images are not supported.');
+      const safety=await moderateDesignerImage(req.file.buffer,detectedMime,'designer product/listing photo');
+      if(!safety.allow||safety.needsHumanReview)return fail(res,422,'image_requires_review',safety.reason||'This product photo needs review before it can be published.');
 
       const count = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
       if (count >= MAX_IMAGES) return fail(res, 422, 'image_limit', `A design can have at most ${MAX_IMAGES} images.`);
