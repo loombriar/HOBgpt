@@ -1258,17 +1258,21 @@ function createApp(options = {}) {
         AND order_id IN (SELECT id FROM orders WHERE status IN ('canceled','failed'))`).run();
   }
 
+  function recordInventoryAdjustment(listingId, delta, quantityAfter, reason, actorType, actorId, now = new Date().toISOString()) {
+    db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,?,?,?)")
+      .run(makeId(), listingId, delta, quantityAfter, reason, actorType, actorId || null, now);
+  }
+
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
     const activeQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='reserved'");
-    const soldQty = db.prepare("SELECT COALESCE(SUM(quantity),0) AS qty FROM inventory_reservations WHERE listing_id=? AND status='sold'");
     const insert = db.prepare("INSERT INTO inventory_reservations (listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,?)");
     for (const item of items) {
       const listing=db.prepare('SELECT stock_quantity,production_type FROM listings WHERE id=?').get(item.id);
       if (listing?.production_type === 'Made to Order') continue;
-      const committed=Number(activeQty.get(item.id).qty)+Number(soldQty.get(item.id).qty);
-      if(!listing || committed + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
+      const reserved=Number(activeQty.get(item.id).qty);
+      if(!listing || reserved + item.quantity > Number(listing.stock_quantity)) throw Object.assign(new Error('One or more pieces do not have enough stock for this cart.'), { statusCode: 409 });
       insert.run(item.id,orderId,now,expiresAt,item.quantity);
     }
     return expiresAt;
@@ -1276,8 +1280,36 @@ function createApp(options = {}) {
 
   function markOrderInventorySold(orderId) {
     const now = new Date().toISOString();
-    db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
-    // Sold work remains published as part of the designer's gallery; inventory_reservations is the source of truth for checkout availability.\n    db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    db.transaction(() => {
+      const reservations = db.prepare("SELECT ir.listing_id,ir.quantity,l.stock_quantity,l.production_type FROM inventory_reservations ir JOIN listings l ON l.id=ir.listing_id WHERE ir.order_id=? AND ir.status='reserved'").all(orderId);
+      for (const reservation of reservations) {
+        if (reservation.production_type === 'Made to Order') continue;
+        const before = Number(reservation.stock_quantity);
+        const after = before - Number(reservation.quantity);
+        if (after < 0) throw new Error('Inventory changed while payment was completing.');
+        db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,reservation.listing_id);
+        recordInventoryAdjustment(reservation.listing_id,-Number(reservation.quantity),after,'Sale completed','sale',orderId,now);
+      }
+      db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
+      db.prepare("UPDATE listings SET updated_at = ?, version = version + 1 WHERE id IN (SELECT listing_id FROM order_items WHERE order_id = ?)").run(now, orderId);
+    })();
+  }
+
+  function restockOrderInventory(orderId, reason = 'Refund restock') {
+    const now = new Date().toISOString();
+    return db.transaction(() => {
+      const reservations = db.prepare("SELECT ir.listing_id,ir.quantity,l.stock_quantity,l.production_type FROM inventory_reservations ir JOIN listings l ON l.id=ir.listing_id WHERE ir.order_id=? AND ir.status='sold'").all(orderId);
+      let restocked = 0;
+      for (const reservation of reservations) {
+        if (reservation.production_type === 'Made to Order') continue;
+        const after = Number(reservation.stock_quantity) + Number(reservation.quantity);
+        db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,reservation.listing_id);
+        recordInventoryAdjustment(reservation.listing_id,Number(reservation.quantity),after,reason,'refund',orderId,now);
+        restocked += Number(reservation.quantity);
+      }
+      db.prepare("UPDATE inventory_reservations SET status='released' WHERE order_id=? AND status='sold'").run(orderId);
+      return restocked;
+    })();
   }
 
   function releaseOrderInventory(orderId) {
@@ -1940,7 +1972,7 @@ function createApp(options = {}) {
     if(!reason||reason.length>240)return fail(res,422,'reason_required','Provide an inventory adjustment reason up to 240 characters.');
     const after=Number(row.stock_quantity??0)+delta; if(after<0)return fail(res,409,'insufficient_stock','Inventory cannot be adjusted below zero.');
     const now=new Date().toISOString();
-    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);db.prepare("INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at) VALUES (?,?,?,?,?,'admin','admin',?)").run(makeId(),row.id,delta,after,reason,now);})();
+    db.transaction(()=>{db.prepare('UPDATE listings SET stock_quantity=?,updated_at=?,version=version+1 WHERE id=?').run(after,now,row.id);recordInventoryAdjustment(row.id,delta,after,reason,'admin','admin',now);})();
     return res.json({item:serializeListing(getListing(row.id),'admin')});
   });
   app.get('/api/admin/listings/:listingId/inventory/history', authAdmin, (req,res) => {
