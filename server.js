@@ -2661,6 +2661,13 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
+  // Serve public rules before the optional React SPA catch-all.
+  app.get(['/rules', '/rules.html'], (_req, res) => {
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    return res.sendFile(path.join(rootDir, 'rules.html'));
+  });
+  app.get('/shipping.html', (_req, res) => res.redirect(302, '/rules#shipping-and-delays'));
+
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
@@ -2795,3 +2802,4 @@ if (require.main === module) {
 }
 
 module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
+
