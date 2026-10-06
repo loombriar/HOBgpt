@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=seller-support-26" />
-    <script src="/script.js?v=seller-support-26" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=support-giftwrap-27" />
+    <script src="/script.js?v=support-giftwrap-27" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
     <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
@@ -499,6 +499,18 @@
         <button id="product-dialog-close" class="icon-button" type="button" aria-label="Close product details">×</button>
       </div>
       <div id="product-detail-content" class="product-detail-content"></div>
+    </dialog>
+
+    <dialog id="support-dialog" class="app-dialog support-dialog" aria-labelledby="support-dialog-title">
+      <div class="dialog-header"><div><p class="eyebrow">House help desk</p><h2 id="support-dialog-title">Customer Support</h2></div><button id="support-dialog-close" class="icon-button" type="button" aria-label="Close customer support">×</button></div>
+      <form id="support-form" class="stack-form">
+        <p>Send a message to House of Briar. Signed-in shoppers can also include an order number for order or shipping help.</p>
+        <label>Order number <span class="small-print">(optional)</span><input id="support-order-id" maxlength="100" autocomplete="off" /></label>
+        <label>How can we help?<textarea id="support-message" rows="5" minlength="5" maxlength="1500" required></textarea></label>
+        <button class="primary-button" type="submit">Send to Customer Support</button>
+        <p id="support-form-status" class="form-message" role="status" aria-live="polite"></p>
+      </form>
+      <p class="small-print support-email-fallback">Need email instead? <a href="mailto:houseofbriar26@gmail.com">houseofbriar26@gmail.com</a></p>
     </dialog>
 
     <dialog id="cart-dialog" class="app-dialog cart-dialog" aria-labelledby="cart-dialog-title">
