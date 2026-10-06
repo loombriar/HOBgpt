@@ -28,7 +28,7 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=house-nav-20" />
-    <script src="/script.js?v=cart-badge-18" defer></script>
+    <script src="/script.js?v=wishlist-19" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -258,7 +258,12 @@
           <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
         </form>
         <div id="measurement-profile-list" class="designer-products"></div>
-        <p class="small-print">Hearts and previous purchases will appear here as the signed-in shopper account features are connected to this storefront.</p>
+        <section class="visitor-favorites" aria-labelledby="visitor-favorites-title">
+          <div class="visitor-favorites-heading"><div><p class="eyebrow">Saved for later</p><h3 id="visitor-favorites-title">Favorites</h3></div><span id="visitor-favorites-count" class="status-badge">0 saved</span></div>
+          <p class="small-print">Tap the heart on any piece to keep it here. Guest favorites stay on this device; when you are signed in, House of Briar also keeps them with your account.</p>
+          <p id="visitor-favorites-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="visitor-favorites-list" class="wishlist-grid" aria-live="polite"></div>
+        </section>
       </section>
     </dialog>
 
