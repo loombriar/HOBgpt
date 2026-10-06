@@ -21,6 +21,8 @@ test('measurement ranges persist and search excludes missing or mismatched fit d
   assert.deepEqual((await search({bust:34,waist:34})).body.items.map(x=>x.id),[id]);
   assert.equal((await search({bust:36.1})).body.items.length,0);
   assert.equal((await search({bust:35,hips:40})).body.items.length,0);
+  assert.equal((await request('/api/gallery/search',{filters:{}})).status,400);
+  assert.equal((await fetch(base+'/api/gallery/search',{method:'POST',body:JSON.stringify({measurements:{bust:35}})})).status,400);
   assert.equal((await search({})).status,400);
   assert.equal((await search({bust:'35'})).status,400);
   assert.equal((await search({bust:-1})).status,400);

@@ -431,7 +431,7 @@ async function loadGallery() {
   if (shopStatus) setMessage(shopStatus, 'Finding your next favorite…', '');
   try {
     const payload = activeMeasurements
-      ? await apiRequest('/api/gallery/search', { method: 'POST', body: JSON.stringify({ filters: Object.fromEntries(params), measurements: activeMeasurements }) })
+      ? await apiRequest('/api/gallery/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filters: Object.fromEntries(params), measurements: activeMeasurements }) })
       : await apiRequest(`/api/gallery?${params}`);
     if (request !== galleryRequest) return;
     galleryItems = Array.isArray(payload.items) ? payload.items : [];
