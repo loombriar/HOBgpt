@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=designer-proof-14" />
-    <script src="/script.js?v=designer-proof-14" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=fabric-finder-live-15" />
+    <script src="/script.js?v=fabric-finder-live-15" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -312,6 +312,19 @@
           <p id="designer-brand-message" role="status" class="form-message"></p>
         </form>
         <div id="designer-products" class="designer-products" aria-live="polite"></div>
+        <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
+          <p class="eyebrow">Designer tool</p>
+          <h3 id="fabric-finder-title">Fabric Finder</h3>
+          <p>Upload up to three clear photos of a fabric. House of Briar will give you a best-effort visual identification, likely uses, and suggested care.</p>
+          <form id="fabric-finder-form" class="stack-form">
+            <label for="fabric-finder-photos">Fabric photos</label>
+            <input id="fabric-finder-photos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required />
+            <p class="small-print">JPEG, PNG, or WebP · 1–3 photos. Visual identification cannot prove exact fiber content.</p>
+            <button id="fabric-finder-submit" class="secondary-button" type="submit">Identify fabric</button>
+          </form>
+          <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
+        </section>
         <hr class="soft-rule" />
         <form id="product-form" class="stack-form" novalidate>
           <input id="product-id" name="listingId" type="hidden" />
