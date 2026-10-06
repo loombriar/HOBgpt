@@ -74,14 +74,29 @@ export default function ProductPage() {
   const primaryImage = images[activeImageIndex] ?? images[0];
   const hasGallery = images.length > 1;
   const price = getFieldNumber(product, '@price', 'Price') ?? 0;
+  const seoTitle = getFieldValue(product, '@seotl', 'SEO Title') || `${name} by ${designer}`;
+  const seoDescription = getFieldValue(product, '@seods', 'SEO Description') || description;
+  const shareImage = getFieldValue(product, '@share', 'Share Image') || primaryImage || '';
+  const shippingCostCents = Number(getFieldValue(product, '@shipc', 'Shipping Cost') || NaN);
+  const freeShippingThresholdCents = Number(getFieldValue(product, '@shipf', 'Free Shipping Threshold') || NaN);
+  const handlingMin = Number(getFieldValue(product, '@handl', 'Handling Min') || NaN);
+  const handlingMax = Number(getFieldValue(product, '@handx', 'Handling Max') || NaN);
+  const internationalShipping = getFieldValue(product, '@intl', 'International Shipping') === 'yes';
 
   useEffect(() => {
     trackCommerceEvent({ event: 'view_product', listingId: product.id, listingName: name, designer, value: price, currency: 'USD' });
-    document.title = `${name} by ${designer} | House of Briar`;
-    const descriptionTag = document.querySelector('meta[name="description"]');
-    descriptionTag?.setAttribute('content', description.slice(0, 160));
+    document.title = `${seoTitle} | House of Briar`;
+    const setMeta=(selector:string,attribute:string,value:string)=>document.querySelector(selector)?.setAttribute(attribute,value);
+    setMeta('meta[name="description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:title"]','content',seoTitle);
+    setMeta('meta[property="og:description"]','content',seoDescription.slice(0,180));
+    setMeta('meta[property="og:url"]','content',window.location.href);
+    if(shareImage)setMeta('meta[property="og:image"]','content',shareImage);
+    setMeta('meta[name="twitter:title"]','content',seoTitle);
+    setMeta('meta[name="twitter:description"]','content',seoDescription.slice(0,180));
+    if(shareImage)setMeta('meta[name="twitter:image"]','content',shareImage);
     return () => { document.title = 'House of Briar'; };
-  }, [product.id, name, designer, price, description]);
+  }, [product.id, name, designer, price, seoTitle, seoDescription, shareImage]);
 
   const addToCart = () => {
     const raw = window.localStorage.getItem('house-of-briar:cart');
@@ -121,7 +136,7 @@ export default function ProductPage() {
         <div className="mt-6 flex flex-wrap items-center gap-4"><span className="text-2xl font-semibold tabular-nums">{money.format(price)}</span><span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-sm text-accent-foreground"><Ruler size={15} /> {size}</span></div>
         <p className="mt-7 max-w-xl text-base leading-8 text-muted-foreground">{description}</p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">{inCart ? <Link to="/cart" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17} /> In your bag · View bag</Link> : <button type="button" onClick={addToCart} disabled={!isAvailable} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><ShoppingBag size={17} /> {isAvailable ? 'Add one-of-one piece' : 'Currently unavailable'}</button>}<button type="button" onClick={toggleSaved} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary ${saved ? 'text-primary' : ''}`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save piece'}</button><button type="button" onClick={()=>void shareListing()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-sm font-medium transition hover:border-primary hover:text-primary"><Share2 size={17}/> Share</button></div>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{isAvailable ? 'This is a one-of-one piece. Adding it to your bag does not reserve it; availability is confirmed when secure checkout begins.' : 'This piece is no longer available for checkout.'}</p><div className="mt-8 rounded-2xl border border-border bg-card p-5"><div className="flex items-center gap-2 text-sm font-semibold"><ShoppingBag size={16}/> Shipping &amp; delivery</div><p className="mt-3 text-sm leading-6 text-muted-foreground">{Number.isFinite(shippingCostCents)?shippingCostCents===0?'Free shipping for this piece':`Shipping: ${money.format(shippingCostCents/100)}`:'Exact shipping options and cost are shown before payment.'}{Number.isFinite(freeShippingThresholdCents)&&freeShippingThresholdCents>0?` Free shipping applies when the qualifying order reaches ${money.format(freeShippingThresholdCents/100)}.`:''}</p>{Number.isFinite(handlingMin)&&<p className="mt-2 text-sm text-muted-foreground">Designer handling time: {handlingMin}{Number.isFinite(handlingMax)&&handlingMax!==handlingMin?`–${handlingMax}`:''} business day{handlingMax===1?'':'s'} before carrier transit.</p>}<p className="mt-2 text-xs text-muted-foreground">{internationalShipping?'International delivery is available for this piece; destination duties or import charges may apply.':'International delivery is not currently offered for this piece.'}</p><a href="/shipping.html" className="mt-3 inline-flex text-sm font-medium text-primary hover:underline">Full shipping policy</a></div><dl className="mt-12 grid grid-cols-2 gap-5 border-t border-border pt-6 text-sm"><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Category</dt><dd className="mt-2">{category}</dd></div><div><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Availability</dt><dd className="mt-2 text-primary">{availability}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Tags</dt><dd className="mt-2 leading-6">{tags}</dd></div></dl>
       </div>
     </section>
     <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><ProductInquiryForm productId={product.id} productName={name} designerName={designer}/></div></section>\n    <section className="border-t border-border"><div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8"><CollectorNotes listingId={product.id}/></div></section>\n    <section className="border-t border-border bg-accent/20"><div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[.8fr_1.2fr] lg:px-8"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Made for your measurements</p><h2 className="mt-3 font-serif text-4xl">Request custom sizing.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Send your measurements and an item-specific customization request directly to the designer. This is a structured request, not an open conversation.</p></div><InquiryForm productName={name} productId={product.id} designerName={designer} /></div></section>
