@@ -1247,10 +1247,12 @@ function createApp(options = {}) {
     const displayName=String(req.body?.displayName||'').trim();
     const brandName=String(req.body?.brandName||'').trim();
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(value=>String(value).trim()).filter(Boolean))]:[];
+    const sellerTermsAccepted=req.body?.sellerTermsAccepted===true;
 
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)){
       return fail(res,422,'validation_error','Add your name, designer or brand name, email, and what you create.');
     }
+    if(!sellerTermsAccepted)return fail(res,422,'seller_terms_required','You must agree to the House of Briar Seller Terms before joining.');
 
     const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE lower(email)=?").get(email);
     if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
@@ -1296,7 +1298,7 @@ function createApp(options = {}) {
   async function stripeStatus(designer) {
     if(!designer.stripe_account_id)return {designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false};
     const account=await stripeApi(`accounts/${encodeURIComponent(designer.stripe_account_id)}`);
-    return {designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled)};
+    return {designerId:designer.id,connected:true,onboardingComplete:Boolean(account.details_submitted),payoutsEnabled:Boolean(account.payouts_enabled),chargesEnabled:Boolean(account.charges_enabled),readyToSell:Boolean(account.details_submitted&&account.payouts_enabled),requirementsDue:Array.isArray(account.requirements?.currently_due)?account.requirements.currently_due:[]};
   }
 
   app.post('/api/session', authDesigner, (req, res) => {
@@ -1683,7 +1685,7 @@ function createApp(options = {}) {
     const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
     const rows = [];
     for (const [id, quantity] of quantities) {
-      const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
+      const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 AND dp.stripe_account_id IS NOT NULL AND dp.stripe_account_id!='' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
       if (!listing) throw Object.assign(new Error('One or more pieces are currently unavailable.'), { statusCode: 409 });
       if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
       const unitAmountCents = Math.round(Number(listing.price) * 100);
@@ -2527,6 +2529,8 @@ function createApp(options = {}) {
 
     const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
     if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
+    const seller=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id);
+    if(!seller?.stripe_account_id)return fail(res,409,'payout_setup_required','Designer must finish Stripe payout setup before this piece can go live.');
 
     const timestamp = new Date().toISOString();
     db.prepare(`
