@@ -1168,9 +1168,10 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
-    const designer=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+    const designer=db.prepare("SELECT id,email,display_name,brand_name,status,bio,location,production_method,categories,portfolio_url,social_url,logo_storage_key FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
-    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null}});
+    let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
+    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null}});
   });
 
   app.post('/api/my/stripe-onboarding', authDesigner, async (req,res,next)=>{
