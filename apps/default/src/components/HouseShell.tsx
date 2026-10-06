@@ -74,7 +74,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-blackberry-wordmark-v1.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
+
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
@@ -85,13 +85,13 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm md:flex" aria-label="Primary navigation">
-            <NavLink to="/shop" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
-            <NavLink to="/designers" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
-            <NavLink to="/account" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
+            <NavLink to="/shop" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
+            <NavLink to="/designers" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
+            <NavLink to="/account" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
-            <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><ShoppingBag size={17} />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
+            <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="size-7 object-contain" />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
             <span className="hidden sm:inline-flex"><ThemeButton /></span>
             <button type="button" aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileNavOpen} aria-controls="mobile-navigation" onClick={() => setMobileNavOpen((open) => !open)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary md:hidden">
               {mobileNavOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
@@ -107,6 +107,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
         </nav>}
       </header>
+      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-blackberry-wordmark-v1.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
       <main>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr_1fr] lg:px-8">
@@ -125,3 +126,4 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
     </div>
   );
 }
+

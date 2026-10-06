@@ -243,13 +243,15 @@ test('header and full-size category banners are served with live filters', async
   const pageResponse = await fetch(`${baseUrl}/`);
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
+  assert.ok(html.indexOf('<nav class="sewing-nav"') < html.indexOf('<a class="sewing-brand briar-wordmark"'), 'navigation must precede the banner');
+  assert.doesNotMatch(html, /class="room-nav-icon"/);
   for (const asset of [
     'house-of-briar-blackberry-wordmark-v1.webp',
-    'visitor-suite-door-v1.svg',
-    'designer-room-door-v1.svg',
+    'blackberry-house-nav-frame-v1.webp',
     'suitcase-cart-v1.svg'
   ]) {
-    assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
+    const storefrontCss = await (await fetch(`${baseUrl}/styles.css`)).text();
+    assert.ok(html.includes(encodeURIComponent(asset)) || storefrontCss.includes(asset), `storefront should reference ${asset}`);
     const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
     assert.equal(image.status, 200, `${asset} should be served`);
     assert.match(image.headers.get('content-type'), asset.endsWith('.svg') ? /image\/svg\+xml/ : /image\/webp/);
@@ -622,3 +624,4 @@ test('image safety rejection and provider failure do not replace a designer logo
     moderationStatus = 200;
   }
 });
+

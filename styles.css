@@ -1668,3 +1668,18 @@ body h1,body h2,body h3,.brand-name,.product-section .shop-drop-window .category
 .sewing-hero-content h1 em{font-family:'Cormorant Garamond',Georgia,serif!important}
 .product-section .shop-drop-window .category-window-title{letter-spacing:0!important;font-size:clamp(.75rem,1.1vw,1rem)!important}
 @media(max-width:650px){.site-header.sewing-header{padding:10px 12px 18px!important}.sewing-header .briar-wordmark>span{margin-top:0!important;font-size:.65rem!important;letter-spacing:.12em}.sewing-hero-content h1{font-size:clamp(1.9rem,7.5vw,2.8rem)!important}.sewing-header .sewing-nav{gap:8px}.product-section .shop-drop-window .category-window-title{font-size:.85rem!important}}
+
+
+
+/* Navigation first, inside the uploaded blackberry house frames. */
+.site-header.sewing-header{position:relative!important;padding:10px 16px 18px!important;gap:6px!important}
+.sewing-header .sewing-nav{order:0!important;display:flex!important;flex-wrap:nowrap!important;justify-content:safe center!important;align-items:center!important;gap:6px!important;overflow-x:auto;overflow-y:visible;padding:0 0 8px!important;scrollbar-width:thin}
+.sewing-header .briar-wordmark{order:1!important}
+.sewing-header .sewing-nav .nav-hotspot{position:relative!important;inset:auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;flex:0 0 146px!important;width:146px!important;height:122px!important;min-height:122px!important;max-width:none!important;padding:42px 23px 20px!important;border:0!important;border-radius:0!important;background:url('/blackberry-house-nav-frame-v1.webp') center/100% 100% no-repeat!important;box-shadow:none!important;font-family:Inter,sans-serif!important;font-size:12px!important;font-weight:600!important;line-height:1.2!important;text-align:center!important;color:#4f3825!important;white-space:normal!important;text-decoration:none!important;transition:filter .18s ease}
+.sewing-header .sewing-nav .nav-hotspot:hover{filter:brightness(1.04);text-decoration:underline!important;text-underline-offset:3px}
+.sewing-header .sewing-nav .nav-hotspot:focus-visible{outline:2px solid #80612f!important;outline-offset:-5px}
+.sewing-nav .suitcase-nav-icon{display:block!important;width:27px!important;height:27px!important;object-fit:contain!important;flex:0 0 27px!important}
+.sewing-nav .door-name{font:inherit!important;max-width:100%;white-space:normal!important}
+.sewing-nav .door-info{display:none!important}
+.sewing-nav .room-button:hover .door-info,.sewing-nav .room-button:focus-visible .door-info,.sewing-nav .suitcase-button:hover .door-info,.sewing-nav .suitcase-button:focus-visible .door-info{display:block!important;position:fixed!important;left:50%!important;top:140px!important;bottom:auto!important;transform:translateX(-50%)!important;width:min(300px,85vw)!important;z-index:100!important;background:#fffaf0!important;color:#4f3825!important;padding:12px!important;border:1px solid #b89a65!important;border-radius:12px!important;box-shadow:0 5px 15px #38231522!important;font-size:12px!important;font-weight:400!important;pointer-events:none}
+@media(max-width:650px){.sewing-header .sewing-nav{justify-content:flex-start!important}.sewing-header .sewing-nav .nav-hotspot{flex-basis:126px!important;width:126px!important;height:105px!important;min-height:105px!important;padding:36px 20px 17px!important;font-size:11.5px!important}.sewing-nav .suitcase-nav-icon{width:24px!important;height:24px!important;flex-basis:24px!important}}
