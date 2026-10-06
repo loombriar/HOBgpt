@@ -107,7 +107,7 @@ function getItemBadges(item = {}) {
   const verifiedFlag = item.verifiedBadge || item.verified || item.isVerified || item.verifiedBuyer || normalized.includes('verified');
 
   if (supportFlag) badges.push({ key: 'supporter', label: 'House Supporter' });
-  if (verifiedFlag) badges.push({ key: 'verified', label: 'Verified' });
+  if (verifiedFlag) badges.push({ key: 'verified', label: 'Verified Buyer' });
   return badges;
 }
 
@@ -122,6 +122,14 @@ function createBadgePill(label, className = 'badge') {
     artwork.setAttribute('aria-hidden', 'true');
     pill.prepend(artwork);
   }
+  if (className.includes('verified-badge')) {
+    pill.title = 'Excellent taste. Receipt to prove it.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/verified-buyer-v1.webp';
+    artwork.alt = '';
+    artwork.setAttribute('aria-hidden', 'true');
+    pill.prepend(artwork);
+  }
   return pill;
 }
 
@@ -130,7 +138,7 @@ function renderItemBadges(target, item) {
   target.replaceChildren();
   const badges = getItemBadges(item);
   badges.forEach(({ label }) => {
-    target.appendChild(createBadgePill(label, label === 'Verified' ? 'badge verified-badge' : 'badge supporter-badge'));
+    target.appendChild(createBadgePill(label, label === 'Verified Buyer' ? 'badge verified-badge' : 'badge supporter-badge'));
   });
 }
 

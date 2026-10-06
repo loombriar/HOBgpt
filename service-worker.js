@@ -1,4 +1,4 @@
-const CACHE_NAME = 'house-of-briar-shell-v1';
+const CACHE_NAME = 'house-of-briar-shell-v2';
 const SHELL = ['/', '/styles.css', '/script.js', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {

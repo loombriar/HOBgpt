@@ -13,10 +13,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/house-of-briar-192.png?v=spool-2" type="image/png" />
-    <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=spool-2" />
-    <link rel="stylesheet" href="/styles.css" />
-    <script src="/script.js" defer></script>
+    <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
+    <link rel="stylesheet" href="/styles.css?v=sewing-4" />
+    <script src="/script.js?v=badges-2" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
@@ -33,9 +33,9 @@
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
-          <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite">Visitor’s Suite</button>
-          <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><span aria-hidden="true">🔒</span> Designer’s Room</button>
-          <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><span id="suitcase-label">Suitcase (0)</span></button>
+          <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite"><img class="room-nav-icon" src="/visitor-suite-door-v1.svg" alt="" aria-hidden="true" />Visitor’s Suite</button>
+          <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked"><img class="room-nav-icon" src="/designer-room-door-v1.svg" alt="" aria-hidden="true" />Designer’s Room</button>
+          <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span></button>
         </nav>
       </header>
       <main id="top">
@@ -171,7 +171,7 @@
             <div class="curation-grid">
               <article class="curation-card"><span class="curation-number">♡</span><h3>Support House of Briar</h3><p>Donations help support the marketplace and its independent-designer community.</p><form id="donation-form" class="donation-form"><label for="donation-amount">Donation amount</label><div class="donation-row"><span>$</span><input id="donation-amount" type="number" min="1" max="1000" step="1" placeholder="25" /><button class="primary-button" type="submit">Give</button></div><p id="donation-message" class="form-message" role="status"></p></form></article>
               <article class="curation-card house-supporter-card"><img class="house-supporter-art" src="/heart-of-the-house-v1.webp" alt="Heart of the House: coral pincushion heart with mint thread and gold briars" /><h3>House Supporter</h3><p class="supporter-thanks">You helped keep the House in stitches. Thank you.</p><p>A completed donation of $5 or more, linked to your account, earns the Heart of the House badge.</p></article>
-              <article class="curation-card"><span class="curation-number">✓</span><h3>Verified Buyer badge</h3><p>A Verified Buyer badge shows that the account has completed a purchase through House of Briar.</p></article>
+              <article class="curation-card"><img class="house-supporter-art" src="/verified-buyer-v1.webp" alt="Verified Buyer: mint suitcase with a coral heart, gold checkmark and briars" /><h3>Verified Buyer</h3><p class="supporter-thanks">Excellent taste. Receipt to prove it.</p><p>Earned after a confirmed purchase through House of Briar, linked to your account.</p></article>
             </div>
           </div>
         </section>
