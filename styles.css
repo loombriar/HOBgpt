@@ -1625,3 +1625,11 @@ main>section:not(.hero){position:relative}
 
 /* Designer storefront identity */
 .designer-storefront-identity{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}.designer-storefront-identity>img{width:84px;height:84px;object-fit:contain;border-radius:18px;border:1px solid rgba(78,55,42,.18);background:#fff;padding:.4rem}.designer-like-total{font-weight:700;margin-top:.45rem}.designer-storefront-identity+.listing-badges{margin-bottom:1rem}@media(max-width:560px){.designer-storefront-identity{align-items:flex-start}.designer-storefront-identity>img{width:68px;height:68px}}
+
+
+/* Fabric Finder — Designer's Room */
+.fabric-finder-card { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+.fabric-finder-card h3 { margin-top: 0; }
+.fabric-finder-result { margin-top: 1rem; padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-secondary); }
+.fabric-finder-result p { margin: .4rem 0; }
+.fabric-finder-result .primary-button { margin-top: .75rem; }
