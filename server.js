@@ -428,6 +428,15 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_access_tokens_designer ON designer_access_tokens(designer_id)');
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_sessions (
+    session_hash TEXT PRIMARY KEY,
+    designer_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_designer ON designer_sessions(designer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_expiry ON designer_sessions(expires_at)');
   db.exec(`CREATE TABLE IF NOT EXISTS designer_terms_acceptances (
     designer_id TEXT NOT NULL REFERENCES designer_profiles(id),
     terms_version TEXT NOT NULL,
@@ -869,7 +878,43 @@ function createApp(options = {}) {
     } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
 
+  const DESIGNER_SESSION_COOKIE = 'hob_designer_session';
+  const DESIGNER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  function cookieValue(req,name) {
+    const raw=String(req.get('cookie')||'');
+    for(const part of raw.split(';')){const [key,...rest]=part.trim().split('=');if(key===name)return decodeURIComponent(rest.join('='));}
+    return '';
+  }
+  function setDesignerSessionCookie(req,res,token,maxAgeSeconds=Math.floor(DESIGNER_SESSION_TTL_MS/1000)) {
+    const secure=trustedAppOrigin(req).startsWith('https://');
+    res.cookie(DESIGNER_SESSION_COOKIE,token,{httpOnly:true,sameSite:'lax',secure,path:'/',maxAge:maxAgeSeconds*1000});
+  }
+  function issueDesignerSession(req,res,designerId) {
+    const token=crypto.randomBytes(32).toString('base64url');
+    const hash=crypto.createHash('sha256').update(token).digest('hex');
+    const now=new Date(),expires=new Date(now.getTime()+DESIGNER_SESSION_TTL_MS);
+    db.prepare('INSERT INTO designer_sessions(session_hash,designer_id,created_at,expires_at) VALUES (?,?,?,?)').run(hash,designerId,now.toISOString(),expires.toISOString());
+    db.prepare('DELETE FROM designer_sessions WHERE expires_at<=?').run(now.toISOString());
+    setDesignerSessionCookie(req,res,token);
+  }
+  function clearDesignerSession(req,res) {
+    const token=cookieValue(req,DESIGNER_SESSION_COOKIE);
+    if(token){const hash=crypto.createHash('sha256').update(token).digest('hex');db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(hash);}
+    setDesignerSessionCookie(req,res,'',0);
+  }
+
   async function authDesigner(req, res, next) {
+    const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
+    if(sessionToken){
+      const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
+      const session=db.prepare("SELECT s.designer_id,p.status,s.expires_at FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
+      if(session && session.expires_at>new Date().toISOString()){
+        if(session.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
+        req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
+        return next();
+      }
+      if(session)db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
+    }
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
     const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
@@ -1448,7 +1493,12 @@ function createApp(options = {}) {
   }
 
   app.post('/api/session', authDesigner, (req, res) => {
-    res.json({ ok: true, designerId: req.designerId });
+    if(req.designerAuthMethod!=='session')issueDesignerSession(req,res,req.designerId);
+    res.set('Cache-Control','no-store').json({ ok: true, designerId: req.designerId });
+  });
+  app.delete('/api/session', (req,res) => {
+    clearDesignerSession(req,res);
+    return res.set('Cache-Control','no-store').json({ok:true});
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
