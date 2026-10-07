@@ -211,3 +211,50 @@ test('seller terms consent and completed Stripe payouts remain required', async 
     assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM orders').get().n,0);
   } finally {await new Promise(resolve=>srv.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+
+test('Stripe line totals preserve remainder cents, gift wrap, and fully discounted merchandise',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-exact-cents-'));let ctx;let sessionNumber=0;const sessions=new Map();
+  ctx=createApp({dataDir:dir,seedProducts:[{id:'exact-piece',designerId:'exact-maker',title:'Exact Piece',price:1.01,category:'fashion'}],designerTokens:{'exact-seller':'exact-maker'},stripeApi:async(endpoint,options)=>{
+    if(endpoint==='checkout/sessions'){
+      const params=new URLSearchParams(options.body);let total=0;
+      for(let i=0;params.has('line_items['+i+'][quantity]');i++)total+=Number(params.get('line_items['+i+'][quantity]'))*Number(params.get('line_items['+i+'][price_data][unit_amount]'));
+      const id='cs_exact_'+(++sessionNumber);sessions.set(id,{id,status:'complete',payment_status:'paid',currency:'usd',amount_total:total,metadata:{order_id:params.get('metadata[order_id]')},payment_intent:'pi_exact_'+sessionNumber});return{id,url:'https://checkout.stripe.test/exact'};
+    }
+    if(endpoint.startsWith('checkout/sessions/'))return sessions.get(endpoint.split('/').pop());
+    throw new Error('Unexpected Stripe path '+endpoint);
+  }});
+  ctx.db.prepare("UPDATE listings SET production_type='Made to Order' WHERE id='exact-piece'").run();
+  const now=new Date().toISOString();
+  ctx.db.prepare("INSERT INTO listing_enhancements (listing_id,gift_wrap_available,gift_wrap_price_cents,updated_at) VALUES ('exact-piece',1,100,?)").run(now);
+  ctx.db.prepare("INSERT INTO designer_promo_codes (id,designer_id,code,discount_type,discount_value,created_at) VALUES ('exact-promo','exact-maker','EXACT','fixed',1,?)").run(now);
+  const srv=ctx.app.listen(0,'127.0.0.1');await once(srv,'listening');const origin='http://127.0.0.1:'+srv.address().port;
+  try{
+    for(const fullyDiscounted of [false,true]){
+      if(fullyDiscounted)ctx.db.prepare("UPDATE designer_promo_codes SET discount_type='percent',discount_value=100 WHERE id='exact-promo'").run();
+      const response=await fetch(origin+'/api/checkout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[{id:'exact-piece',quantity:3,giftWrap:true}],promoCodes:['EXACT']})});assert.equal(response.status,201);
+      const {orderId}=await response.json();const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);const session=sessions.get(order.stripe_session_id);
+      assert.equal(order.subtotal_cents,fullyDiscounted?300:602);assert.equal(session.amount_total,order.subtotal_cents);
+      const paid=await fetch(origin+'/api/checkout/session/'+session.id);assert.equal(paid.status,200);assert.equal((await paid.json()).paid,true);
+      assert.equal(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status,'paid');
+    }
+  }finally{await new Promise(resolve=>srv.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('PayPal merchandise creation, capture, and legacy Stripe payouts are blocked',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-payment-rail-'));let calls=0;
+  const ctx=createBaseApp({dataDir:dir,seedProducts:[],designerTokens:{},adminToken:ADMIN_TOKEN,stripeApi:async()=>{calls++;throw new Error('No Stripe payout allowed');}});
+  const srv=ctx.app.listen(0,'127.0.0.1');await once(srv,'listening');const origin='http://127.0.0.1:'+srv.address().port;
+  try{
+    for(const route of ['/api/paypal/checkout/order','/api/paypal/checkout/capture']){
+      const response=await fetch(origin+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:'existing-paypal-order',items:[{id:'anything',quantity:1}]})});
+      assert.equal(response.status,503);assert.equal((await response.json()).error.code,'payment_method_unavailable');
+    }
+    assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM orders').get().n,0);assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM inventory_reservations').get().n,0);
+    const now=new Date().toISOString();
+    ctx.db.prepare("INSERT INTO orders (id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,payment_provider) VALUES ('paypal-paid','paid','usd',100,10,90,?,'paypal')").run(now);
+    ctx.db.prepare("INSERT INTO designer_transfers (id,order_id,designer_id,stripe_account_id,amount_cents,status,created_at) VALUES ('legacy-transfer','paypal-paid','maker','acct_legacy',90,'pending',?)").run(now);
+    const release=await fetch(origin+'/api/admin/orders/paypal-paid/designers/maker/release',{method:'POST',headers:{Authorization:'Bearer '+ADMIN_TOKEN}});assert.equal(release.status,409);assert.match((await release.json()).error.message,/cannot fund Stripe/);assert.equal(calls,0);
+    assert.equal(ctx.db.prepare("SELECT status FROM designer_transfers WHERE id='legacy-transfer'").get().status,'pending');
+  }finally{await new Promise(resolve=>srv.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
