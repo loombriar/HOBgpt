@@ -13,3 +13,10 @@ test('Stripe browser refresh returns to the room without credentials; renewing s
   const renewal=await fetch(origin+'/api/my/stripe-onboarding',{method:'POST'});assert.equal(renewal.status,401);assert.equal(calls,0);
  }finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
+test('restricted Stripe key failures explain setup configuration without exposing provider details',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-permissions-'));
+ const ctx=createApp({dataDir:dir,seedProducts:[{id:'piece',designerId:'maker',title:'Piece',price:40,category:'fashion'}],designerTokens:{makerToken:'maker'},stripeApi:async()=>{throw Object.assign(new Error('secret provider detail'),{statusCode:502,providerCode:'more_permissions_required'});}});
+ const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
+ try{const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/my/stripe-onboarding',{method:'POST',headers:{Authorization:'Bearer makerToken'}});assert.equal(response.status,503);const body=await response.json();assert.equal(body.error.code,'stripe_configuration_required');assert.match(body.error.message,/Accounts Write/);assert.doesNotMatch(JSON.stringify(body),/secret provider detail/);}
+ finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
