@@ -57,8 +57,8 @@ test('buyer can review a seeded piece in the suitcase and remove it', async ({ p
   await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
   await page.goto('/cart');
   await expect(page.getByRole('heading', { name: 'Pieces waiting for you.' })).toBeVisible();
-  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
-  await expect(page.getByText('$89.99')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('main').getByText('$89.99', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Remove Moonlit E2E Piece from bag' }).click();
@@ -79,13 +79,13 @@ test('buyer checkout uses server totals and hands the order to the mocked Stripe
   await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
 
   await page.goto('/cart');
-  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
   await page.getByRole('link', { name: /Continue to checkout/ }).click();
 
   await expect(page).toHaveURL(/\/checkout$/);
   await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
-  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('$89.99').first()).toBeVisible();
   const secureCheckout = page.getByRole('button', { name: /Continue to secure checkout/ });
   await expect(secureCheckout).toBeEnabled();
