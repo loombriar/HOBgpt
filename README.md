@@ -123,3 +123,12 @@ Build both applications with `npm ci && npm --prefix apps/default ci && npm --pr
 ### Designer signup alerts
 
 Set `DESIGNER_SIGNUP_ALERT_EMAIL` in Railway to the inbox that should receive an immediate email when a new designer completes signup. Delivery uses the existing Resend outbox, including retry handling and an idempotent event key so duplicate signup requests do not create duplicate alerts.
+
+
+## Off-site backups
+
+`npm run backup:offsite` creates a WAL-safe local snapshot, verifies its manifest and SQLite integrity, uploads it to an S3-compatible private bucket, verifies the uploaded manifest, and removes remote objects older than the configured retention window.
+
+Required production variables: `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, and `BACKUP_S3_SECRET_ACCESS_KEY`. Optional variables are `BACKUP_S3_REGION` (defaults to `auto`) and `BACKUP_RETENTION_DAYS` (defaults to `30`). Use a bucket-scoped read/write credential and an HTTPS endpoint. For Cloudflare R2, use the account S3 endpoint and region `auto`.
+
+The job intentionally uploads only after local verification succeeds. Keep the bucket private and independent of the Railway volume.
