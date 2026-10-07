@@ -9,7 +9,9 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "backup": "node scripts/backup-data.js",
-    "verify:backup": "node scripts/verify-backup.js"
+    "verify:backup": "node scripts/verify-backup.js",
+    "test:e2e": "playwright test",
+    "e2e:serve": "npm --prefix apps/default run build && node scripts/e2e-server.js"
   },
   "engines": {
     "node": ">=20"
@@ -21,5 +23,8 @@
     "helmet": "^8.1.0",
     "multer": "^2.0.2",
     "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
   }
 }
