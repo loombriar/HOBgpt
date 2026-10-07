@@ -108,9 +108,9 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 @media(max-width:650px){.blackberry-house .briar-section{padding-top:104px!important}.briar-divider{top:10px;width:calc(100% - 32px);height:72px;gap:0}.briar-vine-art{width:100%}.briar-divider>.briar-vine-art:last-child,.briar-divider::after{display:none}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
 @media(prefers-reduced-motion:reduce){.briar-branch,.briar-leaf,.briar-berry{animation:none!important;transform:none!important}}
 
-/* Keep the masthead compact; the artwork retains its original proportions. */
-.blackberry-house .sewing-header .briar-wordmark{width:min(100%,760px)!important;max-width:760px!important;order:0!important}
-.blackberry-house .sewing-header .briar-wordmark>img{max-height:250px!important;width:100%!important;height:auto!important;object-fit:contain!important}
+/* The pastel masthead fills the desktop window without cropping its artwork. */
+.blackberry-house .sewing-header .briar-wordmark{width:100%!important;max-width:none!important;order:0!important}
+.blackberry-house .sewing-header .briar-wordmark>img{max-height:none!important;width:100%!important;height:auto!important;aspect-ratio:3/1!important;object-fit:contain!important}
 .blackberry-house .sewing-header .sewing-nav{order:1!important;margin:4px auto 10px!important}
 .blackberry-house .sewing-header .briar-header-vine{height:34px!important;margin:0 auto!important;order:2!important}
 @media(max-width:650px){.blackberry-house .sewing-header .sewing-nav{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}.blackberry-house .sewing-header .briar-wordmark>img{max-height:32vw!important}.blackberry-house .sewing-header .briar-header-vine{height:26px!important}}
@@ -118,3 +118,5 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 /* Pastel house artwork is confined to the two room buttons. */
 .blackberry-house .sewing-header .sewing-nav .room-button{flex:0 0 128px!important;width:128px!important;height:107px!important;min-height:107px!important;padding:36px 16px 18px!important;background:url('/pastel-house-nav-frame-v2.webp') center/contain no-repeat!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#614763!important}
 @media(max-width:650px){.blackberry-house .sewing-header .sewing-nav .room-button{grid-column:span 2!important;justify-self:center!important;width:128px!important;max-width:100%!important;height:107px!important;aspect-ratio:auto!important;font-size:11px!important}}
+
+@media(min-width:651px){.blackberry-house .site-header.sewing-header{width:100%!important;max-width:none!important;padding-inline:0!important}.blackberry-house .sewing-header .briar-wordmark{margin:0!important;padding:0!important}.blackberry-house .sewing-header .sewing-nav{width:100%!important;max-width:none!important;padding-inline:20px!important;box-sizing:border-box!important}}
