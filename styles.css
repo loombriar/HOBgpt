@@ -1759,3 +1759,30 @@ body.designer-room-open .designer-room-page{display:block}
 .designer-settings-card>summary{cursor:pointer;padding:1rem 1.2rem;font-family:var(--display-font,serif);font-size:1.05rem;font-weight:700;list-style-position:inside}
 .designer-settings-card[open]>summary{border-bottom:1px solid var(--border)}
 .designer-settings-card form{padding:1.2rem}
+
+
+/* Mobile storefront header QA: keep every primary destination visible without horizontal scrolling. */
+@media(max-width:650px){
+  .site-header.sewing-header{padding:8px 10px 12px!important;gap:4px!important}
+  .sewing-header .sewing-nav{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:100%!important;
+    gap:6px!important;
+    overflow:visible!important;
+    padding:0 0 4px!important;
+  }
+  .sewing-header .sewing-nav .nav-hotspot{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:78px!important;
+    min-height:78px!important;
+    flex:none!important;
+    padding:27px 12px 12px!important;
+    font-size:12px!important;
+  }
+  .sewing-header .sewing-nav .suitcase-button{grid-column:1/-1!important}
+  .sewing-nav .suitcase-nav-icon{width:20px!important;height:20px!important;flex-basis:20px!important}
+  .sewing-header .briar-wordmark>img{max-height:30vw!important}
+}
