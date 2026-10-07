@@ -13,11 +13,11 @@ function createApp(options) {
   const connectAccounts = {...options.connectAccounts};
   for (const id of designerIds) connectAccounts[id] ||= 'acct_fixture_' + id.replace(/[^a-z0-9]/gi, '_');
   const stripeFixture = options.stripeApi;
-  const context = createBaseApp({...options, connectAccounts, stripeApi: async (endpoint, request) => {
+  const context = createBaseApp({...options, seedProducts:(options.seedProducts || []).map(item=>({...item,shippingCostCents:item.shippingCostCents ?? 0})), connectAccounts, stripeApi: async (endpoint, request) => {
     if (endpoint.startsWith('accounts/acct_fixture_') || Object.values(options.connectAccounts || {}).some(id => endpoint === 'accounts/' + id)) {
       return {details_submitted:true, payouts_enabled:true, charges_enabled:true, requirements:{currently_due:[]}};
     }
-    if (stripeFixture) return stripeFixture(endpoint, request);
+    if (stripeFixture) { const result=await stripeFixture(endpoint, request); if(result?.payment_status==='paid' && !result.shipping_details)result.shipping_details={name:'Fixture Buyer',address:{line1:'1 Test Lane',city:'Test City',state:'OH',postal_code:'44101',country:'US'}}; return result; }
     throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
   }});
   for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
@@ -51,7 +51,7 @@ test('designer discounts are scoped, sent to Stripe, and verified payment awards
     assert.equal(checkoutBody.get('allow_promotion_codes'),'false');assert.equal(checkoutBody.get('line_items[0][price_data][unit_amount]'),'7500');assert.equal(checkoutBody.get('line_items[1][price_data][unit_amount]'),'10000');
     assert.equal(context.db.prepare('SELECT COUNT(*) n FROM user_badges').get().n,0);
     const paid=async(total)=>{
-      const raw=JSON.stringify({id:'evt_promo_badge',type:'checkout.session.completed',data:{object:{id:'cs_promo_badge',metadata:{order_id:orderId},payment_status:'paid',currency:'usd',amount_total:total,payment_intent:'pi_fixture'}}});
+      const raw=JSON.stringify({id:'evt_promo_badge',type:'checkout.session.completed',data:{object:{id:'cs_promo_badge',metadata:{order_id:orderId},payment_status:'paid',shipping_details:{name:'Fixture Buyer',address:{line1:'1 Test Lane',city:'Test City',postal_code:'44101',country:'US'}},currency:'usd',amount_total:total,payment_intent:'pi_fixture'}}});
       const timestamp=Math.floor(Date.now()/1000);const signature=crypto.createHmac('sha256',process.env.STRIPE_WEBHOOK_SECRET).update(timestamp+'.'+raw).digest('hex');
       return fetch(origin+'/api/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':`t=${timestamp},v1=${signature}`},body:raw});
     };
