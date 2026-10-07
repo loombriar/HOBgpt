@@ -337,6 +337,7 @@ function createApp(options = {}) {
   ensureColumn('designer_profiles', 'categories', "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn('designer_profiles', 'portfolio_url', 'TEXT');
   ensureColumn('designer_profiles', 'social_url', 'TEXT');
+  ensureColumn('designer_profiles', 'social_links', "TEXT NOT NULL DEFAULT '{}'");
   ensureColumn('designer_profiles', 'portrait_storage_key', 'TEXT');
   ensureColumn('designer_profiles', 'logo_storage_key', 'TEXT');
   ensureColumn('designer_profiles', 'stripe_payouts_enabled', 'INTEGER NOT NULL DEFAULT 0');
@@ -1532,14 +1533,14 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
-    const designer=db.prepare(`SELECT dp.id,dp.email,dp.display_name,dp.brand_name,dp.status,dp.bio,dp.location,dp.production_method,dp.categories,dp.portfolio_url,dp.social_url,dp.logo_storage_key,
+    const designer=db.prepare(`SELECT dp.id,dp.email,dp.display_name,dp.brand_name,dp.status,dp.bio,dp.location,dp.production_method,dp.categories,dp.portfolio_url,dp.social_url,dp.social_links,dp.logo_storage_key,
       (SELECT pending_email FROM designer_email_changes ec WHERE ec.designer_id=dp.id AND ec.expires_at>?) pending_email
       FROM designer_profiles dp
       WHERE dp.id=? AND dp.status='active'`).get(new Date().toISOString(),req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
     const acceptance=sellerTermsAcceptance(designer.id);
-    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
+    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
   app.post('/api/my/seller-terms', authDesigner, (req,res) => {
@@ -2382,7 +2383,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/designers/:designerId', (req, res) => {
-    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, portrait_storage_key, logo_storage_key
+    const designer = db.prepare(`SELECT id, display_name, brand_name, bio, location, production_method, categories, portfolio_url, social_url, social_links, portrait_storage_key, logo_storage_key
       FROM designer_profiles WHERE id = ? AND status = 'active'`).get(req.params.designerId);
     if (!designer) return fail(res, 404, 'designer_not_found', 'Designer storefront not found.');
     const rows = db.prepare(`SELECT l.*, COALESCE(dp.brand_name, dp.display_name) AS designer_name
@@ -2393,7 +2394,7 @@ function createApp(options = {}) {
     const likes=db.prepare(`SELECT COUNT(*) count FROM buyer_favorites bf JOIN listings l ON l.id=bf.listing_id WHERE l.designer_id=?`).get(designer.id)?.count||0;
     const badges=db.prepare(`SELECT badge_type,MIN(awarded_at) awarded_at FROM user_badges WHERE buyer_subject IN (?,?) GROUP BY badge_type ORDER BY awarded_at ASC`).all(designerBadgeSubject(designer.id),`designer:${designer.id}`)
       .map(b=>({type:b.badge_type,label:b.badge_type==='supporter'?'House Supporter':b.badge_type==='verified_buyer'?'Verified Buyer':b.badge_type,awardedAt:b.awarded_at}));
-    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges},items:rows.map(row=>serializeListing(row,'public'))});
+    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges},items:rows.map(row=>serializeListing(row,'public'))});
   });
 
   app.post('/api/my/designer-profile/portrait', authDesigner, imageUploadLimiter, upload.single('image'), async (req,res,next)=>{
@@ -2461,9 +2462,16 @@ function createApp(options = {}) {
     const productionMethod=String(req.body?.productionMethod??current.production_method??'').trim();
     const portfolioUrl=String(req.body?.portfolioUrl??current.portfolio_url??'').trim();
     const socialUrl=String(req.body?.socialUrl??current.social_url??'').trim();
+    const allowedSocials=['instagram','tiktok','pinterest','youtube','facebook','website'];
+    const currentSocialLinks=(()=>{try{return JSON.parse(current.social_links||'{}')}catch{return{}}})();
+    const incomingSocialLinks=req.body?.socialLinks===undefined?currentSocialLinks:req.body.socialLinks;
+    if(!incomingSocialLinks||typeof incomingSocialLinks!=='object'||Array.isArray(incomingSocialLinks))return fail(res,422,'validation_error','Check your social media links.');
+    const socialLinks={};
+    const socialHosts={instagram:['instagram.com'],tiktok:['tiktok.com'],pinterest:['pinterest.com','pin.it'],youtube:['youtube.com','youtu.be'],facebook:['facebook.com','fb.com']};
+    for(const platform of allowedSocials){const entry=incomingSocialLinks[platform];if(!entry)continue;const url=String(typeof entry==='string'?entry:entry.url||'').trim();const visible=typeof entry==='string'?true:entry.visible!==false;if(url){if(url.length>500||!validOptionalHttpUrl(url))return fail(res,422,'validation_error',`Enter a valid ${platform} URL.`);if(platform!=='website'){let host='';try{host=new URL(url).hostname.toLowerCase().replace(/^www\./,'')}catch{};if(!socialHosts[platform].some(domain=>host===domain||host.endsWith('.'+domain)))return fail(res,422,'validation_error',`Enter a ${platform} URL from the official ${platform} domain.`);}socialLinks[platform]={url,visible};}}
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(v=>String(v).trim()).filter(Boolean))]:(()=>{try{return JSON.parse(current.categories||'[]')}catch{return[]}})();
     if(!brandName||brandName.length>120||bio.length>2000||location.length>160||productionMethod.length>120||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||categories.length>12||categories.some(v=>v.length>80))return fail(res,422,'validation_error','Check the storefront profile fields and links.');
-    db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,req.designerId);
+    db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=?,social_links=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,JSON.stringify(socialLinks),req.designerId);
     return res.json({ok:true,storefrontUrl:`/designers/${encodeURIComponent(req.designerId)}`});
   });
 
