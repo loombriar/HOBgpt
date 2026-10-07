@@ -1,3 +1,4 @@
+import SellerPhotoEnhance from './SellerPhotoEnhance';
 import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
 import { ImagePlus } from '@/lib/icons';
 
@@ -19,12 +20,13 @@ export function releaseStudioPhotoPreviews(photos: StudioPhoto[]) {
 }
 
 type StudioPhotoPickerProps = {
+  token?:string;
   photos: StudioPhoto[];
   setPhotos: Dispatch<SetStateAction<StudioPhoto[]>>;
   onRemoveSaved?: (photo: StudioPhoto) => void;
 };
 
-export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved }: StudioPhotoPickerProps) {
+export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,token }: StudioPhotoPickerProps) {
   const [error, setError] = useState('');
 
   const addPhotos = (event: ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +102,7 @@ export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved }: 
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{photo.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{index === 0 ? 'Cover photo' : `Photo ${index + 1}`}{photo.file ? ' · Ready to upload' : ' · Saved photo'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{index === 0 ? 'Cover photo' : `Photo ${index + 1}`}{photo.file ? ' · Ready to upload' : ' · Saved photo'}</p>{token&&<SellerPhotoEnhance photo={photo} token={token} full={photos.length>=MAX_STUDIO_IMAGES} onAdd={enhanced=>setPhotos(current=>current.length<MAX_STUDIO_IMAGES?[...current,enhanced]:current)}/>}
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-1">
                   <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} aria-label={`Move ${photo.name} up`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-primary disabled:opacity-40">Move up</button>

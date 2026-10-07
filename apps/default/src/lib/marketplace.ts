@@ -65,7 +65,7 @@ type GalleryItem = {
   status?: string;
   images?: Array<{ url: string }>;
   seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
-  shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
+  giftNoteAvailable?:boolean; shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
   productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number;
 };
 
@@ -91,6 +91,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@seods': item.seoDescription || '',
       '/attributes/@seotg': item.seoTags || '',
       '/attributes/@share': item.shareImageUrl || '',
+      '/attributes/@giftn': item.giftNoteAvailable ? 'yes' : 'no',
       '/attributes/@shipc': item.shippingCostCents == null ? '' : String(item.shippingCostCents),
       '/attributes/@shipf': item.freeShippingThresholdCents == null ? '' : String(item.freeShippingThresholdCents),
       '/attributes/@handl': item.handlingDaysMin == null ? '' : String(item.handlingDaysMin),
