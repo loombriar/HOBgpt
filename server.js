@@ -1424,6 +1424,15 @@ function createApp(options = {}) {
       recordSellerTerms(designerId,'signup');
     })();
 
+    const signupAlertEmail=String(options.signupAlertEmail ?? process.env.DESIGNER_SIGNUP_ALERT_EMAIL ?? '').trim();
+    if(signupAlertEmail){
+      void sendEmail({
+        to:signupAlertEmail,
+        subject:`New House of Briar designer: ${brandName}`,
+        text:`A new designer joined House of Briar.\n\nDesigner: ${displayName}\nBrand: ${brandName}\nEmail: ${email}\nCategories: ${categories.join(', ')}\n\nOpen the admin designer list to review the account.`,
+        eventKey:`designer-signup:${id}`
+      });
+    }
     return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false},accessToken});
   });
 
