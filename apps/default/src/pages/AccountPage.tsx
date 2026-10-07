@@ -257,7 +257,8 @@ function StudioContent() {
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/tracking`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${sellerToken}`, 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft),
       });
       const data = await response.json().catch(() => ({}));
