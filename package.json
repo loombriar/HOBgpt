@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "backup": "node scripts/backup-data.js",
+    "verify:backup": "node scripts/verify-backup.js"
   },
   "engines": {
     "node": ">=20"
