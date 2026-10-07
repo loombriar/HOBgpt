@@ -136,7 +136,7 @@ test('private admin entry displays daily traffic and public footer hides admin t
   const traffic = page.locator('#admin-website-views');
   await expect(traffic.getByRole('heading', { name: 'Website views', exact: true })).toBeVisible();
   await expect(traffic.getByText('Page views', { exact: true })).toBeVisible();
-  await expect(traffic.getByText('Visits', { exact: true })).toBeVisible();
+  await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
   await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
   await expect(traffic.getByRole('heading', { name: 'Daily counts', exact: true })).toBeVisible();
   await expect(traffic.locator('#admin-daily-traffic tbody tr')).toHaveCount(30);
