@@ -36,3 +36,53 @@ body .secondary-button,.sewing-hero-actions .secondary-button{background:transpa
 body :is(input,select,textarea){border-radius:2px!important}body :is(a,button,input,select,textarea,summary):focus-visible{outline:2px solid #80645e!important;outline-offset:4px!important}section[id]{scroll-margin-top:24px}
 @media(max-width:900px){.product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}.fashion-hero-side{padding:32px}.sewing-hero-content h1{font-size:64px!important}.atelier-spread{grid-template-columns:repeat(2,minmax(0,1fr))}.atelier-photo-0{grid-column:auto}}
 @media(max-width:650px){.blackberry-house .site-header.sewing-header{padding:20px 16px 0!important}.blackberry-house .sewing-header .sewing-nav{gap:0 12px!important;display:flex!important}.blackberry-house .sewing-header .sewing-nav .room-button{width:auto!important;height:auto!important;min-height:44px!important;padding:12px 6px!important;grid-column:auto!important}.hero.sewing-hero{grid-template-columns:1fr!important;min-height:0!important}.hero.sewing-hero>.container.sewing-hero-content{padding:48px 24px!important}.sewing-hero-content h1{font-size:60px!important}.fashion-hero-side{grid-column:1;grid-row:2;border-left:0;border-top:1px solid #d6d0c8;padding:28px}.fashion-hero-side>p{font-size:44px;margin:30px 0}.blackberry-house .briar-section{padding-block:48px!important}.atelier-spread{grid-template-columns:1fr!important}.atelier-photo-0{grid-column:auto}.atelier-spread[data-count='1']{max-width:100%}.atelier-collection-grid{grid-template-columns:1fr}.atelier-heading{grid-template-columns:1fr}.fashion-brand-caption{font-size:8px}}
+
+/* Expressive fashion panels: native controls with a clear visual identity. */
+body.blackberry-house .sewing-header .briar-wordmark>.fashion-wordmark{display:block!important;visibility:visible!important;font-size:clamp(32px,4.5vw,64px)!important;line-height:1.15!important}
+body.blackberry-house .fashion-brand-caption{display:block!important}
+body.blackberry-house .product-section .shop-search-controls{width:100%!important;max-width:none!important;background:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+body.blackberry-house .product-section .section-heading{display:block!important}
+body.blackberry-house .product-section .shop-drop-windows{gap:16px!important;margin-top:22px!important}
+body.blackberry-house .product-section .shop-drop-window{position:relative!important;isolation:isolate;min-height:166px!important;padding:22px 18px 18px!important;justify-content:space-between!important;border:1px solid #b38b87!important;background:linear-gradient(135deg,#edd7d4,#f7ebe5)!important;box-shadow:5px 5px 0 #d8beb840!important;overflow:hidden!important;transition:border-color .2s,box-shadow .2s}
+body.blackberry-house .product-section .shop-drop-window:nth-child(even){background:linear-gradient(135deg,#e5dce7,#f4edf1)!important}
+body.blackberry-house .product-section .shop-drop-window:nth-child(3){background:linear-gradient(135deg,#e4e4d6,#f6f3e9)!important}
+body.blackberry-house .product-section .shop-drop-window:focus-within{outline:2px solid #713d4e!important;outline-offset:4px!important;box-shadow:5px 5px 0 #713d4e22!important}
+body.blackberry-house .product-section .shop-drop-window .category-window-title{display:block!important;font:400 28px/1.1 'Cormorant Garamond',Georgia,serif!important;color:#422f37!important;letter-spacing:-.02em!important;white-space:normal!important}
+body.blackberry-house .product-section .shop-drop-window>select{appearance:auto!important;opacity:1!important;background:#fffaf6!important;border:1px solid #ad8b89!important;height:46px!important;min-height:46px!important;padding:10px 24px 10px 10px!important;text-align:left!important;color:#392a31!important;font:12px/1.4 Inter,sans-serif!important;cursor:pointer!important}
+body.blackberry-house .product-section .shop-drop-window :is(.category-window-art,.dropdown-measuring-tape,.category-window-current){display:none!important}
+body.blackberry-house .product-section .shop-drop-window::before,body.blackberry-house .product-section .shop-drop-window::after{display:none!important;content:none!important;background:none!important}
+body.blackberry-house .fashion-hero-side{background:radial-gradient(ellipse at 100% 0,#f0c5c4,transparent 65%),linear-gradient(145deg,#e6c9cc,#dcb7bf);color:#4b2937;position:relative;overflow:hidden}
+body.blackberry-house .fashion-hero-side::after{content:'B';position:absolute;right:-18px;bottom:-70px;font:italic 440px/1 Georgia,serif;color:#6430450a;pointer-events:none}
+body.blackberry-house .fashion-hero-side>*{position:relative;z-index:1}
+body.blackberry-house .feature-bar{background:#ead8d5!important}
+body.blackberry-house .house-collections{background:#ead8d5!important}
+body.blackberry-house .house-stories{background:#f0e7eb!important}
+body.blackberry-house .house-styling{background:#eadfe9!important}
+body.blackberry-house .designer-callout-section{background:#442a36!important}
+body.blackberry-house .designer-callout{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
+body.blackberry-house .designer-callout :is(h2,p,.eyebrow){color:#fff4ed!important}
+body.blackberry-house .designer-callout .primary-button{background:#ecd0cf!important;color:#442a36!important;border-color:#ecd0cf!important}
+body.blackberry-house .newsletter-section{background:#dec3c9!important}
+body.blackberry-house .house-editorial .atelier-photo{border-bottom:1px solid #ad8b89!important}
+body.blackberry-house .atelier-collection{border:1px solid #b99898!important;padding:18px!important;background:#fff7f0!important}
+body.blackberry-house .atelier-collection-cover{height:320px!important;background:#e6d7d0!important}
+body.blackberry-house .atelier-collection-copy{padding:20px 0 4px!important}
+body.blackberry-house .atelier-collection h3{font-size:36px!important}
+body.blackberry-house .site-footer{background:#302630!important;background-image:none!important;border:0!important}
+body.blackberry-house .site-footer::before{display:none!important}
+body.blackberry-house .site-footer :is(p,a,.brand-name){color:#f4e8e4!important}
+body.blackberry-house .sewing-hero-content h1 em{color:#86445e!important}
+@media(max-width:900px){body.blackberry-house .product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:650px){body.blackberry-house .product-section .shop-drop-windows{gap:12px!important}body.blackberry-house .product-section .shop-drop-window{min-height:144px!important;padding:16px 12px!important}body.blackberry-house .product-section .shop-drop-window .category-window-title{font-size:24px!important}body.blackberry-house .atelier-collection{display:block!important}body.blackberry-house .atelier-collection-cover{height:300px!important}body.blackberry-house .fashion-hero-side::after{font-size:300px;bottom:-50px}}
+@media(prefers-reduced-motion:reduce){body.blackberry-house .product-section .shop-drop-window{transition:none}}
+
+/* Atelier hardware: graphic scissors, sewn buttons and zipper teeth. */
+body.blackberry-house .product-section .shop-drop-window{padding-top:54px!important}
+body.blackberry-house .product-section .shop-drop-window::before{display:block!important;content:'✂'!important;position:absolute!important;inset:12px 18px auto auto!important;width:32px!important;height:32px!important;background:none!important;border:0!important;color:#713d4e!important;font:30px/1 Georgia,serif!important;transform:rotate(-22deg);pointer-events:none}
+body.blackberry-house .product-section .shop-drop-window:nth-child(even)::before{content:''!important;width:26px!important;height:26px!important;border:2px solid #713d4e!important;border-radius:50%!important;transform:none;background:radial-gradient(circle at 35% 35%,#713d4e 0 1.5px,transparent 2px),radial-gradient(circle at 65% 35%,#713d4e 0 1.5px,transparent 2px),radial-gradient(circle at 35% 65%,#713d4e 0 1.5px,transparent 2px),radial-gradient(circle at 65% 65%,#713d4e 0 1.5px,transparent 2px)!important;box-shadow:inset 0 0 0 3px #fff6f155}
+body.blackberry-house .product-section .shop-drop-window:nth-child(3)::before{content:''!important;width:34px!important;height:30px!important;border:0!important;border-radius:0!important;transform:none;background:linear-gradient(90deg,transparent 0 12px,#713d4e 12px 14px,transparent 14px 18px,#713d4e 18px 20px,transparent 20px),repeating-linear-gradient(0deg,#713d4e 0 2px,transparent 2px 5px)!important;clip-path:polygon(28% 0,72% 0,72% 100%,28% 100%)}
+body.blackberry-house .fashion-hero-side::before{content:'✂';position:absolute;right:36px;top:50px;font:100px/1 Georgia,serif;color:#713d4e35;transform:rotate(-25deg);pointer-events:none}
+body.blackberry-house .designer-callout-section{border-top:8px solid transparent!important;border-image:repeating-linear-gradient(90deg,#a67c88 0 5px,#442a36 5px 9px) 8!important}
+body.blackberry-house .atelier-collection-link{display:inline-flex;align-items:center;gap:10px}
+body.blackberry-house .atelier-collection-link::before{content:'';width:16px;height:16px;flex-shrink:0;border:1px solid #86445e;border-radius:50%;background:radial-gradient(circle at 35% 35%,#86445e 0 1px,transparent 1.5px),radial-gradient(circle at 65% 35%,#86445e 0 1px,transparent 1.5px),radial-gradient(circle at 35% 65%,#86445e 0 1px,transparent 1.5px),radial-gradient(circle at 65% 65%,#86445e 0 1px,transparent 1.5px)}
+@media(max-width:650px){body.blackberry-house .product-section .shop-drop-window{min-height:164px!important;padding-top:48px!important}body.blackberry-house .fashion-hero-side::before{font-size:64px;right:24px;top:22px}}
