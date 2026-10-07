@@ -97,3 +97,5 @@ body.blackberry-house .product-section .shop-drop-window .category-window-icon{d
 .admin-traffic-table{width:100%;border-collapse:collapse;margin:12px 0 24px;font-size:13px}
 .admin-traffic-table th,.admin-traffic-table td{text-align:left;padding:10px 6px;border-bottom:1px solid #d6d0c8;overflow-wrap:anywhere}
 .admin-traffic-table th:first-child,.admin-traffic-table td:first-child{width:70%}
+
+.atelier-cover-empty{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;color:#713d4e;font:italic 28px/1.2 Georgia,serif;text-align:center}

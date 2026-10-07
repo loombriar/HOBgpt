@@ -6,6 +6,20 @@ const houseCollections = {
   'independent-by-design': {title:'Independent by Design',season:'Meet your next favorite',description:'Small runs. Singular ideas. Pieces with a person behind them—and absolutely no interest in blending in.',filter:'all',icon:'needle',match:()=>true}
 };
 
+function selectHouseCollectionCovers(items) {
+  const used = new Set();
+  const key = item => item.id || getProductImages(item)[0]?.url;
+  const covers = {};
+  for (const [slug, collection] of Object.entries(houseCollections)) {
+    const candidates = items.filter(item => collection.match(item) && !used.has(key(item)));
+    const item = slug === 'independent-by-design'
+      ? candidates.find(item => item.style === 'Set / Outfit') || candidates.at(-1)
+      : candidates[0];
+    if (item) { covers[slug] = item; used.add(key(item)); }
+  }
+  return covers;
+}
+
 function houseIcon(name){
   const paths={spool:'M13 7h22M13 41h22M16 7v34M32 7v34M16 14h16M16 20h16M16 26h16M16 32h16M16 38h16M35 25c13 0 7 17 2 13',needle:'M10 39 35 9c6-7 11-1 6 5L16 42M33 13l4-4M11 40c-10 4-9-13 0-11s7 11 17 6',briar:'M7 42c17-11 10-23 34-35M19 30l-8-5M27 20l9 2M32 15l-2-8M18 31c-10-14-16 2-3 3M28 21c7-15 20-2 5 3'};
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 48 48');svg.setAttribute('aria-hidden','true');svg.setAttribute('class','atelier-icon');
@@ -34,6 +48,8 @@ async function renderHouseEditorial(){
   try{
     const payload=await apiRequest('/api/gallery');
     const items=(Array.isArray(payload.items)?payload.items:[]).filter(item=>getProductImages(item)[0]?.url);
+    spread.replaceChildren(); edits.replaceChildren();
+    const covers = selectHouseCollectionCovers(items);
     const featured=houseCollection?items.filter(houseCollection.match):items;
     spread.dataset.count=String(Math.min(featured.length,3));
     if(!featured.length){spread.append(makeElement('p','atelier-empty','New pieces are on their way. Explore the market below.'));}
@@ -45,8 +61,9 @@ async function renderHouseEditorial(){
     });
     for(const [slug,collection] of Object.entries(houseCollections)){
       const card=makeElement('a','atelier-collection');card.href='/collections/'+slug;
-      const item=slug==='independent-by-design'?(items.find(item=>item.style==='Set / Outfit')||items.at(-1)):items.find(collection.match),cover=makeElement('div','atelier-collection-cover');
+      const item=covers[slug],cover=makeElement('div','atelier-collection-cover');
       if(item){const img=document.createElement('img');img.src=getProductImages(item)[0].url;img.alt='';img.loading='lazy';cover.append(img);}
+      if (!item) cover.append(makeElement('span', 'atelier-cover-empty', 'Discover the edit ↗'));
       cover.append(houseIcon(collection.icon));
       const copy=makeElement('div','atelier-collection-copy');copy.append(makeElement('span','eyebrow',collection.season),makeElement('h3','',collection.title),makeElement('p','',collection.description),makeElement('span','atelier-collection-link','Explore the edit ↗'));
       card.append(cover,copy);edits.append(card);
