@@ -1552,8 +1552,6 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
   }
 });
 
-byId('paypal-donation-btn')?.addEventListener('click',async()=>{const amount=Number(byId('donation-amount')?.value),message=byId('donation-message');if(!Number.isFinite(amount)||amount<1||amount>1000){setMessage(message,'Choose a donation between $1 and $1,000.','error');return;}const button=byId('paypal-donation-btn');button.disabled=true;try{setMessage(message,'Opening PayPal…','');const payload=await apiRequest('/api/paypal/donations/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');location.assign(payload.url);}catch(error){setMessage(message,error.message||'PayPal donation could not be started.','error');button.disabled=false;}});
-
 byId('newsletter-form')?.addEventListener('submit', (event) => {
   event.preventDefault();
   const email = byId('email');
