@@ -3392,9 +3392,6 @@ function createApp(options = {}) {
   app.get('/checkout', sendFrontend);
   app.get('/', sendFrontend);
   app.get('/index.html', sendFrontend);
-  if (hasReactBuild) {
-    app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
-  }
   for(const asset of ['atelier.css','atelier.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
@@ -3458,6 +3455,11 @@ function createApp(options = {}) {
     });
   });
 
+
+  // Resolve authored artwork before the React SPA fallback.
+  if (hasReactBuild) {
+    app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
+  }
 
   app.use((error, _req, res, _next) => {
     if (error instanceof multer.MulterError) {

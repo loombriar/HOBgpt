@@ -73,12 +73,12 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="briar-app min-h-screen bg-background text-foreground">
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
-            <img src="https://files.taskade.com/space-files/dcdb0306-5408-4b6e-9f03-5548f7a3e865/original/house-of-briar-crest.png" alt="House of Briar crest" className="size-10 shrink-0 rounded-full border border-primary/30 object-cover shadow-sm transition group-hover:rotate-3" />
+            <img src="/icons/house-of-briar-512.png" alt="House of Briar crest" className="size-10 shrink-0 rounded-full border border-primary/30 object-cover shadow-sm transition group-hover:rotate-3" />
             <span className="min-w-0 leading-none">
               <span className="block truncate font-serif text-base font-semibold tracking-wide sm:text-lg">House of Briar</span>
               <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>

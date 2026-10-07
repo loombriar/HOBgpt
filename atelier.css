@@ -107,3 +107,38 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 @media(max-width:1400px){.briar-side-vine{display:none}}
 @media(max-width:650px){.blackberry-house .briar-section{padding-top:104px!important}.briar-divider{top:10px;width:calc(100% - 32px);height:72px;gap:0}.briar-vine-art{width:100%}.briar-divider>.briar-vine-art:last-child,.briar-divider::after{display:none}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
 @media(prefers-reduced-motion:reduce){.briar-branch,.briar-leaf,.briar-berry{animation:none!important;transform:none!important}}
+
+/* Unified parchment, mint silk and blackberry palette, shared across the House. */
+:root { --bg-card:#fffaf2; --bg-secondary:#f6e7ea; --border:#ddccb2; --border-strong:#b79d69; --text-dark:#503849; --text-muted:#71616a; --moss-dark:#75465f; --gold:#b79d69; }
+body { color:var(--text-dark); background-color:#faf3e7; }
+.site-header.sewing-header,.blackberry-house .site-header.sewing-header { background:#faf3e7!important; overflow:visible!important; }
+.sewing-header .briar-wordmark { width:min(100%,860px)!important; }
+.sewing-header .briar-wordmark>img { max-height:260px!important; }
+.sewing-header .sewing-nav .nav-hotspot { color:#503849!important; }
+.sewing-header .sewing-nav .room-button { background-color:#faf3e7!important; }
+.sewing-header .door-info { background:#fffaf2; color:#503849; border-color:#b79d69; }
+body h1,body h2,body h3 { font-family:'Cormorant Garamond',Georgia,serif!important; color:#503849; letter-spacing:0; }
+.eyebrow,.atelier-heading .eyebrow { color:#87586e; }
+.hero.sewing-hero { background:#faf3e7!important; }
+.hero.sewing-hero::before { background:linear-gradient(90deg,#faf3e7f5,#faf3e7bb 40%,transparent 75%); }
+.sewing-hero-content h1 { color:#503849!important; font-size:clamp(2.7rem,5.5vw,5rem)!important; }
+.sewing-hero-content h1 em { color:#87586e!important; }
+.sewing-hero-content>p:not(.eyebrow) { color:#71616a!important; }
+.primary-button,.sewing-hero-actions .primary-button { background:#75465f!important; color:#fffaf2!important; border:1px solid #75465f!important; border-radius:999px; }
+.secondary-button,.sewing-hero-actions .secondary-button { background:#e4efe6!important; color:#503849!important; border:1px solid #b79d69!important; border-radius:999px; }
+.feature-bar,.house-styling,.blackberry-house .house-styling { background:#eaf0e8!important; }
+.house-editorial,.product-section,.story-section { background:#faf3e7!important; }
+.house-collections,.house-stories,.curation-section { background:#f6e7ea!important; }
+.newsletter-section,.designer-callout-section { background:#eaf0e8!important; color:#503849!important; }
+.newsletter-section h2,.newsletter-section p,.newsletter-section label { color:#503849!important; }
+.product-card,.atelier-photo,.atelier-collection,.house-spotlight,.story-panel,.app-dialog,.modal-content,.designer-room-page { background:#fffaf2!important; color:#503849; border-color:#b79d6977!important; box-shadow:0 12px 32px #5038490c!important; }
+.dialog-header,.designer-room-header,.studio-toolbar { background:#eaf0e8; color:#503849; border-color:#ddccb2; }
+input,select,textarea { accent-color:#75465f; }
+.stack-form input,.stack-form select,.stack-form textarea,.shop-search input { background:#fffaf2; color:#503849; border-color:#ddccb2; }
+.product-section .shop-drop-window { background:#faf3e7!important; }
+.product-section .shop-drop-window .category-window-art { mix-blend-mode:multiply; }
+.product-section .shop-drop-window .category-window-title,.product-section .shop-drop-window>select { color:#503849!important; }
+.product-section .shop-drop-window>select { min-height:44px!important; }
+.product-section .shop-drop-window:focus-within { outline-color:#75465f; }
+.site-footer { background:#f6e7ea!important; color:#503849!important; border-top:1px solid #b79d6966; }
+@media(max-width:650px) { .sewing-header .briar-wordmark>img { max-height:34vw!important; } .hero.sewing-hero::before { background:#faf3e7d9; } .sewing-header .door-info { max-width:calc(100vw - 32px); } }

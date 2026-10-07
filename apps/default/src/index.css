@@ -1,5 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap");
-/* Mossy moonlight: warm cream, deep forest, soft clay, and a single brass accent for a handmade marketplace. */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:wght@500;600;700&display=swap");
+/* Blackberry atelier: parchment, pastel mint, blush silk and gilt thorns. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,25 +7,25 @@
 @layer base {
   :root {
     color-scheme: light;
-    --background: 192 38% 96%;
-    --foreground: 200 45% 10%;
-    --muted: 192 30% 90%;
-    --muted-foreground: 198 20% 38%;
-    --popover: 190 40% 98%;
-    --popover-foreground: 200 45% 12%;
-    --border: 192 24% 84%;
-    --input: 192 24% 82%;
-    --card: 190 42% 97%;
-    --card-foreground: 200 45% 11%;
-    --primary: 188 80% 30%;
-    --primary-foreground: 180 60% 97%;
-    --secondary: 192 28% 91%;
-    --secondary-foreground: 200 40% 16%;
-    --accent: 180 45% 91%;
-    --accent-foreground: 186 65% 24%;
+    --background: 40 60% 96%;
+    --foreground: 320 19% 23%;
+    --muted: 145 22% 91%;
+    --muted-foreground: 320 10% 40%;
+    --popover: 40 65% 98%;
+    --popover-foreground: 320 19% 23%;
+    --border: 36 30% 78%;
+    --input: 36 30% 73%;
+    --card: 40 65% 98%;
+    --card-foreground: 320 19% 23%;
+    --primary: 320 25% 34%;
+    --primary-foreground: 40 65% 98%;
+    --secondary: 350 48% 92%;
+    --secondary-foreground: 320 19% 23%;
+    --accent: 145 28% 89%;
+    --accent-foreground: 320 25% 34%;
     --destructive: 0 74% 46%;
     --destructive-foreground: 0 0% 98%;
-    --ring: 188 74% 34%;
+    --ring: 320 25% 34%;
     --radius: 0.75rem;
     --chart-1: 153 27% 36%;
     --chart-2: 29 48% 51%;
@@ -36,25 +36,25 @@
 
   .dark {
     color-scheme: dark;
-    --background: 192 38% 4%;
-    --foreground: 200 45% 90%;
-    --muted: 192 30% 10%;
-    --muted-foreground: 198 20% 62%;
-    --popover: 190 40% 3%;
-    --popover-foreground: 200 45% 88%;
-    --border: 192 24% 16%;
-    --input: 192 24% 18%;
-    --card: 190 42% 3%;
-    --card-foreground: 200 45% 89%;
-    --primary: 188 80% 70%;
-    --primary-foreground: 180 60% 3%;
-    --secondary: 192 28% 9%;
-    --secondary-foreground: 200 40% 84%;
-    --accent: 180 45% 10%;
-    --accent-foreground: 186 65% 76%;
+    --background: 320 20% 9%;
+    --foreground: 40 40% 92%;
+    --muted: 320 16% 17%;
+    --muted-foreground: 350 20% 73%;
+    --popover: 320 20% 12%;
+    --popover-foreground: 40 40% 92%;
+    --border: 36 18% 30%;
+    --input: 36 18% 33%;
+    --card: 320 20% 12%;
+    --card-foreground: 40 40% 92%;
+    --primary: 145 28% 80%;
+    --primary-foreground: 320 20% 12%;
+    --secondary: 350 22% 22%;
+    --secondary-foreground: 350 45% 89%;
+    --accent: 145 14% 19%;
+    --accent-foreground: 145 28% 80%;
     --destructive: 0 70% 30%;
     --destructive-foreground: 0 0% 90%;
-    --ring: 188 50% 20%;
+    --ring: 145 28% 80%;
     --chart-1: 39 49% 67%;
     --chart-2: 153 31% 48%;
     --chart-3: 5 58% 50%;
@@ -105,3 +105,28 @@
 .briar-house-link{display:flex;align-items:center;justify-content:center;flex:0 0 126px;width:126px;height:105px;padding:36px 20px 17px;background:url('/blackberry-house-nav-frame-v1.webp') center/100% 100% no-repeat;color:#4f3825;font-size:12px;line-height:1.2;text-align:center}
 .briar-house-link:focus-visible{outline:2px solid #80612f;outline-offset:-5px}
 .briar-house-link:hover{text-decoration:underline;text-underline-offset:3px}
+
+/* Decorative artwork never covers controls or designer photography. */
+.briar-app { background-image:repeating-linear-gradient(0deg,transparent 0 3px,#b79d6905 3px 4px); }
+.briar-app>header { background:hsl(var(--background)/.96); border-bottom:1px solid #b79d6966; }
+.briar-app h1,.briar-app h2,.briar-app h3 { font-family:'Cormorant Garamond',Georgia,serif; letter-spacing:0; }
+.briar-app main>section { position:relative; }
+.briar-app main>section:nth-child(even) { background-color:hsl(var(--accent)/.24); }
+.briar-app main>section:not(:first-child)::before { content:''; display:block; height:28px; margin:0 24px; background:var(--berry-briar) center/300px 44px repeat-x; opacity:.7; pointer-events:none; }
+.briar-app .briar-hero { background:#faf3e7 url('/sewing-hero-v2.webp') right center/cover no-repeat; }
+.briar-app .briar-hero>div:first-child { display:none; }
+.briar-app .briar-hero>div:last-child { background:linear-gradient(90deg,#faf3e7f5,#faf3e7bb 48%,#faf3e700); }
+.briar-app .briar-hero h1 { font-size:clamp(2.8rem,6vw,5.8rem); line-height:1.05; }
+.briar-app .briar-hero h1,.briar-app .briar-hero p { color:#503849; }
+.briar-app .briar-hero h1 em { color:#87586e; }
+.briar-app .briar-hero .briar-featured img { object-fit:contain; background:#faf3e7; }
+.briar-app .briar-featured { border:1px solid #b79d6999; box-shadow:0 18px 40px #50384912; }
+.briar-app a.bg-primary,.briar-app button.bg-primary { box-shadow:0 3px 0 #b79d6940; }
+.briar-app input:focus-visible,.briar-app textarea:focus-visible,.briar-app select:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:3px; }
+.briar-house-link { color:#503849; }
+.dark .briar-app .briar-hero { background-color:hsl(var(--background)); background-blend-mode:soft-light; }
+.dark .briar-app .briar-hero>div:last-child { background:hsl(var(--background)/.9); }
+.dark .briar-app .briar-hero h1,.dark .briar-app .briar-hero p { color:hsl(var(--foreground)); }
+@media(max-width:767px) { .briar-app .briar-hero>div:last-child { background:#faf3e7df; } .briar-app .briar-hero h1 { font-size:clamp(2.5rem,10vw,4rem); } }
+
+:root { --berry-briar:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20360%2056%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23a4864d%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M-8%2036C42%208%2077%2049%20127%2026S207%209%20248%2030s70%2014%20122-10%22%2F%3E%3Cpath%20d%3D%22M48%2025l-9-12%202%2014m70%202%207%2012-11-10m67-13-4-12%2011%2011m75%2017%208%2012-13-10m56%202%207-14-1%2015%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%23b9d1b5%22%20stroke%3D%22%238da984%22%20stroke-width%3D%22.8%22%3E%3Cpath%20d%3D%22M62%2028Q53%207%2037%2011q3%2017%2025%2017m64%200q6-21%2023-22-1%2017-23%2022m91-4q-9-22-27-19%206%2020%2027%2019m78%2014q5-22%2023-23-2%2020-23%2023%22%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D%22%23af6f65%22%20stroke-width%3D%22.6%22%20fill%3D%22%23e6a099%22%3E%3Ccircle%20cx%3D%2277%22%20cy%3D%2226%22%20r%3D%225%22%2F%3E%3Ccircle%20cx%3D%2286%22%20cy%3D%2231%22%20r%3D%225%22%2F%3E%3Ccircle%20cx%3D%2278%22%20cy%3D%2237%22%20r%3D%225%22%2F%3E%3Ccircle%20cx%3D%22238%22%20cy%3D%2222%22%20r%3D%225%22%2F%3E%3Ccircle%20cx%3D%22247%22%20cy%3D%2224%22%20r%3D%225%22%2F%3E%3Ccircle%20cx%3D%22243%22%20cy%3D%2232%22%20r%3D%225%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22%23fff0db%22%3E%3Ccircle%20cx%3D%2276%22%20cy%3D%2224%22%20r%3D%221.3%22%2F%3E%3Ccircle%20cx%3D%2285%22%20cy%3D%2229%22%20r%3D%221.3%22%2F%3E%3Ccircle%20cx%3D%22237%22%20cy%3D%2220%22%20r%3D%221.3%22%2F%3E%3Ccircle%20cx%3D%22246%22%20cy%3D%2222%22%20r%3D%221.3%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }
