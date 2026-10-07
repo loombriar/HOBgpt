@@ -5,7 +5,7 @@ const os=require('node:os');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {once}=require('node:events');
-const {createApp:createBaseApp}=require('../server');
+const {createApp:createBaseApp,SELLER_TERMS_VERSION}=require('../server');
 
 // Successful commerce fixtures represent sellers who completed Stripe verification.
 function createApp(options) {
@@ -21,6 +21,7 @@ function createApp(options) {
     throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
   }});
   for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
+  for (const id of designerIds) context.db.prepare("INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)").run(id,SELLER_TERMS_VERSION,new Date().toISOString(),"test-fixture");
   return context;
 }
 

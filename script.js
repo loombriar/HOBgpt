@@ -1321,6 +1321,8 @@ function renderSellerReadiness(){
   const list=byId('seller-readiness-list'),badge=byId('seller-readiness-badge'),summary=byId('seller-readiness-summary');
   if(!list)return;
   const {profile,listings,stripe}=designerReadinessState;
+  byId('seller-terms-form')?.classList.toggle('hidden',!profile || Boolean(profile.sellerTermsAccepted));
+  if(byId('seller-terms-version'))byId('seller-terms-version').textContent=profile?.sellerTermsVersion||'';
   const checks=[
     ['Seller Terms accepted',Boolean(profile?.sellerTermsAccepted),'Agree to the House of Briar Seller Terms.'],
     ['Stripe connected',Boolean(stripe?.connected),'Connect your Stripe payout account.'],
@@ -1337,7 +1339,7 @@ function renderSellerReadiness(){
     if(!done){
       copy.append(makeElement('span','seller-readiness-hint',hint));
       const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';
-      if(label==='Seller Terms accepted'){action.textContent='Review seller terms';action.addEventListener('click',()=>window.open('/rules#seller-terms','_blank','noopener'));}
+      if(label==='Seller Terms accepted'){action.textContent='Review and accept seller terms';action.addEventListener('click',()=>byId('seller-terms-form')?.scrollIntoView({behavior:'smooth',block:'center'}));}
       else if(label==='Stripe connected'||label==='Identity & details submitted'||label==='Payouts enabled'){action.textContent=label==='Stripe connected'?'Set up payouts':'Continue Stripe setup';action.addEventListener('click',openStripeOnboarding);}
       else if(label==='Designer profile completed'){action.textContent='Complete profile';action.addEventListener('click',()=>byId('designer-brand-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
       else {action.textContent='Create a piece';action.addEventListener('click',()=>byId('product-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
@@ -1488,7 +1490,8 @@ if (designerSignupForm) {
           brandName: String(form.get('brandName') || '').trim(),
           email: String(form.get('email') || '').trim(),
           categories,
-          sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on'
+          sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on',
+          sellerTermsVersion: '2026-10-06'
         })
       });
       const payload = await response.json().catch(() => ({}));
@@ -1802,6 +1805,8 @@ async function loadDesignerBrand() {
     designerReadinessState.profile=designer;renderSellerReadiness();
     byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
     byId('designer-account-email') && (byId('designer-account-email').value = designer.email || '');
+    byId('designer-email-verify-form')?.classList.toggle('hidden',!designer.pendingEmail);
+    if(byId('designer-pending-email'))byId('designer-pending-email').textContent=designer.pendingEmail?`Waiting for verification: ${designer.pendingEmail}. Paste the code emailed there within 30 minutes. Requesting another change replaces the previous code.`:'';
     byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
@@ -1820,9 +1825,26 @@ byId('designer-settings-form')?.addEventListener('submit', async event => {
       email:byId('designer-account-email').value.trim()
     })});
     if(result?.designer?.email)byId('designer-account-email').value=result.designer.email;
-    setMessage(byId('designer-settings-message'),'Account settings saved.','success');
+    setMessage(byId('designer-settings-message'),result.verificationRequired?'Name saved. Check the new email address for a verification code. Your current House email stays in use until you verify it.':'Account settings saved.','success');
     await loadDesignerBrand();
   }catch(error){setMessage(byId('designer-settings-message'),error.message||'Account settings could not be saved.','error');}
+  finally{if(button)button.disabled=false;}
+});
+byId('designer-email-verify-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/designer-email/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:byId('designer-email-code').value.trim()})});
+    byId('designer-email-code').value='';await loadDesignerBrand();
+    setMessage(byId('designer-settings-message'),'Your new House email is verified and saved. Stripe and your sign-in provider remain separate.','success');
+  }catch(error){setMessage(byId('designer-email-verify-message'),error.message,'error');}
+  finally{if(button)button.disabled=false;}
+});
+byId('seller-terms-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/seller-terms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accepted:byId('seller-terms-consent').checked,termsVersion:designerReadinessState.profile?.sellerTermsVersion})});
+    byId('seller-terms-consent').checked=false;await loadDesignerBrand();
+  }catch(error){setMessage(byId('seller-terms-message'),error.message,'error');}
   finally{if(button)button.disabled=false;}
 });
 byId('designer-brand-form')?.addEventListener('submit', async event => {
