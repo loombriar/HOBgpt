@@ -264,7 +264,7 @@ test('header and full-size category banners are served with live filters', async
   assert.ok(html.indexOf('<nav class="sewing-nav"') < html.indexOf('<a class="sewing-brand briar-wordmark"'), 'navigation must precede the banner');
   assert.doesNotMatch(html, /class="room-nav-icon"/);
   for (const asset of [
-    'house-of-briar-blackberry-wordmark-v1.webp',
+    'house-of-briar-pastel-wordmark-v2.webp',
     'blackberry-house-nav-frame-v1.webp',
     'suitcase-cart-v1.svg'
   ]) {
@@ -290,9 +290,9 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'category-garment-frame.webp'],
-    ['shop-aesthetic-filter', 'category-aesthetic-frame.webp'],
-    ['shop-accessory-filter', 'category-accessories-frame.webp']
+    ['shop-garment-filter', 'pastel-briar-window-v1.svg'],
+    ['shop-aesthetic-filter', 'pastel-briar-window-v1.svg'],
+    ['shop-accessory-filter', 'pastel-briar-window-v1.svg']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);

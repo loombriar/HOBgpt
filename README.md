@@ -2,6 +2,20 @@
 
 A full-stack storefront prototype with a designer portal, validated multi-photo uploads, and a published-only gallery. The shop loads directly from the same SQLite-backed listing store used by the designer workspace, so a second gallery index is not required.
 
+## Designer Studio options
+
+The authenticated studio overview offers Active, Draft, Expired, Sold Out and Inactive filters with mutually exclusive counts, seller-scoped orders/request counts, and 30-day product-view event/session totals. View events are analytics, not verified people. Listings expire only when their designer explicitly ends them; no automatic listing lifetime is assumed. Reserved pieces cannot expire, and renewal creates a draft that must follow normal moderation before going live.
+
+Designers can offer free gift notes per listing. Checkout validates opt-in and a 500-character maximum, stores notes per order item, and exposes them only in the owning designer’s authenticated order data. Notes are not public catalog content.
+
+Shared Studio access is read-only and granted to an active designer account linked to its verified sign-in email. Helpers use their own sign-in; do not share passwords. They receive only listing titles/status, order item summaries, request counts and analytics counts. They cannot see buyer addresses, private measurements, gift notes, message contents or payment settings, or mutate the owner’s listings. Grants and revocations are audited and authorization is checked on every shared-dashboard request. This change does not enable buyer–designer open chat.
+
+## Seller drafting tools
+
+The listing editor can request a description draft, search tags and a style/aesthetic classification using the seller’s factual notes. Suggestions are reviewed and explicitly applied to editable fields; they never publish listings or replace garment categories. Requests require the seller’s consent to send listing text to OpenAI. Configure the server-only `OPENAI_API_KEY` and optional `HOUSE_LISTING_MODEL` (default `gpt-4.1-mini`). Missing configuration gives a clear unavailable response. Requests have hourly throttles, daily per-seller/global caps, bounded input/output, structured validation and sanitized errors. Seller facts cannot guarantee AI accuracy; the seller must check claims before normal save and moderation.
+
+Photo enhancement uses local Sharp clarity cleanup, orientation correction and aspect-preserving optimization. It does not generate details, replace backgrounds or crop garments. Uploaded and saved listing photos get an enhancement preview alongside their original; adding an enhanced copy keeps the original in the listing editor and respects the ten-photo limit. Copies pass the ordinary upload endpoint’s mandatory image safety review when saved. Photo cleanup does not require the listing-generation API key.
+
 ## Shipping checkout
 
 Designers must set a US shipping price on each listing; blank rates block checkout, and 0 explicitly means free. Rates are charged per unit. A listing’s free-shipping threshold uses only its designer’s merchandise subtotal before designer discounts, excluding gift wrapping and other sellers; it waives only that listing’s shipping. Checkout supports US addresses only. Preparation days are separate from carrier transit.
@@ -9,6 +23,12 @@ Designers must set a US shipping price on each listing; blank rates block checko
 Canonical quotes include `merchandiseCents`, `shippingCents`, `totalBeforeTaxCents` and designer breakdowns. For compatibility, stored `orders.subtotal_cents` and `order_items.line_total_cents` remain the exact charged totals, now including shipping; separate shipping columns support display and reconciliation. Shipping is a labeled Stripe line item per designer, and the designer receives its full amount without a marketplace commission on shipping. Existing verified-shipment payout holds and refund reversals apply. Address collection is required for new orders; only owning designers receive saved fulfillment details through authenticated order routes. Legacy orders retain existing verification behavior.
 
 Automatic tax calculation is not implemented by this shipping change. Tax configuration and applicable registrations remain a separate launch task; shipping documentation does not represent legal or tax clearance. No existing listing is silently assigned a free rate. Additive schema columns preserve existing orders, and seed shipping values are applied only on first insert.
+
+## House support agent
+
+Signed-in shoppers can ask House support about policies and their own orders/tracking. The assistant reads the current rules/shipping pages and has exactly two tools: a buyer-scoped order lookup and creation of a human support ticket in the existing admin support queue. Escalation requires the shopper’s explicit permission. It never changes orders, refunds, payouts or accounts, and does not open buyer–designer chat. Questions and order summaries require consent before being sent to OpenAI; addresses, card details and buyer emails are not provided to the model. Configure `OPENAI_API_KEY` and optional `HOUSE_SUPPORT_MODEL`.
+
+The agent allows at most three model turns/four tool calls, uses request idempotency for ticket creation, and enforces hourly plus daily per-account/global usage caps. Failed responses cannot leak provider messages. If the model fails after opening a ticket, the customer still receives the actual ticket reference. Guest shoppers and unavailable AI use the existing support email/form and public policies; order numbers alone are never proof of ownership.
 
 ## Run locally
 
@@ -81,3 +101,9 @@ Stripe must send its signed webhook to `/api/stripe/webhook`. EasyPost must send
 The built-in signup and checkout rate limits use the request IP. No reverse-proxy trust setting is enabled by default because the correct trust boundary depends on the hosting provider. If the production host places the app behind a proxy, validate the provider's documented proxy topology before configuring Express `trust proxy`; do not enable it globally without that validation.
 
 Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend now installs, passes gateway contract tests, and builds. Verify the frontend/backend hosting connection and Taskade authentication, chat, and inquiry services before treating it as ready to launch.
+
+### Photo search
+
+Signed-in shoppers can opt in to cloud photo search from the Shop page. The server validates still image bytes, strips metadata and resizes to 768 pixels before sending the reference to OpenAI with `store: false`. Search photos are not written to House disk or database; provider processing remains subject to OpenAI data policies. This is reference-photo to catalog-description style matching, not exact image identification, on-device AI inference or a fit guarantee. Only approved, published, available pieces from active, non-vacation, Stripe-connected designers are eligible; the current candidate window is the latest 120 published listings. Availability is rechecked after model processing. Strict output validation rejects invented IDs and duplicate results are removed. Clear photo and results cancels the browser request and clears local references; it cannot recall a request already sent to the provider. Limits: 10 searches per shopper per day, 100 total per day and 15 requests per IP per hour. `OPENAI_API_KEY` is required; optionally set `HOUSE_VISUAL_SEARCH_MODEL`.
+
+Wearable applications, device-specific foldable testing, on-device model inference and spatial AR require separate implementation and are not included in this change. New controls use responsive grids, wrapping actions and accessible labels.

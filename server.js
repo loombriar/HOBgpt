@@ -1004,6 +1004,7 @@ function createApp(options = {}) {
       availability: row.availability || 'floor',
       alterationsAvailable: Boolean(row.alterations_available),
       takesRequests: Boolean(row.takes_requests),
+      giftNoteAvailable: Boolean(db.prepare('SELECT gift_note_available FROM studio_listing_options WHERE listing_id=?').get(row.id)?.gift_note_available),
       giftWrapAvailable: Boolean(enhancement.gift_wrap_available),
       giftWrapPrice: Number(enhancement.gift_wrap_price_cents || 0) / 100,
       tryOnVideoUrl: enhancement.try_on_video_url || '',
@@ -1385,7 +1386,7 @@ function createApp(options = {}) {
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
     }
     const origin=trustedAppOrigin(req);
-    const refreshUrl=String(req.body?.refreshUrl||`${origin}/api/my/stripe-onboarding/refresh`);
+    const refreshUrl=String(req.body?.refreshUrl||`${origin}/designers/room?stripe=refresh`);
     const returnUrl=String(req.body?.returnUrl||`${origin}/designers/room?stripe=return`);
     if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
@@ -1506,18 +1507,11 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  app.get('/api/my/stripe-onboarding/refresh', authDesigner, async (req,res,next)=>{
-    try{
-      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
-      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
-      const origin=trustedAppOrigin(req);
-      const refreshUrl=`${origin}/api/my/stripe-onboarding/refresh`;
-      const returnUrl=`${origin}/designers/room?stripe=return`;
-      const result=await createStripeOnboarding(designer,{...req,body:{refreshUrl,returnUrl}});
-      if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
-      if(!result.onboardingUrl)return fail(res,502,'payment_provider_unavailable','Stripe payout setup is temporarily unavailable.');
-      return res.redirect(303,result.onboardingUrl);
-    }catch(error){return next(error);}
+  // Stripe navigates here without a Bearer header. Let the signed-in room
+  // renew the link through the authenticated POST; never put credentials in URLs.
+  app.get('/api/my/stripe-onboarding/refresh', (_req,res)=>{
+    res.set('Cache-Control','no-store');
+    return res.redirect(303,'/designers/room?stripe=refresh');
   });
 
   app.get('/api/my/stripe-status', authDesigner, async (req,res,next)=>{
@@ -1938,13 +1932,15 @@ function createApp(options = {}) {
     if (!Array.isArray(requested) || !requested.length || requested.length > 50) throw Object.assign(new Error('Add at least one item before checkout.'), { statusCode: 422 });
     const quantities = new Map();
     const giftWrapSelections = new Map();
+    const giftNotes = new Map();
     for (const item of requested) {
       const id = typeof item?.id === 'string' ? item.id : '';
       const quantity = Number(item?.quantity);
       if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error('Cart quantities must be whole numbers between 1 and 10.'), { statusCode: 422 });
       quantities.set(id, (quantities.get(id) || 0) + quantity);
-      if (quantities.get(id) > 10) throw Object.assign(new Error('A piece cannot exceed 10 units per checkout.'), { statusCode: 422 });
+      if(quantities.get(id)>10)throw Object.assign(new Error('A piece cannot exceed 10 units per checkout.'),{statusCode:422});
       if (item?.giftWrap === true) giftWrapSelections.set(id, true);
+      if(item?.giftNote!=null){if(typeof item.giftNote!=='string'||item.giftNote.length>500)throw Object.assign(new Error('Gift notes must be text of 500 characters or fewer.'),{statusCode:422});if(item.giftNote.trim()){const note=item.giftNote.trim();if(giftNotes.has(id)&&giftNotes.get(id)!==note)throw Object.assign(new Error('Choose one gift note for each piece.'),{statusCode:422});giftNotes.set(id,note);}}
     }
     const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
     const rows = [];
@@ -1952,6 +1948,8 @@ function createApp(options = {}) {
       const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 AND dp.stripe_account_id IS NOT NULL AND dp.stripe_account_id!='' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
       if (!listing) throw Object.assign(new Error('One or more pieces are currently unavailable.'), { statusCode: 409 });
       if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
+      const giftNote=giftNotes.get(id)||null;
+      if(giftNote && !db.prepare('SELECT gift_note_available FROM studio_listing_options WHERE listing_id=?').get(id)?.gift_note_available)throw Object.assign(new Error('This piece does not offer gift notes.'),{statusCode:422});
       const unitAmountCents = Math.round(Number(listing.price) * 100);
       const enhancement = db.prepare('SELECT gift_wrap_available,gift_wrap_price_cents FROM listing_enhancements WHERE listing_id=?').get(id) || {};
       const giftWrapSelected = giftWrapSelections.get(id) === true && Boolean(enhancement.gift_wrap_available);
@@ -1969,15 +1967,15 @@ function createApp(options = {}) {
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
-      rows.push({ shippingCostCents: listing.shipping_cost_cents, freeShippingThresholdCents: listing.free_shipping_threshold_cents, handlingDaysMin: listing.handling_days_min, handlingDaysMax: listing.handling_days_max, designerName: db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name || listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
+      rows.push({ giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
-    const merchandiseCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
-    const shipping = applyShipping(rows);
-    const subtotalCents = merchandiseCents + (shipping.shippingCents || 0);
+    const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
+    const shipping=applyShipping(rows);
+    const subtotalCents=merchandiseCents+(shipping.shippingCents||0);
     if(subtotalCents<50) throw Object.assign(new Error('Order total is too small to process.'),{statusCode:422});
     const discountCents=rows.reduce((sum,item)=>sum+item.discountCents,0);
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
-    return { currency: 'usd', items: rows, merchandiseCents, subtotalCents, totalBeforeTaxCents: shipping.shippingReady ? subtotalCents : null, ...shipping, discountCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
+    return { currency:'usd',items:rows,merchandiseCents,subtotalCents,totalBeforeTaxCents:shipping.shippingReady?subtotalCents:null,...shipping,discountCents,platformFeeCents,designerAmountCents:subtotalCents-platformFeeCents };
   }
   app.post('/api/checkout/quote', checkoutLimiter, async (req, res) => {
     try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); await requireQuoteSellersReady(quote); return res.json(quote); }
@@ -2084,16 +2082,17 @@ function createApp(options = {}) {
         addExactLine(item.title,item.lineTotalCents-item.giftWrapCents-item.shippingCents,item.quantity);
         if(item.giftWrapSelected && item.giftWrapCents>0) addExactLine(`Gift wrapping — ${item.title}`,item.giftWrapCents,item.quantity);
       });
-      quote.designers.forEach(designer => { if (designer.shippingCents > 0) addExactLine(`US shipping — ${designer.designerName}`, designer.shippingCents, 1); });
+      quote.designers.forEach(designer=>{if(designer.shippingCents>0)addExactLine(`US shipping — ${designer.designerName}`,designer.shippingCents,1);});
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
-        db.prepare('UPDATE orders SET shipping_cents=?, shipping_required=1 WHERE id=?').run(quote.shippingCents, orderId);
+        db.prepare('UPDATE orders SET shipping_cents=?,shipping_required=1 WHERE id=?').run(quote.shippingCents,orderId);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
-        for (const item of quote.items) db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents, orderId, item.id);
+        for(const item of quote.items)db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents,orderId,item.id);
+        for(const item of quote.items)db.prepare('UPDATE order_items SET gift_note=? WHERE order_id=? AND listing_id=?').run(item.giftNote,orderId,item.id);
       })();
 
       let session;
@@ -2253,6 +2252,10 @@ function createApp(options = {}) {
     return res.json({frequentlyBoughtTogether:boughtTogether.map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
   });
 
+  require('./visual-search').registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeListing,options});
+  require('./support-agent').registerSupportAgent({app,db,authBuyer,fail,rateLimit,options});
+  require('./seller-tools').registerSellerTools({app,db,authDesigner,upload,fail,rateLimit,options});
+  require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
   require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,options});
 
   app.get('/api/designers', (_req,res)=>{
@@ -3252,12 +3255,12 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
-    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
+    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.gift_note,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
       dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
       FROM orders o JOIN order_items oi ON oi.order_id=o.id LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
       WHERE oi.designer_id=? ORDER BY o.created_at DESC`).all(req.designerId);
     const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails: row.shipping_details_json ? JSON.parse(row.shipping_details_json) : null, shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
+    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails:row.shipping_details_json?JSON.parse(row.shipping_details_json):null,shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({giftNote:row.gift_note||null,title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
     return res.json({orders:[...map.values()]});
   });
 
@@ -3445,6 +3448,9 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
   const illustratedPublicAssets = [
+    'pastel-briar-window-v1.svg',
+    'house-of-briar-pastel-wordmark-v2.webp',
+    'pastel-house-nav-frame-v2.webp',
     'blackberry-house-nav-frame-v1.webp',
     'house-of-briar-blackberry-wordmark-v1.webp',
     'category-garment-frame.webp',
@@ -3497,6 +3503,7 @@ function createApp(options = {}) {
     }
     const status=Number.isInteger(error?.statusCode)?error.statusCode:500;
     log('error','request_failed',{ error: String(error?.message || error).slice(0,500), status });
+    if(error?.providerCode==='more_permissions_required')return fail(res,503,'stripe_configuration_required','Stripe payout setup is unavailable because the marketplace API key needs Connect Accounts Write permission. Please contact House of Briar support.');
     if(status>=500)return fail(res,status,'internal_error','The request could not be completed. Please try again.');
     return fail(res,status,'request_failed',error.message || 'The request could not be completed.');
   });

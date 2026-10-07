@@ -27,9 +27,9 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=designer-settings-33" />
+    <link rel="stylesheet" href="/styles.css?v=header-4" />
     <script src="/script.js?v=verified-settings-34" defer></script>
-    <link rel="stylesheet" href="/atelier.css?v=blackberry-3" />
+    <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <script src="/atelier.js?v=blackberry-3" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
@@ -51,8 +51,9 @@
           <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite" aria-describedby="visitor-door-info"><span class="door-name">Visitor’s Suite</span><span class="door-info" id="visitor-door-info" role="tooltip">Your cozy shopping room: save measurements, revisit your hearts, and see past purchases.</span></button>
           <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked" aria-describedby="designer-door-info"><span class="door-name">Designer’s Room</span><span class="door-info" id="designer-door-info" role="tooltip">Your creative corner: sign in or move in to manage your profile, pieces, and orders. All designers are welcome.</span></button>
           <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Your traveling suitcase: chosen treasures wait here before their journey through checkout and home to you.</span></button>
+          <button id="header-signout-btn" class="nav-hotspot" type="button" hidden>Sign out</button>
         </nav>
-        <a class="sewing-brand briar-wordmark" href="#top" aria-label="House of Briar — back to top"><img src="/house-of-briar-blackberry-wordmark-v1.webp" alt="House of Briar" width="1800" height="600" fetchpriority="high" /></a>
+        <a class="sewing-brand briar-wordmark" href="#top" aria-label="House of Briar — back to top"><img src="/house-of-briar-pastel-wordmark-v2.webp" alt="House of Briar" width="1800" height="600" fetchpriority="high" /></a>
       </header>
       <main id="top">
         <section class="hero sewing-hero" aria-label="House of Briar — Made by someone, not everyone.">
@@ -114,7 +115,7 @@
                 <div class="shop-drop-windows" aria-label="Shop filters">
                   <label class="shop-drop-window illustrated-select garment-window">
                     <span class="category-window-title" aria-hidden="true">Garment</span>
-                    <img class="category-window-art" src="/category-garment-frame.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All clothing</span>
                     <select id="shop-garment-filter" aria-label="Filter by garment type">
                       <option value="all">All pieces</option>
@@ -134,7 +135,7 @@
 
                   <label class="shop-drop-window illustrated-select aesthetic-window">
                     <span class="category-window-title" aria-hidden="true">Aesthetic</span>
-                    <img class="category-window-art" src="/category-aesthetic-frame.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All aesthetics</span>
                     <select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
                       <option value="all">All aesthetics</option>
@@ -154,7 +155,7 @@
 
                   <label class="shop-drop-window illustrated-select pattern-window">
                     <span class="category-window-title" aria-hidden="true">Print / Pattern</span>
-                    <img class="category-window-art" src="/category-pattern-frame.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All prints</span>
                     <select id="shop-pattern-filter" aria-label="Filter by print or pattern">
                       <option value="all">All prints</option>
@@ -166,7 +167,7 @@
                   </label>
                   <label class="shop-drop-window illustrated-select accessories-window">
                     <span class="category-window-title" aria-hidden="true">Accessories</span>
-                    <img class="category-window-art" src="/category-accessories-frame.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">Accessories</span>
                     <select id="shop-accessory-filter" aria-label="Filter accessories">
                       <option value="all">Any category</option>
@@ -182,7 +183,7 @@
                   </label>
                   <label class="shop-drop-window illustrated-select designers-window">
                     <span class="category-window-title" aria-hidden="true">Designers</span>
-                    <img class="category-window-art" src="/category-designers-frame.webp" alt="" aria-hidden="true" />
+                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
                     <span class="category-window-current" aria-hidden="true">All designers</span>
                     <select id="shop-designer-filter" aria-label="Filter by designer">
                       <option value="all">All designers</option>
@@ -369,6 +370,8 @@
           <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
           <p id="designer-brand-message" role="status" class="form-message"></p>
         </form>
+        <section id="designer-studio-overview" aria-label="Studio overview"></section>
+        <p><a href="/account#shared-access">Shared access and order options</a></p>
         <div id="designer-products" class="designer-products" aria-live="polite"></div>
         <section class="designer-size-reference" aria-labelledby="us-size-reference-title">
           <p class="eyebrow">Fit reference</p>

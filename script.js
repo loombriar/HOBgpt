@@ -295,11 +295,11 @@ async function checkoutCart() {
     cartButton.textContent = 'Opening checkout…';
   }
   try {
-    if (!cartShippingQuote?.shippingReady || cartShippingKey !== JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})) throw new Error('Review shipping in your Suitcase before continuing.');
+    if(!cartShippingQuote?.shippingReady||cartShippingKey!==JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))}))throw Error('Review shipping in your Suitcase before continuing.');
     const payload = await apiRequest('/api/checkout/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id) })), expectedTotalBeforeTaxCents: cartShippingQuote.totalBeforeTaxCents })
+      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id), giftNote:cartGiftNotes[id]||undefined })),expectedTotalBeforeTaxCents:cartShippingQuote.totalBeforeTaxCents })
     });
     if (!payload?.url) throw new Error('Stripe checkout did not return a checkout link.');
     window.location.assign(payload.url);
@@ -311,7 +311,8 @@ async function checkoutCart() {
   }
 }
 
-let cartShippingQuote = null, cartShippingKey = '', cartShippingSequence = 0;
+let cartShippingQuote=null,cartShippingKey='',cartShippingSequence=0;
+const cartGiftNotes = {};
 function openCart() {
   if (!cartDialog || !cartItems) return checkoutCart();
   const ids = getCartIds();
@@ -330,6 +331,7 @@ function openCart() {
       const copy = makeElement('div');
       copy.appendChild(makeElement('strong', '', item.title));
       copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
+      if(item.giftNoteAvailable){const label=makeElement('label','','Free gift note');const input=document.createElement('textarea');input.maxLength=500;input.value=cartGiftNotes[item.id]||'';input.placeholder='Optional message for the gift recipient';input.addEventListener('input',()=>{cartGiftNotes[item.id]=input.value;});label.append(input);copy.append(label);}
       if (item.giftWrapAvailable) {
         const wrapLabel=makeElement('label','cart-gift-wrap');
         const wrap=document.createElement('input'); wrap.type='checkbox'; wrap.checked=getGiftWrapIds().includes(item.id);
@@ -1202,18 +1204,25 @@ async function handleSave(event) {
 }
 
 let designerListingsLoad = 0;
+let designerListingFilter = 'All';
 async function loadDesignerListings() {
   const loadId = ++designerListingsLoad;
   if (!designerToken) return;
   try {
-    const payload = await apiRequest('/api/my/listings', { cache: 'no-store' });
+    const payload = await apiRequest('/api/my/studio', { cache: 'no-store' });
     if (loadId !== designerListingsLoad) return;
     clearDesignerListImagePreviews();
     if (designerProductsContainer) designerProductsContainer.replaceChildren();
-    const listings = payload.items || [];
-    designerReadinessState.listings=listings;renderSellerReadiness();
+    const allListings = payload.items || [];
+    const overview=byId('designer-studio-overview');
+    if(overview){overview.replaceChildren();overview.append(makeElement('h3','','Listing status'));
+      for(const status of ['All','Active','Draft','Expired','Sold Out','Inactive']){const button=makeElement('button','secondary-button',`${status} ${status==='All'?allListings.length:payload.counts[status]}`);button.type='button';button.setAttribute('aria-pressed',String(status===designerListingFilter));button.addEventListener('click',()=>{designerListingFilter=status;void loadDesignerListings();});overview.append(button);}
+      const notice=makeElement('p','notice',designerListingFilter==='All'?'Showing all listings.':`Listings have been updated to display only ${designerListingFilter.toLowerCase()} listings.`);notice.setAttribute('role','status');overview.append(notice,makeElement('p','',`${payload.ordersCount} orders · ${payload.messages} item requests · ${payload.views.events} tracked product views in the last 30 days`));
+    }
+    const listings=allListings.filter(item=>designerListingFilter==='All'||item.studioStatus===designerListingFilter);
+    designerReadinessState.listings=allListings;renderSellerReadiness();
     if (!listings.length) {
-      if (designerProductsContainer) designerProductsContainer.appendChild(makeElement('p', 'empty-state', 'No listings yet. Create a new design above.'));
+      if (designerProductsContainer) designerProductsContainer.appendChild(makeElement('p', 'empty-state', designerListingFilter==='All'?'No listings yet. Create a new design above.':`No ${designerListingFilter.toLowerCase()} listings.`));
       return;
     }
 
@@ -1233,6 +1242,10 @@ async function loadDesignerListings() {
 
       const info = makeElement('div', 'designer-product-info');
       info.appendChild(makeElement('h4', '', listing.title));
+      const giftLabel=makeElement('label','','Offer a free gift note');const gift=document.createElement('input');gift.type='checkbox';gift.checked=Boolean(listing.giftNoteAvailable);giftLabel.prepend(gift);info.append(giftLabel);
+      gift.addEventListener('change',async()=>{gift.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/studio-options`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({giftNoteAvailable:gift.checked})});await loadDesignerListings();}catch(error){gift.checked=!gift.checked;setMessage(uploadMessage,error.message,'error');gift.disabled=false;}});
+      if(['Active','Expired'].includes(listing.studioStatus)){const action=makeElement('button','text-button',listing.studioStatus==='Expired'?'Renew as draft':'Expire listing');action.type='button';action.addEventListener('click',async()=>{action.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/${listing.studioStatus==='Expired'?'renew':'expire'}`,{method:'POST'});await loadDesignerListings();}catch(error){setMessage(uploadMessage,error.message,'error');action.disabled=false;}});info.append(action);}
+
 
       const itemBadges = makeElement('div', 'listing-badges');
       renderItemBadges(itemBadges, listing);
@@ -1396,7 +1409,7 @@ async function refreshStripePayoutStatus() {
 }
 async function openStripeOnboarding(){
   const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
-  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/api/my/stripe-onboarding/refresh',returnUrl:location.origin+'/designers/room?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
+  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
@@ -1413,6 +1426,7 @@ async function signIn(tokenValue) {
   try {
     await apiRequest('/api/session', { method: 'POST' });
     localStorage.setItem('briarDesignerToken', designerToken);
+    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
     sessionStorage.removeItem('briarDesignerToken');
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
@@ -1420,6 +1434,10 @@ async function signIn(tokenValue) {
     await loadDesignerListings();
     await loadDesignerBrand();
     await refreshStripePayoutStatus();
+    if(new URLSearchParams(location.search).get('stripe')==='refresh'){
+      history.replaceState({},'',DESIGNER_ROOM_PATH);
+      await openStripeOnboarding();
+    }
   } catch (error) {
     designerToken = '';
     localStorage.removeItem('briarDesignerToken');
@@ -1439,6 +1457,9 @@ function signOut() {
   clearDesignerListImagePreviews();
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
+  if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  // Reload the public page so private profile, order and payout data leave the DOM.
+  location.replace('/');
 }
 
 function applyFilterButtons() {
@@ -1559,6 +1580,9 @@ if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
 byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
+byId('header-signout-btn')?.addEventListener('click', signOut);
+if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+window.addEventListener('storage',event=>{if(event.key==='briarDesignerToken'&&!event.newValue&&designerToken)signOut();});
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 
