@@ -58,7 +58,7 @@ test('runway studio uploads a garment, walks, pauses and exports a preview', asy
   await expect(page.getByRole('heading', { name: 'The Briar Runway' })).toBeVisible();
   await page.locator('#photo').setInputFiles({
     name: 'garment.png', mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII=', 'base64')
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAYAAABwrHhvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAWElEQVRYhe3YwQ3AAAhC0e6/D2EuJrBbtJd38G4iKvxnzf1ZjwZmBCXCWMNziOYU1zOKd3wMyViyMqVhy08wmWhW4TTi+QEUg2gKUgWmO6ByUG3B6nymgxepbyktbUarWQAAAABJRU5ErkJggg==', 'base64')
   });
   await expect(page.getByRole('status')).toContainText('Photo ready');
   await page.getByRole('button', { name: 'Walk', exact: true }).click();
