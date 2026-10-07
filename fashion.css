@@ -70,7 +70,7 @@ body.blackberry-house .atelier-collection-copy{padding:20px 0 4px!important}
 body.blackberry-house .atelier-collection h3{font-size:36px!important}
 body.blackberry-house .site-footer{background:#302630!important;background-image:none!important;border:0!important}
 body.blackberry-house .site-footer::before{display:none!important}
-body.blackberry-house .site-footer :is(p,a,.brand-name){color:#f4e8e4!important}
+body.blackberry-house .site-footer :is(p,a,button,.brand-name){color:#f4e8e4!important}
 body.blackberry-house .sewing-hero-content h1 em{color:#86445e!important}
 @media(max-width:900px){body.blackberry-house .product-section .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:650px){body.blackberry-house .product-section .shop-drop-windows{gap:12px!important}body.blackberry-house .product-section .shop-drop-window{min-height:144px!important;padding:16px 12px!important}body.blackberry-house .product-section .shop-drop-window .category-window-title{font-size:24px!important}body.blackberry-house .atelier-collection{display:block!important}body.blackberry-house .atelier-collection-cover{height:300px!important}body.blackberry-house .fashion-hero-side::after{font-size:300px;bottom:-50px}}
@@ -99,3 +99,5 @@ body.blackberry-house .product-section .shop-drop-window .category-window-icon{d
 .admin-traffic-table th:first-child,.admin-traffic-table td:first-child{width:70%}
 
 .atelier-cover-empty{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;color:#713d4e;font:italic 28px/1.2 Georgia,serif;text-align:center}
+
+body.blackberry-house .footer-links{flex-wrap:wrap;align-items:center}
