@@ -2,6 +2,14 @@
 
 A full-stack storefront prototype with a designer portal, validated multi-photo uploads, and a published-only gallery. The shop loads directly from the same SQLite-backed listing store used by the designer workspace, so a second gallery index is not required.
 
+## Shipping checkout
+
+Designers must set a US shipping price on each listing; blank rates block checkout, and 0 explicitly means free. Rates are charged per unit. A listing’s free-shipping threshold uses only its designer’s merchandise subtotal before designer discounts, excluding gift wrapping and other sellers; it waives only that listing’s shipping. Checkout supports US addresses only. Preparation days are separate from carrier transit.
+
+Canonical quotes include `merchandiseCents`, `shippingCents`, `totalBeforeTaxCents` and designer breakdowns. For compatibility, stored `orders.subtotal_cents` and `order_items.line_total_cents` remain the exact charged totals, now including shipping; separate shipping columns support display and reconciliation. Shipping is a labeled Stripe line item per designer, and the designer receives its full amount without a marketplace commission on shipping. Existing verified-shipment payout holds and refund reversals apply. Address collection is required for new orders; only owning designers receive saved fulfillment details through authenticated order routes. Legacy orders retain existing verification behavior.
+
+Automatic tax calculation is not implemented by this shipping change. Tax configuration and applicable registrations remain a separate launch task; shipping documentation does not represent legal or tax clearance. No existing listing is silently assigned a free rate. Additive schema columns preserve existing orders, and seed shipping values are applied only on first insert.
+
 ## Run locally
 
 Requires Node.js 20 or newer.
@@ -73,12 +81,3 @@ Stripe must send its signed webhook to `/api/stripe/webhook`. EasyPost must send
 The built-in signup and checkout rate limits use the request IP. No reverse-proxy trust setting is enabled by default because the correct trust boundary depends on the hosting provider. If the production host places the app behind a proxy, validate the provider's documented proxy topology before configuring Express `trust proxy`; do not enable it globally without that validation.
 
 Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend now installs, passes gateway contract tests, and builds. Verify the frontend/backend hosting connection and Taskade authentication, chat, and inquiry services before treating it as ready to launch.
-
-
-### Shipping checkout
-
-Designers must set a US shipping price on each listing; blank rates block checkout, and 0 explicitly means free. Rates are charged per unit. A listing’s free-shipping threshold uses only its designer’s merchandise subtotal before designer discounts, excluding gift wrapping and other sellers; it waives only that listing’s shipping. Checkout supports US addresses only. Preparation days are separate from carrier transit.
-
-Canonical quotes include `merchandiseCents`, `shippingCents`, `totalBeforeTaxCents` and designer breakdowns. For compatibility, stored `orders.subtotal_cents` and `order_items.line_total_cents` remain the exact charged totals, now including shipping; separate shipping columns support display and reconciliation. Shipping is a labeled Stripe line item per designer, and the designer receives its full amount without a marketplace commission on shipping. Existing verified-shipment payout holds and refund reversals apply. Address collection is required for new orders; only owning designers receive saved fulfillment details through authenticated order routes. Legacy orders retain existing verification behavior.
-
-Automatic tax calculation is not implemented by this shipping change. Tax configuration and applicable registrations remain a separate launch task; shipping documentation does not represent legal or tax clearance. No existing listing is silently assigned a free rate. Additive schema columns preserve existing orders, and seed shipping values are applied only on first insert.
