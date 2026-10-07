@@ -67,3 +67,42 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 @media(max-width:760px){.house-editorial,.house-collections{padding:48px 0}.atelier-heading{grid-template-columns:1fr;gap:16px}.atelier-spread{grid-template-columns:1fr 1fr;gap:14px}.atelier-photo-0{grid-column:1/-1}.atelier-photo img{height:250px}.atelier-photo-0 img{height:400px}.atelier-photo-1,.atelier-photo-2{margin-top:0}.atelier-photo-caption{padding:15px 2px;grid-template-columns:20px 1fr;gap:4px}.atelier-photo-caption strong{font-size:21px}.atelier-collection-grid{grid-template-columns:1fr}.atelier-collection{display:grid;grid-template-columns:130px 1fr}.atelier-collection-cover{height:100%;min-height:230px}.atelier-collection-copy{padding:20px}.atelier-collection h3{font-size:25px!important}}
 @media(prefers-reduced-motion:reduce){.sewing-hero::after,.sewing-hero .eyebrow::after{animation:none!important}.sewing-nav .nav-hotspot,.atelier-photo,.atelier-collection,.atelier-collection-cover img,.product-card{transition:none!important;transform:none!important}}
 @media(max-width:650px){.atelier-collection{grid-template-columns:100px minmax(0,1fr)}.atelier-collection-copy{min-width:0;padding:16px}.atelier-collection h3{font-size:23px!important;overflow-wrap:anywhere}.atelier-motion-button{min-height:44px}.house-styling-card>div{min-width:0}.house-lookbook-controls button{max-width:100%;white-space:normal}}
+
+/* Blackberry conservatory: pale mint, berry silk, parchment and gilt stems. */
+.blackberry-house{--briar-berry:#65405b;--briar-mint:#e8f0e9;--briar-gold:#b29967;background-color:#fbf7ed}
+.blackberry-house .site-header.sewing-header{background:linear-gradient(180deg,#eef3eb,#fbf5e8)!important;border-bottom-color:#bfa77b}
+.blackberry-house .feature-bar{background:linear-gradient(100deg,#edf3e9,#fff5ed);border-bottom:1px solid #b2996733}
+.blackberry-house .feature-inline strong{color:#65405b}
+.blackberry-house .house-editorial{background:radial-gradient(ellipse at 90% 40%,#e7eee7a6,transparent 65%),#faf5eb}
+.blackberry-house .house-collections{background:linear-gradient(135deg,#edf3ec,#faf1eb)}
+.blackberry-house .house-stories{background:linear-gradient(120deg,#f4e8ec88,#faf6ed)}
+.blackberry-house .house-styling{background:linear-gradient(120deg,#e8f0e6,#f7f3e8)}
+.blackberry-house .atelier-heading .eyebrow,.blackberry-house .house-stories>.container>.eyebrow,.blackberry-house .house-styling>.container>.eyebrow{color:#85566d}
+.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-color:#b8a17a66;border-radius:18px;background:#fffaf2;box-shadow:0 12px 28px #63405b0a;overflow:hidden}
+.blackberry-house .atelier-photo img{border-radius:10px}
+.blackberry-house .atelier-collection h3,.blackberry-house .house-spotlight h3{color:#65405b}
+.blackberry-house .house-spotlight details{border-block:1px solid #b2996733;margin-block:20px}
+.blackberry-house .atelier-collection-link,.blackberry-house .house-spotlight>.text-button{color:#76526a}
+.blackberry-house .atelier-stitch{display:none}
+.blackberry-house .briar-section{position:relative;isolation:isolate;padding-top:132px!important}
+.blackberry-house .briar-section>.container{position:relative;z-index:1}
+.blackberry-house .briar-section::before{display:none!important}
+.briar-divider{position:absolute;top:8px;left:50%;width:min(1120px,calc(100% - 48px));height:100px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:48px;pointer-events:none;z-index:0}
+.briar-divider::after{content:'✦';position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-size:18px;color:#ac9059}
+.briar-vine-art{display:block;width:calc(50% - 24px);height:100%;overflow:visible;pointer-events:none}
+.briar-divider>.briar-vine-art:last-child{transform:scaleX(-1)}
+.briar-branch{transform-box:fill-box;transform-origin:left center;animation:briar-sway 7s ease-in-out infinite alternate}
+.briar-divider>.briar-vine-art:last-child .briar-branch{animation-delay:-3s;animation-duration:9s}
+.briar-leaf{transform-box:fill-box;transform-origin:bottom left;animation:briar-leaf-breeze 5s ease-in-out var(--briar-delay,0s) infinite alternate}
+.briar-berry{transform-box:fill-box;transform-origin:top center;animation:briar-berry-breeze 6s ease-in-out var(--briar-delay,0s) infinite alternate}
+.briar-branch,.briar-leaf,.briar-berry{animation-play-state:paused}
+.briar-in-view .briar-branch,.briar-in-view .briar-leaf,.briar-in-view .briar-berry{animation-play-state:running}
+.briar-side-vine{position:absolute;left:10px;top:180px;width:72px;height:310px;pointer-events:none;z-index:0;opacity:.8}
+.briar-side-vine>.briar-vine-art{width:100%;height:100%}
+.blackberry-house[data-motion='paused'] .briar-branch,.blackberry-house[data-motion='paused'] .briar-leaf,.blackberry-house[data-motion='paused'] .briar-berry{animation-play-state:paused}
+@keyframes briar-sway{from{transform:rotate(-1.3deg) translateY(0)}to{transform:rotate(1.3deg) translateY(-3px)}}
+@keyframes briar-leaf-breeze{from{transform:rotate(-5deg)}to{transform:rotate(6deg)}}
+@keyframes briar-berry-breeze{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+@media(max-width:1400px){.briar-side-vine{display:none}}
+@media(max-width:650px){.blackberry-house .briar-section{padding-top:88px!important}.briar-divider{top:10px;width:calc(100% - 28px);height:56px;gap:24px}.briar-vine-art{width:calc(50% - 12px)}.briar-divider::after{font-size:12px}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
+@media(prefers-reduced-motion:reduce){.briar-branch,.briar-leaf,.briar-berry{animation:none!important;transform:none!important}}

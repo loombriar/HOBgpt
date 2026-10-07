@@ -109,3 +109,36 @@ byId('house-styling-form')?.addEventListener('submit',async event=>{
     for(const {item,idea} of payload.suggestions||[]){const card=makeElement('article','house-styling-card');const image=document.createElement('img');image.src=getProductImages(item)[0]?.url||'';image.alt=item.title;image.loading='lazy';const copy=makeElement('div');copy.append(makeElement('h3','',item.title),makeElement('p','',idea));const visit=makeElement('button','primary-button','View piece');visit.type='button';visit.addEventListener('click',()=>openProductDetails(item));copy.append(visit,houseTryOnButton(item));card.append(image,copy);results.append(card);}setMessage(status,payload.note||'Your styling ideas are ready.','success');
   }catch(error){setMessage(status,error.status===401?'Sign in through Visitor’s Suite or Designer’s Room to ask the stylist.':error.message,'error');}finally{button.disabled=false;}
 });
+
+// Original vector briars stay sharp on phones and never intercept a tap.
+function blackberryVine(vertical=false){
+  const ns='http://www.w3.org/2000/svg';
+  const node=(tag,attributes={})=>{const el=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attributes))el.setAttribute(key,String(value));return el;};
+  const svg=node('svg',{viewBox:vertical?'0 0 140 600':'0 0 600 140','aria-hidden':'true',focusable:'false',class:'briar-vine-art'});
+  const orientation=node('g',vertical?{transform:'translate(0 600) rotate(-90)'}:{}),branch=node('g',{class:'briar-branch'});orientation.append(branch);svg.append(orientation);
+  branch.append(node('path',{d:'M8 104C75 112 82 42 157 63S242 122 307 79S421 18 489 51S554 95 592 44',fill:'none',stroke:'#a68b55','stroke-width':2.4,'stroke-linecap':'round'}));
+  branch.append(node('path',{d:'M80 89Q96 69 110 54M181 71Q182 51 200 40M249 96Q262 113 277 111M354 47Q346 30 365 19M435 40Q442 20 458 23M533 70Q537 53 555 43M151 63Q142 73 151 82M320 70Q332 81 327 98M489 51Q504 54 500 66',fill:'none',stroke:'#a68b55','stroke-width':1.5}));
+  branch.append(node('path',{d:'M60 99l-4-12 12 8M130 62l-3-11 11 9M216 89l8-9-1 13M292 89l-8-9 12 4M400 35l-3-12 11 11M472 44l7-10-1 12M565 68l9-9-3 13',fill:'#a68b55'}));
+  branch.append(node('path',{d:'M193 76c-9-25 28-31 25-14s-19 8-10 0M376 38c20 4 32-15 21-20s-18 11-8 9',fill:'none',stroke:'#ad9867','stroke-width':1.2}));
+  [[80,89,-20],[181,71,25],[249,96,150],[354,47,-28],[435,40,25],[533,70,15]].forEach(([x,y,angle],i)=>{
+    const anchor=node('g',{transform:`translate(${x} ${y}) rotate(${angle})`}),leaf=node('g',{class:'briar-leaf',style:`--briar-delay:-${i*1.3}s`});
+    leaf.append(node('path',{d:'M0 0C-8-13-3-30 16-38C26-20 20-5 0 0Z',fill:i%2?'#b9d0bb':'#94b9a9',stroke:'#78968b','stroke-width':1}));
+    leaf.append(node('path',{d:'M0 0L16-38M6-14l-9-7M10-24l10 1',fill:'none',stroke:'#6c8d80','stroke-width':.8}));anchor.append(leaf);branch.append(anchor);
+  });
+  [[151,82],[327,98],[500,66],[272,110]].forEach(([x,y],i)=>{
+    const anchor=node('g',{transform:`translate(${x} ${y})`}),berry=node('g',{class:'briar-berry',style:`--briar-delay:-${i*1.8}s`});
+    berry.append(node('path',{d:'M-9-12L-3-16 0-12 5-17 9-11 2-10Z',fill:'#78968b'}));
+    [[-4,-8],[4,-8],[-8,-1],[0,-1],[8,-1],[-4,6],[4,6],[0,12]].forEach(([cx,cy],j)=>{
+      berry.append(node('circle',{cx,cy,r:4.8,fill:i===3?(j%2?'#bb7b86':'#d4969e'):(j%3?'#50384f':'#73506d'),stroke:'#3d2b411c','stroke-width':.8}));
+      berry.append(node('circle',{cx:cx-1.2,cy:cy-1.5,r:1.1,fill:'#f5dfde',opacity:i===3?.55:.4}));
+    });anchor.append(berry);branch.append(anchor);
+  });return svg;
+}
+document.body.classList.add('blackberry-house');
+const briarVisibility='IntersectionObserver' in window?new IntersectionObserver(entries=>{entries.forEach(entry=>entry.target.classList.toggle('briar-in-view',entry.isIntersecting));},{rootMargin:'80px'}):null;
+document.querySelectorAll('.house-editorial,.house-collections,.house-stories,.house-styling,.designer-callout-section,.product-section,.story-section,.curation-section,.newsletter-section').forEach((section,index)=>{
+  section.classList.add('briar-section');
+  const divider=makeElement('div','briar-divider');divider.setAttribute('aria-hidden','true');divider.append(blackberryVine(),blackberryVine());section.prepend(divider);
+  if(index===0||index===2){const rail=makeElement('div','briar-side-vine');rail.setAttribute('aria-hidden','true');rail.append(blackberryVine(true));section.append(rail);}
+  if(briarVisibility)briarVisibility.observe(section);else section.classList.add('briar-in-view');
+});
