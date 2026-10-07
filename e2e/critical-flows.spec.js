@@ -51,3 +51,24 @@ test('storefront route records an anonymous designer view without storing an IP 
   const body = await analytics.json();
   expect(body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1)).toBeTruthy();
 });
+
+
+test('runway studio uploads a garment, walks, pauses and exports a preview', async ({ page }) => {
+  await page.goto('/runway');
+  await expect(page.getByRole('heading', { name: 'The Briar Runway' })).toBeVisible();
+  await page.locator('#photo').setInputFiles({
+    name: 'garment.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII=', 'base64')
+  });
+  await expect(page.getByRole('status')).toContainText('Photo ready');
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Walk', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save image', exact: true }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('briar-runway.png');
+  await page.getByRole('button', { name: 'Remove photo', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Photo removed');
+  await expect(page.getByRole('link', { name: /House of Briar/ })).toHaveAttribute('href', '/designers/room');
+});
