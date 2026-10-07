@@ -1800,6 +1800,8 @@ async function loadDesignerBrand() {
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
     designerReadinessState.profile=designer;renderSellerReadiness();
+    byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
+    byId('designer-account-email') && (byId('designer-account-email').value = designer.email || '');
     byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
@@ -1810,6 +1812,19 @@ async function loadDesignerBrand() {
     byId('designer-logo-remove').classList.toggle('hidden', !designer.logoUrl);
   } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
 }
+byId('designer-settings-form')?.addEventListener('submit', async event => {
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    const result=await apiRequest('/api/my/designer-settings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      displayName:byId('designer-account-name').value.trim(),
+      email:byId('designer-account-email').value.trim()
+    })});
+    if(result?.designer?.email)byId('designer-account-email').value=result.designer.email;
+    setMessage(byId('designer-settings-message'),'Account settings saved.','success');
+    await loadDesignerBrand();
+  }catch(error){setMessage(byId('designer-settings-message'),error.message||'Account settings could not be saved.','error');}
+  finally{if(button)button.disabled=false;}
+});
 byId('designer-brand-form')?.addEventListener('submit', async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   try {
