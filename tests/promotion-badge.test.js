@@ -5,7 +5,24 @@ const os=require('node:os');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {once}=require('node:events');
-const {createApp}=require('../server');
+const {createApp:createBaseApp}=require('../server');
+
+// Successful commerce fixtures represent sellers who completed Stripe verification.
+function createApp(options) {
+  const designerIds = new Set([...Object.values(options.designerTokens || {}), ...(options.seedProducts || []).map(item => item.designerId).filter(Boolean)]);
+  const connectAccounts = {...options.connectAccounts};
+  for (const id of designerIds) connectAccounts[id] ||= 'acct_fixture_' + id.replace(/[^a-z0-9]/gi, '_');
+  const stripeFixture = options.stripeApi;
+  const context = createBaseApp({...options, connectAccounts, stripeApi: async (endpoint, request) => {
+    if (endpoint.startsWith('accounts/acct_fixture_') || Object.values(options.connectAccounts || {}).some(id => endpoint === 'accounts/' + id)) {
+      return {details_submitted:true, payouts_enabled:true, charges_enabled:true, requirements:{currently_due:[]}};
+    }
+    if (stripeFixture) return stripeFixture(endpoint, request);
+    throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
+  }});
+  for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
+  return context;
+}
 
 test('designer discounts are scoped, sent to Stripe, and verified payment awards one buyer badge',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-promotion-badge-'));
