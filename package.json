@@ -10,7 +10,8 @@
     "test": "node --test",
     "backup": "node scripts/backup-data.js",
     "verify:backup": "node scripts/verify-backup.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "e2e:serve": "npm --prefix apps/default run build && node scripts/e2e-server.js"
   },
   "engines": {
     "node": ">=20"
