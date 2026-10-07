@@ -347,6 +347,11 @@ function createApp(options = {}) {
     account_id TEXT NOT NULL,
     processed_at TEXT NOT NULL
   )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    processed_at TEXT NOT NULL
+  )`);
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -760,21 +765,32 @@ function createApp(options = {}) {
     } catch { return false; }
   }
 
+  db.exec(`CREATE TABLE IF NOT EXISTS rate_limit_buckets (
+    bucket_key TEXT PRIMARY KEY,
+    hit_count INTEGER NOT NULL,
+    reset_at INTEGER NOT NULL
+  )`);
+  const consumeRateLimit = db.transaction((bucketKey, now, windowMs) => {
+    const existing = db.prepare('SELECT hit_count,reset_at FROM rate_limit_buckets WHERE bucket_key=?').get(bucketKey);
+    if (!existing || existing.reset_at <= now) {
+      const resetAt = now + windowMs;
+      db.prepare('INSERT INTO rate_limit_buckets(bucket_key,hit_count,reset_at) VALUES (?,1,?) ON CONFLICT(bucket_key) DO UPDATE SET hit_count=1,reset_at=excluded.reset_at').run(bucketKey, resetAt);
+      return { count: 1, resetAt };
+    }
+    db.prepare('UPDATE rate_limit_buckets SET hit_count=hit_count+1 WHERE bucket_key=?').run(bucketKey);
+    return { count: existing.hit_count + 1, resetAt: existing.reset_at };
+  });
   function rateLimit({ windowMs, max, keyPrefix }) {
-    const hits = new Map();
     return (req, res, next) => {
       const now = Date.now();
       const actor = req.designerId ? `designer:${req.designerId}` : `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
-      const key = `${keyPrefix}:${actor}`;
-      let entry = hits.get(key);
-      if (!entry || entry.resetAt <= now) entry = { count: 0, resetAt: now + windowMs };
-      entry.count += 1;
-      hits.set(key, entry);
+      const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
+      const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
       if (entry.count > max) {
         res.set('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
         return fail(res, 429, 'rate_limited', 'Too many requests. Please try again shortly.');
       }
-      if (hits.size > 5000) for (const [storedKey, stored] of hits) if (stored.resetAt <= now) hits.delete(storedKey);
+      if (Math.random() < 0.01) db.prepare('DELETE FROM rate_limit_buckets WHERE reset_at<=?').run(now);
       return next();
     };
   }
@@ -1145,6 +1161,8 @@ function createApp(options = {}) {
       if (!secrets.some(secret => supplied.some(value => safeEqual(crypto.createHmac('sha256', secret).update(signed).digest('hex'), value)))) return res.status(400).send('Invalid Stripe signature.');
 
       const event = JSON.parse(req.body.toString('utf8'));
+      if (!event?.id || typeof event.id !== 'string' || !event.id.startsWith('evt_') || typeof event.type !== 'string') return res.status(400).send('Invalid Stripe event.');
+      if (event.type !== 'account.updated' && db.prepare('SELECT 1 FROM stripe_webhook_events WHERE event_id=?').get(event.id)) return res.json({ received: true, duplicate: true });
       if (event.type === 'account.updated') {
         const accountId = event.data?.object?.id;
         if (!event.id || typeof accountId !== 'string' || !accountId.startsWith('acct_')) return res.status(400).send('Invalid Connect account event.');
@@ -1217,6 +1235,7 @@ function createApp(options = {}) {
           }
         }
       }
+      db.prepare('INSERT OR IGNORE INTO stripe_webhook_events(event_id,event_type,processed_at) VALUES (?,?,?)').run(event.id,event.type,new Date().toISOString());
       return res.json({ received: true });
     } catch (error) {
       console.error('Stripe webhook failed:', error);
@@ -1615,7 +1634,10 @@ function createApp(options = {}) {
       body: requestOptions.body
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload?.error?.message || 'Stripe request failed.');
+    if (!response.ok) {
+      log('error','stripe_api_failed',{pathname,status:response.status,providerCode:String(payload?.error?.code||'').slice(0,80),providerMessage:String(payload?.error?.message||'').slice(0,300)});
+      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});
+    }
     return payload;
   }
 
@@ -1656,7 +1678,7 @@ function createApp(options = {}) {
 
   function designerStripeAccount(designerId) {
     const profile=db.prepare("SELECT stripe_account_id FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
-    const accountId=profile?.stripe_account_id || connectAccounts[designerId] || '';
+    const accountId=profile?.stripe_account_id || '';
     if(platformStripeAccountId&&accountId===platformStripeAccountId){
       log('error','platform_account_blocked_as_seller',{designerId});
       return '';
@@ -1694,7 +1716,10 @@ function createApp(options = {}) {
       body: JSON.stringify({ tracker: { tracking_code: trackingNumber, carrier } })
     });
     const tracker = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(tracker?.error?.message || 'Carrier could not verify this tracking number.'), { statusCode: 422 });
+    if (!response.ok) {
+      log('error','easypost_api_failed',{status:response.status,providerMessage:String(tracker?.error?.message||'').slice(0,300)});
+      throw Object.assign(new Error('Carrier could not verify this tracking number.'), { statusCode: 422, code:'tracking_verification_failed' });
+    }
     const acceptedStatuses = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
     const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
     const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
@@ -1949,12 +1974,12 @@ function createApp(options = {}) {
     const clientId=process.env.PAYPAL_CLIENT_ID,secret=process.env.PAYPAL_CLIENT_SECRET;
     if(!clientId||!secret)throw Object.assign(new Error('PayPal is not configured.'),{statusCode:503});
     const response=await fetch(paypalBaseUrl()+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+Buffer.from(clientId+':'+secret).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
-    const data=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(data?.error_description||'PayPal authentication failed.'),{statusCode:502});
+    const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_auth_failed',{status:response.status,providerMessage:String(data?.error_description||'').slice(0,300)});throw Object.assign(new Error('Payment provider authentication failed.'),{statusCode:502,code:'payment_provider_unavailable'});}
     paypalTokenCache={token:data.access_token,expiresAt:Date.now()+Number(data.expires_in||300)*1000};return data.access_token;
   }
   async function paypalApi(path,{method='GET',body,idempotencyKey}={}){
     const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
-    const data=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(data?.details?.[0]?.description||data?.message||'PayPal request failed.'),{statusCode:502});return data;
+    const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_api_failed',{path,status:response.status,providerMessage:String(data?.details?.[0]?.description||data?.message||'').slice(0,300)});throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});}return data;
   }
   function paypalApprovalUrl(order){return order?.links?.find(link=>link.rel==='payer-action'||link.rel==='approve')?.href||null;}
   function paypalPayerEmail(payload){return payload?.payment_source?.paypal?.email_address||payload?.payment_source?.venmo?.email_address||payload?.payer?.email_address||null;}
