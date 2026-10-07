@@ -1519,7 +1519,7 @@ function createApp(options = {}) {
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
     const acceptance=sellerTermsAcceptance(designer.id);
-    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
+    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
   app.post('/api/my/seller-terms', authDesigner, (req,res) => {
