@@ -48,11 +48,16 @@ function deviceCategory() {
   return 'desktop';
 }
 
+function referrerOrigin() {
+  if (typeof document === 'undefined' || !document.referrer) return undefined;
+  try { return new URL(document.referrer).origin; } catch { return undefined; }
+}
+
 function attribution() {
   if (typeof window === 'undefined') return {};
   const params = new URLSearchParams(window.location.search);
   return {
-    referrer: document.referrer || undefined,
+    referrer: referrerOrigin(),
     utmSource: params.get('utm_source') || undefined,
     utmMedium: params.get('utm_medium') || undefined,
     utmCampaign: params.get('utm_campaign') || undefined,
