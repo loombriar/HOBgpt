@@ -1960,22 +1960,62 @@ byId('designer-logo-remove')?.addEventListener('click', async () => {
   try { await apiRequest('/api/my/designer-profile/logo', { method: 'DELETE' }); await loadDesignerBrand(); await loadGallery(); }
   catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
 });
+let storefrontRequest = 0;
 async function openDesignerStorefront(id) {
-  const dialog = byId('designer-storefront-dialog'), content = byId('storefront-content'); content.replaceChildren(); dialog.showModal();
+  const dialog = byId('designer-storefront-dialog'), content = byId('storefront-content');
+  const request = ++storefrontRequest;
+  byId('storefront-title').textContent = 'Designer storefront';
+  content.replaceChildren(makeElement('p', 'notice', 'Opening this designer’s corner of the House…'));
+  if (!dialog.open) dialog.showModal();
   try {
-    const { designer, items } = await apiRequest(`/api/designers/${encodeURIComponent(id)}`);
+    const { designer, currentItems = [], soldItems = [] } = await apiRequest(`/api/designers/${encodeURIComponent(id)}`);
+    if (request !== storefrontRequest || !dialog.open) return;
+    content.replaceChildren();
     byId('storefront-title').textContent = designer.brandName || designer.displayName;
-    const identity=makeElement('div','designer-storefront-identity');
-    if(designer.logoUrl){const logo=document.createElement('img');logo.src=designer.logoUrl;logo.alt=(designer.brandName||designer.displayName)+' logo';logo.loading='lazy';identity.appendChild(logo);}
-    const profileCopy=makeElement('div');
-    profileCopy.append(makeElement('p','',designer.bio||'Independent by design.'));
-    if(designer.location)profileCopy.append(makeElement('p','',designer.location));
-    profileCopy.append(makeElement('p','designer-like-total',`♥ ${Number(designer.totalLikes||0).toLocaleString()} total ${Number(designer.totalLikes||0)===1?'heart':'hearts'}`));
-    identity.appendChild(profileCopy);content.appendChild(identity);
-    if(Array.isArray(designer.badges)&&designer.badges.length){const badgeWrap=makeElement('div','listing-badges');designer.badges.forEach(b=>badgeWrap.appendChild(createBadgePill(b.label,b.type==='verified_buyer'?'badge verified-badge':'badge supporter-badge')));content.appendChild(badgeWrap);}
-    for (const item of items || []) { const button = makeElement('button', 'secondary-button', item.title); button.type = 'button'; button.addEventListener('click', () => { dialog.close(); openProductDetails(item); }); content.append(button); }
-  } catch (error) { content.append(makeElement('p', 'form-message', error.message)); }
+    const intro = makeElement('div', 'storefront-intro');
+    if (designer.logoUrl || designer.portraitUrl) {
+      const image = makeElement('img', 'storefront-logo'); image.src = designer.logoUrl || designer.portraitUrl;
+      image.alt = `${designer.brandName || designer.displayName} profile`; intro.append(image);
+    }
+    const bio = makeElement('div', 'storefront-bio');
+    bio.append(makeElement('p', '', designer.bio || 'Independent by design. Made by someone, not everyone.'));
+    if (designer.location) bio.append(makeElement('p', 'small-print', designer.location));
+    if (designer.productionMethod) bio.append(makeElement('p', 'small-print', designer.productionMethod));
+    intro.append(bio); content.append(intro);
+    const stats = makeElement('dl', 'storefront-stats');
+    for (const [label, value] of [['Total likes', designer.totalLikes], ['Pieces sold', designer.soldCount], ['Current listings', designer.currentListingCount]]) {
+      const stat = makeElement('div'); stat.append(makeElement('dt', '', label), makeElement('dd', '', Number(value || 0).toLocaleString())); stats.append(stat);
+    }
+    content.append(stats, makeElement('p', 'small-print', 'Likes count hearts saved by signed-in shoppers across this designer’s public pieces.'));
+    const badgeSection = makeElement('section', 'storefront-badges'); badgeSection.append(makeElement('h3', '', 'Badges'));
+    const badgeRow = makeElement('div', 'listing-badges');
+    for (const badge of designer.badges || []) {
+      if (badge.type === 'supporter') badgeRow.append(createBadgePill(badge.label||'House Supporter', 'badge supporter-badge'));
+      if (badge.type === 'verified_buyer') badgeRow.append(createBadgePill(badge.label||'Verified Buyer', 'badge verified-badge'));
+    }
+    badgeSection.append(badgeRow.children.length ? badgeRow : makeElement('p', 'small-print', 'No badges earned yet.')); content.append(badgeSection);
+    function addPieces(title, items, sold) {
+      const section = makeElement('section', 'storefront-section'); section.append(makeElement('h3', '', title));
+      if (!items.length) section.append(makeElement('p', 'small-print', sold ? 'Their first sale is still ahead. Watch this space.' : 'No pieces available right now. Check back for their next drop.'));
+      const grid = makeElement('div', 'storefront-grid');
+      for (const item of items) {
+        const button = makeElement('button', 'storefront-piece'); button.type = 'button';
+        const imageUrl = getProductImages(item)[0]?.url;
+        if (imageUrl) { const image = makeElement('img'); image.src = imageUrl; image.alt = ''; image.loading = 'lazy'; button.append(image); }
+        else button.append(makeElement('span', 'storefront-image-placeholder', 'House of Briar'));
+        button.append(makeElement('strong', '', item.title));
+        button.append(makeElement('span', 'small-print', sold ? `${item.soldQuantity} sold${item.availableQuantity === null || item.availableQuantity > 0 ? ' · More available' : ''}` : `$${Number(item.price || 0).toFixed(2)}`));
+        button.addEventListener('click', () => { dialog.close(); openProductDetails(item); }); grid.append(button);
+      }
+      section.append(grid); content.append(section);
+    }
+    addPieces('Current listings', currentItems, false); addPieces('Sold pieces', soldItems, true);
+  } catch (error) {
+    if (request !== storefrontRequest || !dialog.open) return;
+    content.replaceChildren(makeElement('p', 'form-message', error.message));
+  }
 }
+byId('designer-storefront-dialog')?.addEventListener('close', () => { storefrontRequest += 1; });
 byId('storefront-close')?.addEventListener('click', () => byId('designer-storefront-dialog').close());
 
 
