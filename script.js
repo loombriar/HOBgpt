@@ -75,11 +75,9 @@ function openDesignerRoom(target=''){
   syncDesignerRoomRoute();
   if(target)requestAnimationFrame(()=>document.querySelector(target)?.scrollIntoView({behavior:'smooth',block:'start'}));
 }
-function closeDesignerRoom(){
-  if(location.pathname===DESIGNER_ROOM_PATH){
-    if(history.state?.room==='designer')history.back();
-    else{history.pushState({},'', '/'+location.search);syncDesignerRoomRoute();}
-  }
+function closeDesignerRoom(event){
+  event?.preventDefault();
+  window.location.assign('/#shop');
 }
 window.addEventListener('popstate',()=>syncDesignerRoomRoute());
 
