@@ -13,6 +13,9 @@ test('designer bearer credential exchanges for an HttpOnly session and logout re
   const cookie=setCookie.split(';')[0];
   const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}});
   assert.equal(profile.status,200);assert.equal((await profile.json()).designer.id,'maker');
+  const crossSiteMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:'https://evil.example','Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-06'})});assert.equal(crossSiteMutation.status,403);
+  const missingOriginMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-06'})});assert.equal(missingOriginMutation.status,403);
+  const sameOriginMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-06'})});assert.equal(sameOriginMutation.status,200);
   const crossSiteLogout=await fetch(origin+'/api/session',{method:'DELETE',headers:{Cookie:cookie,Origin:'https://evil.example'}});assert.equal(crossSiteLogout.status,403);
   const stillSignedIn=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}});assert.equal(stillSignedIn.status,200);
   const logout=await fetch(origin+'/api/session',{method:'DELETE',headers:{Cookie:cookie,Origin:origin}});assert.equal(logout.status,200);
