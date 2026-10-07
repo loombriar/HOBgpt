@@ -51,3 +51,54 @@ test('storefront route records an anonymous designer view without storing an IP 
   const body = await analytics.json();
   expect(body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1)).toBeTruthy();
 });
+
+
+test('buyer can review a seeded piece in the suitcase and remove it', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
+  await page.goto('/cart');
+  await expect(page.getByRole('heading', { name: 'Pieces waiting for you.' })).toBeVisible();
+  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
+  await expect(page.getByText('$89.99')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Remove Moonlit E2E Piece from bag' }).click();
+  await expect(page.getByText('Your suitcase is open and waiting.')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('house-of-briar:cart'))).toBe('[]');
+});
+
+test('buyer checkout uses server totals and hands the order to the mocked Stripe boundary', async ({ page }) => {
+  let checkoutPayload;
+  await page.route('**/api/checkout/session', async route => {
+    checkoutPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: 'http://127.0.0.1:4173/checkout?provider=mock-stripe' })
+    });
+  });
+  await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
+
+  await page.goto('/cart');
+  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
+  await page.getByRole('link', { name: /Continue to checkout/ }).click();
+
+  await expect(page).toHaveURL(/\/checkout$/);
+  await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
+  await expect(page.getByText('Moonlit E2E Piece')).toBeVisible();
+  await expect(page.getByText('$89.99').first()).toBeVisible();
+  const secureCheckout = page.getByRole('button', { name: /Continue to secure checkout/ });
+  await expect(secureCheckout).toBeEnabled();
+  await secureCheckout.click();
+
+  await expect.poll(() => checkoutPayload).toEqual({
+    items: [{ id: 'e2e-piece', quantity: 1 }],
+    promoCodes: [],
+    expectedTotalBeforeTaxCents: 8999
+  });
+  await expect(page).toHaveURL(/provider=mock-stripe/);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('house-of-briar:checkout-pending') || 'null'))).toMatchObject({
+    ids: ['e2e-piece'],
+    subtotal: 89.99
+  });
+});
