@@ -119,3 +119,7 @@ Listing inquiries allow the original item request plus the designer's Available/
 ### Railway frontend integration
 
 Build both applications with `npm ci && npm --prefix apps/default ci && npm --prefix apps/default run build`, then start with `npm start`. The original homepage and `/designers/room` remain the public storefront and House sign-in. React `/account` and `/shop` use the existing House designer credential only after `/api/my/designer-profile` validates it. The server advertises `house-token` mode through `/api/frontend-config`; House credentials never go to Taskade or URL parameters. Anonymous shoppers retain ordinary browsing and guest checkout. Cloud AI currently requires a validated House designer session on this Railway deployment; a separate visitor account provider is not configured.
+
+### Designer signup alerts
+
+Set `DESIGNER_SIGNUP_ALERT_EMAIL` in Railway to the inbox that should receive an immediate email when a new designer completes signup. Delivery uses the existing Resend outbox, including retry handling and an idempotent event key so duplicate signup requests do not create duplicate alerts.
