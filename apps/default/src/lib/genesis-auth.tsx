@@ -200,7 +200,7 @@ function getUserManager(): UserManager {
  */
 export function GenesisAuth({ children }: { children: React.ReactNode }) {
   const [mode,setMode]=React.useState<'loading'|'house'|'genesis'>('loading');
-  React.useEffect(()=>{let active=true;fetch('/api/frontend-config',{cache:'no-store'}).then(async response=>response.ok?response.json():null).then(config=>{if(active)setMode(config?.authMode==='house-token'?'house':'genesis');}).catch(()=>{if(active)setMode('genesis');});return()=>{active=false;};},[]);
+  React.useEffect(()=>{let active=true;fetch('/api/frontend-config',{cache:'no-store'}).then(async response=>response.ok?response.json():null).then(config=>{if(active)setMode(['house-token','house-session'].includes(config?.authMode)?'house':'genesis');}).catch(()=>{if(active)setMode('genesis');});return()=>{active=false;};},[]);
   if(mode==='loading')return <p role="status">Loading your House session…</p>;
   if(mode==='house')return <HouseAuth>{children}</HouseAuth>;
   return (
