@@ -1798,6 +1798,7 @@ function openAdminReview() {
 }
 
 adminReviewBtn?.addEventListener('click', openAdminReview);
+byId('admin-views-btn')?.addEventListener('click', openAdminReview);
 if (window.location.hash === '#admin-review') openAdminReview();
 window.addEventListener('hashchange', () => {
   if (window.location.hash === '#admin-review' && !adminReviewDialog?.open) openAdminReview();
@@ -1831,6 +1832,7 @@ async function renderAdminOverview() {
   const host = byId('admin-overview'); if (!host) return;
   const load = ++adminOverviewLoad; host.replaceChildren();
   const sections = [
+    ['Website views', '/api/admin/analytics'],
     ['Operations', '/api/admin/operations'],
     ['Designer sign-ups', '/api/admin/designer-applications'],
     ['Customer service', '/api/admin/support'],
@@ -1841,6 +1843,27 @@ async function renderAdminOverview() {
     section.append(makeElement('h3', '', title)); host.append(section);
     try {
       const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminToken) return;
+      if (data.traffic) {
+        section.id = 'admin-website-views';
+        section.append(makeElement('p', '', `Website activity in the last ${data.periodDays || 30} days.`));
+        const stats = makeElement('div', 'admin-traffic-stats');
+        for (const [label, value] of [['Page views', data.traffic.pageViews], ['Visits', data.traffic.visits]]) {
+          const card = makeElement('div', 'admin-traffic-stat');
+          card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label));
+          stats.append(card);
+        }
+        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Product views appear separately in each designer’s studio.'));
+        for (const [title, rows, key] of [['Top pages', data.traffic.topPages, 'path'], ['Traffic sources', data.traffic.sources, 'source'], ['Devices', data.traffic.devices, 'device']]) {
+          section.append(makeElement('h4', '', title));
+          if (!rows?.length) { section.append(makeElement('p', '', 'No tracked activity yet.')); continue; }
+          const table = makeElement('table', 'admin-traffic-table');
+          const head = document.createElement('thead'); const header = document.createElement('tr');
+          for (const label of [title, 'Views']) { const cell = makeElement('th', '', label); cell.scope = 'col'; header.append(cell); }
+          head.append(header); const body = document.createElement('tbody');
+          for (const row of rows) { const tr = document.createElement('tr'); tr.append(makeElement('td', '', row[key] || 'Unknown'), makeElement('td', '', Number(row.views || 0).toLocaleString())); body.append(tr); }
+          table.append(head, body); section.append(table);
+        }
+      }
       if (data.summary) {
         section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
         for (const [key, value] of Object.entries(data.summary)) section.append(makeElement('p', '', `${key.replace(/([A-Z])/g, ' $1')}: ${value}`));
