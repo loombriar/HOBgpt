@@ -3564,6 +3564,8 @@ function createApp(options = {}) {
   if (hasReactBuild) {
     app.get(['/shop','/shop/:productId','/cart','/admin','/sell'], sendFrontend);
   }
+  app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
+  for (const asset of ['runway.css', 'runway.js']) app.get('/'+asset, (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,asset)); });
   for(const asset of ['atelier.css','atelier.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
