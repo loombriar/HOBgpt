@@ -16,3 +16,12 @@ Production requires persistent storage plus automated off-host backups and teste
 
 ## Scale trigger
 SQLite remains supported for a single application instance. Migrate transactional state to managed PostgreSQL before horizontally scaling the API.
+
+
+## Backup consistency
+
+The backup command uses SQLite's online backup API for `catalog.sqlite`, so a running WAL-mode database is captured as a consistent snapshot. The live database, `-wal`, and `-shm` files are not copied by the recursive media backup. Non-database files under `DATA_DIR` are copied separately.
+
+Every backup writes a SHA-256 manifest. Run `npm run verify:backup -- <backup-directory>` before accepting a backup; verification checks every recorded file and runs SQLite `PRAGMA integrity_check` against the snapshot.
+
+Production still needs an off-host copy and a periodic restore drill. A backup stored only on the same Railway volume does not protect against volume loss.
