@@ -123,3 +123,19 @@ test('runway studio uploads a garment, walks, pauses and exports a preview', asy
   await expect(page.getByRole('status')).toContainText('Photo removed');
   await expect(page.getByRole('link', { name: /House of Briar/ })).toHaveAttribute('href', '/designers/room');
 });
+
+
+test('homepage website views shortcut displays private traffic after admin sign-in', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Website views', exact: true }).click();
+  await expect(page.locator('#admin-review-workspace')).toBeHidden();
+  await page.getByLabel('Administrator code').fill('e2e-admin-token');
+  await page.locator('#admin-login-form button[type="submit"]').click();
+  const traffic = page.locator('#admin-website-views');
+  await expect(traffic.getByRole('heading', { name: 'Website views', exact: true })).toBeVisible();
+  await expect(traffic.getByText('Page views', { exact: true })).toBeVisible();
+  await expect(traffic.getByText('Visits', { exact: true })).toBeVisible();
+  await expect(traffic.locator('.admin-traffic-stat strong').first()).toHaveText(/[1-9][0-9,]*/);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(traffic).toHaveCount(0);
+});
