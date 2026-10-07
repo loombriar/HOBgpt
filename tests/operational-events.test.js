@@ -35,7 +35,7 @@ async function fixture() {
     ctx.db.prepare("INSERT INTO inventory_reservations(listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,1)").run(id,id,old,old);
   };
   const stripeWebhook=async id=>{
-    const raw=JSON.stringify({type:'checkout.session.completed',data:{object:{id:`cs_${id}`,metadata:{order_id:id},payment_status:'paid',currency:'usd',amount_total:2000}}});
+    const raw=JSON.stringify({id:`evt_${id}`,type:'checkout.session.completed',data:{object:{id:`cs_${id}`,metadata:{order_id:id},payment_status:'paid',currency:'usd',amount_total:2000}}});
     const t=Math.floor(Date.now()/1000),signature=crypto.createHmac('sha256',process.env.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex');
     return fetch(origin+'/api/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':`t=${t},v1=${signature}`},body:raw});
   };
