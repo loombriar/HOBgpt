@@ -3459,7 +3459,7 @@ function createApp(options = {}) {
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
-  app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-token'}));
+  app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
   app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
   if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
