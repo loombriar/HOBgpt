@@ -797,6 +797,13 @@ function createApp(options = {}) {
       return parsed.protocol === 'https:' || parsed.protocol === 'http:';
     } catch { return false; }
   }
+  function analyticsReferrerOrigin(value) {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.origin.slice(0, 300) : null;
+    } catch { return null; }
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS rate_limit_buckets (
     bucket_key TEXT PRIMARY KEY,
@@ -2247,7 +2254,7 @@ function createApp(options = {}) {
       crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
       text(body.designer, 200), number(body.value), text(body.currency, 12), text(body.query, 300),
       number(body.resultCount), number(body.itemCount), text(body.orderId, 100), text(body.source, 100),
-      text(body.path, 500), text(body.referrer, 1000), text(body.utmSource, 200), text(body.utmMedium, 200),
+      text(body.path, 500), analyticsReferrerOrigin(body.referrer), text(body.utmSource, 200), text(body.utmMedium, 200),
       text(body.utmCampaign, 300), text(body.designerId,100), ['mobile','tablet','desktop'].includes(String(body.deviceCategory)) ? String(body.deviceCategory) : null, new Date().toISOString()
     );
     res.status(202).json({ accepted: true });
@@ -2469,7 +2476,7 @@ function createApp(options = {}) {
     if(!incomingSocialLinks||typeof incomingSocialLinks!=='object'||Array.isArray(incomingSocialLinks))return fail(res,422,'validation_error','Check your social media links.');
     const socialLinks={};
     const socialHosts={instagram:['instagram.com'],tiktok:['tiktok.com'],pinterest:['pinterest.com','pin.it'],youtube:['youtube.com','youtu.be'],facebook:['facebook.com','fb.com']};
-    for(const platform of allowedSocials){const entry=incomingSocialLinks[platform];if(!entry)continue;const url=String(typeof entry==='string'?entry:entry.url||'').trim();const visible=typeof entry==='string'?true:entry.visible!==false;if(url){if(url.length>500||!validOptionalHttpUrl(url))return fail(res,422,'validation_error',`Enter a valid ${platform} URL.`);if(platform!=='website'){let host='';try{host=new URL(url).hostname.toLowerCase().replace(/^www\./,'')}catch{};if(!socialHosts[platform].some(domain=>host===domain||host.endsWith('.'+domain)))return fail(res,422,'validation_error',`Enter a ${platform} URL from the official ${platform} domain.`);}socialLinks[platform]={url,visible};}}
+    for(const platform of allowedSocials){const entry=incomingSocialLinks[platform];if(!entry)continue;const url=String(typeof entry==='string'?entry:entry.url||'').trim();const visible=typeof entry==='string'?true:entry.visible!==false;if(url){if(url.length>500||!validOptionalHttpUrl(url)||new URL(url).protocol!=='https:')return fail(res,422,'validation_error',`Enter a valid HTTPS ${platform} URL.`);if(platform!=='website'){let host='';try{host=new URL(url).hostname.toLowerCase().replace(/^www\./,'')}catch{};if(!socialHosts[platform].some(domain=>host===domain||host.endsWith('.'+domain)))return fail(res,422,'validation_error',`Enter a ${platform} URL from the official ${platform} domain.`);}socialLinks[platform]={url,visible};}}
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(v=>String(v).trim()).filter(Boolean))]:(()=>{try{return JSON.parse(current.categories||'[]')}catch{return[]}})();
     if(!brandName||brandName.length>120||bio.length>2000||location.length>160||productionMethod.length>120||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||categories.length>12||categories.some(v=>v.length>80))return fail(res,422,'validation_error','Check the storefront profile fields and links.');
     db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=?,social_links=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,JSON.stringify(socialLinks),req.designerId);
