@@ -102,3 +102,24 @@ test('buyer checkout uses server totals and hands the order to the mocked Stripe
     subtotal: 89.99
   });
 });
+
+
+test('runway studio uploads a garment, walks, pauses and exports a preview', async ({ page }) => {
+  await page.goto('/runway');
+  await expect(page.getByRole('heading', { name: 'The Briar Runway' })).toBeVisible();
+  await page.locator('#photo').setInputFiles({
+    name: 'garment.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAYAAABwrHhvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAWElEQVRYhe3YwQ3AAAhC0e6/D2EuJrBbtJd38G4iKvxnzf1ZjwZmBCXCWMNziOYU1zOKd3wMyViyMqVhy08wmWhW4TTi+QEUg2gKUgWmO6ByUG3B6nymgxepbyktbUarWQAAAABJRU5ErkJggg==', 'base64')
+  });
+  await expect(page.getByRole('status')).toContainText('Photo ready');
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Walk', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save image', exact: true }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('briar-runway.png');
+  await page.getByRole('button', { name: 'Remove photo', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Photo removed');
+  await expect(page.getByRole('link', { name: /House of Briar/ })).toHaveAttribute('href', '/designers/room');
+});
