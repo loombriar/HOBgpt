@@ -497,10 +497,14 @@ function createApp(options = {}) {
     utm_source TEXT,
     utm_medium TEXT,
     utm_campaign TEXT,
+    designer_id TEXT,
+    device_category TEXT,
     created_at TEXT NOT NULL
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS analytics_events_name_created ON analytics_events(event_name,created_at)');
   db.exec('CREATE INDEX IF NOT EXISTS analytics_events_session_created ON analytics_events(session_id,created_at)');
+  ensureColumn('analytics_events', 'designer_id', 'TEXT');
+  ensureColumn('analytics_events', 'device_category', 'TEXT');
   recordMigration(4, 'first_party_commerce_analytics');
   ensureColumn('listings', 'seo_title', 'TEXT');
   ensureColumn('listings', 'seo_description', 'TEXT');
@@ -2212,20 +2216,20 @@ function createApp(options = {}) {
   });
 
   app.post('/api/analytics/events', express.json({ limit: '16kb' }), (req, res) => {
-    const allowed = new Set(['view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
+    const allowed = new Set(['page_view','view_designer','view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const eventName = String(body.event || '');
     if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
     const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
     const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
     db.prepare(`INSERT INTO analytics_events (
-      id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,created_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,designer_id,device_category,created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
       text(body.designer, 200), number(body.value), text(body.currency, 12), text(body.query, 300),
       number(body.resultCount), number(body.itemCount), text(body.orderId, 100), text(body.source, 100),
       text(body.path, 500), text(body.referrer, 1000), text(body.utmSource, 200), text(body.utmMedium, 200),
-      text(body.utmCampaign, 300), new Date().toISOString()
+      text(body.utmCampaign, 300), text(body.designerId,100), ['mobile','tablet','desktop'].includes(String(body.deviceCategory)) ? String(body.deviceCategory) : null, new Date().toISOString()
     );
     res.status(202).json({ accepted: true });
   });
@@ -2247,9 +2251,15 @@ function createApp(options = {}) {
     const startedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='begin_checkout' AND created_at>=?`).get(since)?.count||0);
     const purchasedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='purchase' AND created_at>=?`).get(since)?.count||0);
     const abandonedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT b.session_id) count FROM analytics_events b WHERE b.event_name='begin_checkout' AND b.created_at>=? AND b.created_at < datetime('now','-2 hours') AND NOT EXISTS (SELECT 1 FROM analytics_events p WHERE p.session_id=b.session_id AND p.event_name='purchase' AND p.created_at>=b.created_at)`).get(since)?.count||0);
+    const trafficRow=db.prepare(`SELECT COUNT(*) page_views, COUNT(DISTINCT CASE WHEN session_id IS NOT NULL AND session_id!='' THEN session_id END) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=?`).get(since);
+    const topPages=db.prepare(`SELECT path,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND path IS NOT NULL AND created_at>=? GROUP BY path ORDER BY views DESC LIMIT 20`).all(since);
+    const topDesigners=db.prepare(`SELECT designer_id designerId,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name='view_designer' AND designer_id IS NOT NULL AND created_at>=? GROUP BY designer_id ORDER BY views DESC LIMIT 20`).all(since);
+    const trafficSources=db.prepare(`SELECT COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) source,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) ORDER BY views DESC LIMIT 20`).all(since);
+    const devices=db.prepare(`SELECT COALESCE(device_category,'unknown') device,COUNT(*) views FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(device_category,'unknown') ORDER BY views DESC`).all(since);
+    const dailyTraffic=db.prepare(`SELECT substr(created_at,1,10) day,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY substr(created_at,1,10) ORDER BY day`).all(since);
     const rate=(from,to)=>from>0?Math.round((to/from)*1000)/10:0;
     const funnel={...counts, conversionRates:{viewToCart:rate(counts.view_product,counts.add_to_cart),cartToCheckout:rate(counts.add_to_cart,counts.begin_checkout),checkoutToPurchase:rate(counts.begin_checkout,counts.purchase),viewToPurchase:rate(counts.view_product,counts.purchase)},dropOff:{viewToCart:Math.max(0,counts.view_product-counts.add_to_cart),cartToCheckout:Math.max(0,counts.add_to_cart-counts.begin_checkout),checkoutToPurchase:Math.max(0,counts.begin_checkout-counts.purchase)}};
-    res.json({ periodDays: 30, events, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
+    res.json({ periodDays: 30, events, traffic:{pageViews:Number(trafficRow?.page_views||0),visits:Number(trafficRow?.visits||0),topPages,topDesigners,sources:trafficSources,devices,daily:dailyTraffic}, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
   });
 
     const galleryResponse = (req, res) => {

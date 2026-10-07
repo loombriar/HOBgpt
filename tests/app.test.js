@@ -460,6 +460,28 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
   assert.ok(dashboard.body.funnel.begin_checkout >= 1);
 });
 
+test('records anonymous site visits and exposes traffic summaries without IP storage', async () => {
+  const first = await getJson('/api/analytics/events', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/',deviceCategory:'mobile'})
+  });
+  assert.equal(first.response.status,202);
+  const second = await getJson('/api/analytics/events', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event:'view_designer',sessionId:'visit-one',path:'/designers/maker',designerId:'maker',deviceCategory:'mobile'})
+  });
+  assert.equal(second.response.status,202);
+  const dashboard = await getJson('/api/admin/analytics',{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}});
+  assert.equal(dashboard.response.status,200);
+  assert.ok(dashboard.body.traffic.pageViews>=2);
+  assert.ok(dashboard.body.traffic.visits>=1);
+  assert.ok(dashboard.body.traffic.topPages.some(row=>row.path==='/designers/maker'));
+  assert.ok(dashboard.body.traffic.topDesigners.some(row=>row.designerId==='maker'));
+  const columns=context.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
+  assert.equal(columns.includes('ip'),false);
+  assert.equal(columns.includes('ip_address'),false);
+});
+
 
 test('quantity inventory prevents overselling and records admin adjustments', async () => {
   const created = await getJson('/api/listings', {
