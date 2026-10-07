@@ -24,7 +24,14 @@ export default function InquiryForm({ productName, productId = '', designerName 
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
 
+  const validMeasurement = (value: string) => /^\d+(?:\.\d{1,2})?$/.test(value.trim()) && Number(value) > 0 && Number(value) <= 120;
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (![bust, waist, hips, height].every(validMeasurement)) {
+      setStatus('error');
+      setError('Enter measurements as positive numbers in inches (up to 120, with at most two decimal places).');
+      return;
+    }
     event.preventDefault();
     setStatus('sending');
     setError('');
@@ -61,6 +68,7 @@ export default function InquiryForm({ productName, productId = '', designerName 
       <label className="text-xs text-muted-foreground">Hips<input required inputMode="decimal" value={hips} onChange={(e)=>setHips(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
       <label className="text-xs text-muted-foreground">Height<input required inputMode="decimal" value={height} onChange={(e)=>setHeight(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
     </div></fieldset>
+    <p className="text-xs text-muted-foreground">Saved measurement profiles are stored in this browser on this device, not automatically synced to your account. Avoid saving measurements on shared devices.</p>
     <label className="block space-y-2 text-sm font-medium"><span>Item-specific request</span><textarea required maxLength={800} rows={4} value={request} onChange={(event) => setRequest(event.target.value)} placeholder="Example: Please make this style to my measurements with a slightly longer skirt." className="w-full resize-y rounded-xl border border-border bg-background px-3 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" /><span className="block text-xs font-normal text-muted-foreground">For sizing or customization of {productName} only. No open conversation is created.</span></label>
     {status === 'error' && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <button type="submit" disabled={status === 'sending'} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60">{status === 'sending' ? 'Sending request…' : 'Send sizing request'}{status !== 'sending' && <Send size={16} />}</button>
