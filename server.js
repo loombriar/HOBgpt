@@ -1283,12 +1283,23 @@ function createApp(options = {}) {
 
   async function createStripeOnboarding(designer, req) {
     let accountId=designer.stripe_account_id;
+    if(accountId){
+      try{ await stripeApi(`accounts/${encodeURIComponent(accountId)}`); }
+      catch(error){
+        const message=String(error?.message||'');
+        if(/cannot access|application access may have been revoked|does not have access|no such account/i.test(message)){
+          log('error','seller_connect_account_inaccessible',{designerId:designer.id});
+          db.prepare("UPDATE designer_profiles SET stripe_account_id=NULL,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due='[]',stripe_status_checked_at=? WHERE id=?").run(new Date().toISOString(),designer.id);
+          accountId='';
+        }else throw error;
+      }
+    }
     if(!accountId){
       const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
-      const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}`});
+      const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}-v2`});
       accountId=account.id;
       if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
-      db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
+      db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
     }
     const origin=trustedAppOrigin(req);
     const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
