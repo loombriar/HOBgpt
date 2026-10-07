@@ -1585,7 +1585,7 @@ byId('start-profile-setup')?.addEventListener('click', () => byId('designer-bran
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
 if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
-window.addEventListener('storage',event=>{if(event.key==='briarDesignerToken'&&!event.newValue&&designerToken)signOut();});
+// Legacy bearer-token removal in another tab is a migration event, not a logout signal.
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 

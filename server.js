@@ -886,7 +886,11 @@ function createApp(options = {}) {
   const DESIGNER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   function cookieValue(req,name) {
     const raw=String(req.get('cookie')||'');
-    for(const part of raw.split(';')){const [key,...rest]=part.trim().split('=');if(key===name)return decodeURIComponent(rest.join('='));}
+    for(const part of raw.split(';')){
+      const [key,...rest]=part.trim().split('=');
+      if(key!==name)continue;
+      try{return decodeURIComponent(rest.join('='));}catch{return '';}
+    }
     return '';
   }
   function setDesignerSessionCookie(req,res,token,maxAgeSeconds=Math.floor(DESIGNER_SESSION_TTL_MS/1000)) {
@@ -907,6 +911,19 @@ function createApp(options = {}) {
     setDesignerSessionCookie(req,res,'',0);
   }
 
+  function requireDesignerRequestOrigin(req,res,next) {
+    if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return next();
+    // Legacy bearer/OIDC clients are not cookie-authenticated and are not exposed to browser CSRF.
+    if (!cookieValue(req,DESIGNER_SESSION_COOKIE)) return next();
+    const expectedOrigin=trustedAppOrigin(req);
+    const origin=req.get('origin');
+    const fetchSite=String(req.get('sec-fetch-site')||'').toLowerCase();
+    if (origin && !isSameOriginUrl(origin,expectedOrigin)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
+    if (!origin && fetchSite && !['same-origin','same-site','none'].includes(fetchSite)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
+    if (!origin && !fetchSite) return fail(res,403,'invalid_origin','A trusted request origin is required.');
+    return next();
+  }
+
   async function authDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(sessionToken){
@@ -915,7 +932,7 @@ function createApp(options = {}) {
       if(session && session.expires_at>new Date().toISOString()){
         if(session.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
         req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
-        return next();
+        return requireDesignerRequestOrigin(req,res,next);
       }
       if(session)db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
     }
@@ -1509,7 +1526,7 @@ function createApp(options = {}) {
     if(req.designerAuthMethod!=='session')issueDesignerSession(req,res,req.designerId);
     res.set('Cache-Control','no-store').json({ ok: true, designerId: req.designerId });
   });
-  app.delete('/api/session', (req,res) => {
+  app.delete('/api/session', requireDesignerRequestOrigin, (req,res) => {
     clearDesignerSession(req,res);
     return res.set('Cache-Control','no-store').json({ok:true});
   });
