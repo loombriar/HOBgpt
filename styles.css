@@ -1565,6 +1565,242 @@ main>section:not(.hero){position:relative}
 @media(max-width:520px){.product-section .shop-drop-windows{grid-template-columns:1fr!important;max-width:420px!important}.product-section .shop-drop-window .category-window-title{font-size:1.1rem!important}.product-section .shop-drop-window>select{font-size:.9rem!important}}
 
 
+/* Designer recruitment */
+.designer-callout-section {
+  padding: 3.5rem 0;
+  border-top: 1px solid rgba(137, 101, 48, .18);
+  border-bottom: 1px solid rgba(137, 101, 48, .18);
+  background:
+    radial-gradient(circle at 8% 20%, rgba(238, 174, 161, .16), transparent 25%),
+    radial-gradient(circle at 92% 75%, rgba(111, 139, 94, .14), transparent 28%),
+    #f7f0df;
+}
+.designer-callout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2.5rem;
+  align-items: center;
+  padding: 2.25rem 2.5rem;
+  border: 1px solid rgba(151, 113, 54, .28);
+  border-radius: 24px;
+  background: rgba(255, 252, 244, .82);
+  box-shadow: 0 14px 35px rgba(85, 65, 39, .08);
+}
+.designer-callout-copy { max-width: 760px; }
+.designer-callout h2 {
+  margin: .45rem 0 1rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(2.35rem, 5vw, 4rem);
+  line-height: .95;
+  color: #463523;
+}
+.designer-callout-copy > p:not(.eyebrow):not(.designer-callout-line) {
+  max-width: 700px;
+  line-height: 1.7;
+  color: #665846;
+}
+.designer-callout-line {
+  margin-top: 1rem;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #4d5f42;
+}
+.designer-callout-button { white-space: nowrap; }
+@media (max-width: 760px) {
+  .designer-callout { grid-template-columns: 1fr; padding: 1.75rem; }
+  .designer-callout-button { width: 100%; text-align: center; }
+}
+
+
+.designer-welcome {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(151,113,54,.28);
+  border-radius: 18px;
+  background: rgba(247,240,223,.72);
+}
+.designer-welcome h3 { margin: .35rem 0 .5rem; font-family: "Cormorant Garamond", serif; font-size: 2rem; }
+.designer-signup-panel { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(137,101,48,.2); }
+
+/* Designer storefront identity */
+.designer-storefront-identity{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}.designer-storefront-identity>img{width:84px;height:84px;object-fit:contain;border-radius:18px;border:1px solid rgba(78,55,42,.18);background:#fff;padding:.4rem}.designer-like-total{font-weight:700;margin-top:.45rem}.designer-storefront-identity+.listing-badges{margin-bottom:1rem}@media(max-width:560px){.designer-storefront-identity{align-items:flex-start}.designer-storefront-identity>img{width:68px;height:68px}}
+
+
+/* Fabric Finder — Designer's Room */
+.fabric-finder-card { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+.fabric-finder-card h3 { margin-top: 0; }
+.fabric-finder-result { margin-top: 1rem; padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-secondary); }
+.fabric-finder-result p { margin: .4rem 0; }
+.fabric-finder-result .primary-button { margin-top: .75rem; }
+
+
+/* Measurement shopping + designer size reference */
+.fit-search-entry { display:flex; align-items:flex-start; gap:.55rem; margin-top:.75rem; }
+.fit-search-entry .fit-search { margin:0; flex:0 1 auto; }
+.fit-search-entry .fit-search summary { display:inline-flex; width:auto; min-height:34px; align-items:center; padding:.38rem .7rem; font-size:.86rem; line-height:1.1; border:1px solid var(--border-strong); border-radius:999px; background:var(--bg-card); cursor:pointer; }
+.fit-search-avatar { width:34px; height:34px; flex:0 0 34px; border:1px solid var(--border-strong); border-radius:50%; background:var(--bg-secondary); position:relative; overflow:hidden; }
+.fit-avatar-head { position:absolute; width:9px; height:9px; border-radius:50%; background:var(--moss-dark); top:6px; left:12px; }
+.fit-avatar-body { position:absolute; width:17px; height:16px; border-radius:50% 50% 35% 35%; background:var(--moss-dark); top:16px; left:8px; }
+.designer-size-reference { margin:1.5rem 0; padding:1.25rem; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-card); }
+.designer-size-reference h3 { margin-top:0; }
+.size-chart-scroll { overflow-x:auto; margin-top:.9rem; }
+.size-reference-table { width:100%; min-width:560px; border-collapse:collapse; font-size:.9rem; }
+.size-reference-table th,.size-reference-table td { padding:.58rem .65rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+.size-reference-table thead th { background:var(--bg-secondary); }
+@media (max-width:600px){ .fit-search-entry{align-items:center}.fit-search-entry .fit-search summary{font-size:.78rem;padding:.34rem .58rem}.fit-search-avatar{width:30px;height:30px;flex-basis:30px}.fit-avatar-head{left:10px}.fit-avatar-body{left:6px} }
+
+
+/* Suitcase badge reward */
+.cart-badge-reward{display:flex;align-items:center;gap:14px;margin:16px 0;padding:14px 16px;border:1px solid rgba(111,86,58,.28);border-radius:16px;background:linear-gradient(135deg,rgba(255,253,248,.98),rgba(239,244,229,.92));box-shadow:0 6px 18px rgba(68,48,27,.08)}
+.cart-badge-reward img{width:72px;height:72px;object-fit:contain;flex:0 0 72px}.cart-badge-reward .eyebrow{margin:0 0 3px}.cart-badge-reward strong{font-family:"Cormorant Garamond",serif;font-size:1.25rem;color:#54351f}.cart-badge-reward p:last-child{margin:.25rem 0 0;font-size:.88rem;line-height:1.45}.cart-badge-reward[hidden]{display:none!important}
+@media(max-width:520px){.cart-badge-reward{align-items:flex-start}.cart-badge-reward img{width:58px;height:58px;flex-basis:58px}}
+
+
+/* Thorn-and-blackberry wordmark with a light parchment masthead. */
+.site-header.sewing-header{display:flex!important;flex-direction:column!important;align-items:center!important;gap:8px!important;padding:12px 20px 22px!important;background:#fbf5e8!important;border-bottom:1px solid #d0ad7b;overflow:visible!important}
+.sewing-header .briar-wordmark{display:flex!important;flex-direction:column;align-items:center;width:min(100%,1180px)!important;max-width:1180px!important;margin:0!important;padding:0!important;text-align:center;background:transparent!important}
+.briar-wordmark>img{width:100%;height:auto;aspect-ratio:3/1;object-fit:contain;mix-blend-mode:multiply}
+.sewing-header .briar-wordmark>span{margin-top:-12px!important;font-family:Inter,sans-serif!important;font-size:.78rem!important;letter-spacing:.18em;color:#725033!important}
+.sewing-header .sewing-nav{width:min(100%,1180px)!important;justify-content:center!important;flex-wrap:wrap;gap:10px}
+body h1,body h2,body h3,.brand-name,.product-section .shop-drop-window .category-window-title{font-family:'Cinzel Decorative','Cormorant Garamond',Georgia,serif!important;font-weight:400;letter-spacing:.015em}
+.sewing-hero-content h1{font-family:'Cinzel Decorative','Cormorant Garamond',Georgia,serif!important;font-size:clamp(2.2rem,4.4vw,4.2rem)!important;line-height:1.15!important}
+.sewing-hero-content h1 em{font-family:'Cormorant Garamond',Georgia,serif!important}
+.product-section .shop-drop-window .category-window-title{letter-spacing:0!important;font-size:clamp(.75rem,1.1vw,1rem)!important}
+@media(max-width:650px){.site-header.sewing-header{padding:10px 12px 18px!important}.sewing-header .briar-wordmark>span{margin-top:0!important;font-size:.65rem!important;letter-spacing:.12em}.sewing-hero-content h1{font-size:clamp(1.9rem,7.5vw,2.8rem)!important}.sewing-header .sewing-nav{gap:8px}.product-section .shop-drop-window .category-window-title{font-size:.85rem!important}}
+
+
+
+/* Navigation first, inside the uploaded blackberry house frames. */
+.site-header.sewing-header{position:relative!important;padding:10px 16px 18px!important;gap:6px!important}
+.sewing-header .sewing-nav{order:0!important;display:flex!important;flex-wrap:nowrap!important;justify-content:safe center!important;align-items:center!important;gap:6px!important;overflow-x:auto;overflow-y:visible;padding:0 0 8px!important;scrollbar-width:thin}
+.sewing-header .briar-wordmark{order:1!important}
+.sewing-header .sewing-nav .nav-hotspot{position:relative!important;inset:auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:2px!important;flex:0 0 146px!important;width:146px!important;height:122px!important;min-height:122px!important;max-width:none!important;padding:42px 23px 20px!important;border:0!important;border-radius:0!important;background:url('/blackberry-house-nav-frame-v1.webp') center/100% 100% no-repeat!important;box-shadow:none!important;font-family:Inter,sans-serif!important;font-size:12px!important;font-weight:600!important;line-height:1.2!important;text-align:center!important;color:#4f3825!important;white-space:normal!important;text-decoration:none!important;transition:filter .18s ease}
+.sewing-header .sewing-nav .nav-hotspot:hover{filter:brightness(1.04);text-decoration:underline!important;text-underline-offset:3px}
+.sewing-header .sewing-nav .nav-hotspot:focus-visible{outline:2px solid #80612f!important;outline-offset:-5px}
+.sewing-nav .suitcase-nav-icon{display:block!important;width:27px!important;height:27px!important;object-fit:contain!important;flex:0 0 27px!important}
+.sewing-nav .door-name{font:inherit!important;max-width:100%;white-space:normal!important}
+.sewing-nav .door-info{display:none!important}
+.sewing-nav .room-button:hover .door-info,.sewing-nav .room-button:focus-visible .door-info,.sewing-nav .suitcase-button:hover .door-info,.sewing-nav .suitcase-button:focus-visible .door-info{display:block!important;position:fixed!important;left:50%!important;top:140px!important;bottom:auto!important;transform:translateX(-50%)!important;width:min(300px,85vw)!important;z-index:100!important;background:#fffaf0!important;color:#4f3825!important;padding:12px!important;border:1px solid #b89a65!important;border-radius:12px!important;box-shadow:0 5px 15px #38231522!important;font-size:12px!important;font-weight:400!important;pointer-events:none}
+@media(max-width:650px){.sewing-header .sewing-nav{justify-content:flex-start!important}.sewing-header .sewing-nav .nav-hotspot{flex-basis:126px!important;width:126px!important;height:105px!important;min-height:105px!important;padding:36px 20px 17px!important;font-size:11.5px!important}.sewing-nav .suitcase-nav-icon{width:24px!important;height:24px!important;flex-basis:24px!important}}
+
+/* Visitor's Suite wishlist */
+.visitor-favorites{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.visitor-favorites-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.wishlist-grid{display:grid;gap:.85rem;margin-top:1rem}
+.wishlist-card{display:grid;grid-template-columns:88px minmax(0,1fr);gap:1rem;align-items:center;padding:.85rem;border:1px solid var(--border);border-radius:14px;background:#fff}
+.wishlist-card>img{width:88px;height:108px;object-fit:cover;border-radius:10px;background:var(--bg-secondary)}
+.wishlist-card-copy{display:grid;gap:.2rem;min-width:0}.wishlist-card-copy>span{color:var(--text-muted);font-size:.85rem}.wishlist-card-copy .price{color:var(--text-dark);font-weight:700}
+.wishlist-card-actions{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap;margin-top:.55rem}.wishlist-card-actions .primary-button,.wishlist-card-actions .secondary-button{min-height:38px;padding:.55rem .8rem;font-size:.82rem}
+.wishlist-card-unavailable{grid-template-columns:minmax(0,1fr) auto;opacity:.72}
+@media(max-width:560px){.wishlist-card{grid-template-columns:70px minmax(0,1fr)}.wishlist-card>img{width:70px;height:88px}.wishlist-card-actions{align-items:stretch}.wishlist-card-actions .primary-button,.wishlist-card-actions .secondary-button{width:100%}}
+
+.listing-enhancements{display:grid;gap:.65rem;padding:1rem;border:1px solid var(--border);border-radius:14px;background:#fffdfb}.listing-enhancements legend{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:700}.check-label{display:flex;align-items:center;gap:.6rem}.check-label input{width:auto;min-height:auto}.photo-angle-select{width:calc(100% - 1.4rem);margin:0 .7rem .65rem;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:#fff}.product-video{margin:0;display:grid;gap:.35rem}.product-video video{width:100%;max-height:520px;border-radius:12px;background:#171717}.product-video figcaption{font-size:.78rem;color:var(--text-muted);font-weight:700}
+
+/* Masthead cleanup: one tagline, properly contained House of Briar banner. */
+.site-header.sewing-header{width:100%!important;box-sizing:border-box!important;overflow:hidden!important}
+.sewing-header .briar-wordmark{width:min(100%,1100px)!important;max-width:1100px!important;box-sizing:border-box!important;overflow:hidden!important}
+.sewing-header .briar-wordmark>img{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:min(32vw,360px)!important;aspect-ratio:3/1!important;object-fit:contain!important;object-position:center!important;margin:0 auto!important}
+.sewing-header .briar-wordmark>span{display:none!important}
+@media(max-width:650px){.sewing-header .briar-wordmark{width:100%!important}.sewing-header .briar-wordmark>img{max-height:34vw!important}}
+
+/* Suitcase trust panel: badges plus pre-checkout policy links. */
+.suitcase-trust-panel{display:grid!important;gap:12px!important;align-items:stretch!important}
+.suitcase-badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.suitcase-badge{display:flex;align-items:center;gap:10px;min-width:0}.suitcase-badge img{width:62px;height:62px;object-fit:contain;flex:0 0 62px}.suitcase-badge .eyebrow{margin:0 0 2px}.suitcase-badge strong{font-family:"Cormorant Garamond",serif;font-size:1.08rem;color:#54351f}.suitcase-badge p:last-child{margin:.18rem 0 0;font-size:.78rem;line-height:1.35}
+.suitcase-info-links{display:flex;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px solid rgba(111,86,58,.2)}.suitcase-info-links a{display:inline-flex;align-items:center;min-height:36px;padding:7px 11px;border:1px solid rgba(111,86,58,.3);border-radius:999px;background:#fffaf0;color:#54351f;font-size:.8rem;font-weight:700;text-decoration:none}.suitcase-info-links a:hover{text-decoration:underline}
+@media(max-width:620px){.suitcase-badges{grid-template-columns:1fr}.suitcase-badge img{width:54px;height:54px;flex-basis:54px}.suitcase-info-links a{flex:1 1 150px;justify-content:center;text-align:center}}
+
+/* Product seller identity and buyer support. */
+.product-seller-block{display:grid;gap:2px;margin:.45rem 0 .7rem;padding:.65rem .75rem;border-left:3px solid rgba(126,91,52,.45);background:rgba(250,243,231,.62)}.product-seller-block .eyebrow{margin:0}.product-seller-name{appearance:none;border:0;background:none;padding:0;text-align:left;color:#54351f;font-family:"Cormorant Garamond",serif;font-size:1.35rem;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer}.product-help-links{display:flex;flex-wrap:wrap;gap:.45rem;margin:1rem 0}.product-help-links a{display:inline-flex;align-items:center;min-height:34px;padding:.45rem .65rem;border:1px solid var(--border);border-radius:999px;background:#fffaf0;color:#54351f;font-size:.76rem;font-weight:700;text-decoration:none}.product-help-links a:hover{text-decoration:underline}
+
+.cart-gift-wrap{display:flex;align-items:center;gap:.4rem;margin:.45rem 0;font-size:.84rem;font-weight:700}.cart-gift-wrap input{width:auto;min-height:auto}.support-dialog .stack-form{padding:1.2rem}.support-email-fallback{padding:0 1.2rem 1.2rem}.support-link-button{display:inline-flex;align-items:center;min-height:34px;padding:.45rem .65rem;border:1px solid var(--border);border-radius:999px;background:#fffaf0;color:#54351f;font-size:.76rem;font-weight:700;cursor:pointer}.support-link-button:hover{text-decoration:underline}
+
+.paypal-button{border:0;border-radius:999px;background:#ffc439;color:#111820;font-weight:800;padding:.78rem 1.05rem;cursor:pointer}.paypal-button:hover{filter:brightness(.98)}.paypal-button:disabled{opacity:.55;cursor:wait}.donation-row .paypal-button{white-space:nowrap}
+
+.seller-terms-check{display:flex!important;align-items:flex-start;gap:.65rem}.seller-terms-check input{width:auto;margin-top:.25rem}.seller-terms-check a{text-decoration:underline}.payout-setup-card{margin:1rem 0 1.5rem;padding:1.15rem;border:1px solid rgba(80,63,45,.22);border-radius:18px;background:rgba(255,250,240,.72)}.payout-setup-card h3{margin:.2rem 0 .5rem}.payout-setup-card p{max-width:70ch}
+
+/* Full-page Designer's Room */
+.designer-room-page{width:100%;max-width:1180px;margin:0 auto;padding:clamp(1rem,3vw,2.5rem);min-height:70vh;background:#fffdfb;border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow-lg)}
+.designer-room-page.hidden{display:none!important}
+body.designer-room-open main{display:none!important}
+body.designer-room-open .designer-room-page{display:block}
+.designer-room-header{position:sticky;top:0;z-index:20;margin:calc(clamp(1rem,3vw,2.5rem)*-1) calc(clamp(1rem,3vw,2.5rem)*-1) 1rem;padding:1rem clamp(1rem,3vw,2.5rem);background:rgba(255,253,251,.96);backdrop-filter:blur(10px)}
+.designer-room-page .login-panel,.designer-room-page #designer-workspace{padding:clamp(.25rem,2vw,1.4rem)}
+@media (max-width:700px){.designer-room-page{border-radius:0;border-left:0;border-right:0;padding:1rem}.designer-room-header{margin:-1rem -1rem 1rem;padding:1rem}.designer-room-header{align-items:flex-start}.designer-room-header #modal-close{white-space:nowrap}}
+
+.seller-readiness-card{margin:0 0 1rem;padding:1.25rem;border:1px solid var(--border-strong);border-radius:18px;background:#fff}
+.seller-readiness-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.seller-readiness-heading h3{margin:.15rem 0 .35rem}
+.seller-readiness-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:1rem}
+.seller-readiness-item{display:flex;gap:.7rem;align-items:flex-start;padding:.8rem;border:1px solid var(--border);border-radius:12px;background:#fffdfb}
+.seller-readiness-item.is-complete{font-weight:600}
+.seller-readiness-mark{display:grid;place-items:center;flex:0 0 1.7rem;width:1.7rem;height:1.7rem;border:1px solid var(--border-strong);border-radius:50%}
+.seller-readiness-item div{display:grid;gap:.15rem}
+.seller-readiness-hint{font-size:.8rem;color:var(--text-muted);font-weight:400}
+#seller-readiness-badge[data-ready="true"]{font-weight:700}
+@media(max-width:700px){.seller-readiness-list{grid-template-columns:1fr}.seller-readiness-heading{align-items:center}}
+
+/* Designer Room readiness polish */
+.designer-room-header{position:relative;top:auto;z-index:2;margin:0 0 1.5rem;padding:0 0 1rem;border-bottom:1px solid var(--border);background:#fffdfb;backdrop-filter:none}
+.designer-room-page .login-panel,.designer-room-page #designer-workspace{padding:0}
+.designer-room-page #designer-workspace{display:grid;gap:1rem}
+.designer-room-page #designer-workspace.hidden{display:none!important}
+.seller-readiness-card{margin:0;padding:1.25rem}
+.seller-readiness-item.is-complete{border-color:rgba(48,102,69,.35);background:rgba(239,248,241,.72)}
+.seller-readiness-item.is-complete .seller-readiness-mark{border-color:#306645;background:#306645;color:#fff}
+.seller-readiness-item.is-pending{border-color:rgba(139,96,35,.28);background:rgba(255,249,237,.72)}
+.seller-readiness-action{justify-self:start;margin-top:.2rem;padding:0;text-decoration:underline}
+#seller-readiness-badge[data-ready="true"]{background:#306645;color:#fff;border-color:#306645}
+#seller-readiness-badge[data-ready="false"]{background:#fff8e8;color:#6b4b1f;border-color:rgba(139,96,35,.35)}
+@media(max-width:700px){.designer-room-header{margin:0 0 1rem;padding:0 0 1rem}.designer-room-page{padding:1rem}.seller-readiness-card{padding:1rem}}
+
+.designer-settings-card{margin:0 0 1rem;border:1px solid var(--border-strong);border-radius:18px;background:#fffdfb;overflow:hidden}
+.designer-settings-card>summary{cursor:pointer;padding:1rem 1.2rem;font-family:var(--display-font,serif);font-size:1.05rem;font-weight:700;list-style-position:inside}
+.designer-settings-card[open]>summary{border-bottom:1px solid var(--border)}
+.designer-settings-card form{padding:1.2rem}
+
+
+/* Mobile storefront header QA: keep every primary destination visible without horizontal scrolling. */
+@media(max-width:650px){
+  .site-header.sewing-header{padding:8px 10px 12px!important;gap:4px!important}
+  .sewing-header .sewing-nav{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:100%!important;
+    gap:6px!important;
+    overflow:visible!important;
+    padding:0 0 4px!important;
+  }
+  .sewing-header .sewing-nav .nav-hotspot{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:78px!important;
+    min-height:78px!important;
+    flex:none!important;
+    padding:27px 12px 12px!important;
+    font-size:12px!important;
+  }
+  .sewing-header .sewing-nav .suitcase-button{grid-column:1/-1!important}
+  .sewing-nav .suitcase-nav-icon{width:20px!important;height:20px!important;flex-basis:20px!important}
+  .sewing-header .briar-wordmark>img{max-height:30vw!important}
+}
+
+/* Pastel blackberry atelier: matching sewn windows and readable room doors. */
+body{background-color:#faf5ef!important;color:#493b4b}
+.sewing-header{background:#eef6f0!important}
+.sewing-header .room-button{background:#e1efe8!important;border:1px solid #afc9bc!important;border-radius:24px 24px 9px 9px!important;box-shadow:inset 0 0 0 4px #faf5ef!important}
+.sewing-header .room-button::before{display:none!important;background:none!important}
+.product-section .shop-drop-window{background:transparent!important;border:0!important;box-shadow:none!important;aspect-ratio:500/180!important}
+.product-section .shop-drop-window .category-window-art{inset:0!important;width:100%!important;height:100%!important;object-fit:fill!important;opacity:1!important}
+.product-section .shop-drop-window .category-window-title{color:#614763!important;font-family:Inter,sans-serif!important;font-weight:600!important;font-size:.95rem!important}
+.site-footer{background-color:#4a3c4e!important}
+.primary-button{background:#65506a!important;border-color:#65506a!important;color:#fffaf5!important}
+.primary-button:hover{background:#513d56!important}
+.sewing-header .sewing-nav .nav-hotspot{background:#f8f0f5!important;border:1px solid #d4becd!important;border-radius:18px!important;width:auto!important;height:auto!important;min-height:48px!important;flex:0 1 auto!important;padding:12px 16px!important;color:#614763!important}
+.sewing-header .sewing-nav .room-button{background:#e1efe8!important;border-radius:25px 25px 8px 8px!important;min-height:65px!important;border-color:#afc9bc!important}
+
 /* Public designer storefront popup. */
 #designer-storefront-dialog{width:min(960px,calc(100vw - 32px));max-height:90dvh;overflow:auto}
 .storefront-intro{display:flex;gap:20px;align-items:center;margin:12px 0 22px}.storefront-logo{width:96px;height:96px;object-fit:contain;border-radius:16px;background:#fffaf0}.storefront-bio{flex:1;min-width:0}

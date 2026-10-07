@@ -28,7 +28,7 @@ test('public storefront aggregates saved likes, linked badges, available pieces 
     const res=await fetch(base+'/api/designers/storefront-designer');assert.equal(res.status,200);const body=await res.json();
     assert.equal(body.designer.totalLikes,3);assert.equal(body.designer.soldCount,3);assert.equal(body.designer.currentListingCount,2);
     assert.deepEqual(body.currentItems.map(i=>i.id).sort(),['sf-current','sf-partial']);assert.deepEqual(body.soldItems.map(i=>i.id).sort(),['sf-partial','sf-sold']);
-    assert.deepEqual(body.designer.badges,[{type:'supporter'},{type:'verified_buyer'}]);
+    assert.deepEqual(body.designer.badges.map(b=>({type:b.type})),[{type:'supporter'},{type:'verified_buyer'}]);
     assert.doesNotMatch(JSON.stringify(body),/private-maker-subject|private-shopper|private@example|private-donation|sf-hidden/);
     db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='storefront-designer'").run();
     assert.equal((await fetch(base+'/api/designers/storefront-designer')).status,404);

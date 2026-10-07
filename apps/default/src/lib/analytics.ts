@@ -8,7 +8,9 @@ export type CommerceEventName =
   | 'view_cart'
   | 'begin_checkout'
   | 'checkout_abandoned'
-  | 'purchase';
+  | 'purchase'
+  | 'page_view'
+  | 'view_designer';
 
 export type CommerceEvent = {
   event: CommerceEventName;
@@ -22,6 +24,8 @@ export type CommerceEvent = {
   itemCount?: number;
   orderId?: string;
   source?: string;
+  designerId?: string;
+  deviceCategory?: string;
 };
 
 const SESSION_KEY = 'house-of-briar:analytics-session';
@@ -36,11 +40,24 @@ function sessionId() {
   return id;
 }
 
+function deviceCategory() {
+  if (typeof navigator === 'undefined') return undefined;
+  const ua = navigator.userAgent || '';
+  if (/tablet|ipad/i.test(ua)) return 'tablet';
+  if (/mobile|iphone|android/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+
+function referrerOrigin() {
+  if (typeof document === 'undefined' || !document.referrer) return undefined;
+  try { return new URL(document.referrer).origin; } catch { return undefined; }
+}
+
 function attribution() {
   if (typeof window === 'undefined') return {};
   const params = new URLSearchParams(window.location.search);
   return {
-    referrer: document.referrer || undefined,
+    referrer: referrerOrigin(),
     utmSource: params.get('utm_source') || undefined,
     utmMedium: params.get('utm_medium') || undefined,
     utmCampaign: params.get('utm_campaign') || undefined,
@@ -59,6 +76,7 @@ export function trackCommerceEvent(event: CommerceEvent) {
     ...event,
     sessionId: sessionId(),
     path: window.location.pathname,
+    deviceCategory: event.deviceCategory || deviceCategory(),
     ...attribution(),
   });
   try {
@@ -75,4 +93,16 @@ export function trackCommerceEvent(event: CommerceEvent) {
   } catch {
     // Analytics must never interrupt shopping.
   }
+}
+
+
+export function trackPageView(pathname?: string) {
+  if (typeof window === 'undefined') return;
+  const path = pathname || window.location.pathname;
+  if (path === '/admin' || path.startsWith('/admin/')) return;
+  const designerMatch = path.match(/^\/designers\/([^/]+)\/?$/);
+  trackCommerceEvent({
+    event: designerMatch ? 'view_designer' : 'page_view',
+    designerId: designerMatch ? decodeURIComponent(designerMatch[1]) : undefined,
+  });
 }

@@ -5,7 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { test } = require('node:test');
 const { once } = require('node:events');
-const { createApp } = require('../server');
+const { createApp, SELLER_TERMS_VERSION } = require('../server');
 
 async function fixture() {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-operational-events-'));
@@ -20,6 +20,7 @@ async function fixture() {
       if(order)return {id:order.stripe_session_id,status:'complete',payment_status:'paid',currency:'usd',amount_total:order.subtotal_cents,metadata:{order_id:order.id}};
       throw new Error(`Unexpected Stripe endpoint ${endpoint}`);
     }});
+  ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('designer-a',SELLER_TERMS_VERSION,new Date().toISOString(),'test-fixture');
   const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin=`http://127.0.0.1:${server.address().port}`;
   const call=async(route,token='seller',method='GET',body)=>{
     const response=await fetch(origin+route,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
@@ -34,7 +35,7 @@ async function fixture() {
     ctx.db.prepare("INSERT INTO inventory_reservations(listing_id,order_id,status,reserved_at,expires_at,quantity) VALUES (?,?,'reserved',?,?,1)").run(id,id,old,old);
   };
   const stripeWebhook=async id=>{
-    const raw=JSON.stringify({type:'checkout.session.completed',data:{object:{id:`cs_${id}`,metadata:{order_id:id},payment_status:'paid',currency:'usd',amount_total:2000}}});
+    const raw=JSON.stringify({id:`evt_${id}`,type:'checkout.session.completed',data:{object:{id:`cs_${id}`,metadata:{order_id:id},payment_status:'paid',currency:'usd',amount_total:2000}}});
     const t=Math.floor(Date.now()/1000),signature=crypto.createHmac('sha256',process.env.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex');
     return fetch(origin+'/api/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':`t=${t},v1=${signature}`},body:raw});
   };
@@ -73,6 +74,7 @@ test('every payment path creates sale/shipment events without email and retries 
     }
     assert.equal(f.emails.length,0);
     f.seed('zero-threshold','Limited Quantity',2,0,'seller@example.test');
+    f.ctx.db.prepare("UPDATE designer_profiles SET email='seller@example.test' WHERE id='designer-a'").run();
     await f.call('/api/checkout/session/cs_zero-threshold');
     await f.stripeWebhook('zero-threshold');
     assert.equal(f.ctx.db.prepare("SELECT COUNT(*) n FROM designer_notifications WHERE listing_id='zero-threshold' AND type='low_stock'").get().n,0);

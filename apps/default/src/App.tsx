@@ -1,5 +1,6 @@
 import { lazy, useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { trackPageView } from '@/lib/analytics';
 import { GenesisSection } from '@/lib/genesis';
 import { GenesisAuth } from '@/lib/genesis-auth';
 
@@ -18,8 +19,15 @@ function Section({ name, children }: { name: string; children: ReactNode }) {
   return <GenesisSection name={name}>{children}</GenesisSection>;
 }
 
+function TrafficTracker() {
+  const location = useLocation();
+  useEffect(() => { trackPageView(location.pathname); }, [location.pathname]);
+  return null;
+}
+
 function AppRoutes() {
   return <BrowserRouter>
+    <TrafficTracker />
     <Routes>
       <Route path="/" element={<Section name="Home"><HomePage /></Section>} />
       <Route path="/shop" element={<Section name="Shop"><ShopPage /></Section>} />
@@ -30,7 +38,7 @@ function AppRoutes() {
       <Route path="/cart" element={<Section name="Suitcase"><CartPage /></Section>} />
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
-      <Route path="/sell" element={<Section name="Apply to sell"><SellPage /></Section>} />
+      <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
     </Routes>
   </BrowserRouter>;
 }

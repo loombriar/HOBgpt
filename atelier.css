@@ -1,0 +1,124 @@
+/* Linen, stitched edges, and restrained motion: all decoration is non-interactive. */
+body{background-color:#fbf5e8;background-image:repeating-linear-gradient(0deg,transparent 0 3px,#8a6d3b04 3px 4px),repeating-linear-gradient(90deg,transparent 0 3px,#8a6d3b04 3px 4px)}
+.sewing-hero{isolation:isolate;overflow:hidden}
+.sewing-hero::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.35;background:radial-gradient(circle at 71% 34%,#ffebbb 0 2px,transparent 4px),radial-gradient(circle at 82% 61%,#fff3cc 0 2px,transparent 5px),radial-gradient(circle at 92% 24%,#ffe4a2 0 1px,transparent 4px);animation:atelier-glimmer 12s ease-in-out infinite alternate}
+.sewing-hero-content{position:relative;z-index:1}
+.sewing-hero .eyebrow::after{content:'';display:block;width:120px;height:1px;background:linear-gradient(90deg,#a98b53,transparent);margin-top:14px;transform-origin:left;animation:atelier-thread 1.6s ease-out both}
+.sewing-nav .nav-hotspot{transition:filter .25s,transform .25s}
+.sewing-nav .nav-hotspot:hover{transform:translateY(-3px)}
+.atelier-icon{width:44px;height:44px;color:#937344;flex-shrink:0}
+.feature-inline>div{position:relative;padding-left:46px!important}
+.feature-inline .atelier-icon{position:absolute;left:0;top:4px;width:30px;height:30px}
+.house-editorial{padding:88px 0 72px;background:linear-gradient(135deg,#f4ecdcaa,#fffaf099);border-block:1px solid #ac8b5230;position:relative}
+.atelier-heading{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:end;margin-bottom:36px}
+.atelier-heading h2{font-size:clamp(28px,3.4vw,46px);line-height:1.2;margin:8px 0;color:#493d2e}
+.atelier-heading p{color:#706452;max-width:430px;line-height:1.8;margin:0}
+.atelier-heading .eyebrow{color:#8c754b;font-size:11px;letter-spacing:.22em}
+.atelier-stitch{display:flex;align-items:center;gap:16px;margin-bottom:30px;color:#947644}
+.atelier-stitch::before,.atelier-stitch::after{content:'';border-top:1px dashed #aa8b555e;flex:1}
+.atelier-stitch .atelier-icon{width:36px;height:36px}
+.atelier-spread{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:24px;align-items:start}
+.atelier-spread[data-count='1']{grid-template-columns:1fr;max-width:620px;margin-inline:auto}.atelier-spread[data-count='2']{grid-template-columns:1fr 1fr}
+.atelier-photo{display:block;text-align:left;padding:10px 10px 0;border:1px solid #bcab8859;background:#fffaf0;box-shadow:0 12px 30px #5c482112;cursor:pointer;color:#493d2e;min-width:0;transition:transform .3s,box-shadow .3s}
+.atelier-photo img{width:100%;height:360px;object-fit:contain;background:#eee7d8}
+.atelier-photo-0 img{height:460px}.atelier-photo-1{margin-top:52px}.atelier-photo-2{margin-top:22px}
+.atelier-photo:hover{transform:translateY(-5px);box-shadow:0 18px 35px #5c482124}
+.atelier-photo:focus-visible,.atelier-collection:focus-visible{outline:3px solid #987944;outline-offset:5px}
+.atelier-photo-caption{display:grid;grid-template-columns:28px 1fr;gap:4px 10px;padding:19px 8px 20px;font-size:12px;line-height:1.6}
+.atelier-photo-caption strong{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;line-height:1.1}
+.atelier-photo-caption>span:last-child{grid-column:2;color:#746b5c;font-size:11px}
+.atelier-photo-number{grid-row:span 2;font-size:11px;color:#9c8353}
+.atelier-footnote{font-size:11px;letter-spacing:.06em;color:#786e5d;margin:24px 0 0;text-align:center}
+.house-collections{padding:76px 0 90px;background:linear-gradient(#fbf5e855,#f0e7d766)}
+.atelier-collection-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.atelier-collection{display:block;text-decoration:none;color:#493d2e;border:1px solid #b8a17a55;background:#fffaf0;overflow:hidden;transition:transform .3s,box-shadow .3s}
+.atelier-collection:hover{transform:translateY(-4px);box-shadow:0 14px 30px #5c482118}
+.atelier-collection-cover{height:230px;position:relative;overflow:hidden;background:#e7dfcf}
+.atelier-collection-cover img{width:100%;height:100%;object-fit:contain;transition:transform .6s ease}
+.atelier-collection:hover .atelier-collection-cover img{transform:scale(1.025)}
+.atelier-collection-cover>.atelier-icon{position:absolute;bottom:12px;right:12px;border:1px solid #d0bd98;border-radius:50%;background:#fffaf0;padding:8px;width:48px;height:48px}
+.atelier-collection-copy{padding:24px}.atelier-collection-copy .eyebrow{font-size:9px;letter-spacing:.18em;color:#8c754b}
+.atelier-collection h3{font-family:'Cormorant Garamond',serif!important;font-size:29px!important;line-height:1.1;margin:12px 0}
+.atelier-collection p{font-size:12px;line-height:1.8;color:#766a59;margin-bottom:18px}.atelier-collection-link{font-size:11px;font-weight:600;letter-spacing:.04em}
+.atelier-back{display:inline-block;color:#5c4935;font-size:11px;margin-bottom:18px;text-underline-offset:4px}
+body[data-collection='autumn-atelier'] .house-editorial{background:linear-gradient(140deg,#f1dfcb99,#faf2e399)}
+body[data-collection='garden-party'] .house-editorial{background:linear-gradient(140deg,#edf1e499,#fff2e899)}
+.product-card{transition:box-shadow .25s,transform .25s}.product-card:hover{box-shadow:0 10px 26px #5c48211a}
+.house-stories,.house-styling{padding:64px 0;border-top:1px solid #ac8b5230;background:#f6efdf88}.house-styling{background:#edf0e488}.house-stories h2,.house-styling h2{font-size:clamp(26px,3.4vw,42px);line-height:1.25}.atelier-spotlights{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px;margin-top:28px}.house-spotlight{padding:28px;border:1px solid #b8a17a55;background:#fffaf0}.house-spotlight h3{font-size:26px}.house-spotlight>img{width:100%;max-height:320px;object-fit:contain}.house-spotlight p{line-height:1.8;white-space:pre-line}.house-spotlight summary{cursor:pointer;padding:16px 0;font-weight:600;min-height:44px}.house-lookbook>img{width:100%;height:380px;object-fit:contain;background:#eee7d8}.house-lookbook-controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.house-lookbook-controls button{font-size:11px;padding:10px;min-height:44px}.house-styling .stack-form{max-width:680px}.house-styling-card{display:grid;grid-template-columns:160px 1fr;gap:24px;padding:24px;margin-top:20px;border:1px solid #b8a17a55;background:#fffaf0}.house-styling-card>img{width:100%;height:230px;object-fit:contain}.house-styling-card button{margin:8px 8px 0 0}.atelier-collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#house-tryon-dialog{width:min(640px,calc(100% - 24px));max-height:90dvh;overflow:auto;padding:24px;background:#fffaf0;border:1px solid #aa8b55;border-radius:18px}#house-tryon-result img{display:block;width:100%;height:auto}#house-tryon-dialog input[type='checkbox']{width:auto;min-height:0}#house-tryon-dialog::backdrop{background:#35281899}
+@media(max-width:650px){.house-stories,.house-styling{padding:40px 0}.house-spotlight{padding:20px}.house-styling-card{grid-template-columns:1fr;padding:18px}.house-styling-card>img{height:280px}.house-lookbook>img{height:320px}}
+@keyframes atelier-glimmer{from{opacity:.15;transform:translateY(0)}to{opacity:.45;transform:translateY(-9px)}}
+@keyframes atelier-thread{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* Only the two rooms wear houses; every link stays within the viewport. */
+.sewing-header .sewing-nav{flex-wrap:wrap!important;overflow:visible!important;gap:12px!important}
+.sewing-header .sewing-nav .nav-hotspot{flex:0 1 auto!important;width:auto!important;height:auto!important;min-height:44px!important;padding:10px 12px!important;background:transparent!important;border-radius:8px!important;font-size:12px!important}
+.sewing-header .sewing-nav .room-button{flex:0 1 auto!important;width:auto!important;height:auto!important;min-height:54px!important;padding:12px 18px!important;background:#e1efe8!important;border:1px solid #afc9bc!important;border-radius:24px 24px 8px 8px!important}
+.sewing-header .sewing-nav .suitcase-button{flex-direction:row!important;gap:6px!important}
+.hero.sewing-hero::after{display:block!important;opacity:.85;background:radial-gradient(circle at 69% 32%,#ffe7a1 0 4px,transparent 7px),radial-gradient(circle at 82% 61%,#fff3cc 0 5px,transparent 8px),radial-gradient(circle at 92% 24%,#ffe4a2 0 3px,transparent 6px);animation:atelier-fireflies 4s ease-in-out infinite alternate}
+.sewing-hero-art{transform-origin:75% 50%;animation:atelier-breathe 9s ease-in-out infinite alternate}
+.atelier-stitch .atelier-icon{animation:atelier-needle 4s ease-in-out infinite alternate}
+.product-section .shop-drop-window .dropdown-measuring-tape{display:block!important;bottom:12px!important;z-index:5!important}
+.atelier-motion-button{position:absolute;right:16px;bottom:12px;z-index:2;border:1px solid #b99b6c;background:#fffaf0df;color:#493d2e;border-radius:20px;padding:8px 12px;font:11px Inter,sans-serif;cursor:pointer;min-height:36px}
+body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewing-hero-art,body[data-motion='paused'] .atelier-stitch .atelier-icon{animation-play-state:paused}
+@keyframes atelier-fireflies{from{opacity:.35;transform:translate(0,0)}to{opacity:1;transform:translate(-16px,-22px)}}
+@keyframes atelier-breathe{from{transform:scale(1)}to{transform:scale(1.035)}}
+@keyframes atelier-needle{from{transform:rotate(-10deg)}to{transform:rotate(12deg)}}
+@media(max-width:650px){.sewing-header .sewing-nav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px!important;justify-items:center!important}.sewing-header .sewing-nav .nav-hotspot{width:100%!important;font-size:11px!important;padding:8px 3px!important;min-width:0!important}.sewing-header .sewing-nav .room-button{grid-column:span 2;width:100%!important;height:auto!important;aspect-ratio:auto!important;min-height:54px!important;padding:12px 8px!important;align-self:stretch}.sewing-header .sewing-nav .suitcase-button{grid-column:1/-1;width:auto!important;padding:6px 16px!important}.sewing-nav .room-button:hover .door-info,.sewing-nav .room-button:focus-visible .door-info,.sewing-nav .suitcase-button:hover .door-info,.sewing-nav .suitcase-button:focus-visible .door-info{top:210px!important}}
+@media(prefers-reduced-motion:reduce){.sewing-hero-art,.atelier-stitch .atelier-icon{animation:none!important}.atelier-motion-button{display:none}.sewing-hero::after{animation:none!important;opacity:.6}}
+@media(max-width:760px){.house-editorial,.house-collections{padding:48px 0}.atelier-heading{grid-template-columns:1fr;gap:16px}.atelier-spread{grid-template-columns:1fr 1fr;gap:14px}.atelier-photo-0{grid-column:1/-1}.atelier-photo img{height:250px}.atelier-photo-0 img{height:400px}.atelier-photo-1,.atelier-photo-2{margin-top:0}.atelier-photo-caption{padding:15px 2px;grid-template-columns:20px 1fr;gap:4px}.atelier-photo-caption strong{font-size:21px}.atelier-collection-grid{grid-template-columns:1fr}.atelier-collection{display:grid;grid-template-columns:130px 1fr}.atelier-collection-cover{height:100%;min-height:230px}.atelier-collection-copy{padding:20px}.atelier-collection h3{font-size:25px!important}}
+@media(prefers-reduced-motion:reduce){.sewing-hero::after,.sewing-hero .eyebrow::after{animation:none!important}.sewing-nav .nav-hotspot,.atelier-photo,.atelier-collection,.atelier-collection-cover img,.product-card{transition:none!important;transform:none!important}}
+@media(max-width:650px){.atelier-collection{grid-template-columns:100px minmax(0,1fr)}.atelier-collection-copy{min-width:0;padding:16px}.atelier-collection h3{font-size:23px!important;overflow-wrap:anywhere}.atelier-motion-button{min-height:44px}.house-styling-card>div{min-width:0}.house-lookbook-controls button{max-width:100%;white-space:normal}}
+
+/* Blackberry conservatory: pale mint, berry silk, parchment and gilt stems. */
+.blackberry-house{--briar-berry:#65405b;--briar-mint:#e8f0e9;--briar-gold:#b29967;background-color:#fbf7ed}
+.blackberry-house .site-header.sewing-header{background:linear-gradient(180deg,#eef3eb,#fbf5e8)!important;border-bottom-color:#bfa77b}
+.blackberry-house .feature-bar{background:linear-gradient(100deg,#edf3e9,#fff5ed);border-bottom:1px solid #b2996733}
+.blackberry-house .feature-inline strong{color:#65405b}
+.blackberry-house .house-editorial{background:radial-gradient(ellipse at 90% 40%,#e7eee7a6,transparent 65%),#faf5eb}
+.blackberry-house .house-collections{background:linear-gradient(135deg,#edf3ec,#faf1eb)}
+.blackberry-house .house-stories{background:linear-gradient(120deg,#f4e8ec88,#faf6ed)}
+.blackberry-house .house-styling{background:linear-gradient(120deg,#e8f0e6,#f7f3e8)}
+.blackberry-house .atelier-heading .eyebrow,.blackberry-house .house-stories>.container>.eyebrow,.blackberry-house .house-styling>.container>.eyebrow{color:#85566d}
+.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-color:#b8a17a66;border-radius:18px;background:#fffaf2;box-shadow:0 12px 28px #63405b0a;overflow:hidden}
+.blackberry-house .atelier-photo img{border-radius:10px}
+.blackberry-house .atelier-collection h3,.blackberry-house .house-spotlight h3{color:#65405b}
+.blackberry-house .house-spotlight details{border-block:1px solid #b2996733;margin-block:20px}
+.blackberry-house .atelier-collection-link,.blackberry-house .house-spotlight>.text-button{color:#76526a}
+.blackberry-house .atelier-stitch{display:none}
+.blackberry-house .briar-section{position:relative;isolation:isolate;padding-top:132px!important}
+.blackberry-house .briar-section>.container{position:relative;z-index:1}
+.blackberry-house .briar-section::before{display:none!important}
+.briar-divider{position:absolute;top:8px;left:50%;width:min(1120px,calc(100% - 48px));height:100px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:48px;pointer-events:none;z-index:0}
+.briar-divider::after{content:'✦';position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-size:18px;color:#ac9059}
+.blackberry-house .sewing-header .briar-header-vine{position:relative;order:2;left:auto;top:auto;width:min(860px,100%);height:70px;transform:none;flex-shrink:0;margin:-12px auto 0}
+.briar-vine-art{display:block;width:calc(50% - 24px);height:100%;overflow:visible;pointer-events:none}
+.briar-divider>.briar-vine-art:last-child{transform:scaleX(-1)}
+.briar-branch{transform-box:fill-box;transform-origin:left center;animation:briar-sway 7s ease-in-out infinite alternate}
+.briar-divider>.briar-vine-art:last-child .briar-branch{animation-delay:-3s;animation-duration:9s}
+.briar-leaf{transform-box:fill-box;transform-origin:bottom left;animation:briar-leaf-breeze 5s ease-in-out var(--briar-delay,0s) infinite alternate}
+.briar-berry{transform-box:fill-box;transform-origin:top center;animation:briar-berry-breeze 6s ease-in-out var(--briar-delay,0s) infinite alternate}
+.briar-branch,.briar-leaf,.briar-berry{animation-play-state:paused}
+.briar-in-view .briar-branch,.briar-in-view .briar-leaf,.briar-in-view .briar-berry{animation-play-state:running}
+.briar-side-vine{position:absolute;left:10px;top:180px;width:72px;height:310px;pointer-events:none;z-index:0;opacity:.8}
+.briar-side-vine>.briar-vine-art{width:100%;height:100%}
+.blackberry-house[data-motion='paused'] .briar-branch,.blackberry-house[data-motion='paused'] .briar-leaf,.blackberry-house[data-motion='paused'] .briar-berry{animation-play-state:paused}
+@keyframes briar-sway{from{transform:rotate(-1.3deg) translateY(0)}to{transform:rotate(1.3deg) translateY(-3px)}}
+@keyframes briar-leaf-breeze{from{transform:rotate(-5deg)}to{transform:rotate(6deg)}}
+@keyframes briar-berry-breeze{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+@media(max-width:1400px){.briar-side-vine{display:none}}
+@media(max-width:650px){.blackberry-house .briar-section{padding-top:104px!important}.briar-divider{top:10px;width:calc(100% - 32px);height:72px;gap:0}.briar-vine-art{width:100%}.briar-divider>.briar-vine-art:last-child,.briar-divider::after{display:none}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
+@media(prefers-reduced-motion:reduce){.briar-branch,.briar-leaf,.briar-berry{animation:none!important;transform:none!important}}
+
+/* The pastel masthead fills the desktop window without cropping its artwork. */
+.blackberry-house .sewing-header .briar-wordmark{width:100%!important;max-width:none!important;order:0!important}
+.blackberry-house .sewing-header .briar-wordmark>img{max-height:none!important;width:100%!important;height:auto!important;aspect-ratio:3/1!important;object-fit:contain!important}
+.blackberry-house .sewing-header .sewing-nav{order:1!important;margin:4px auto 10px!important}
+.blackberry-house .sewing-header .briar-header-vine{height:34px!important;margin:0 auto!important;order:2!important}
+@media(max-width:650px){.blackberry-house .sewing-header .sewing-nav{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}.blackberry-house .sewing-header .briar-wordmark>img{max-height:32vw!important}.blackberry-house .sewing-header .briar-header-vine{height:26px!important}}
+
+/* Pastel house artwork is confined to the two room buttons. */
+.blackberry-house .sewing-header .sewing-nav .room-button{flex:0 0 128px!important;width:128px!important;height:107px!important;min-height:107px!important;padding:36px 16px 18px!important;background:url('/pastel-house-nav-frame-v2.webp') center/contain no-repeat!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#614763!important}
+@media(max-width:650px){.blackberry-house .sewing-header .sewing-nav .room-button{grid-column:span 2!important;justify-self:center!important;width:128px!important;max-width:100%!important;height:107px!important;aspect-ratio:auto!important;font-size:11px!important}}
+
+@media(min-width:651px){.blackberry-house .site-header.sewing-header{width:100%!important;max-width:none!important;padding-inline:0!important}.blackberry-house .sewing-header .briar-wordmark{margin:0!important;padding:0!important}.blackberry-house .sewing-header .sewing-nav{width:100%!important;max-width:none!important;padding-inline:20px!important;box-sizing:border-box!important}}
+
+.sewing-header .sewing-nav .nav-hotspot[hidden]{display:none!important}

@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
+import { useAuth } from 'react-oidc-context';
 import { Heart, Menu as MenuIcon, Moon, ShoppingBag, Sun, X as CloseIcon } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -56,6 +57,7 @@ function ThemeButton() {
 }
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
+  const auth = useAuth();
   const [cartCount, setCartCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => {
@@ -73,11 +75,11 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="fashion-app min-h-screen bg-background text-foreground">
+
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
-            <img src="https://files.taskade.com/space-files/dcdb0306-5408-4b6e-9f03-5548f7a3e865/original/house-of-briar-crest.png" alt="House of Briar crest" className="size-10 shrink-0 rounded-full border border-primary/30 object-cover shadow-sm transition group-hover:rotate-3" />
             <span className="min-w-0 leading-none">
               <span className="block truncate font-serif text-base font-semibold tracking-wide sm:text-lg">House of Briar</span>
               <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
@@ -90,7 +92,8 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
-            <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><ShoppingBag size={17} />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
+            <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="size-7 object-contain" />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
+            {auth.isAuthenticated && <button type="button" onClick={() => void auth.signoutRedirect()} className="min-h-11 rounded-full border border-border bg-card px-3 text-sm">Sign out</button>}
             <span className="hidden sm:inline-flex"><ThemeButton /></span>
             <button type="button" aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileNavOpen} aria-controls="mobile-navigation" onClick={() => setMobileNavOpen((open) => !open)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary md:hidden">
               {mobileNavOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
@@ -110,12 +113,12 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr_1fr] lg:px-8">
           <div>
-            <p className="font-serif text-2xl">A world woven from moonlight, moss, and imagination.</p>
+            <p className="font-serif text-2xl">Independent fashion. Individual expression.</p>
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">We celebrate independent designers, slow-made pieces, and the beauty of being different.</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Explore</p>
-            <div className="mt-4 flex flex-col gap-3 text-sm"><Link to="/shop" className="transition hover:text-primary">Shop the collection</Link><Link to="/designers" className="transition hover:text-primary">Meet the designers</Link><Link to="/account" className="transition hover:text-primary">List your work</Link></div>
+            <div className="mt-4 flex flex-col gap-3 text-sm"><Link to="/shop" className="transition hover:text-primary">Shop the collection</Link><Link to="/designers" className="transition hover:text-primary">Meet the designers</Link><Link to="/account" className="transition hover:text-primary">List your work</Link><a href="/shipping.html" className="transition hover:text-primary">Shipping &amp; Delivery</a><a href="/rules" className="transition hover:text-primary">Rules &amp; Returns</a><Link to="/account#house-support" className="transition hover:text-primary">Customer support</Link></div>
           </div>
           <DonationCard />
         </div>
@@ -124,3 +127,4 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
     </div>
   );
 }
+

@@ -3,6 +3,7 @@ import * as React from 'react';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 
 import { GatewayAuthSync } from './gateway-auth';
+import { HouseAuth } from './house-auth';
 
 /** Query params the IdP appends to `redirect_uri` on the way back. */
 const OIDC_CALLBACK_PARAMS = ['code', 'state', 'session_state', 'iss'];
@@ -198,6 +199,10 @@ function getUserManager(): UserManager {
  * (path, query and hash), so a gate on `/admin` needs no return flag of its own.
  */
 export function GenesisAuth({ children }: { children: React.ReactNode }) {
+  const [mode,setMode]=React.useState<'loading'|'house'|'genesis'>('loading');
+  React.useEffect(()=>{let active=true;fetch('/api/frontend-config',{cache:'no-store'}).then(async response=>response.ok?response.json():null).then(config=>{if(active)setMode(['house-token','house-session'].includes(config?.authMode)?'house':'genesis');}).catch(()=>{if(active)setMode('genesis');});return()=>{active=false;};},[]);
+  if(mode==='loading')return <p role="status">Loading your House session…</p>;
+  if(mode==='house')return <HouseAuth>{children}</HouseAuth>;
   return (
     <AuthProvider userManager={getUserManager()} onSigninCallback={onSigninCallback}>
       {/* Forwards the signed-in user's id_token to the data gateway (row scoping). */}

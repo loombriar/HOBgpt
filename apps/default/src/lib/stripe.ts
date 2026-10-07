@@ -3,6 +3,7 @@ export type CheckoutItem = {
   name: string;
   amount: number;
   quantity?: number;
+  giftNote?:string;
 };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -15,11 +16,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export async function createCheckoutSession(items: CheckoutItem[], accessToken = '') {
+export async function createCheckoutSession(items: CheckoutItem[], accessToken = '', promoCodes: string[] = [],expectedTotalBeforeTaxCents?:number) {
   const result = await api<{ url: string }>('/api/checkout/session', {
     method: 'POST',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    body: JSON.stringify({ items: items.map(item => ({ id: item.id, quantity: item.quantity ?? 1 })) }),
+    body: JSON.stringify({ items: items.map(item => ({ id: item.id, quantity: item.quantity ?? 1, giftNote:item.giftNote })), promoCodes,expectedTotalBeforeTaxCents }),
   });
   if (!result.url) throw new Error('Stripe did not return a checkout link.');
   return result.url;

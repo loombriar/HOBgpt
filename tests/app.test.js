@@ -2,10 +2,28 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { after, before, test } = require('node:test');
+const { after, before, test, mock } = require('node:test');
 const { once } = require('node:events');
 const sharp = require('sharp');
-const { createApp } = require('../server');
+const { createApp: createBaseApp, SELLER_TERMS_VERSION } = require('../server');
+
+// Successful commerce fixtures represent sellers who completed Stripe verification.
+function createApp(options) {
+  const designerIds = new Set([...Object.values(options.designerTokens || {}), ...(options.seedProducts || []).map(item => item.designerId).filter(Boolean)]);
+  const connectAccounts = {...options.connectAccounts};
+  for (const id of designerIds) connectAccounts[id] ||= 'acct_fixture_' + id.replace(/[^a-z0-9]/gi, '_');
+  const stripeFixture = options.stripeApi;
+  const context = createBaseApp({...options, connectAccounts, stripeApi: async (endpoint, request) => {
+    if (endpoint.startsWith('accounts/acct_fixture_') || Object.values(options.connectAccounts || {}).some(id => endpoint === 'accounts/' + id)) {
+      return {details_submitted:true, payouts_enabled:true, charges_enabled:true, requirements:{currently_due:[]}};
+    }
+    if (stripeFixture) return stripeFixture(endpoint, request);
+    throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
+  }});
+  for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
+  for (const id of designerIds) context.db.prepare("INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)").run(id,SELLER_TERMS_VERSION,new Date().toISOString(),"test-fixture");
+  return context;
+}
 
 const DESIGNER_TOKEN = 'designer-token-a';
 const OTHER_DESIGNER_TOKEN = 'designer-token-b';
@@ -15,8 +33,19 @@ let server;
 let context;
 let baseUrl;
 let tempDir;
+let moderationResult = { allow: true, needsHumanReview: false, reason: 'Safe test image' };
+let moderationStatus = 200;
+const previousApiKey = process.env.OPENAI_API_KEY;
+const originalFetch = globalThis.fetch;
 
 before(async () => {
+  process.env.OPENAI_API_KEY = 'test-only-image-review-key';
+  mock.method(globalThis, 'fetch', (url, options) => {
+    if (String(url) === 'https://api.openai.com/v1/responses') {
+      return Promise.resolve(new Response(JSON.stringify({ output_text: JSON.stringify(moderationResult) }), { status: moderationStatus, headers: { 'Content-Type': 'application/json' } }));
+    }
+    return originalFetch(url, options);
+  });
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'house-of-briar-test-'));
   context = createApp({
     dataDir: tempDir,
@@ -38,6 +67,9 @@ after(async () => {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
   context?.db.close();
+  mock.restoreAll();
+  if (previousApiKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = previousApiKey;
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -225,57 +257,34 @@ test('uploaded product photos fit fully in gallery, detail, upload, designer, an
   assert.match(finalImageFitRules, /object-position:\s*center\s*!important/);
 });
 
-test('header and full-size category banners are served with live filters', async () => {
-  const pageResponse = await fetch(`${baseUrl}/`);
-  const html = await pageResponse.text();
-  assert.equal(pageResponse.status, 200);
-  for (const asset of [
-    'sewing-navigation-v2.webp',
-    'visitor-suite-door-v1.svg',
-    'designer-room-door-v1.svg',
-    'suitcase-cart-v1.svg'
-  ]) {
-    assert.ok(html.includes(encodeURIComponent(asset)), `storefront should reference ${asset}`);
-    const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
-    assert.equal(image.status, 200, `${asset} should be served`);
-    assert.match(image.headers.get('content-type'), asset.endsWith('.svg') ? /image\/svg\+xml/ : /image\/webp/);
+test('editorial storefront serves its stylesheet and keeps account and cart entry points', async () => {
+  const page = await fetch(`${baseUrl}/`);
+  const html = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(html, /class="fashion-wordmark"/);
+  assert.ok(html.indexOf('/fashion.css?') > html.indexOf('/atelier.css?'), 'editorial styles must follow the decorative layer');
+  for (const id of ['visitor-suite-btn', 'designer-login-btn', 'cart-btn', 'header-signout-btn']) {
+    assert.ok(html.includes(`id="${id}"`), `${id} must remain available to the existing interaction handlers`);
   }
-
-  const cssResponse = await fetch(`${baseUrl}/styles.css`);
-  const css = await cssResponse.text();
-  const bannerRules = css.slice(css.lastIndexOf('/* Full botanical category-window banners'));
-  assert.ok(bannerRules.length > 0, 'final banner-window rules should be present');
-  assert.match(bannerRules, /\.category-window-art\s*\{[\s\S]*?object-fit:\s*contain\s*!important/);
-  assert.match(bannerRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*absolute\s*!important/);
-  assert.match(bannerRules, /opacity:\s*\.001\s*!important/);
-  assert.match(bannerRules, /\.illustrated-select\.has-changed-selection\s+\.category-window-current\s*\{\s*display:\s*flex/);
+  const css = await fetch(`${baseUrl}/fashion.css`);
+  assert.equal(css.status, 200);
+  assert.match(css.headers.get('content-type'), /text\/css/);
+  assert.match(css.headers.get('cache-control'), /no-cache/);
+  assert.doesNotMatch(await css.text(), /<!doctype html>/i);
+  const cartIcon = await fetch(`${baseUrl}/suitcase-cart-v1.svg`);
+  assert.equal(cartIcon.status, 200);
+  assert.match(cartIcon.headers.get('content-type'), /image\/svg\+xml/);
 });
 
-test('filter windows use their full botanical artwork and keep accessible live captions', async () => {
-  const pageResponse = await fetch(`${baseUrl}/`);
-  const html = await pageResponse.text();
-  assert.equal(pageResponse.status, 200);
-  for (const [id, asset] of [
-    ['shop-garment-filter', 'category-garment-frame.webp'],
-    ['shop-aesthetic-filter', 'category-aesthetic-frame.webp'],
-    ['shop-accessory-filter', 'category-accessories-frame.webp']
-  ]) {
-    assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
+test('editorial storefront retains accessible native category filters and their choices', async () => {
+  const html = await (await fetch(`${baseUrl}/`)).text();
+  for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-accessory-filter', 'shop-designer-filter', 'shop-pattern-filter']) {
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
-  assert.ok(html.includes('id="shop-pattern-filter" aria-label="Filter by print or pattern"'), 'pattern filter should remain an accessible native filter');
-  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 5, 'each filter should have a live selected-value caption');
-  assert.match(html, /<option value="all">All prints<\/option>/, 'default pattern-window label should match its caption');
-  assert.match(html, /class="sewing-hero-art" src="\/sewing-hero-v2\.webp"/);
-
-  const cssResponse = await fetch(`${baseUrl}/styles.css`);
-  const css = await cssResponse.text();
-  const motionRules = css.slice(css.lastIndexOf('/* Readable titles stay inside each filter window'));
-  assert.ok(motionRules.length > 0);
-  assert.match(motionRules, /\.illustrated-select[\s\S]*?animation:\s*none\s*!important[\s\S]*?transform:\s*none\s*!important/);
-  assert.match(motionRules, /\.hero\.hero-artwork\s*\{[\s\S]*?contain:\s*paint\s*!important[\s\S]*?overflow:\s*hidden\s*!important/);
-  assert.match(motionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
-  assert.match(motionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
+  assert.match(html, /<option value="all">All prints<\/option>/);
+  assert.match(html, /<option value="Costume">Costumes<\/option>/);
+  assert.match(html, /class="fashion-hero-side"/);
+  assert.doesNotMatch(html, /class="sewing-hero-art"/);
 });
 
 
@@ -426,6 +435,46 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
   assert.ok(dashboard.body.funnel.begin_checkout >= 1);
 });
 
+test('records anonymous site visits and exposes traffic summaries without IP storage', async () => {
+  const first = await getJson('/api/analytics/events', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/private/path?secret=value',deviceCategory:'mobile'})
+  });
+  assert.equal(first.response.status,202);
+  const second = await getJson('/api/analytics/events', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event:'view_designer',sessionId:'visit-one',path:'/designers/maker',designerId:'maker',deviceCategory:'mobile'})
+  });
+  assert.equal(second.response.status,202);
+  const dashboard = await getJson('/api/admin/analytics',{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}});
+  assert.equal(dashboard.response.status,200);
+  assert.ok(dashboard.body.traffic.pageViews>=2);
+  assert.ok(dashboard.body.traffic.visits>=1);
+  assert.ok(dashboard.body.traffic.topPages.some(row=>row.path==='/designers/maker'));
+  assert.ok(dashboard.body.traffic.topDesigners.some(row=>row.designerId==='maker'));
+  const storedReferrer=context.db.prepare("SELECT referrer FROM analytics_events WHERE session_id='visit-one' AND event_name='page_view' ORDER BY created_at DESC LIMIT 1").get();
+  assert.equal(storedReferrer.referrer,'https://search.example');
+  const columns=context.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
+  assert.equal(columns.includes('ip'),false);
+  assert.equal(columns.includes('ip_address'),false);
+});
+
+
+test('designer social links require HTTPS', async () => {
+  const insecure = await getJson('/api/my/designer-profile', {
+    method:'PATCH',
+    headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({socialLinks:{instagram:{url:'http://instagram.com/maker',visible:true}}})
+  });
+  assert.equal(insecure.response.status,422);
+  const secure = await getJson('/api/my/designer-profile', {
+    method:'PATCH',
+    headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({socialLinks:{instagram:{url:'https://instagram.com/maker',visible:true}}})
+  });
+  assert.equal(secure.response.status,200);
+});
+
 
 test('quantity inventory prevents overselling and records admin adjustments', async () => {
   const created = await getJson('/api/listings', {
@@ -516,12 +565,12 @@ test('inquiry threads keep buyer identity private and authorize both sides', asy
   assert.equal(thread.buyerEmail,undefined);
   assert.equal(thread.messages[0].message,'Original question');
   const reply=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'Yes, it is available.'})});
-  assert.equal(reply.response.status,201);
+  assert.equal(reply.response.status,409);
+  assert.equal(reply.body.error.code,'inquiry_replies_disabled');
   const outsider=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${OTHER_DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'I should not be able to reply.'})});
   assert.equal(outsider.response.status,404);
   const messages=context.db.prepare('SELECT sender_role,message FROM inquiry_messages WHERE inquiry_id=? ORDER BY created_at').all('thread-inquiry');
-  assert.equal(messages.length,2);
-  assert.equal(messages[1].sender_role,'designer');
+  assert.equal(messages.length,1);
 });
 
 
@@ -583,3 +632,29 @@ test('all five new category frames are served as WebP images', async () => {
     const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');
   }
 });
+
+
+test('image safety rejection and provider failure do not replace a designer logo', async () => {
+  const upload = async () => {
+    const form = new FormData();
+    form.append('image', new Blob([await makePng('#aacccc')], { type: 'image/png' }), 'safety.png');
+    return fetch(`${baseUrl}/api/my/designer-profile/logo`, { method: 'POST', headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` }, body: form });
+  };
+  try {
+    for (const decision of [
+      { allow: false, needsHumanReview: false, reason: 'Rejected fixture' },
+      { allow: true, needsHumanReview: true, reason: 'Review required fixture' }
+    ]) {
+      moderationResult = decision;
+      assert.equal((await upload()).status, 422);
+    }
+    moderationStatus = 503;
+    assert.equal((await upload()).status, 503);
+    const own = await getJson('/api/my/designer-profile', { headers: { Authorization: `Bearer ${DESIGNER_TOKEN}` } });
+    assert.equal(own.body.designer.logoUrl, null);
+  } finally {
+    moderationResult = { allow: true, needsHumanReview: false, reason: 'Safe test image' };
+    moderationStatus = 200;
+  }
+});
+
