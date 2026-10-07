@@ -125,16 +125,21 @@ test('runway studio uploads a garment, walks, pauses and exports a preview', asy
 });
 
 
-test('homepage website views shortcut displays private traffic after admin sign-in', async ({ page }) => {
+test('private admin entry displays daily traffic and public footer hides admin tools', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Website views', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Website views', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Admin panel', exact: true })).toHaveCount(0);
+  await page.goto('/#admin-review');
   await expect(page.locator('#admin-review-workspace')).toBeHidden();
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
   await page.locator('#admin-login-form button[type="submit"]').click();
   const traffic = page.locator('#admin-website-views');
   await expect(traffic.getByRole('heading', { name: 'Website views', exact: true })).toBeVisible();
   await expect(traffic.getByText('Page views', { exact: true })).toBeVisible();
-  await expect(traffic.getByText('Visits', { exact: true })).toBeVisible();
+  await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
+  await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
+  await expect(traffic.getByRole('heading', { name: 'Daily counts', exact: true })).toBeVisible();
+  await expect(traffic.locator('#admin-daily-traffic tbody tr')).toHaveCount(30);
   await expect(traffic.locator('.admin-traffic-stat strong').first()).toHaveText(/[1-9][0-9,]*/);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(traffic).toHaveCount(0);
@@ -143,7 +148,18 @@ test('homepage website views shortcut displays private traffic after admin sign-
 test('founding designer badge appears on listings and public designer storefront', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#product-grid .founding-badge').first()).toBeVisible();
-  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-v1.webp');
+  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-v2.webp');
   await page.goto('/designers/maker');
   await expect(page.getByText('Founding Designer', { exact: true })).toBeVisible();
+});
+
+
+test('founding designer announcement advertises the badge and opens signup', async ({ page }) => {
+  await page.goto('/');
+  const banner = page.getByRole('complementary', { name: 'Founding designers' });
+  await expect(banner).toContainText('The first 25 designers to join');
+  await expect(banner.locator('#founder-spots')).toContainText('founding spots remain');
+  await banner.getByRole('link', { name: 'Move in' }).click();
+  await expect(page).toHaveURL(/designers\/room#designer-signup/);
+  await expect(page.locator('#designer-signup-form')).toBeVisible();
 });
