@@ -8,6 +8,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
+const { applyShipping } = require('./shipping');
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -491,6 +492,11 @@ function createApp(options = {}) {
   ensureColumn('listings', 'handling_days_max', 'INTEGER');
   ensureColumn('listings', 'international_shipping', 'INTEGER NOT NULL DEFAULT 0');
   recordMigration(5, 'listing_seo_and_shipping');
+  ensureColumn('orders', 'shipping_cents', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('orders', 'shipping_required', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('orders', 'shipping_details_json', 'TEXT');
+  ensureColumn('order_items', 'shipping_cents', 'INTEGER NOT NULL DEFAULT 0');
+  recordMigration(9, 'checkout_shipping_and_private_fulfillment');
   ensureColumn('listings', 'sku', 'TEXT');
   ensureColumn('listings', 'stock_quantity', 'INTEGER NOT NULL DEFAULT 1');
   ensureColumn('listings', 'low_stock_threshold', 'INTEGER NOT NULL DEFAULT 1');
@@ -719,8 +725,8 @@ function createApp(options = {}) {
   const insertSeed = db.prepare(`
     INSERT OR IGNORE INTO listings (
       id, designer_id, title, description, price, category, status, moderation_status,
-      legacy_image_url, created_at, updated_at, published_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'published', 'approved', ?, ?, ?, ?)
+      legacy_image_url, created_at, updated_at, published_at, shipping_cost_cents
+    ) VALUES (?, ?, ?, ?, ?, ?, 'published', 'approved', ?, ?, ?, ?, ?)
   `);
   const seedTx = db.transaction((rows) => {
     const now = new Date().toISOString();
@@ -737,7 +743,8 @@ function createApp(options = {}) {
         row.legacyImageUrl || null,
         now,
         now,
-        now
+        now,
+        row.shippingCostCents ?? null
       );
     }
   });
@@ -1225,6 +1232,7 @@ function createApp(options = {}) {
               console.error('Stripe Checkout payment arrived for a closed order:', order.id);
               return res.status(409).send('Checkout order is no longer payable.');
             }
+            saveShippingDetails(order, session);
             const checkoutEmail = session.customer_details?.email || session.customer_email || null;
             if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), checkoutEmail, session.payment_intent || null, order.id);
             const badgeSubject = order.buyer_subject || badgeSubjectForEmail(checkoutEmail || order.buyer_email);
@@ -1886,9 +1894,19 @@ function createApp(options = {}) {
     }finally{donationReconciliationRunning=false;}
   }
 
+  function saveShippingDetails(order, session) {
+    if (session.id !== order.stripe_session_id || session.metadata?.order_id !== order.id || session.currency !== order.currency || !Number.isSafeInteger(session.amount_total) || session.amount_total !== order.subtotal_cents) throw Object.assign(new Error('Checkout payment does not match this order.'), { statusCode: 409 });
+    if (!order.shipping_required) return;
+    const details = session.collected_information?.shipping_details || session.shipping_details;
+    const address = details?.address;
+    if (!details?.name || !address?.line1 || !address?.city || !address?.postal_code || address?.country !== 'US') throw Object.assign(new Error('A valid US delivery address is required.'), { statusCode: 409 });
+    const safe = { name: String(details.name), address: Object.fromEntries(['line1','line2','city','state','postal_code','country'].map(key => [key, typeof address[key] === 'string' ? address[key] : null])) };
+    db.prepare('UPDATE orders SET shipping_details_json=COALESCE(shipping_details_json, ?) WHERE id=?').run(JSON.stringify(safe), order.id);
+  }
+
   async function reconcilePendingCheckouts() {
     const now = new Date().toISOString();
-    const stale = db.prepare(`SELECT id, stripe_session_id FROM orders
+    const stale = db.prepare(`SELECT * FROM orders
       WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND id IN (
         SELECT order_id FROM inventory_reservations WHERE status = 'reserved' AND expires_at <= ?
       )`).all(now);
@@ -1898,6 +1916,7 @@ function createApp(options = {}) {
       try {
         const session = await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
         if (session.payment_status === 'paid') {
+          saveShippingDetails(order, session);
           db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
           markOrderInventorySold(order.id);
           await prepareDesignerTransfers(order.id);
@@ -1924,6 +1943,7 @@ function createApp(options = {}) {
       const quantity = Number(item?.quantity);
       if (!id || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error('Cart quantities must be whole numbers between 1 and 10.'), { statusCode: 422 });
       quantities.set(id, (quantities.get(id) || 0) + quantity);
+      if (quantities.get(id) > 10) throw Object.assign(new Error('A piece cannot exceed 10 units per checkout.'), { statusCode: 422 });
       if (item?.giftWrap === true) giftWrapSelections.set(id, true);
     }
     const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
@@ -1949,13 +1969,15 @@ function createApp(options = {}) {
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
       const platformFeeCents = Math.round(lineTotalCents * 0.10);
-      rows.push({ id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
+      rows.push({ shippingCostCents: listing.shipping_cost_cents, freeShippingThresholdCents: listing.free_shipping_threshold_cents, handlingDaysMin: listing.handling_days_min, handlingDaysMax: listing.handling_days_max, designerName: db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name || listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
-    const subtotalCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    const merchandiseCents = rows.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    const shipping = applyShipping(rows);
+    const subtotalCents = merchandiseCents + (shipping.shippingCents || 0);
     if(subtotalCents<50) throw Object.assign(new Error('Order total is too small to process.'),{statusCode:422});
     const discountCents=rows.reduce((sum,item)=>sum+item.discountCents,0);
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
-    return { currency: 'usd', items: rows, subtotalCents, discountCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
+    return { currency: 'usd', items: rows, merchandiseCents, subtotalCents, totalBeforeTaxCents: shipping.shippingReady ? subtotalCents : null, ...shipping, discountCents, platformFeeCents, designerAmountCents: subtotalCents - platformFeeCents };
   }
   app.post('/api/checkout/quote', checkoutLimiter, async (req, res) => {
     try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); await requireQuoteSellersReady(quote); return res.json(quote); }
@@ -2029,6 +2051,9 @@ function createApp(options = {}) {
     try {
       const quote = buildCheckoutQuote(req.body?.items,req.body?.promoCodes);
       await requireQuoteSellersReady(quote);
+      if (!quote.shippingReady) throw Object.assign(new Error('A designer must set a US shipping price before these pieces can be purchased.'), { statusCode: 409 });
+      if (req.body?.shippingCountry && req.body.shippingCountry !== 'US') throw Object.assign(new Error('Checkout currently supports US delivery only.'), { statusCode: 422 });
+      if (req.body?.expectedTotalBeforeTaxCents != null && req.body.expectedTotalBeforeTaxCents !== quote.totalBeforeTaxCents) throw Object.assign(new Error('Your total changed. Review your suitcase before continuing.'), { statusCode: 409 });
       const orderId = makeId();
       const cancelToken = crypto.randomBytes(32).toString('base64url');
       const cancelTokenHash = crypto.createHash('sha256').update(cancelToken).digest('hex');
@@ -2045,6 +2070,7 @@ function createApp(options = {}) {
       });
       body.append('payment_method_types[]', 'card');
       body.append('payment_method_types[]', 'us_bank_account');
+      body.set('shipping_address_collection[allowed_countries][0]', 'US');
       let stripeLineIndex=0;
       const addExactLine = (name,totalCents,quantity) => {
         // Charge the complete line once; division would lose remainder cents after discounts.
@@ -2055,16 +2081,19 @@ function createApp(options = {}) {
         body.set(`${prefix}[quantity]`,'1');
       };
       quote.items.forEach(item => {
-        addExactLine(item.title,item.lineTotalCents-item.giftWrapCents,item.quantity);
+        addExactLine(item.title,item.lineTotalCents-item.giftWrapCents-item.shippingCents,item.quantity);
         if(item.giftWrapSelected && item.giftWrapCents>0) addExactLine(`Gift wrapping — ${item.title}`,item.giftWrapCents,item.quantity);
       });
+      quote.designers.forEach(designer => { if (designer.shippingCents > 0) addExactLine(`US shipping — ${designer.designerName}`, designer.shippingCents, 1); });
       // Claim scarce inventory before creating an externally payable Stripe session.
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
+        db.prepare('UPDATE orders SET shipping_cents=?, shipping_required=1 WHERE id=?').run(quote.shippingCents, orderId);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
+        for (const item of quote.items) db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents, orderId, item.id);
       })();
 
       let session;
@@ -3223,12 +3252,12 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
-    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
+    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
       dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
       FROM orders o JOIN order_items oi ON oi.order_id=o.id LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
       WHERE oi.designer_id=? ORDER BY o.created_at DESC`).all(req.designerId);
     const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.earningsCents+=row.designer_amount_cents;order.items.push({title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
+    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails: row.shipping_details_json ? JSON.parse(row.shipping_details_json) : null, shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
     return res.json({orders:[...map.values()]});
   });
 
@@ -3283,6 +3312,7 @@ function createApp(options = {}) {
           return fail(res, 409, 'payment_mismatch', 'Checkout payment does not match this order.');
         }
         if (order.status === 'canceled' || order.status === 'failed') return fail(res, 409, 'order_closed', 'Checkout order is no longer payable.');
+        saveShippingDetails(order, session);
         if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
         const promoStats=db.prepare(`SELECT promo_code_id,SUM(discount_cents) discount_cents,SUM(line_total_cents) revenue_cents FROM order_items WHERE order_id=? AND promo_code_id IS NOT NULL GROUP BY promo_code_id`).all(order.id);
         for(const stat of promoStats)db.prepare('UPDATE designer_promo_codes SET use_count=use_count+1,revenue_cents=revenue_cents+?,discount_cents=discount_cents+? WHERE id=?').run(stat.revenue_cents,stat.discount_cents,stat.promo_code_id);
@@ -3331,7 +3361,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     return res.sendFile(path.join(rootDir, 'rules.html'));
   });
-  app.get('/shipping.html', (_req, res) => res.redirect(302, '/rules#shipping-and-delays'));
+  app.get('/shipping.html', (_req, res) => res.sendFile(path.join(rootDir, 'shipping.html')));
 
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');

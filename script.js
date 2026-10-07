@@ -295,10 +295,11 @@ async function checkoutCart() {
     cartButton.textContent = 'Opening checkout…';
   }
   try {
+    if (!cartShippingQuote?.shippingReady || cartShippingKey !== JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})) throw new Error('Review shipping in your Suitcase before continuing.');
     const payload = await apiRequest('/api/checkout/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id) })) })
+      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id) })), expectedTotalBeforeTaxCents: cartShippingQuote.totalBeforeTaxCents })
     });
     if (!payload?.url) throw new Error('Stripe checkout did not return a checkout link.');
     window.location.assign(payload.url);
@@ -310,6 +311,7 @@ async function checkoutCart() {
   }
 }
 
+let cartShippingQuote = null, cartShippingKey = '', cartShippingSequence = 0;
 function openCart() {
   if (!cartDialog || !cartItems) return checkoutCart();
   const ids = getCartIds();
@@ -320,7 +322,7 @@ function openCart() {
     cartItems.appendChild(makeElement('p', 'notice', 'Your Suitcase is empty.'));
     if (checkoutButton) checkoutButton.disabled = true;
   } else {
-    if (checkoutButton) checkoutButton.disabled = false;
+    if (checkoutButton) checkoutButton.disabled = true;
     ids.forEach((id) => {
       const item = galleryItems.find((entry) => entry.id === id);
       if (!item) return;
@@ -332,7 +334,7 @@ function openCart() {
         const wrapLabel=makeElement('label','cart-gift-wrap');
         const wrap=document.createElement('input'); wrap.type='checkbox'; wrap.checked=getGiftWrapIds().includes(item.id);
         const wrapPrice=Number(item.giftWrapPrice||0);
-        wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);});
+        wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);openCart();});
         wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
       }
       const remove = makeElement('button', 'text-button', 'Remove from Suitcase');
@@ -342,7 +344,23 @@ function openCart() {
       cartItems.appendChild(row);
     });
   }
-  cartDialog.showModal();
+  if (!cartDialog.open) cartDialog.showModal();
+  const sequence = ++cartShippingSequence;
+  cartShippingQuote=null;
+  cartShippingKey=JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))});
+  if (!ids.length) return;
+  const summary=makeElement('section','notice','Calculating shipping…');summary.setAttribute('aria-live','polite');cartItems.append(summary);
+  apiRequest('/api/checkout/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:cartShippingKey}).then(quote=>{
+    if(sequence!==cartShippingSequence)return;
+    cartShippingQuote=quote;summary.replaceChildren();
+    summary.append(makeElement('strong','','US shipping'));
+    for(const designer of quote.designers)summary.append(makeElement('p','',`${designer.designerName}: ${designer.shippingReady ? designer.shippingCents===0 ? 'Free shipping' : '$'+(designer.shippingCents/100).toFixed(2) : 'Shipping price not set — checkout unavailable'}`));
+    for(const item of quote.items)summary.append(makeElement('p','',`${item.title}: ${item.handlingDaysMin == null && item.handlingDaysMax == null ? 'Preparation time not provided; ask the designer.' : (item.handlingDaysMin == null ? 'Up to '+item.handlingDaysMax : item.handlingDaysMax == null ? 'At least '+item.handlingDaysMin : item.handlingDaysMin + (item.handlingDaysMax!==item.handlingDaysMin ? '–'+item.handlingDaysMax : ''))+' business days before shipment.'}`));
+    if(quote.shippingReady)summary.append(makeElement('strong','',`Total before tax: $${(quote.totalBeforeTaxCents/100).toFixed(2)}`));
+    summary.append(makeElement('p','','Tax calculation is not enabled. Designers ship separately. Preparation excludes carrier transit.'));
+    const link=makeElement('a','','Shipping & delivery details');link.href='/shipping.html';summary.append(link);
+    if(checkoutButton)checkoutButton.disabled=!quote.shippingReady;
+  }).catch(error=>{if(sequence===cartShippingSequence)summary.textContent=error.message || 'Shipping could not load.';});
 }
 
 updateCartButton();
@@ -732,6 +750,8 @@ function openProductDetails(item) {
   copy.appendChild(sellerBlock);
   copy.appendChild(makeElement('h3', '', item.title));
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
+  copy.appendChild(makeElement('p', '', item.shippingCostCents == null ? 'Shipping price not set — checkout unavailable.' : Number(item.shippingCostCents)===0 ? 'Free US shipping.' : `US shipping per piece: $${(item.shippingCostCents/100).toFixed(2)}`));
+  if(item.freeShippingThresholdCents>0)copy.appendChild(makeElement('p','',`Free shipping for this piece when this designer’s merchandise before discounts reaches $${(item.freeShippingThresholdCents/100).toFixed(2)}.`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
   const ranges = Object.entries(item.fitMeasurements || {}).map(([key, range]) => `${key}: ${range.min}–${range.max} in`);
   if (ranges.length) copy.appendChild(makeElement('p', 'product-fit', `Fits body measurements — ${ranges.join(' · ')}`));
@@ -1013,6 +1033,11 @@ function readFormValues() {
     title: byId('product-name').value.trim(),
     description: byId('product-description').value.trim(),
     price: byId('product-price').value,
+    internationalShipping: Boolean(byId('product-international')?.checked),
+    shippingCostCents: byId('product-shipping').value === '' ? null : Math.round(Number(byId('product-shipping').value)*100),
+    freeShippingThresholdCents: byId('product-free-shipping').value === '' ? null : Math.round(Number(byId('product-free-shipping').value)*100),
+    handlingDaysMin: byId('product-handling-min').value === '' ? null : Number(byId('product-handling-min').value),
+    handlingDaysMax: byId('product-handling-max').value === '' ? null : Number(byId('product-handling-max').value),
     category: 'apparel',
     style: byId('product-style')?.value || '',
     size: byId('product-size')?.value || '',
@@ -1262,6 +1287,11 @@ async function editListing(listingId) {
     if (byId('product-name')) byId('product-name').value = listing.title;
     if (byId('product-description')) byId('product-description').value = listing.description;
     if (byId('product-price')) byId('product-price').value = listing.price;
+    byId('product-international').checked = Boolean(listing.internationalShipping);
+    byId('product-shipping').value = listing.shippingCostCents == null ? '' : listing.shippingCostCents/100;
+    byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
+    byId('product-handling-min').value = listing.handlingDaysMin ?? '';
+    byId('product-handling-max').value = listing.handlingDaysMax ?? '';
     if (byId('product-category')) byId('product-category').value = 'apparel';
     if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (byId('product-size')) byId('product-size').value = listing.size || '';

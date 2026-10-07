@@ -255,7 +255,7 @@
       <footer class="site-footer">
         <div class="container footer-inner">
           <div><p class="brand-name">House of Briar</p><p class="footer-copy">Independent designers. One-of-a-kind pieces.</p></div>
-          <nav class="footer-links" aria-label="Footer navigation"><a href="#shop">Shop</a><a href="#story">Story</a><a href="#support">Support & Badges</a><a href="#journal">Journal</a><a href="/rules">Rules &amp; Returns</a><a href="/rules#shipping-and-delays">Shipping &amp; Delivery</a><a href="mailto:houseofbriar26@gmail.com?subject=House%20of%20Briar%20Customer%20Support">Contact Us / Customer Support</a><a href="#top">Top</a><button id="admin-review-btn" type="button" class="text-button">Admin panel</button></nav>
+          <nav class="footer-links" aria-label="Footer navigation"><a href="#shop">Shop</a><a href="#story">Story</a><a href="#support">Support & Badges</a><a href="#journal">Journal</a><a href="/rules">Rules &amp; Returns</a><a href="/shipping.html">Shipping &amp; Delivery</a><a href="mailto:houseofbriar26@gmail.com?subject=House%20of%20Briar%20Customer%20Support">Contact Us / Customer Support</a><a href="#top">Top</a><button id="admin-review-btn" type="button" class="text-button">Admin panel</button></nav>
           <p class="copyright">© <span id="year"></span> House of Briar</p>
         </div>
       </footer>
@@ -414,6 +414,11 @@
           <textarea id="product-description" name="description" maxlength="2000" rows="3"></textarea>
           <div class="form-row">
             <div><label for="product-price">Price</label><input id="product-price" name="price" type="number" min="0" step="0.01" required /></div>
+            <div><label for="product-shipping">US shipping per piece ($)</label><input id="product-shipping" type="number" min="0" max="10000" step="0.01"/><small>$0 means free. Blank prevents checkout.</small></div>
+            <div><label for="product-free-shipping">Free shipping threshold ($)</label><input id="product-free-shipping" type="number" min="0" step="0.01"/><small>Counts this designer’s merchandise before discounts; excludes gift wrapping.</small></div>
+            <label><input id="product-international" type="checkbox"/> Open to international shipping (US checkout only)</label>
+            <div><label for="product-handling-min">Preparation days, minimum</label><input id="product-handling-min" type="number" min="0" max="365" step="1"/></div>
+            <div><label for="product-handling-max">Preparation days, maximum</label><input id="product-handling-max" type="number" min="0" max="365" step="1"/><small>Business days before shipment; carrier transit is additional. US checkout only.</small></div>
             <div>
               <label for="product-style">Garment type</label>
               <select id="product-style" name="style" required>
@@ -556,7 +561,7 @@
           <div class="suitcase-badge"><img src="/heart-of-the-house-v1.webp" alt="Heart of the House badge: coral pincushion heart with mint thread and gold briars" /><div><p class="eyebrow">Support the House</p><strong>House Supporter</strong><p>Donations of $5 or more linked to your account earn this badge.</p></div></div>
         </div>
         <nav class="suitcase-info-links" aria-label="Checkout information">
-          <a href="/rules#shipping-and-delays">Shipping &amp; Delivery</a>
+          <a href="/shipping.html">Shipping &amp; Delivery</a>
           <a href="/rules">House Rules &amp; Returns</a>
         </nav>
       </aside>
