@@ -3409,6 +3409,8 @@ function createApp(options = {}) {
   });
   const illustratedPublicAssets = [
     'pastel-briar-window-v1.svg',
+    'house-of-briar-pastel-wordmark-v2.webp',
+    'pastel-house-nav-frame-v2.webp',
     'blackberry-house-nav-frame-v1.webp',
     'house-of-briar-blackberry-wordmark-v1.webp',
     'category-garment-frame.webp',
@@ -3461,6 +3463,7 @@ function createApp(options = {}) {
     }
     const status=Number.isInteger(error?.statusCode)?error.statusCode:500;
     log('error','request_failed',{ error: String(error?.message || error).slice(0,500), status });
+    if(error?.providerCode==='more_permissions_required')return fail(res,503,'stripe_configuration_required','Stripe payout setup is unavailable because the marketplace API key needs Connect Accounts Write permission. Please contact House of Briar support.');
     if(status>=500)return fail(res,status,'internal_error','The request could not be completed. Please try again.');
     return fail(res,status,'request_failed',error.message || 'The request could not be completed.');
   });
