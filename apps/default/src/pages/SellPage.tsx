@@ -5,7 +5,7 @@ import HouseShell from '@/components/HouseShell';
 import { MARKET_CATEGORIES } from '@/lib/marketplace';
 
 export default function SellPage() {
-  const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[]});
+  const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[],sellerTermsAccepted:false,sellerTermsVersion:'2026-10-06'});
   const [message,setMessage]=useState('');
   const [signupId,setSignupId]=useState('');
   const [loading,setLoading]=useState(false);
@@ -67,6 +67,7 @@ export default function SellPage() {
             </label>)}
           </div>
         </fieldset>
+        <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a> (version {form.sellerTermsVersion}).</span></label>
         {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
         <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Join the Designer List'}</button>
         <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created when you sign up.</p>

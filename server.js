@@ -14,6 +14,9 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 const CHECKOUT_RESERVATION_MINUTES = 31;
+// Bump this version, the signup forms, and the published terms together when terms change.
+const SELLER_TERMS_VERSION = '2026-10-06';
+const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
 const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
 function safeEqual(a, b) {
@@ -403,6 +406,31 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_access_tokens_designer ON designer_access_tokens(designer_id)');
+  db.exec(`CREATE TABLE IF NOT EXISTS designer_terms_acceptances (
+    designer_id TEXT NOT NULL REFERENCES designer_profiles(id),
+    terms_version TEXT NOT NULL,
+    accepted_at TEXT NOT NULL,
+    acceptance_source TEXT NOT NULL,
+    PRIMARY KEY(designer_id,terms_version)
+  );
+  CREATE TABLE IF NOT EXISTS designer_email_changes (
+    designer_id TEXT PRIMARY KEY REFERENCES designer_profiles(id),
+    current_email TEXT NOT NULL,
+    pending_email TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+  // Legacy flags have no versioned consent evidence. Never backfill acceptance.
+  function sellerTermsAcceptance(designerId) {
+    return db.prepare('SELECT terms_version,accepted_at FROM designer_terms_acceptances WHERE designer_id=? AND terms_version=?').get(designerId,SELLER_TERMS_VERSION);
+  }
+  function requireSellerTerms(designerId) {
+    if (!sellerTermsAcceptance(designerId)) throw Object.assign(new Error('Review and accept the current House of Briar Seller Terms in your Designer’s Room before selling or releasing payouts.'),{statusCode:409,code:'seller_terms_required'});
+  }
+  function recordSellerTerms(designerId,source) {
+    db.prepare('INSERT OR IGNORE INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run(designerId,SELLER_TERMS_VERSION,new Date().toISOString(),source);
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS email_outbox (
     id TEXT PRIMARY KEY,
@@ -745,6 +773,8 @@ function createApp(options = {}) {
 
   const reportLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'listing-report' });
   const signupLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'signup' });
+  const emailChangeLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, keyPrefix: 'designer-email-change' });
+  const emailVerifyLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: 'designer-email-verify' });
   const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'checkout' });
 
   function trustedAppOrigin(req) {
@@ -798,6 +828,13 @@ function createApp(options = {}) {
   async function authDesigner(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+    const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
+    const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=?").get(tokenHash);
+    if(issued){
+      if(issued.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
+      req.designerId=issued.designer_id;
+      return next();
+    }
 
     for (const [configuredToken, designerId] of Object.entries(designerTokens)) {
       if (safeEqual(token, configuredToken) && typeof designerId === 'string' && designerId.trim()) {
@@ -836,14 +873,15 @@ function createApp(options = {}) {
         return fail(res, 403, 'designer_not_linked', 'This signed-in account is not linked to a House of Briar designer profile.');
       }
       mappedDesignerId = mappedDesignerId.trim();
-      const activeDesigner = db.prepare("SELECT id FROM designer_profiles WHERE id = ? AND status = 'active'").get(mappedDesignerId);
+      const activeDesigner = db.prepare("SELECT id,email FROM designer_profiles WHERE id = ? AND status = 'active'").get(mappedDesignerId);
       if (!activeDesigner) {
         return fail(res, 403, 'designer_inactive', 'This designer profile is not active.');
       }
       req.designerId = mappedDesignerId;
       req.designerSubject = subject;
-      req.designerEmail = email;
-      if (email) db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(email, req.designerId);
+      req.designerEmail = activeDesigner.email;
+      // Login-provider email identifies a sign-in account; House email controls seller notices.
+      db.prepare('UPDATE listings SET designer_email = ? WHERE designer_id = ?').run(activeDesigner.email, req.designerId);
       return next();
     } catch (error) {
       return next(error);
@@ -1073,8 +1111,9 @@ function createApp(options = {}) {
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
       db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
-      if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Your payout can now be released.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
-      if (verifiedAt) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
+      if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Payout release also requires current Seller Terms acceptance.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
+      if (verifiedAt && sellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
+      else if(verifiedAt)notifyDesigner(transfer.designer_id,'seller_terms_required','Seller Terms acceptance needed','Tracking is verified. Review and accept the current Seller Terms in your Designer’s Room before your held payout can be released.',{orderId:transfer.order_id,actionPath:'/designers/room',eventKey:`terms-hold:${transfer.id}:${SELLER_TERMS_VERSION}`});
       return res.json({ received: true });
     } catch (error) {
       console.error('EasyPost webhook failed:', error);
@@ -1106,7 +1145,7 @@ function createApp(options = {}) {
             const paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:null;
             db.prepare("UPDATE special_order_offers SET status='deposit_paid',accepted_at=?,deposit_paid_at=?,stripe_payment_intent_id=? WHERE id=?").run(new Date().toISOString(),new Date().toISOString(),paymentIntent,offer.id);
             const accountId=designerStripeAccount(offer.designer_id),designerShare=Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10));
-            if(accountId&&designerShare>0){try{const transfer=await stripeApi('transfers',{method:'POST',body:new URLSearchParams({amount:String(designerShare),currency:'usd',destination:accountId,transfer_group:`special-${offer.id}`,'metadata[special_offer_id]':offer.id,'metadata[designer_id]':offer.designer_id}).toString(),idempotencyKey:`hob-special-transfer-${offer.id}`});db.prepare('UPDATE special_order_offers SET stripe_transfer_id=? WHERE id=?').run(transfer.id,offer.id);}catch(error){console.error('Special order deposit transfer failed:',offer.id,error);}}
+            if(accountId&&designerShare>0){try{requireSellerTerms(offer.designer_id);const transfer=await stripeApi('transfers',{method:'POST',body:new URLSearchParams({amount:String(designerShare),currency:'usd',destination:accountId,transfer_group:`special-${offer.id}`,'metadata[special_offer_id]':offer.id,'metadata[designer_id]':offer.designer_id}).toString(),idempotencyKey:`hob-special-transfer-${offer.id}`});db.prepare('UPDATE special_order_offers SET stripe_transfer_id=? WHERE id=?').run(transfer.id,offer.id);}catch(error){console.error('Special order deposit transfer failed:',offer.id,error);}}
             notifyDesigner(offer.designer_id,'special_order_deposit','Special-order deposit paid',`The deposit for ${offer.title} has been paid. Lead time: ${offer.lead_days_min}–${offer.lead_days_max} days.`,{inquiryId:offer.inquiry_id,actionPath:'/account#inquiries',priority:'important',eventKey:`special-deposit:${offer.id}`});
           }
         }
@@ -1256,7 +1295,7 @@ function createApp(options = {}) {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)){
       return fail(res,422,'validation_error','Add your name, designer or brand name, email, and what you create.');
     }
-    if(!sellerTermsAccepted)return fail(res,422,'seller_terms_required','You must agree to the House of Briar Seller Terms before joining.');
+    if(!sellerTermsAccepted || req.body?.sellerTermsVersion!==SELLER_TERMS_VERSION)return fail(res,422,'seller_terms_required','Read and agree to the current House of Briar Seller Terms before joining.');
 
     const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE lower(email)=?").get(email);
     if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
@@ -1271,6 +1310,7 @@ function createApp(options = {}) {
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,NULL,'','approved',?,?,?,NULL,NULL,?,NULL,NULL,1,1)").run(id,email,displayName,brandName,designerId,now,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,NULL,NULL,NULL,?,NULL,NULL)").run(designerId,email,displayName,brandName,id,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_access_tokens (token_hash,designer_id,created_at) VALUES (?,?,?)").run(accessTokenHash,designerId,now);
+      recordSellerTerms(designerId,'signup');
     })();
 
     return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false},accessToken});
@@ -1323,6 +1363,7 @@ function createApp(options = {}) {
   }
 
   async function requireStripeSellerReady(designerId) {
+    requireSellerTerms(designerId);
     const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(designerId);
     if(!designer?.stripe_account_id)throw Object.assign(new Error('Designer must finish Stripe payout setup before this piece can go on sale.'),{statusCode:409,code:'payout_setup_required'});
     const status=await stripeStatus(designer);
@@ -1342,27 +1383,70 @@ function createApp(options = {}) {
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
     const designer=db.prepare(`SELECT dp.id,dp.email,dp.display_name,dp.brand_name,dp.status,dp.bio,dp.location,dp.production_method,dp.categories,dp.portfolio_url,dp.social_url,dp.logo_storage_key,
-      COALESCE(da.marketplace_terms_accepted,1) marketplace_terms_accepted
-      FROM designer_profiles dp LEFT JOIN designer_applications da ON da.id=dp.application_id
-      WHERE dp.id=? AND dp.status='active'`).get(req.designerId);
+      (SELECT pending_email FROM designer_email_changes ec WHERE ec.designer_id=dp.id AND ec.expires_at>?) pending_email
+      FROM designer_profiles dp
+      WHERE dp.id=? AND dp.status='active'`).get(new Date().toISOString(),req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
-    return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(designer.marketplace_terms_accepted)}});
+    const acceptance=sellerTermsAcceptance(designer.id);
+    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
-  app.patch('/api/my/designer-settings', authDesigner, (req,res) => {
+  app.post('/api/my/seller-terms', authDesigner, (req,res) => {
+    if(req.body?.accepted!==true || req.body?.termsVersion!==SELLER_TERMS_VERSION)return fail(res,422,'seller_terms_required','Read and explicitly accept the current Seller Terms.');
+    recordSellerTerms(req.designerId,'designer-room');
+    const acceptance=sellerTermsAcceptance(req.designerId);
+    return res.json({ok:true,termsVersion:acceptance.terms_version,acceptedAt:acceptance.accepted_at});
+  });
+
+  app.patch('/api/my/designer-settings', authDesigner, emailChangeLimiter, async (req,res,next) => {
+    try {
     const current=db.prepare("SELECT id,email,display_name FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
     if(!current)return fail(res,404,'designer_not_found','Active designer profile not found.');
     const displayName=String(req.body?.displayName??current.display_name??'').trim();
     const email=String(req.body?.email??current.email??'').trim().toLowerCase();
     if(!displayName||displayName.length>120)return fail(res,422,'validation_error','Enter your name.');
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)return fail(res,422,'validation_error','Enter a valid email address.');
-    const duplicate=db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>? AND status='active'").get(email,req.designerId);
+    const duplicate=db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>?").get(email,req.designerId);
     if(duplicate)return fail(res,409,'email_in_use','That email is already used by another designer account.');
-    db.prepare('UPDATE designer_profiles SET display_name=?,email=? WHERE id=?').run(displayName,email,req.designerId);
-    db.prepare('UPDATE listings SET designer_email=? WHERE designer_id=?').run(email,req.designerId);
-    db.prepare('UPDATE designer_identities SET email=? WHERE designer_id=?').run(email,req.designerId);
-    return res.json({ok:true,designer:{displayName,email}});
+    db.prepare('UPDATE designer_profiles SET display_name=? WHERE id=?').run(displayName,req.designerId);
+    if(email===current.email.toLowerCase())return res.json({ok:true,designer:{displayName,email:current.email}});
+    const token=crypto.randomBytes(32).toString('base64url');
+    const hash=crypto.createHash('sha256').update(token).digest('hex');
+    const now=new Date().toISOString(),expiresAt=new Date(Date.now()+EMAIL_CHANGE_TTL_MS).toISOString();
+    db.prepare(`INSERT INTO designer_email_changes (designer_id,current_email,pending_email,token_hash,expires_at,created_at) VALUES (?,?,?,?,?,?)
+      ON CONFLICT(designer_id) DO UPDATE SET current_email=excluded.current_email,pending_email=excluded.pending_email,token_hash=excluded.token_hash,expires_at=excluded.expires_at,created_at=excluded.created_at`).run(req.designerId,current.email,email,hash,expiresAt,now);
+    try {
+      // Deliver directly so raw verification tokens never enter the persistent email outbox.
+      const delivered=await deliverEmail({to:email,subject:'Verify your House of Briar email change',text:`Someone signed in to your House of Briar designer account requested this email address.\n\nTo confirm, sign in to your Designer’s Room at ${trustedAppOrigin(req)}/designers/room, open Designer settings, and paste this verification code:\n\n${token}\n\nThe code expires in 30 minutes and can be used once. Your current House email stays unchanged until verification. This does not change your login provider or Stripe contact details. If you did not request this, ignore this email.`});
+      if(!delivered)throw new Error('Verification email delivery unavailable');
+    } catch {
+      db.prepare('DELETE FROM designer_email_changes WHERE designer_id=? AND token_hash=?').run(req.designerId,hash);
+      return fail(res,503,'verification_email_unavailable','Your House email has not changed. The verification email could not be sent; please try again later.');
+    }
+    return res.status(202).json({ok:true,verificationRequired:true,pendingEmail:email,expiresAt,designer:{displayName,email:current.email}});
+    } catch(error){return next(error);}
+  });
+
+  app.post('/api/my/designer-email/verify', authDesigner, emailVerifyLimiter, (req,res,next) => {
+    try {
+      const token=typeof req.body?.token==='string'?req.body.token.trim():'';
+      if(!/^[A-Za-z0-9_-]{43}$/.test(token))return fail(res,422,'invalid_verification','Enter the verification code from your email.');
+      const hash=crypto.createHash('sha256').update(token).digest('hex');
+      const verified=db.transaction(()=>{
+        const pending=db.prepare(`SELECT ec.* FROM designer_email_changes ec JOIN designer_profiles p ON p.id=ec.designer_id
+          WHERE ec.designer_id=? AND ec.token_hash=? AND ec.expires_at>? AND p.status='active' AND p.email=ec.current_email`).get(req.designerId,hash,new Date().toISOString());
+        if(!pending)return {error:'invalid_verification'};
+        if(db.prepare('SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>?').get(pending.pending_email,req.designerId))return {error:'email_in_use'};
+        db.prepare('UPDATE designer_profiles SET email=? WHERE id=?').run(pending.pending_email,req.designerId);
+        db.prepare('UPDATE listings SET designer_email=? WHERE designer_id=?').run(pending.pending_email,req.designerId);
+        // Subject mappings and their provider email remain sign-in evidence, not contact settings.
+        db.prepare('DELETE FROM designer_email_changes WHERE designer_id=?').run(req.designerId);
+        return {email:pending.pending_email};
+      }).immediate();
+      if(verified.error)return fail(res,verified.error==='email_in_use'?409:422,verified.error,verified.error==='email_in_use'?'That email is already used by another designer.':'This code is invalid, expired, or already used. Request a new email change.');
+      return res.json({ok:true,email:verified.email});
+    } catch(error){return next(error);}
   });
 
   app.post('/api/my/stripe-onboarding', authDesigner, async (req,res,next)=>{
@@ -1459,9 +1543,9 @@ function createApp(options = {}) {
   }
 
   function designerOrderContact(orderId, designerId) {
-    return db.prepare(`SELECT MAX(l.designer_email) AS email, GROUP_CONCAT(oi.title || CASE WHEN COALESCE(oi.gift_wrap_selected,0)=1 THEN ' [GIFT WRAP]' ELSE '' END, ', ') AS titles,
+    return db.prepare(`SELECT MAX(CASE WHEN lower(dp.email) NOT LIKE '%@legacy.houseofbriar.invalid' THEN dp.email END) AS email, GROUP_CONCAT(oi.title || CASE WHEN COALESCE(oi.gift_wrap_selected,0)=1 THEN ' [GIFT WRAP]' ELSE '' END, ', ') AS titles,
       SUM(oi.designer_amount_cents) AS earnings_cents
-      FROM order_items oi JOIN listings l ON l.id = oi.listing_id
+      FROM order_items oi JOIN listings l ON l.id = oi.listing_id JOIN designer_profiles dp ON dp.id=oi.designer_id
       WHERE oi.order_id = ? AND oi.designer_id = ?`).get(orderId, designerId);
   }
 
@@ -1608,6 +1692,7 @@ function createApp(options = {}) {
     const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
     if (!order) return [];
     if (order.payment_provider !== 'stripe') throw Object.assign(new Error('This payment provider cannot fund Stripe seller payouts.'), {statusCode:409,code:'payout_provider_mismatch'});
+    requireSellerTerms(designerId);
     const groups = db.prepare(`SELECT designer_id, SUM(designer_amount_cents) AS amount_cents FROM order_items WHERE order_id = ? AND designer_id = ? GROUP BY designer_id`).all(orderId, designerId);
     const results = [];
     for (const group of groups) {
@@ -3030,6 +3115,7 @@ function createApp(options = {}) {
       const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND buyer_subject=?").get(req.params.id,req.buyerSubject);
       if(!offer)return fail(res,404,'offer_not_found','Special-order offer not found.');
       if(offer.status!=='offered')return fail(res,409,'offer_unavailable','This offer is no longer awaiting a deposit.');
+      requireSellerTerms(offer.designer_id);
       const origin=trustedAppOrigin(req),body=new URLSearchParams({mode:'payment',success_url:`${origin}/account?special_order=deposit_paid`,cancel_url:`${origin}/account?special_order=deposit_canceled`,'metadata[special_offer_id]':offer.id,'payment_intent_data[metadata][special_offer_id]':offer.id});
       body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]',`Deposit: ${offer.title}`);body.set('line_items[0][price_data][unit_amount]',String(offer.deposit_cents));body.set('line_items[0][quantity]','1');
       const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-special-deposit-${offer.id}`});
@@ -3101,7 +3187,7 @@ function createApp(options = {}) {
       const verifiedAt=tracker.verified?new Date().toISOString():null;
       db.transaction(() => {
       db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,order.id,req.designerId);
-      notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Your payout can now be released.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:tracker.verified?`tracking-verified:${current.id}`:`tracking-submitted:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`});
+      notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Payout release also requires current Seller Terms acceptance.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:tracker.verified?`tracking-verified:${current.id}`:`tracking-submitted:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`});
       }).immediate();
       const contact=designerOrderContact(order.id,req.designerId);
       if(contact?.email)await sendEmail({to:contact.email,eventKey:`tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
@@ -3337,6 +3423,4 @@ if (require.main === module) {
   process.on('SIGTERM', shutdown);
 }
 
-module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES };
-
-
+module.exports = { createApp, detectImageMime, MAX_IMAGES, MAX_IMAGE_BYTES, SELLER_TERMS_VERSION };
