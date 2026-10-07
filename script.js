@@ -1381,6 +1381,7 @@ async function signIn(tokenValue) {
   try {
     await apiRequest('/api/session', { method: 'POST' });
     localStorage.setItem('briarDesignerToken', designerToken);
+    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
     sessionStorage.removeItem('briarDesignerToken');
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
@@ -1411,6 +1412,9 @@ function signOut() {
   clearDesignerListImagePreviews();
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
+  if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  // Reload the public page so private profile, order and payout data leave the DOM.
+  location.replace('/');
 }
 
 function applyFilterButtons() {
@@ -1531,6 +1535,9 @@ if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
 byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
+byId('header-signout-btn')?.addEventListener('click', signOut);
+if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+window.addEventListener('storage',event=>{if(event.key==='briarDesignerToken'&&!event.newValue&&designerToken)signOut();});
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 
