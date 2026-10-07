@@ -5,7 +5,24 @@ const path = require('node:path');
 const { after, before, test, mock } = require('node:test');
 const { once } = require('node:events');
 const sharp = require('sharp');
-const { createApp } = require('../server');
+const { createApp: createBaseApp } = require('../server');
+
+// Successful commerce fixtures represent sellers who completed Stripe verification.
+function createApp(options) {
+  const designerIds = new Set([...Object.values(options.designerTokens || {}), ...(options.seedProducts || []).map(item => item.designerId).filter(Boolean)]);
+  const connectAccounts = {...options.connectAccounts};
+  for (const id of designerIds) connectAccounts[id] ||= 'acct_fixture_' + id.replace(/[^a-z0-9]/gi, '_');
+  const stripeFixture = options.stripeApi;
+  const context = createBaseApp({...options, connectAccounts, stripeApi: async (endpoint, request) => {
+    if (endpoint.startsWith('accounts/acct_fixture_') || Object.values(options.connectAccounts || {}).some(id => endpoint === 'accounts/' + id)) {
+      return {details_submitted:true, payouts_enabled:true, charges_enabled:true, requirements:{currently_due:[]}};
+    }
+    if (stripeFixture) return stripeFixture(endpoint, request);
+    throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
+  }});
+  for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
+  return context;
+}
 
 const DESIGNER_TOKEN = 'designer-token-a';
 const OTHER_DESIGNER_TOKEN = 'designer-token-b';
