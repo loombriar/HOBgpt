@@ -189,6 +189,10 @@ function StudioContent() {
           void refreshProducts();
           void refreshOrders();
           void refreshPayoutStatus();
+          if(new URLSearchParams(window.location.search).get('stripe')==='refresh'){
+            window.history.replaceState({},'',window.location.pathname);
+            void startPayoutSetup();
+          }
           void refreshDesignerInquiries();
           void refreshDesignerNotifications();
           void refreshCollectorNotes();

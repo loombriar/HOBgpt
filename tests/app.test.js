@@ -290,9 +290,9 @@ test('filter windows use their full botanical artwork and keep accessible live c
   const html = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   for (const [id, asset] of [
-    ['shop-garment-filter', 'category-garment-frame.webp'],
-    ['shop-aesthetic-filter', 'category-aesthetic-frame.webp'],
-    ['shop-accessory-filter', 'category-accessories-frame.webp']
+    ['shop-garment-filter', 'pastel-briar-window-v1.svg'],
+    ['shop-aesthetic-filter', 'pastel-briar-window-v1.svg'],
+    ['shop-accessory-filter', 'pastel-briar-window-v1.svg']
   ]) {
     assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);

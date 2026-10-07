@@ -1377,7 +1377,7 @@ function createApp(options = {}) {
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
     }
     const origin=trustedAppOrigin(req);
-    const refreshUrl=String(req.body?.refreshUrl||`${origin}/api/my/stripe-onboarding/refresh`);
+    const refreshUrl=String(req.body?.refreshUrl||`${origin}/designers/room?stripe=refresh`);
     const returnUrl=String(req.body?.returnUrl||`${origin}/designers/room?stripe=return`);
     if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
@@ -1498,18 +1498,11 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  app.get('/api/my/stripe-onboarding/refresh', authDesigner, async (req,res,next)=>{
-    try{
-      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
-      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
-      const origin=trustedAppOrigin(req);
-      const refreshUrl=`${origin}/api/my/stripe-onboarding/refresh`;
-      const returnUrl=`${origin}/designers/room?stripe=return`;
-      const result=await createStripeOnboarding(designer,{...req,body:{refreshUrl,returnUrl}});
-      if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
-      if(!result.onboardingUrl)return fail(res,502,'payment_provider_unavailable','Stripe payout setup is temporarily unavailable.');
-      return res.redirect(303,result.onboardingUrl);
-    }catch(error){return next(error);}
+  // Stripe navigates here without a Bearer header. Let the signed-in room
+  // renew the link through the authenticated POST; never put credentials in URLs.
+  app.get('/api/my/stripe-onboarding/refresh', (_req,res)=>{
+    res.set('Cache-Control','no-store');
+    return res.redirect(303,'/designers/room?stripe=refresh');
   });
 
   app.get('/api/my/stripe-status', authDesigner, async (req,res,next)=>{
@@ -3415,6 +3408,7 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
   const illustratedPublicAssets = [
+    'pastel-briar-window-v1.svg',
     'blackberry-house-nav-frame-v1.webp',
     'house-of-briar-blackberry-wordmark-v1.webp',
     'category-garment-frame.webp',
