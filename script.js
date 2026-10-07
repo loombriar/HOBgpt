@@ -752,6 +752,8 @@ function openProductDetails(item) {
   copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
   copy.appendChild(makeElement('p', '', item.shippingCostCents == null ? 'Shipping price not set — checkout unavailable.' : Number(item.shippingCostCents)===0 ? 'Free US shipping.' : `US shipping per piece: $${(item.shippingCostCents/100).toFixed(2)}`));
   if(item.freeShippingThresholdCents>0)copy.appendChild(makeElement('p','',`Free shipping for this piece when this designer’s merchandise before discounts reaches $${(item.freeShippingThresholdCents/100).toFixed(2)}.`));
+  const prepMin=item.handlingDaysMin, prepMax=item.handlingDaysMax;
+  copy.appendChild(makeElement('p','', prepMin==null && prepMax==null ? 'Preparation time not provided; ask the designer before ordering.' : `${prepMin==null ? 'Up to '+prepMax : prepMax==null ? 'At least '+prepMin : prepMin+(prepMax!==prepMin?'–'+prepMax:'')} business days before shipment. Carrier transit comes afterward.`));
   if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
   const ranges = Object.entries(item.fitMeasurements || {}).map(([key, range]) => `${key}: ${range.min}–${range.max} in`);
   if (ranges.length) copy.appendChild(makeElement('p', 'product-fit', `Fits body measurements — ${ranges.join(' · ')}`));
