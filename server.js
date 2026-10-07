@@ -775,6 +775,30 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
+  // Founder slots belong to designer accounts permanently, including during suspension.
+  db.exec(`CREATE TABLE IF NOT EXISTS founding_designers (
+    designer_id TEXT PRIMARY KEY REFERENCES designer_profiles(id),
+    slot INTEGER NOT NULL UNIQUE CHECK(slot BETWEEN 1 AND 25),
+    awarded_at TEXT NOT NULL
+  )`);
+  function reconcileFoundingDesigners() {
+    const fill = db.transaction(() => {
+      let slot = Number(db.prepare('SELECT COALESCE(MAX(slot),0) slot FROM founding_designers').get().slot);
+      if (slot >= 25) return;
+      const designers = db.prepare(`SELECT id FROM designer_profiles
+        WHERE id NOT IN (SELECT designer_id FROM founding_designers)
+        ORDER BY created_at ASC, rowid ASC LIMIT ?`).all(25 - slot);
+      const insert = db.prepare('INSERT INTO founding_designers (designer_id,slot,awarded_at) VALUES (?,?,?)');
+      for (const designer of designers) insert.run(designer.id, ++slot, new Date().toISOString());
+    });
+    fill.immediate();
+  }
+  function foundingDesignerBadge(designerId) {
+    const row = db.prepare('SELECT awarded_at FROM founding_designers WHERE designer_id=?').get(designerId);
+    return row ? {type:'founding_designer',label:'Founding Designer',awardedAt:row.awarded_at} : null;
+  }
+  reconcileFoundingDesigners();
+
   // Retire old demo/seed garments. The live catalog should contain only designer-uploaded listings.
   db.prepare(`UPDATE listings
     SET status = 'archived', moderation_status = 'rejected', moderation_reason = 'Retired legacy seed listing', updated_at = ?
@@ -1069,6 +1093,7 @@ function createApp(options = {}) {
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
     const inventory = listingInventory(row);
     const designerBadges = db.prepare('SELECT DISTINCT badge_type FROM user_badges WHERE buyer_subject IN (?,?) ORDER BY awarded_at').all(designerBadgeSubject(row.designer_id),`designer:${row.designer_id}`).map(badge => badge.badge_type);
+    if (foundingDesignerBadge(row.designer_id)) designerBadges.push('founding_designer');
     const enhancement = db.prepare('SELECT * FROM listing_enhancements WHERE listing_id=?').get(row.id) || {};
     let photoAngles=[]; try { photoAngles=JSON.parse(enhancement.photo_angles || '[]'); } catch {}
     const images = getImages(row.id, mode).map((image,index)=>({ ...image, angle: String(photoAngles[index] || '') }));
@@ -1452,6 +1477,7 @@ function createApp(options = {}) {
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,NULL,NULL,NULL,?,NULL,NULL)").run(designerId,email,displayName,brandName,id,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_access_tokens (token_hash,designer_id,created_at) VALUES (?,?,?)").run(accessTokenHash,designerId,now);
       recordSellerTerms(designerId,'signup');
+      reconcileFoundingDesigners();
     })();
 
     const signupAlertEmail=String(options.signupAlertEmail ?? process.env.DESIGNER_SIGNUP_ALERT_EMAIL ?? '').trim();
@@ -1548,7 +1574,7 @@ function createApp(options = {}) {
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
     const acceptance=sellerTermsAcceptance(designer.id);
-    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
+    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,foundingBadge:foundingDesignerBadge(designer.id),displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
   app.post('/api/my/seller-terms', authDesigner, (req,res) => {
@@ -2404,6 +2430,8 @@ function createApp(options = {}) {
     for(const [subject,designerId] of Object.entries(designerIdentityMap))if(designerId===designer.id)badgeSubjects.add(subject);
     const badges=db.prepare(`SELECT badge_type,MIN(awarded_at) awarded_at FROM user_badges WHERE buyer_subject IN (${[...badgeSubjects].map(()=>'?').join(',')}) GROUP BY badge_type ORDER BY awarded_at ASC`).all(...badgeSubjects)
       .map(b=>({type:b.badge_type,label:b.badge_type==='supporter'?'House Supporter':b.badge_type==='verified_buyer'?'Verified Buyer':b.badge_type,awardedAt:b.awarded_at}));
+    const foundingBadge = foundingDesignerBadge(designer.id);
+    if (foundingBadge) badges.push(foundingBadge);
     const items=rows.map(row=>serializeListing(row,'public'));
     const currentItems=items.filter(item=>item.availableQuantity===null||item.availableQuantity>0);
     const soldItems=items.filter(item=>item.soldQuantity>0);
@@ -3613,6 +3641,7 @@ function createApp(options = {}) {
     'sewing-hero-v2.webp',
     'heart-of-the-house-v1.webp',
     'verified-buyer-v1.webp',
+    'founding-designer-v1.webp',
     'visitor-suite-door-v1.svg',
     'designer-room-door-v1.svg',
     'suitcase-cart-v1.svg',

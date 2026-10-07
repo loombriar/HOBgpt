@@ -262,6 +262,7 @@ function getItemBadges(item = {}) {
 
   if (supportFlag) badges.push({ key: 'supporter', label: 'House Supporter' });
   if (verifiedFlag) badges.push({ key: 'verified', label: 'Verified Buyer' });
+  if (normalized.includes('founding_designer')) badges.push({ key: 'founding_designer', label: 'Founding Designer' });
   return badges;
 }
 
@@ -284,6 +285,11 @@ function createBadgePill(label, className = 'badge') {
     artwork.setAttribute('aria-hidden', 'true');
     pill.prepend(artwork);
   }
+  if (className.includes('founding-badge')) {
+    pill.title = 'One of the first 25 designers to join House of Briar.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/founding-designer-v1.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
+  }
   return pill;
 }
 
@@ -292,7 +298,7 @@ function renderItemBadges(target, item) {
   target.replaceChildren();
   const badges = getItemBadges(item);
   badges.forEach(({ label }) => {
-    target.appendChild(createBadgePill(label, label === 'Verified Buyer' ? 'badge verified-badge' : 'badge supporter-badge'));
+    target.appendChild(createBadgePill(label, label === 'Founding Designer' ? 'badge founding-badge' : label === 'Verified Buyer' ? 'badge verified-badge' : 'badge supporter-badge'));
   });
 }
 
@@ -1919,6 +1925,8 @@ async function loadDesignerBrand() {
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
     designerReadinessState.profile=designer;renderSellerReadiness();
+    const founding = byId('designer-founding-badge'); founding?.replaceChildren();
+    if (designer.foundingBadge) founding?.append(createBadgePill('Founding Designer', 'badge founding-badge'));
     byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
     byId('designer-account-email') && (byId('designer-account-email').value = designer.email || '');
     byId('designer-email-verify-form')?.classList.toggle('hidden',!designer.pendingEmail);
@@ -2013,6 +2021,7 @@ async function openDesignerStorefront(id) {
     const badgeSection = makeElement('section', 'storefront-badges'); badgeSection.append(makeElement('h3', '', 'Badges'));
     const badgeRow = makeElement('div', 'listing-badges');
     for (const badge of designer.badges || []) {
+      if (badge.type === 'founding_designer') badgeRow.append(createBadgePill('Founding Designer', 'badge founding-badge'));
       if (badge.type === 'supporter') badgeRow.append(createBadgePill(badge.label||'House Supporter', 'badge supporter-badge'));
       if (badge.type === 'verified_buyer') badgeRow.append(createBadgePill(badge.label||'Verified Buyer', 'badge verified-badge'));
     }
