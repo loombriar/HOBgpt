@@ -8,6 +8,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
+const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
 
 const MAX_IMAGES = 10;
@@ -3663,7 +3664,28 @@ if (require.main === module) {
   emailTimer.unref();
   void reconcilePendingCheckouts();
   void processEmailOutbox();
-  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
+
+  const backupEnabled = process.env.OFFSITE_BACKUP_ENABLED === 'true';
+  const backupIntervalMs = Math.max(60 * 60 * 1000, Number(process.env.OFFSITE_BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000));
+  const backupStartupDelayMs = Math.max(30_000, Number(process.env.OFFSITE_BACKUP_STARTUP_DELAY_MS || 5 * 60 * 1000));
+  let backupRunning = false;
+  const runOffsiteBackup = () => {
+    if (!backupEnabled || backupRunning) return;
+    backupRunning = true;
+    const child = spawn(process.execPath, [path.join(__dirname, 'scripts', 'backup-offsite.js')], { env: process.env, stdio: 'inherit' });
+    child.once('error', error => { backupRunning = false; console.error('Off-site backup failed to start:', error); });
+    child.once('exit', code => {
+      backupRunning = false;
+      if (code !== 0) console.error('Off-site backup exited with code', code);
+      else console.log('Off-site backup completed successfully');
+    });
+  };
+  const backupStartupTimer = backupEnabled ? setTimeout(runOffsiteBackup, backupStartupDelayMs) : null;
+  if (backupStartupTimer) backupStartupTimer.unref();
+  const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
+  if (backupTimer) backupTimer.unref();
+
+  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
