@@ -342,6 +342,11 @@ function createApp(options = {}) {
   ensureColumn('designer_profiles', 'stripe_details_submitted', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_profiles', 'stripe_requirements_due', "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn('designer_profiles', 'stripe_status_checked_at', 'TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS stripe_connect_events (
+    event_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    processed_at TEXT NOT NULL
+  )`);
   ensureColumn('orders', 'buyer_email', 'TEXT');
   ensureColumn('orders', 'buyer_subject', 'TEXT');
   ensureColumn('orders', 'cancel_token_hash', 'TEXT');
@@ -1123,19 +1128,36 @@ function createApp(options = {}) {
 
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
-      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(Boolean);
       const signature = req.get('stripe-signature') || '';
-      if (!secret || !signature) return res.status(400).send('Webhook signature configuration is missing.');
-      const parts = Object.fromEntries(signature.split(',').map(part => part.split('=', 2)));
-      const timestamp = parts.t;
-      const supplied = parts.v1;
-      if (!timestamp || !supplied) return res.status(400).send('Invalid Stripe signature.');
+      if (!secrets.length || !signature) return res.status(400).send('Webhook signature configuration is missing.');
+      const parts = signature.split(',').map(part => part.trim().split('=', 2));
+      const timestamp = parts.find(([key]) => key === 't')?.[1];
+      const supplied = parts.filter(([key]) => key === 'v1').map(([,value]) => value);
+      if (!timestamp || !/^\d+$/.test(timestamp) || !supplied.length) return res.status(400).send('Invalid Stripe signature.');
       if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return res.status(400).send('Expired Stripe signature.');
       const signed = Buffer.concat([Buffer.from(String(timestamp) + '.'), req.body]);
-      const expected = crypto.createHmac('sha256', secret).update(signed).digest('hex');
-      if (!safeEqual(expected, supplied)) return res.status(400).send('Invalid Stripe signature.');
+      if (!secrets.some(secret => supplied.some(value => safeEqual(crypto.createHmac('sha256', secret).update(signed).digest('hex'), value)))) return res.status(400).send('Invalid Stripe signature.');
 
       const event = JSON.parse(req.body.toString('utf8'));
+      if (event.type === 'account.updated') {
+        const accountId = event.data?.object?.id;
+        if (!event.id || typeof accountId !== 'string' || !accountId.startsWith('acct_')) return res.status(400).send('Invalid Connect account event.');
+        if (event.account && event.account !== accountId) return res.status(400).send('Connect account event does not match its account.');
+        if (db.prepare('SELECT 1 FROM stripe_connect_events WHERE event_id=?').get(event.id)) return res.json({ received: true });
+        // Never attach an account using event metadata. Refresh live state so delayed events cannot restore stale readiness.
+        const designers = db.prepare('SELECT * FROM designer_profiles WHERE stripe_account_id=?').all(accountId);
+        if (designers.length) {
+          const account = await stripeApi(`accounts/${encodeURIComponent(accountId)}`);
+          if (account.id !== accountId) throw new Error('Stripe returned a different Connect account.');
+          db.transaction(() => {
+            if (db.prepare('SELECT 1 FROM stripe_connect_events WHERE event_id=?').get(event.id)) return;
+            for (const designer of designers) persistStripeAccountStatus(designer, account);
+            db.prepare('INSERT INTO stripe_connect_events (event_id,account_id,processed_at) VALUES (?,?,?)').run(event.id,accountId,new Date().toISOString());
+          }).immediate();
+        }
+        return res.json({ received: true });
+      }
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
         const specialOfferId=session?.metadata?.special_offer_id;
@@ -1353,12 +1375,16 @@ function createApp(options = {}) {
   async function stripeStatus(designer) {
     if(!designer.stripe_account_id)return {designerId:designer.id,connected:false,onboardingComplete:false,payoutsEnabled:false,chargesEnabled:false,readyToSell:false,requirementsDue:[]};
     const account=await stripeApi(`accounts/${encodeURIComponent(designer.stripe_account_id)}`);
+    return persistStripeAccountStatus(designer, account);
+  }
+
+  function persistStripeAccountStatus(designer, account) {
     const requirementsDue=Array.isArray(account.requirements?.currently_due)?account.requirements.currently_due:[];
     const onboardingComplete=Boolean(account.details_submitted);
     const payoutsEnabled=Boolean(account.payouts_enabled);
     const readyToSell=onboardingComplete&&payoutsEnabled&&requirementsDue.length===0;
-    db.prepare('UPDATE designer_profiles SET stripe_payouts_enabled=?,stripe_details_submitted=?,stripe_requirements_due=?,stripe_status_checked_at=? WHERE id=?')
-      .run(payoutsEnabled?1:0,onboardingComplete?1:0,JSON.stringify(requirementsDue),new Date().toISOString(),designer.id);
+    db.prepare('UPDATE designer_profiles SET stripe_payouts_enabled=?,stripe_details_submitted=?,stripe_requirements_due=?,stripe_status_checked_at=? WHERE id=? AND stripe_account_id=?')
+      .run(payoutsEnabled?1:0,onboardingComplete?1:0,JSON.stringify(requirementsDue),new Date().toISOString(),designer.id,designer.stripe_account_id);
     return {designerId:designer.id,connected:true,onboardingComplete,payoutsEnabled,chargesEnabled:Boolean(account.charges_enabled),readyToSell,requirementsDue};
   }
 
@@ -2861,6 +2887,7 @@ function createApp(options = {}) {
       let order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
       if(!order)return fail(res,404,'order_not_found','Order not found.');
       if(order.status!=='paid')return fail(res,409,'not_paid','Only paid orders can be refunded.');
+      if(order.payment_provider!=='stripe')return fail(res,409,'refund_provider_unsupported','This order was paid through '+order.payment_provider+'. Refund it through the original payment provider; House cannot issue or record that refund automatically.');
       if(order.refund_status==='succeeded')return fail(res,409,'already_refunded','This order has already been refunded.');
       let paymentIntent=order.stripe_payment_intent_id;
       if(!paymentIntent&&order.stripe_session_id){
@@ -2895,7 +2922,7 @@ function createApp(options = {}) {
     try {
       const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
       if(!order)return fail(res,404,'order_not_found','Order not found.');
-      if(order.status==='paid')return fail(res,409,'refund_required','Paid orders require a Stripe refund rather than cancellation.');
+      if(order.status==='paid')return fail(res,409,'refund_required','Paid orders require a refund through their original payment provider rather than cancellation.');
       await expireOpenCheckout(order);
       releaseOrderInventory(order.id);
       return res.json({ok:true,status:'canceled'});
@@ -3136,6 +3163,7 @@ function createApp(options = {}) {
   app.post('/api/admin/orders/:orderId/designers/:designerId/refund', authAdmin, async (req,res,next)=>{
     try{
       const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);if(!order)return fail(res,404,'order_not_found','Paid order not found.');
+      if(order.payment_provider!=='stripe')return fail(res,409,'refund_provider_unsupported','This order was paid through '+order.payment_provider+'. Refund it through the original payment provider; House cannot issue or record that refund automatically.');
       const items=db.prepare('SELECT * FROM order_items WHERE order_id=? AND designer_id=?').all(order.id,req.params.designerId);if(!items.length)return fail(res,404,'seller_order_not_found','Seller portion not found.');
       const refundCents=items.reduce((s,i)=>s+i.line_total_cents,0);const designerCents=items.reduce((s,i)=>s+i.designer_amount_cents,0);
       let paymentIntent=order.stripe_payment_intent_id;if(!paymentIntent&&order.stripe_session_id){const session=await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:'';if(paymentIntent)db.prepare('UPDATE orders SET stripe_payment_intent_id=? WHERE id=?').run(paymentIntent,order.id);}
