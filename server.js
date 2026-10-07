@@ -1350,6 +1350,21 @@ function createApp(options = {}) {
     return res.json({designer:{id:designer.id,email:designer.email,displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(designer.marketplace_terms_accepted)}});
   });
 
+  app.patch('/api/my/designer-settings', authDesigner, (req,res) => {
+    const current=db.prepare("SELECT id,email,display_name FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+    if(!current)return fail(res,404,'designer_not_found','Active designer profile not found.');
+    const displayName=String(req.body?.displayName??current.display_name??'').trim();
+    const email=String(req.body?.email??current.email??'').trim().toLowerCase();
+    if(!displayName||displayName.length>120)return fail(res,422,'validation_error','Enter your name.');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)return fail(res,422,'validation_error','Enter a valid email address.');
+    const duplicate=db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>? AND status='active'").get(email,req.designerId);
+    if(duplicate)return fail(res,409,'email_in_use','That email is already used by another designer account.');
+    db.prepare('UPDATE designer_profiles SET display_name=?,email=? WHERE id=?').run(displayName,email,req.designerId);
+    db.prepare('UPDATE listings SET designer_email=? WHERE designer_id=?').run(email,req.designerId);
+    db.prepare('UPDATE designer_identities SET email=? WHERE designer_id=?').run(email,req.designerId);
+    return res.json({ok:true,designer:{displayName,email}});
+  });
+
   app.post('/api/my/stripe-onboarding', authDesigner, async (req,res,next)=>{
     try{
       const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
