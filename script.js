@@ -96,6 +96,7 @@ const adminSignoutBtn = byId('admin-signout-btn');
 const CART_KEY = 'house-of-briar:cart';
 const GIFT_WRAP_KEY = 'house-of-briar:gift-wrap';
 
+const COOKIE_SESSION_MARKER = '__house_session__';
 let designerToken = localStorage.getItem('briarDesignerToken') || sessionStorage.getItem('briarDesignerToken') || '';
 let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
@@ -436,7 +437,7 @@ function makeElement(tag, className = '', text = '') {
 
 function authorizationHeaders(extra = {}) {
   const headers = new Headers(extra);
-  if (designerToken) headers.set('Authorization', `Bearer ${designerToken}`);
+  if (designerToken && designerToken !== COOKIE_SESSION_MARKER) headers.set('Authorization', `Bearer ${designerToken}`);
   return headers;
 }
 
@@ -1425,9 +1426,10 @@ async function signIn(tokenValue) {
   designerToken = token;
   try {
     await apiRequest('/api/session', { method: 'POST' });
-    localStorage.setItem('briarDesignerToken', designerToken);
-    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    designerToken = COOKIE_SESSION_MARKER;
+    localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
+    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     setMessage(designerAuthMessage, '', '');
@@ -1446,7 +1448,8 @@ async function signIn(tokenValue) {
   }
 }
 
-function signOut() {
+async function signOut() {
+  try { await fetch('/api/session',{method:'DELETE',credentials:'same-origin'}); } catch {}
   designerToken = '';
   designerReadinessState={profile:null,listings:[],stripe:null};renderSellerReadiness();
   localStorage.removeItem('briarDesignerToken');
@@ -1617,11 +1620,20 @@ byId('newsletter-form')?.addEventListener('submit', (event) => {
   }
 });
 
-if (designerToken) {
-  if (loginPanel) loginPanel.classList.add('hidden');
-  if (designerWorkspace) designerWorkspace.classList.remove('hidden');
-  signIn(designerToken);
+async function restoreDesignerSession() {
+  const legacyToken=designerToken && designerToken!==COOKIE_SESSION_MARKER ? designerToken : '';
+  if(legacyToken){await signIn(legacyToken);return;}
+  try{
+    const response=await fetch('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
+    if(!response.ok)return;
+    designerToken=COOKIE_SESSION_MARKER;
+    if(loginPanel)loginPanel.classList.add('hidden');
+    if(designerWorkspace)designerWorkspace.classList.remove('hidden');
+    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    await loadDesignerListings();await loadDesignerBrand();await refreshStripePayoutStatus();
+  }catch{}
 }
+void restoreDesignerSession();
 syncDesignerRoomRoute({focus:false});
 
 applyFilterButtons();
