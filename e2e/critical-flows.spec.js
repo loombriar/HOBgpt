@@ -139,3 +139,11 @@ test('homepage website views shortcut displays private traffic after admin sign-
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(traffic).toHaveCount(0);
 });
+
+test('founding designer badge appears on listings and public designer storefront', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#product-grid .founding-badge').first()).toBeVisible();
+  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-v1.webp');
+  await page.goto('/designers/maker');
+  await expect(page.getByText('Founding Designer', { exact: true })).toBeVisible();
+});
