@@ -1364,7 +1364,7 @@ async function refreshStripePayoutStatus() {
 }
 async function openStripeOnboarding(){
   const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
-  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/designers/room?stripe=refresh',returnUrl:location.origin+'/designers/room?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
+  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshUrl:location.origin+'/api/my/stripe-onboarding/refresh',returnUrl:location.origin+'/designers/room?stripe=return'})});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
