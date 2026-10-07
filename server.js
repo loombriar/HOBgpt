@@ -1377,8 +1377,8 @@ function createApp(options = {}) {
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
     }
     const origin=trustedAppOrigin(req);
-    const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
-    const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
+    const refreshUrl=String(req.body?.refreshUrl||`${origin}/api/my/stripe-onboarding/refresh`);
+    const returnUrl=String(req.body?.returnUrl||`${origin}/designers/room?stripe=return`);
     if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
     const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
@@ -1495,6 +1495,20 @@ function createApp(options = {}) {
       const result=await createStripeOnboarding(designer,req);
       if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
       return res.json(result);
+    }catch(error){return next(error);}
+  });
+
+  app.get('/api/my/stripe-onboarding/refresh', authDesigner, async (req,res,next)=>{
+    try{
+      const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.designerId);
+      if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
+      const origin=trustedAppOrigin(req);
+      const refreshUrl=`${origin}/api/my/stripe-onboarding/refresh`;
+      const returnUrl=`${origin}/designers/room?stripe=return`;
+      const result=await createStripeOnboarding(designer,{...req,body:{refreshUrl,returnUrl}});
+      if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
+      if(!result.onboardingUrl)return fail(res,502,'payment_provider_unavailable','Stripe payout setup is temporarily unavailable.');
+      return res.redirect(303,result.onboardingUrl);
     }catch(error){return next(error);}
   });
 
