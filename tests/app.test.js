@@ -463,7 +463,7 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
 test('records anonymous site visits and exposes traffic summaries without IP storage', async () => {
   const first = await getJson('/api/analytics/events', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/',deviceCategory:'mobile'})
+    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/private/path?secret=value',deviceCategory:'mobile'})
   });
   assert.equal(first.response.status,202);
   const second = await getJson('/api/analytics/events', {
@@ -477,9 +477,27 @@ test('records anonymous site visits and exposes traffic summaries without IP sto
   assert.ok(dashboard.body.traffic.visits>=1);
   assert.ok(dashboard.body.traffic.topPages.some(row=>row.path==='/designers/maker'));
   assert.ok(dashboard.body.traffic.topDesigners.some(row=>row.designerId==='maker'));
+  const storedReferrer=context.db.prepare("SELECT referrer FROM analytics_events WHERE session_id='visit-one' AND event_name='page_view' ORDER BY created_at DESC LIMIT 1").get();
+  assert.equal(storedReferrer.referrer,'https://search.example');
   const columns=context.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
   assert.equal(columns.includes('ip'),false);
   assert.equal(columns.includes('ip_address'),false);
+});
+
+
+test('designer social links require HTTPS', async () => {
+  const insecure = await getJson('/api/my/designer-profile', {
+    method:'PATCH',
+    headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({socialLinks:{instagram:{url:'http://instagram.com/maker',visible:true}}})
+  });
+  assert.equal(insecure.response.status,422);
+  const secure = await getJson('/api/my/designer-profile', {
+    method:'PATCH',
+    headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},
+    body:JSON.stringify({socialLinks:{instagram:{url:'https://instagram.com/maker',visible:true}}})
+  });
+  assert.equal(secure.response.status,200);
 });
 
 
