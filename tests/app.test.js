@@ -550,12 +550,12 @@ test('inquiry threads keep buyer identity private and authorize both sides', asy
   assert.equal(thread.buyerEmail,undefined);
   assert.equal(thread.messages[0].message,'Original question');
   const reply=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'Yes, it is available.'})});
-  assert.equal(reply.response.status,201);
+  assert.equal(reply.response.status,409);
+  assert.equal(reply.body.error.code,'inquiry_replies_disabled');
   const outsider=await getJson('/api/my/designer-inquiries/thread-inquiry/messages',{method:'POST',headers:{Authorization:`Bearer ${OTHER_DESIGNER_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({message:'I should not be able to reply.'})});
   assert.equal(outsider.response.status,404);
   const messages=context.db.prepare('SELECT sender_role,message FROM inquiry_messages WHERE inquiry_id=? ORDER BY created_at').all('thread-inquiry');
-  assert.equal(messages.length,2);
-  assert.equal(messages[1].sender_role,'designer');
+  assert.equal(messages.length,1);
 });
 
 
