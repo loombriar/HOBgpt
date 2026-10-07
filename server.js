@@ -1522,7 +1522,7 @@ function createApp(options = {}) {
     if(req.designerAuthMethod!=='session')issueDesignerSession(req,res,req.designerId);
     res.set('Cache-Control','no-store').json({ ok: true, designerId: req.designerId });
   });
-  app.delete('/api/session', (req,res) => {
+  app.delete('/api/session', requireDesignerRequestOrigin, (req,res) => {
     clearDesignerSession(req,res);
     return res.set('Cache-Control','no-store').json({ok:true});
   });
