@@ -27,8 +27,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
-    <link rel="stylesheet" href="/styles.css?v=designer-ready-32" />
-    <script src="/script.js?v=designer-ready-32" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=designer-settings-33" />
+    <script src="/script.js?v=designer-settings-33" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=atelier-2" />
     <script src="/atelier.js?v=atelier-2" defer></script>
     <script>
@@ -333,6 +333,16 @@
           <p>Set up your public designer identity, then add your first piece.</p>
           <button id="start-profile-setup" class="primary-button" type="button">Set up my designer profile</button>
         </div>
+        <details id="designer-settings" class="designer-settings-card">
+          <summary>Designer settings</summary>
+          <form id="designer-settings-form" class="stack-form">
+            <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
+            <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
+            <label for="designer-account-email">Email address</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required />
+            <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
+            <p id="designer-settings-message" role="status" class="form-message"></p>
+          </form>
+        </details>
         <form id="designer-brand-form" class="stack-form">
           <h3>Your designer identity</h3>
           <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
