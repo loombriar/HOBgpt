@@ -257,59 +257,34 @@ test('uploaded product photos fit fully in gallery, detail, upload, designer, an
   assert.match(finalImageFitRules, /object-position:\s*center\s*!important/);
 });
 
-test('header and full-size category banners are served with live filters', async () => {
-  const pageResponse = await fetch(`${baseUrl}/`);
-  const html = await pageResponse.text();
-  assert.equal(pageResponse.status, 200);
-  assert.ok(html.indexOf('<nav class="sewing-nav"') < html.indexOf('<a class="sewing-brand briar-wordmark"'), 'navigation must precede the banner');
-  assert.doesNotMatch(html, /class="room-nav-icon"/);
-  for (const asset of [
-    'house-of-briar-pastel-wordmark-v2.webp',
-    'blackberry-house-nav-frame-v1.webp',
-    'suitcase-cart-v1.svg'
-  ]) {
-    const storefrontCss = await (await fetch(`${baseUrl}/styles.css`)).text();
-    assert.ok(html.includes(encodeURIComponent(asset)) || storefrontCss.includes(asset), `storefront should reference ${asset}`);
-    const image = await fetch(`${baseUrl}/${encodeURIComponent(asset)}`);
-    assert.equal(image.status, 200, `${asset} should be served`);
-    assert.match(image.headers.get('content-type'), asset.endsWith('.svg') ? /image\/svg\+xml/ : /image\/webp/);
+test('editorial storefront serves its stylesheet and keeps account and cart entry points', async () => {
+  const page = await fetch(`${baseUrl}/`);
+  const html = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(html, /class="fashion-wordmark"/);
+  assert.ok(html.indexOf('/fashion.css?') > html.indexOf('/atelier.css?'), 'editorial styles must follow the decorative layer');
+  for (const id of ['visitor-suite-btn', 'designer-login-btn', 'cart-btn', 'header-signout-btn']) {
+    assert.ok(html.includes(`id="${id}"`), `${id} must remain available to the existing interaction handlers`);
   }
-
-  const cssResponse = await fetch(`${baseUrl}/styles.css`);
-  const css = await cssResponse.text();
-  const bannerRules = css.slice(css.lastIndexOf('/* Full botanical category-window banners'));
-  assert.ok(bannerRules.length > 0, 'final banner-window rules should be present');
-  assert.match(bannerRules, /\.category-window-art\s*\{[\s\S]*?object-fit:\s*contain\s*!important/);
-  assert.match(bannerRules, /\.illustrated-select\s*>\s*select\s*\{[\s\S]*?position:\s*absolute\s*!important/);
-  assert.match(bannerRules, /opacity:\s*\.001\s*!important/);
-  assert.match(bannerRules, /\.illustrated-select\.has-changed-selection\s+\.category-window-current\s*\{\s*display:\s*flex/);
+  const css = await fetch(`${baseUrl}/fashion.css`);
+  assert.equal(css.status, 200);
+  assert.match(css.headers.get('content-type'), /text\/css/);
+  assert.match(css.headers.get('cache-control'), /no-cache/);
+  assert.doesNotMatch(await css.text(), /<!doctype html>/i);
+  const cartIcon = await fetch(`${baseUrl}/suitcase-cart-v1.svg`);
+  assert.equal(cartIcon.status, 200);
+  assert.match(cartIcon.headers.get('content-type'), /image\/svg\+xml/);
 });
 
-test('filter windows use their full botanical artwork and keep accessible live captions', async () => {
-  const pageResponse = await fetch(`${baseUrl}/`);
-  const html = await pageResponse.text();
-  assert.equal(pageResponse.status, 200);
-  for (const [id, asset] of [
-    ['shop-garment-filter', 'pastel-briar-window-v1.svg'],
-    ['shop-aesthetic-filter', 'pastel-briar-window-v1.svg'],
-    ['shop-accessory-filter', 'pastel-briar-window-v1.svg']
-  ]) {
-    assert.ok(html.includes(`src="/${asset}"`), `${id} should display its authored banner`);
+test('editorial storefront retains accessible native category filters and their choices', async () => {
+  const html = await (await fetch(`${baseUrl}/`)).text();
+  for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-accessory-filter', 'shop-designer-filter', 'shop-pattern-filter']) {
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
-  assert.ok(html.includes('id="shop-pattern-filter" aria-label="Filter by print or pattern"'), 'pattern filter should remain an accessible native filter');
-  assert.equal((html.match(/class="category-window-current" aria-hidden="true"/g) || []).length, 5, 'each filter should have a live selected-value caption');
-  assert.match(html, /<option value="all">All prints<\/option>/, 'default pattern-window label should match its caption');
-  assert.match(html, /class="sewing-hero-art" src="\/sewing-hero-v2\.webp"/);
-
-  const cssResponse = await fetch(`${baseUrl}/styles.css`);
-  const css = await cssResponse.text();
-  const motionRules = css.slice(css.lastIndexOf('/* Readable titles stay inside each filter window'));
-  assert.ok(motionRules.length > 0);
-  assert.match(motionRules, /\.illustrated-select[\s\S]*?animation:\s*none\s*!important[\s\S]*?transform:\s*none\s*!important/);
-  assert.match(motionRules, /\.hero\.hero-artwork\s*\{[\s\S]*?contain:\s*paint\s*!important[\s\S]*?overflow:\s*hidden\s*!important/);
-  assert.match(motionRules, /\.hero\.hero-artwork\s*>\s*img\.hero-art\s*\{[\s\S]*?animation:\s*briar-drift\s+24s/);
-  assert.match(motionRules, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?img\.hero-art[\s\S]*?animation:\s*none\s*!important/);
+  assert.match(html, /<option value="all">All prints<\/option>/);
+  assert.match(html, /<option value="Costume">Costumes<\/option>/);
+  assert.match(html, /class="fashion-hero-side"/);
+  assert.doesNotMatch(html, /class="sewing-hero-art"/);
 });
 
 
