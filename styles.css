@@ -1754,3 +1754,8 @@ body.designer-room-open .designer-room-page{display:block}
 #seller-readiness-badge[data-ready="true"]{background:#306645;color:#fff;border-color:#306645}
 #seller-readiness-badge[data-ready="false"]{background:#fff8e8;color:#6b4b1f;border-color:rgba(139,96,35,.35)}
 @media(max-width:700px){.designer-room-header{margin:0 0 1rem;padding:0 0 1rem}.designer-room-page{padding:1rem}.seller-readiness-card{padding:1rem}}
+
+.designer-settings-card{margin:0 0 1rem;border:1px solid var(--border-strong);border-radius:18px;background:#fffdfb;overflow:hidden}
+.designer-settings-card>summary{cursor:pointer;padding:1rem 1.2rem;font-family:var(--display-font,serif);font-size:1.05rem;font-weight:700;list-style-position:inside}
+.designer-settings-card[open]>summary{border-bottom:1px solid var(--border)}
+.designer-settings-card form{padding:1.2rem}
