@@ -264,7 +264,7 @@ test('header and full-size category banners are served with live filters', async
   assert.ok(html.indexOf('<nav class="sewing-nav"') < html.indexOf('<a class="sewing-brand briar-wordmark"'), 'navigation must precede the banner');
   assert.doesNotMatch(html, /class="room-nav-icon"/);
   for (const asset of [
-    'house-of-briar-blackberry-wordmark-v1.webp',
+    'house-of-briar-pastel-wordmark-v2.webp',
     'blackberry-house-nav-frame-v1.webp',
     'suitcase-cart-v1.svg'
   ]) {

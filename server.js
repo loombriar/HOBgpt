@@ -3409,6 +3409,8 @@ function createApp(options = {}) {
   });
   const illustratedPublicAssets = [
     'pastel-briar-window-v1.svg',
+    'house-of-briar-pastel-wordmark-v2.webp',
+    'pastel-house-nav-frame-v2.webp',
     'blackberry-house-nav-frame-v1.webp',
     'house-of-briar-blackberry-wordmark-v1.webp',
     'category-garment-frame.webp',

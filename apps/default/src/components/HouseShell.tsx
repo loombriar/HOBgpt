@@ -107,7 +107,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
         </nav>}
       </header>
-      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-blackberry-wordmark-v1.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
+      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-pastel-wordmark-v2.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
       <main>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr_1fr] lg:px-8">
