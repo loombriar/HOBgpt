@@ -104,5 +104,5 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 @keyframes briar-leaf-breeze{from{transform:rotate(-5deg)}to{transform:rotate(6deg)}}
 @keyframes briar-berry-breeze{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
 @media(max-width:1400px){.briar-side-vine{display:none}}
-@media(max-width:650px){.blackberry-house .briar-section{padding-top:88px!important}.briar-divider{top:10px;width:calc(100% - 28px);height:56px;gap:24px}.briar-vine-art{width:calc(50% - 12px)}.briar-divider::after{font-size:12px}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
+@media(max-width:650px){.blackberry-house .briar-section{padding-top:104px!important}.briar-divider{top:10px;width:calc(100% - 32px);height:72px;gap:0}.briar-vine-art{width:100%}.briar-divider>.briar-vine-art:last-child,.briar-divider::after{display:none}.blackberry-house .atelier-photo,.blackberry-house .atelier-collection,.blackberry-house .house-spotlight{border-radius:12px}.briar-branch{animation-duration:9s}}
 @media(prefers-reduced-motion:reduce){.briar-branch,.briar-leaf,.briar-berry{animation:none!important;transform:none!important}}
