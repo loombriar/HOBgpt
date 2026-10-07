@@ -1362,7 +1362,7 @@ function createApp(options = {}) {
       try{ await stripeApi(`accounts/${encodeURIComponent(accountId)}`); }
       catch(error){
         const message=String(error?.message||'');
-        if(/cannot access|application access may have been revoked|does not have access|no such account/i.test(message)){
+        if(error?.providerCode==='account_invalid'||/cannot access|application access may have been revoked|does not have access|no such account/i.test(message)){
           log('error','seller_connect_account_inaccessible',{designerId:designer.id});
           db.prepare("UPDATE designer_profiles SET stripe_account_id=NULL,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due='[]',stripe_status_checked_at=? WHERE id=?").run(new Date().toISOString(),designer.id);
           accountId='';
@@ -1650,7 +1650,7 @@ function createApp(options = {}) {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       log('error','stripe_api_failed',{pathname,status:response.status,providerCode:String(payload?.error?.code||'').slice(0,80),providerMessage:String(payload?.error?.message||'').slice(0,300)});
-      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});
+      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerCode:String(payload?.error?.code||'').slice(0,80)});
     }
     return payload;
   }
