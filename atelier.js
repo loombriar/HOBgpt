@@ -136,6 +136,8 @@ function blackberryVine(vertical=false){
 }
 document.body.classList.add('blackberry-house');
 const briarVisibility='IntersectionObserver' in window?new IntersectionObserver(entries=>{entries.forEach(entry=>entry.target.classList.toggle('briar-in-view',entry.isIntersecting));},{rootMargin:'80px'}):null;
+const briarMasthead=document.querySelector('.sewing-header');
+if(briarMasthead){const trim=makeElement('div','briar-divider briar-header-vine');trim.setAttribute('aria-hidden','true');trim.append(blackberryVine(),blackberryVine());briarMasthead.append(trim);if(briarVisibility)briarVisibility.observe(briarMasthead);else briarMasthead.classList.add('briar-in-view');}
 document.querySelectorAll('.house-editorial,.house-collections,.house-stories,.house-styling,.designer-callout-section,.product-section,.story-section,.curation-section,.newsletter-section').forEach((section,index)=>{
   section.classList.add('briar-section');
   const divider=makeElement('div','briar-divider');divider.setAttribute('aria-hidden','true');divider.append(blackberryVine(),blackberryVine());section.prepend(divider);

@@ -89,6 +89,7 @@ body[data-motion='paused'] .sewing-hero::after,body[data-motion='paused'] .sewin
 .blackberry-house .briar-section::before{display:none!important}
 .briar-divider{position:absolute;top:8px;left:50%;width:min(1120px,calc(100% - 48px));height:100px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:48px;pointer-events:none;z-index:0}
 .briar-divider::after{content:'✦';position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-size:18px;color:#ac9059}
+.blackberry-house .sewing-header .briar-header-vine{position:relative;order:2;left:auto;top:auto;width:min(860px,100%);height:70px;transform:none;flex-shrink:0;margin:-12px auto 0}
 .briar-vine-art{display:block;width:calc(50% - 24px);height:100%;overflow:visible;pointer-events:none}
 .briar-divider>.briar-vine-art:last-child{transform:scaleX(-1)}
 .briar-branch{transform-box:fill-box;transform-origin:left center;animation:briar-sway 7s ease-in-out infinite alternate}
