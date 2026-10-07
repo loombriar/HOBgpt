@@ -3409,6 +3409,9 @@ function createApp(options = {}) {
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
+  app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-token'}));
+  const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
+  app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
   if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
 
   app.get('/api/health', (_req, res) => {
@@ -3463,10 +3466,9 @@ function createApp(options = {}) {
   app.get('/designers/:designerId', sendFrontend);
   app.get('/account', hasReactBuild ? sendFrontend : (_req, res) => res.redirect('/#visitor-suite'));
   app.get('/checkout', sendFrontend);
-  app.get('/', sendFrontend);
-  app.get('/index.html', sendFrontend);
+
   if (hasReactBuild) {
-    app.get(/^\/(?!api(?:\/|$)|media(?:\/|$)|_genesis(?:\/|$)).*/, sendFrontend);
+    app.get(['/shop','/shop/:productId','/cart','/admin','/sell'], sendFrontend);
   }
   for(const asset of ['atelier.css','atelier.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
