@@ -30,6 +30,7 @@
     <link rel="stylesheet" href="/styles.css?v=header-4" />
     <script src="/script.js?v=verified-settings-34" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
+    <link rel="stylesheet" href="/fashion.css?v=editorial-1" />
     <script src="/atelier.js?v=blackberry-3" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
@@ -44,7 +45,7 @@
         
 
         <nav class="sewing-nav" aria-label="Main navigation">
-          <a class="nav-hotspot" href="#shop" aria-label="Shop">Shop</a>
+          <a class="nav-hotspot" href="/#shop" aria-label="Shop">Shop</a>
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
@@ -53,11 +54,11 @@
           <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Your traveling suitcase: chosen treasures wait here before their journey through checkout and home to you.</span></button>
           <button id="header-signout-btn" class="nav-hotspot" type="button" hidden>Sign out</button>
         </nav>
-        <a class="sewing-brand briar-wordmark" href="#top" aria-label="House of Briar — back to top"><img src="/house-of-briar-pastel-wordmark-v2.webp" alt="House of Briar" width="1800" height="600" fetchpriority="high" /></a>
+        <a class="sewing-brand briar-wordmark" href="#top" aria-label="House of Briar — back to top"><span class="fashion-wordmark">HOUSE <i>of</i> BRIAR<span class="fashion-brand-caption">INDEPENDENT BY DESIGN</span></span></a>
       </header>
       <main id="top">
         <section class="hero sewing-hero" aria-label="House of Briar — Made by someone, not everyone.">
-          <img class="sewing-hero-art" src="/sewing-hero-v2.webp" alt="" aria-hidden="true" />
+          <div class="fashion-hero-side" aria-hidden="true"><span>THE INDEPENDENT EDIT</span><p>Personal style.<br /><i>Singular vision.</i></p><span>HOUSE OF BRIAR — EST. 2026</span></div>
           <div class="container sewing-hero-content">
             <p class="eyebrow">Independent by design</p>
             <h1>Made by someone,<br /><em>not everyone.</em></h1>
@@ -68,6 +69,12 @@
             </div>
           </div>
         </section>
+
+        <aside class="marketplace-fee-note" aria-label="How House of Briar supports designers">
+          <div class="container">
+            <p><strong>90% to the designer. 10% to House of Briar.</strong> Our marketplace fee helps support independent designers and keep the House growing. <a href="#how-house-works">Learn how it works →</a></p>
+          </div>
+        </aside>
 
         <section class="feature-bar">
           <div class="container feature-inline">
@@ -100,6 +107,15 @@
               <p class="designer-callout-line">No application. No gatekeeping. Just bring what you make.</p>
             </div>
             <a class="primary-button designer-callout-button" href="#designer-signup" id="designer-signup-link">Join the House →</a>
+          </div>
+        </section>
+
+        <section id="how-house-works" class="house-stories" aria-labelledby="how-house-works-title">
+          <div class="container">
+            <p class="eyebrow">How the House works</p>
+            <h2 id="how-house-works-title">A marketplace built around independent designers.</h2>
+            <p>When a piece sells, House of Briar retains a 10% marketplace fee from the designer’s sale and 90% stays with the designer. Buyers are not charged an extra 10% marketplace fee. The fee helps operate and maintain the marketplace, support orders, promote independent designers, and build tools for the creative businesses in the House.</p>
+            <p class="small-print">Shipping and applicable taxes are shown separately where required.</p>
           </div>
         </section>
 
@@ -288,7 +304,7 @@
     <section id="designer-modal" class="designer-room-page hidden" aria-labelledby="designer-dialog-title" tabindex="-1">
       <div class="dialog-header designer-room-header">
         <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer’s Room</h2></div>
-        <button class="secondary-button" id="modal-close" type="button" aria-label="Return to storefront">← Back to the House</button>
+        <a class="secondary-button" id="modal-close" href="/#shop" aria-label="Back to shopping">← Back to shopping</a>
       </div>
       <section id="designer-login-panel" class="login-panel">
         <p>Sign in with your designer access token to manage your listings. Your identity is verified by the server.</p>

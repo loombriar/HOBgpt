@@ -8,6 +8,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
+const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
 
 const MAX_IMAGES = 10;
@@ -795,6 +796,13 @@ function createApp(options = {}) {
       const parsed = new URL(value);
       return parsed.protocol === 'https:' || parsed.protocol === 'http:';
     } catch { return false; }
+  }
+  function analyticsReferrerOrigin(value) {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.origin.slice(0, 300) : null;
+    } catch { return null; }
   }
 
   db.exec(`CREATE TABLE IF NOT EXISTS rate_limit_buckets (
@@ -2246,7 +2254,7 @@ function createApp(options = {}) {
       crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
       text(body.designer, 200), number(body.value), text(body.currency, 12), text(body.query, 300),
       number(body.resultCount), number(body.itemCount), text(body.orderId, 100), text(body.source, 100),
-      text(body.path, 500), text(body.referrer, 1000), text(body.utmSource, 200), text(body.utmMedium, 200),
+      text(body.path, 500), analyticsReferrerOrigin(body.referrer), text(body.utmSource, 200), text(body.utmMedium, 200),
       text(body.utmCampaign, 300), text(body.designerId,100), ['mobile','tablet','desktop'].includes(String(body.deviceCategory)) ? String(body.deviceCategory) : null, new Date().toISOString()
     );
     res.status(202).json({ accepted: true });
@@ -2468,7 +2476,7 @@ function createApp(options = {}) {
     if(!incomingSocialLinks||typeof incomingSocialLinks!=='object'||Array.isArray(incomingSocialLinks))return fail(res,422,'validation_error','Check your social media links.');
     const socialLinks={};
     const socialHosts={instagram:['instagram.com'],tiktok:['tiktok.com'],pinterest:['pinterest.com','pin.it'],youtube:['youtube.com','youtu.be'],facebook:['facebook.com','fb.com']};
-    for(const platform of allowedSocials){const entry=incomingSocialLinks[platform];if(!entry)continue;const url=String(typeof entry==='string'?entry:entry.url||'').trim();const visible=typeof entry==='string'?true:entry.visible!==false;if(url){if(url.length>500||!validOptionalHttpUrl(url))return fail(res,422,'validation_error',`Enter a valid ${platform} URL.`);if(platform!=='website'){let host='';try{host=new URL(url).hostname.toLowerCase().replace(/^www\./,'')}catch{};if(!socialHosts[platform].some(domain=>host===domain||host.endsWith('.'+domain)))return fail(res,422,'validation_error',`Enter a ${platform} URL from the official ${platform} domain.`);}socialLinks[platform]={url,visible};}}
+    for(const platform of allowedSocials){const entry=incomingSocialLinks[platform];if(!entry)continue;const url=String(typeof entry==='string'?entry:entry.url||'').trim();const visible=typeof entry==='string'?true:entry.visible!==false;if(url){if(url.length>500||!validOptionalHttpUrl(url)||new URL(url).protocol!=='https:')return fail(res,422,'validation_error',`Enter a valid HTTPS ${platform} URL.`);if(platform!=='website'){let host='';try{host=new URL(url).hostname.toLowerCase().replace(/^www\./,'')}catch{};if(!socialHosts[platform].some(domain=>host===domain||host.endsWith('.'+domain)))return fail(res,422,'validation_error',`Enter a ${platform} URL from the official ${platform} domain.`);}socialLinks[platform]={url,visible};}}
     const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(v=>String(v).trim()).filter(Boolean))]:(()=>{try{return JSON.parse(current.categories||'[]')}catch{return[]}})();
     if(!brandName||brandName.length>120||bio.length>2000||location.length>160||productionMethod.length>120||portfolioUrl.length>500||socialUrl.length>500||!validOptionalHttpUrl(portfolioUrl)||!validOptionalHttpUrl(socialUrl)||categories.length>12||categories.some(v=>v.length>80))return fail(res,422,'validation_error','Check the storefront profile fields and links.');
     db.prepare('UPDATE designer_profiles SET brand_name=?,bio=?,location=?,production_method=?,categories=?,portfolio_url=?,social_url=?,social_links=? WHERE id=?').run(brandName,bio||null,location||null,productionMethod||null,JSON.stringify(categories),portfolioUrl||null,socialUrl||null,JSON.stringify(socialLinks),req.designerId);
@@ -3565,8 +3573,7 @@ function createApp(options = {}) {
     app.get(['/shop','/shop/:productId','/cart','/admin','/sell'], sendFrontend);
   }
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
-  for (const asset of ['runway.css', 'runway.js']) app.get('/'+asset, (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,asset)); });
-  for(const asset of ['atelier.css','atelier.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for(const asset of ['atelier.css','atelier.js','fashion.css','runway.css','runway.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
@@ -3665,7 +3672,28 @@ if (require.main === module) {
   emailTimer.unref();
   void reconcilePendingCheckouts();
   void processEmailOutbox();
-  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); server.close(() => { db.close(); process.exit(0); }); };
+
+  const backupEnabled = process.env.OFFSITE_BACKUP_ENABLED === 'true';
+  const backupIntervalMs = Math.max(60 * 60 * 1000, Number(process.env.OFFSITE_BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000));
+  const backupStartupDelayMs = Math.max(30_000, Number(process.env.OFFSITE_BACKUP_STARTUP_DELAY_MS || 5 * 60 * 1000));
+  let backupRunning = false;
+  const runOffsiteBackup = () => {
+    if (!backupEnabled || backupRunning) return;
+    backupRunning = true;
+    const child = spawn(process.execPath, [path.join(__dirname, 'scripts', 'backup-offsite.js')], { env: process.env, stdio: 'inherit' });
+    child.once('error', error => { backupRunning = false; console.error('Off-site backup failed to start:', error); });
+    child.once('exit', code => {
+      backupRunning = false;
+      if (code !== 0) console.error('Off-site backup exited with code', code);
+      else console.log('Off-site backup completed successfully');
+    });
+  };
+  const backupStartupTimer = backupEnabled ? setTimeout(runOffsiteBackup, backupStartupDelayMs) : null;
+  if (backupStartupTimer) backupStartupTimer.unref();
+  const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
+  if (backupTimer) backupTimer.unref();
+
+  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }

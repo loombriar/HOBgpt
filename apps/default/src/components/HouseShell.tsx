@@ -75,21 +75,20 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="fashion-app min-h-screen bg-background text-foreground">
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
-            <img src="https://files.taskade.com/space-files/dcdb0306-5408-4b6e-9f03-5548f7a3e865/original/house-of-briar-crest.png" alt="House of Briar crest" className="size-10 shrink-0 rounded-full border border-primary/30 object-cover shadow-sm transition group-hover:rotate-3" />
             <span className="min-w-0 leading-none">
               <span className="block truncate font-serif text-base font-semibold tracking-wide sm:text-lg">House of Briar</span>
               <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm md:flex" aria-label="Primary navigation">
-            <NavLink to="/shop" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
-            <NavLink to="/designers" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
-            <NavLink to="/account" className={({ isActive }) => isActive ? 'briar-house-link font-medium text-primary' : 'briar-house-link text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
+            <NavLink to="/shop" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
+            <NavLink to="/designers" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
+            <NavLink to="/account" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
@@ -110,12 +109,11 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
         </nav>}
       </header>
-      <div className="border-b border-border bg-[#fbf5e8] px-4 py-3"><Link to="/" aria-label="House of Briar home" className="mx-auto block w-full max-w-4xl"><img src="/house-of-briar-pastel-wordmark-v2.webp" alt="House of Briar" width="1800" height="600" fetchPriority="high" className="block aspect-[3/1] w-full object-contain" /></Link></div>
       <main>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr_1fr] lg:px-8">
           <div>
-            <p className="font-serif text-2xl">A world woven from moonlight, moss, and imagination.</p>
+            <p className="font-serif text-2xl">Independent fashion. Individual expression.</p>
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">We celebrate independent designers, slow-made pieces, and the beauty of being different.</p>
           </div>
           <div>

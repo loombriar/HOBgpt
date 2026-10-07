@@ -2,6 +2,35 @@ const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const FAVORITE_KEY = 'house-of-briar:favorites';
+const ANALYTICS_SESSION_KEY = 'house-of-briar:analytics-session';
+
+function trackStorefrontPageView() {
+  if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) return;
+  let sessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem(ANALYTICS_SESSION_KEY, sessionId);
+  }
+  const params = new URLSearchParams(location.search);
+  let referrer;
+  try { referrer = document.referrer ? new URL(document.referrer).origin : undefined; } catch {}
+  const payload = JSON.stringify({
+    event: 'page_view',
+    sessionId,
+    path: location.pathname,
+    referrer,
+    utmSource: params.get('utm_source') || undefined,
+    utmMedium: params.get('utm_medium') || undefined,
+    utmCampaign: params.get('utm_campaign') || undefined,
+    deviceCategory: /tablet|ipad/i.test(navigator.userAgent) ? 'tablet' : /mobile|iphone|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+  });
+  try {
+    if (navigator.sendBeacon) navigator.sendBeacon('/api/analytics/events', new Blob([payload], { type: 'application/json' }));
+    else fetch('/api/analytics/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+  } catch {}
+}
+
+trackStorefrontPageView();
 
 function showCheckoutReturnStatus() {
   const params = new URLSearchParams(window.location.search);
@@ -46,11 +75,9 @@ function openDesignerRoom(target=''){
   syncDesignerRoomRoute();
   if(target)requestAnimationFrame(()=>document.querySelector(target)?.scrollIntoView({behavior:'smooth',block:'start'}));
 }
-function closeDesignerRoom(){
-  if(location.pathname===DESIGNER_ROOM_PATH){
-    if(history.state?.room==='designer')history.back();
-    else{history.pushState({},'', '/'+location.search);syncDesignerRoomRoute();}
-  }
+function closeDesignerRoom(event){
+  event?.preventDefault();
+  window.location.assign('/#shop');
 }
 window.addEventListener('popstate',()=>syncDesignerRoomRoute());
 
