@@ -288,7 +288,7 @@ function createBadgePill(label, className = 'badge') {
   if (className.includes('founding-badge')) {
     pill.title = 'One of the first 25 designers to join House of Briar.';
     const artwork = makeElement('img', 'supporter-badge-art');
-    artwork.src = '/founding-designer-v1.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
+    artwork.src = '/founding-designer-v2.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
   }
   return pill;
 }
@@ -1803,8 +1803,19 @@ function openAdminReview() {
   if (adminToken) renderAdminQueue();
 }
 
+byId('founder-signup-link')?.addEventListener('click', event => { event.preventDefault(); openDesignerRoom('#designer-signup'); });
+async function loadFounderSpots() {
+  try {
+    const data = await apiRequest('/api/founding-designers');
+    const remaining = Number(data.remaining);
+    if (!Number.isInteger(remaining) || remaining < 0 || remaining > 25) return;
+    if (byId('founder-spots')) byId('founder-spots').textContent = remaining ? `${remaining} of 25 founding spots remain. All designers are welcome.` : 'Our founding 25 are here. The House is still open to every independent designer.';
+    if (!remaining && byId('founder-signup-link')) byId('founder-signup-link').textContent = 'Join the House →';
+  } catch {}
+}
+loadFounderSpots();
+
 adminReviewBtn?.addEventListener('click', openAdminReview);
-byId('admin-views-btn')?.addEventListener('click', openAdminReview);
 if (window.location.hash === '#admin-review') openAdminReview();
 window.addEventListener('hashchange', () => {
   if (window.location.hash === '#admin-review' && !adminReviewDialog?.open) openAdminReview();
@@ -1852,6 +1863,15 @@ async function renderAdminOverview() {
       if (data.traffic) {
         section.id = 'admin-website-views';
         section.append(makeElement('p', '', `Website activity in the last ${data.periodDays || 30} days.`));
+        if (data.traffic.today) {
+          section.append(makeElement('h4', '', 'Today'));
+          const todayStats = makeElement('div', 'admin-traffic-stats');
+          for (const [label, value] of [["Today's page views", data.traffic.today.views], ["Today's visits", data.traffic.today.visits]]) {
+            const card = makeElement('div', 'admin-traffic-stat');
+            card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label)); todayStats.append(card);
+          }
+          section.append(todayStats, makeElement('p', 'small-print', 'Daily counts reset at midnight Eastern time (America/New_York).'));
+        }
         const stats = makeElement('div', 'admin-traffic-stats');
         for (const [label, value] of [['Page views', data.traffic.pageViews], ['Visits', data.traffic.visits]]) {
           const card = makeElement('div', 'admin-traffic-stat');
@@ -1859,6 +1879,15 @@ async function renderAdminOverview() {
           stats.append(card);
         }
         section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Product views appear separately in each designer’s studio.'));
+        if (Array.isArray(data.traffic.daily)) {
+          section.append(makeElement('h4', '', 'Daily counts'));
+          const table = makeElement('table', 'admin-traffic-table'); table.id = 'admin-daily-traffic';
+          const head = document.createElement('thead'), header = document.createElement('tr');
+          for (const label of ['Date (Eastern)', 'Views', 'Visits']) { const th = makeElement('th', '', label); th.scope = 'col'; header.append(th); }
+          head.append(header); const body = document.createElement('tbody');
+          for (const row of [...data.traffic.daily].reverse()) { const tr = document.createElement('tr'); tr.append(makeElement('td', '', row.day), makeElement('td', '', Number(row.views || 0).toLocaleString()), makeElement('td', '', Number(row.visits || 0).toLocaleString())); body.append(tr); }
+          table.append(head, body); section.append(table);
+        }
         for (const [title, rows, key] of [['Top pages', data.traffic.topPages, 'path'], ['Traffic sources', data.traffic.sources, 'source'], ['Devices', data.traffic.devices, 'device']]) {
           section.append(makeElement('h4', '', title));
           if (!rows?.length) { section.append(makeElement('p', '', 'No tracked activity yet.')); continue; }

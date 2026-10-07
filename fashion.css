@@ -101,3 +101,11 @@ body.blackberry-house .product-section .shop-drop-window .category-window-icon{d
 .atelier-cover-empty{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;color:#713d4e;font:italic 28px/1.2 Georgia,serif;text-align:center}
 
 body.blackberry-house .footer-links{flex-wrap:wrap;align-items:center}
+
+.founder-announcement{background:#efe1d9;border-bottom:1px solid #b99898;padding:12px 0}
+.founder-announcement-inner{display:flex;align-items:center;gap:20px}
+.founder-announcement-inner>img{width:80px;height:80px;flex-shrink:0;border-radius:50%}
+.founder-announcement-inner>div{flex:1}.founder-announcement p{margin:4px 0;font-size:14px;line-height:1.5}.founder-announcement .small-print{font-size:12px}
+@media(max-width:650px){.founder-announcement-inner{flex-wrap:wrap;gap:12px}.founder-announcement-inner>img{width:64px;height:64px}.founder-announcement-inner>div{min-width:180px}.founder-announcement .secondary-button{margin-left:76px}}
+/* Match the existing badge pills' gold border, spacing and image size. */
+.founding-badge{display:inline-flex!important;align-items:center;gap:7px!important;background:#fff7ee!important;color:#714b3d!important;border:1px solid #c7ab68!important;padding:5px 10px 5px 5px!important}

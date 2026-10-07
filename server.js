@@ -1,3 +1,4 @@
+const { dailyTraffic: summarizeDailyTraffic } = require('./lib/daily-traffic');
 const fs = require('node:fs');
 const path = require('node:path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -2308,10 +2309,10 @@ function createApp(options = {}) {
     const topDesigners=db.prepare(`SELECT designer_id designerId,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name='view_designer' AND designer_id IS NOT NULL AND created_at>=? GROUP BY designer_id ORDER BY views DESC LIMIT 20`).all(since);
     const trafficSources=db.prepare(`SELECT COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) source,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) ORDER BY views DESC LIMIT 20`).all(since);
     const devices=db.prepare(`SELECT COALESCE(device_category,'unknown') device,COUNT(*) views FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(device_category,'unknown') ORDER BY views DESC`).all(since);
-    const dailyTraffic=db.prepare(`SELECT substr(created_at,1,10) day,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY substr(created_at,1,10) ORDER BY day`).all(since);
+    const calendarTraffic=summarizeDailyTraffic(db.prepare(`SELECT created_at,session_id FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=?`).iterate(since));
     const rate=(from,to)=>from>0?Math.round((to/from)*1000)/10:0;
     const funnel={...counts, conversionRates:{viewToCart:rate(counts.view_product,counts.add_to_cart),cartToCheckout:rate(counts.add_to_cart,counts.begin_checkout),checkoutToPurchase:rate(counts.begin_checkout,counts.purchase),viewToPurchase:rate(counts.view_product,counts.purchase)},dropOff:{viewToCart:Math.max(0,counts.view_product-counts.add_to_cart),cartToCheckout:Math.max(0,counts.add_to_cart-counts.begin_checkout),checkoutToPurchase:Math.max(0,counts.begin_checkout-counts.purchase)}};
-    res.json({ periodDays: 30, events, traffic:{pageViews:Number(trafficRow?.page_views||0),visits:Number(trafficRow?.visits||0),topPages,topDesigners,sources:trafficSources,devices,daily:dailyTraffic}, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
+    res.json({ periodDays: 30, events, traffic:{pageViews:Number(trafficRow?.page_views||0),visits:Number(trafficRow?.visits||0),topPages,topDesigners,sources:trafficSources,devices,...calendarTraffic}, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
   });
 
     const galleryResponse = (req, res) => {
@@ -2403,6 +2404,12 @@ function createApp(options = {}) {
   require('./seller-tools').registerSellerTools({app,db,authDesigner,upload,fail,rateLimit,options});
   require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
   require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,options});
+
+  app.get('/api/founding-designers', (_req,res) => {
+    const awarded=Number(db.prepare('SELECT COUNT(*) count FROM founding_designers').get().count);
+    res.set('Cache-Control','no-store');
+    res.json({limit:25,awarded,remaining:Math.max(0,25-awarded)});
+  });
 
   app.get('/api/designers', (_req,res)=>{
     const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
@@ -3642,6 +3649,7 @@ function createApp(options = {}) {
     'heart-of-the-house-v1.webp',
     'verified-buyer-v1.webp',
     'founding-designer-v1.webp',
+    'founding-designer-v2.webp',
     'visitor-suite-door-v1.svg',
     'designer-room-door-v1.svg',
     'suitcase-cart-v1.svg',
