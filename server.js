@@ -550,6 +550,8 @@ function createApp(options = {}) {
   ensureColumn('donations', 'payment_provider', "TEXT NOT NULL DEFAULT 'stripe'");
   ensureColumn('donations', 'paypal_order_id', 'TEXT');
   ensureColumn('donations', 'paypal_capture_id', 'TEXT');
+  ensureColumn('donations', 'reconciliation_blocked_at', 'TEXT');
+  ensureColumn('donations', 'reconciliation_blocked_reason', 'TEXT');
 
   db.exec(`CREATE TABLE IF NOT EXISTS buyer_favorites (
     buyer_subject TEXT NOT NULL,
@@ -762,7 +764,8 @@ function createApp(options = {}) {
     const hits = new Map();
     return (req, res, next) => {
       const now = Date.now();
-      const key = `${keyPrefix}:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+      const key = `${keyPrefix}:${actor}`;
       let entry = hits.get(key);
       if (!entry || entry.resetAt <= now) entry = { count: 0, resetAt: now + windowMs };
       entry.count += 1;
@@ -781,6 +784,8 @@ function createApp(options = {}) {
   const emailChangeLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, keyPrefix: 'designer-email-change' });
   const emailVerifyLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: 'designer-email-verify' });
   const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: 'checkout' });
+  const aiToolLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: 'designer-ai-tool' });
+  const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
   function trustedAppOrigin(req) {
     return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
@@ -1160,17 +1165,6 @@ function createApp(options = {}) {
       }
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
-        const specialOfferId=session?.metadata?.special_offer_id;
-        if(specialOfferId&&session.payment_status==='paid'){
-          const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=? AND stripe_session_id=?').get(specialOfferId,session.id);
-          if(offer&&Number(session.amount_total)===offer.deposit_cents&&String(session.currency||'').toLowerCase()==='usd'&&offer.status==='offered'){
-            const paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:null;
-            db.prepare("UPDATE special_order_offers SET status='deposit_paid',accepted_at=?,deposit_paid_at=?,stripe_payment_intent_id=? WHERE id=?").run(new Date().toISOString(),new Date().toISOString(),paymentIntent,offer.id);
-            const accountId=designerStripeAccount(offer.designer_id),designerShare=Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10));
-            if(accountId&&designerShare>0){try{requireSellerTerms(offer.designer_id);const transfer=await stripeApi('transfers',{method:'POST',body:new URLSearchParams({amount:String(designerShare),currency:'usd',destination:accountId,transfer_group:`special-${offer.id}`,'metadata[special_offer_id]':offer.id,'metadata[designer_id]':offer.designer_id}).toString(),idempotencyKey:`hob-special-transfer-${offer.id}`});db.prepare('UPDATE special_order_offers SET stripe_transfer_id=? WHERE id=?').run(transfer.id,offer.id);}catch(error){console.error('Special order deposit transfer failed:',offer.id,error);}}
-            notifyDesigner(offer.designer_id,'special_order_deposit','Special-order deposit paid',`The deposit for ${offer.title} has been paid. Lead time: ${offer.lead_days_min}–${offer.lead_days_max} days.`,{inquiryId:offer.inquiry_id,actionPath:'/account#inquiries',priority:'important',eventKey:`special-deposit:${offer.id}`});
-          }
-        }
         const orderId = session?.metadata?.order_id;
         if (orderId) releaseOrderInventory(orderId);
       }
@@ -1630,20 +1624,13 @@ function createApp(options = {}) {
   const brandStripeAccounts = parseDesignerTokens(options.brandStripeAccounts ?? process.env.STRIPE_BRAND_ACCOUNTS_JSON);
 
   function syncConfiguredBrandStripeAccounts() {
+    // Legacy brand mappings are intentionally read-only. A configured account ID is
+    // not proof that the account belongs to this Connect platform, so startup must
+    // never overwrite the database's verified/onboarded seller relationship.
     for (const [brandName, accountIdRaw] of Object.entries(brandStripeAccounts)) {
       const accountId=String(accountIdRaw||'').trim();
       if(!brandName||!accountId.startsWith('acct_'))continue;
-      if(platformStripeAccountId&&accountId===platformStripeAccountId){
-        log('error','seller_stripe_mapping_rejected',{brandName,reason:'platform_account'});
-        continue;
-      }
-      const matches=db.prepare("SELECT id FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
-      if(matches.length!==1){
-        log('error','seller_stripe_mapping_not_unique',{brandName,matchCount:matches.length});
-        continue;
-      }
-      db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,matches[0].id);
-      log('info','seller_stripe_mapping_synced',{brandName,designerId:matches[0].id});
+      log('info','seller_stripe_legacy_mapping_ignored',{brandName});
     }
   }
   syncConfiguredBrandStripeAccounts();
@@ -1836,7 +1823,7 @@ function createApp(options = {}) {
     donationReconciliationRunning=true;
     const results={checked:0,awarded:0,errors:0,pending:0,unlinked:0,mismatch:0,unavailableSessions:0};
     try {
-      const donations=db.prepare("SELECT * FROM donations d WHERE stripe_session_id IS NOT NULL AND (status='pending' OR (status='paid' AND amount_cents>=500 AND NOT EXISTS (SELECT 1 FROM user_badges b WHERE (b.source_type='donation' AND b.source_id=d.id) OR (b.buyer_subject=d.buyer_subject AND b.badge_type='supporter')))) ORDER BY created_at DESC LIMIT 100").all();
+      const donations=db.prepare("SELECT * FROM donations d WHERE stripe_session_id IS NOT NULL AND reconciliation_blocked_at IS NULL AND (status='pending' OR (status='paid' AND amount_cents>=500 AND NOT EXISTS (SELECT 1 FROM user_badges b WHERE (b.source_type='donation' AND b.source_id=d.id) OR (b.buyer_subject=d.buyer_subject AND b.badge_type='supporter')))) ORDER BY created_at DESC LIMIT 100").all();
       for(const donation of donations){
         results.checked++;
         try {
@@ -1846,7 +1833,14 @@ function createApp(options = {}) {
           else if(!donationBadgeSubject(donation,(session.customer_details?.email||session.customer_email||donation.buyer_email||'').trim().toLowerCase()))results.unlinked++;
           else if(session.id!==donation.stripe_session_id||session.metadata?.donation_id!==donation.id||session.currency!==donation.currency||session.amount_total!==donation.amount_cents)results.mismatch++;
           if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
-        }catch(error){results.errors++;if(/No such checkout\.session|No such checkout session/i.test(String(error?.message)))results.unavailableSessions++;}
+        }catch(error){
+          results.errors++;
+          if(/No such checkout\.session|No such checkout session/i.test(String(error?.message))){
+            results.unavailableSessions++;
+            db.prepare("UPDATE donations SET reconciliation_blocked_at=COALESCE(reconciliation_blocked_at,?),reconciliation_blocked_reason=COALESCE(reconciliation_blocked_reason,'stripe_session_unavailable') WHERE id=?").run(new Date().toISOString(),donation.id);
+            log('error','donation_reconciliation_quarantined',{donationId:donation.id,reason:'stripe_session_unavailable'});
+          }
+        }
       }
       if(results.checked)log('info','donation_badges_reconciled',results);
       return results;
@@ -2220,7 +2214,7 @@ function createApp(options = {}) {
     return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges},items:rows.map(row=>serializeListing(row,'public'))});
   });
 
-  app.post('/api/my/designer-profile/portrait', authDesigner, upload.single('image'), async (req,res,next)=>{
+  app.post('/api/my/designer-profile/portrait', authDesigner, imageUploadLimiter, upload.single('image'), async (req,res,next)=>{
     try{
       if(!req.file)return fail(res,400,'missing_image','Choose a portrait to upload.');
       const detectedMime=detectImageMime(req.file.buffer);
@@ -2248,7 +2242,7 @@ function createApp(options = {}) {
     res.type('image/webp');res.set('Cache-Control','public, max-age=3600');return res.sendFile(path.join(imagesDir,profile.portrait_storage_key));
   });
 
-  app.post('/api/my/designer-profile/logo', authDesigner, upload.single('image'), async (req,res,next)=>{
+  app.post('/api/my/designer-profile/logo', authDesigner, imageUploadLimiter, upload.single('image'), async (req,res,next)=>{
     try{
       if(!req.file)return fail(res,400,'missing_image','Choose a logo to upload.');
       const detectedMime=detectImageMime(req.file.buffer);
@@ -2457,7 +2451,7 @@ function createApp(options = {}) {
     return res.json({item:serializeListing(getListing(row.id),'private')});
   });
 
-  app.post('/api/listings/:listingId/images', authDesigner, upload.single('image'), async (req, res, next) => {
+  app.post('/api/listings/:listingId/images', authDesigner, imageUploadLimiter, upload.single('image'), async (req, res, next) => {
     try {
       const row = ownedEditableListing(req, res);
       if (!row) return;
@@ -3084,15 +3078,24 @@ function createApp(options = {}) {
     return res.json({ok:true,updated:result.changes});
   });
 
-  app.post('/api/my/fabric-finder', authDesigner, fabricFinderUpload.array('photos',3), async (req,res,next)=>{
+  app.post('/api/my/fabric-finder', authDesigner, aiToolLimiter, fabricFinderUpload.array('photos',3), async (req,res,next)=>{
     try{
       const apiKey=process.env.OPENAI_API_KEY;
       if(!apiKey)return fail(res,503,'fabric_finder_not_configured','Fabric Finder is not configured yet.');
       const photos=Array.isArray(req.files)?req.files:[];
       if(!photos.length)return fail(res,422,'photo_required','Take or upload at least one fabric photo.');
-      for(const photo of photos){if(!['image/jpeg','image/png','image/webp'].includes(photo.mimetype))return fail(res,415,'unsupported_image','Use a JPEG, PNG, or WebP fabric photo.');}
+      const validatedPhotos=[];
+      for(const photo of photos){
+        const detectedMime=detectImageMime(photo.buffer);
+        if(!detectedMime)return fail(res,415,'unsupported_image','Use a valid JPEG, PNG, or WebP fabric photo.');
+        let metadata;
+        try{metadata=await sharp(photo.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();}catch{return fail(res,415,'unsupported_image','Use a valid JPEG, PNG, or WebP fabric photo.');}
+        if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Fabric photo dimensions are too large.');
+        if(Number(metadata.pages||1)>1)return fail(res,422,'animated_image','Animated images are not supported.');
+        validatedPhotos.push({buffer:photo.buffer,mimeType:detectedMime});
+      }
       const content=[{type:'input_text',text:'Identify this fabric visually for a clothing designer. Return JSON only with keys: fabricFamily (short string), likelyFibers (array of strings, possibilities only), construction (weave or knit structure), texture, weight, drape, likelyUses (array), careConsiderations (array), confidence (low|medium|high), listingMaterialSuggestion (short string), notes (short string). Never claim exact fiber composition or percentages from a photo. State uncertainty when visual evidence is insufficient.'},
-        ...photos.map(photo=>({type:'input_image',image_url:`data:${photo.mimetype};base64,${photo.buffer.toString('base64')}`,detail:'high'}))];
+        ...validatedPhotos.map(photo=>({type:'input_image',image_url:`data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`,detail:'high'}))];
       const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Fabric analysis failed.'),{statusCode:502});
@@ -3423,8 +3426,10 @@ function createApp(options = {}) {
       const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
       return fail(res, error.code === 'LIMIT_FILE_SIZE' ? 413 : 400, code, message);
     }
-    log('error','request_failed',{ error: String(error?.message || error).slice(0,500) });
-    return fail(res, error.statusCode || 500, error.statusCode ? 'request_failed' : 'internal_error', error.message || 'The request could not be completed.');
+    const status=Number.isInteger(error?.statusCode)?error.statusCode:500;
+    log('error','request_failed',{ error: String(error?.message || error).slice(0,500), status });
+    if(status>=500)return fail(res,status,'internal_error','The request could not be completed. Please try again.');
+    return fail(res,status,'request_failed',error.message || 'The request could not be completed.');
   });
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
