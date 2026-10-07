@@ -477,7 +477,7 @@ test('records anonymous site visits and exposes traffic summaries without IP sto
   assert.ok(dashboard.body.traffic.visits>=1);
   assert.ok(dashboard.body.traffic.topPages.some(row=>row.path==='/designers/maker'));
   assert.ok(dashboard.body.traffic.topDesigners.some(row=>row.designerId==='maker'));
-  const columns=instance.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
+  const columns=context.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
   assert.equal(columns.includes('ip'),false);
   assert.equal(columns.includes('ip_address'),false);
 });
