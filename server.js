@@ -359,9 +359,20 @@ function createApp(options = {}) {
   ensureColumn('orders', 'payment_provider', "TEXT NOT NULL DEFAULT 'stripe'");
   ensureColumn('orders', 'paypal_order_id', 'TEXT');
   ensureColumn('orders', 'paypal_capture_id', 'TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS order_refunds (
+    order_id TEXT NOT NULL REFERENCES orders(id),
+    scope TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'initiating',
+    stripe_refund_id TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(order_id,scope)
+  )`);
   ensureColumn('orders', 'refund_status', 'TEXT');
   ensureColumn('orders', 'stripe_refund_id', 'TEXT');
   ensureColumn('orders', 'refunded_at', 'TEXT');
+  ensureColumn('designer_transfers', 'payout_in_flight', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_transfers', 'stripe_reversal_id', 'TEXT');
   ensureColumn('designer_transfers', 'payout_success_notified_at', 'TEXT');
   ensureColumn('designer_transfers', 'payout_failure_notified_at', 'TEXT');
@@ -1181,6 +1192,26 @@ function createApp(options = {}) {
         }
         return res.json({ received: true });
       }
+      if (['refund.created','refund.updated','refund.failed'].includes(event.type)) {
+        const refundId=event.data?.object?.id;
+        if(typeof refundId!=='string'||!refundId.startsWith('re_'))return res.status(400).send('Invalid refund event.');
+        const refund=await stripeApi(`refunds/${encodeURIComponent(refundId)}`);
+        const operation=db.prepare('SELECT * FROM order_refunds WHERE stripe_refund_id=?').get(refundId)
+          ||db.prepare('SELECT * FROM order_refunds WHERE order_id=? AND scope=?').get(refund.metadata?.order_id||'',refund.metadata?.refund_scope||'full');
+        const order=operation?db.prepare('SELECT * FROM orders WHERE id=?').get(operation.order_id):null;
+        if(operation&&order){
+          const intent=typeof refund.payment_intent==='string'?refund.payment_intent:refund.payment_intent?.id;
+          if(refund.id!==refundId||(operation.stripe_refund_id&&operation.stripe_refund_id!==refundId)||intent!==order.stripe_payment_intent_id||refund.amount!==operation.amount_cents||refund.currency!==order.currency||!['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))return res.status(400).send('Refund does not match this order.');
+          db.transaction(()=>{
+            db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(refundId,refund.status,new Date().toISOString(),operation.order_id,operation.scope);
+            updateRefundSummary(operation.order_id);
+          }).immediate();
+        }else{
+          // Support pending full refunds created before the durable refund ledger existed.
+          const legacy=db.prepare("SELECT * FROM orders WHERE stripe_refund_id=? AND payment_provider='stripe'").get(refundId);
+          if(legacy&&refund.id===refundId&&refund.payment_intent===legacy.stripe_payment_intent_id&&refund.amount===legacy.subtotal_cents&&refund.currency===legacy.currency&&['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))db.prepare('UPDATE orders SET refund_status=?,refunded_at=? WHERE id=?').run(refund.status,refund.status==='succeeded'?new Date().toISOString():null,legacy.id);
+        }
+      }
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
         const orderId = session?.metadata?.order_id;
@@ -1280,22 +1311,13 @@ function createApp(options = {}) {
   app.post('/api/my/inquiries/:inquiryId/messages', authBuyer, (req,res)=>{
     const inquiry=db.prepare('SELECT i.*,l.title FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.id=? AND i.buyer_subject=?').get(req.params.inquiryId,req.buyerSubject);
     if(!inquiry)return fail(res,404,'inquiry_not_found','Conversation not found.');
-    const message=String(req.body?.message||'').trim(); if(!message||message.length>1200)return fail(res,422,'validation_error','Write a message between 1 and 1200 characters.');
-    const id=makeId(),now=new Date().toISOString();
-    db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,buyer_read_at) VALUES (?,?,'buyer',?,?,?,?)").run(id,inquiry.id,req.buyerSubject,message,now,now);
-    notifyDesigner(inquiry.designer_id,'customer_message',`New reply about ${inquiry.title}`,message,{listingId:inquiry.listing_id,inquiryId:inquiry.id,actionPath:'/account#messages'});
-    return res.status(201).json({message:{id,senderRole:'buyer',message,createdAt:now}});
+    return fail(res,409,'inquiry_replies_disabled','Listing requests receive an availability response only. Contact House customer support for further help.');
   });
   app.post('/api/my/designer-inquiries/:inquiryId/messages', authDesigner, (req,res)=>{
     const inquiry=db.prepare('SELECT i.*,l.title FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id WHERE i.id=? AND i.designer_id=?').get(req.params.inquiryId,req.designerId);
     if(!inquiry)return fail(res,404,'inquiry_not_found','Conversation not found.');
-    const message=String(req.body?.message||'').trim(); if(!message||message.length>1200)return fail(res,422,'validation_error','Write a message between 1 and 1200 characters.');
-    const id=makeId(),now=new Date().toISOString();
-    db.prepare("INSERT INTO inquiry_messages(id,inquiry_id,sender_role,sender_subject,message,created_at,designer_read_at) VALUES (?,?,'designer',?,?,?,?)").run(id,inquiry.id,req.designerId,message,now,now);
-    if(inquiry.buyer_email)void sendEmail({to:inquiry.buyer_email,subject:`House of Briar: reply about ${inquiry.title}`,text:`The designer replied to your House of Briar conversation about ${inquiry.title}. Open your account to read and respond.`});
-    return res.status(201).json({message:{id,senderRole:'designer',message,createdAt:now}});
+    return fail(res,409,'inquiry_replies_disabled','Listing requests receive an availability response only. Contact House customer support for further help.');
   });
-
   app.get('/api/my/inquiries', authBuyer, (req,res)=>{
     const inquiries=db.prepare(`SELECT i.id,i.listing_id,i.message,i.availability_status,i.created_at,i.responded_at,l.title,p.brand_name,p.display_name
       FROM listing_inquiries i JOIN listings l ON l.id=i.listing_id JOIN designer_profiles p ON p.id=i.designer_id
@@ -1664,20 +1686,18 @@ function createApp(options = {}) {
   }
   syncConfiguredBrandStripeAccounts();
 
+  ensureColumn('designer_profiles', 'brand_defaults_initialized', 'INTEGER NOT NULL DEFAULT 0');
   const configuredBrandProfiles = (()=>{try{return JSON.parse(process.env.DESIGNER_BRAND_PROFILES_JSON||'{}')}catch{return {}}})();
-  configuredBrandProfiles['Loom Briar'] ||= { bio: 'Loom Briar creates one-of-a-kind wearable art and imaginative pieces inspired by enchanted woods, moonlight, nature, and storybook worlds. Each piece is designed with an emphasis on individuality, artistry, and the feeling that it belongs to a world of its own.', categories: ['Clothing','Wearable art','Accessories','Original art','Art prints','Home goods','Hand-painted keepsakes'] };
-  configuredBrandProfiles['Loom Briar'] ||= {
-    bio: 'Loom Briar creates one-of-a-kind wearable art and imaginative pieces inspired by enchanted woods, moonlight, nature, and storybook worlds. Each piece is designed with an emphasis on individuality, artistry, and the feeling that it belongs to a world of its own.',
-    categories: ['Clothing','Wearable art','Accessories','Original art','Art prints','Home goods','Hand-painted keepsakes']
-  };
+  configuredBrandProfiles['Loom Briar'] ||= {bio:'Loom Briar creates one-of-a-kind wearable art and imaginative pieces inspired by enchanted woods, moonlight, nature, and storybook worlds. Each piece is designed with an emphasis on individuality, artistry, and the feeling that it belongs to a world of its own.',categories:['Clothing','Wearable art','Accessories','Original art','Art prints','Home goods','Hand-painted keepsakes']};
   function syncConfiguredBrandProfiles(){
     for(const [brandName,profile] of Object.entries(configuredBrandProfiles)){
       if(!brandName||!profile||typeof profile!=='object')continue;
-      const matches=db.prepare("SELECT id FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
+      const matches=db.prepare("SELECT id,brand_defaults_initialized FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
       if(matches.length!==1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
+      if(matches[0].brand_defaults_initialized)continue;
       const bio=String(profile.bio||'').trim().slice(0,2000);
       const categories=Array.isArray(profile.categories)?profile.categories.map(v=>String(v).trim()).filter(Boolean).slice(0,12):[];
-      db.prepare('UPDATE designer_profiles SET bio=?,categories=? WHERE id=?').run(bio||null,JSON.stringify(categories),matches[0].id);
+      db.prepare("UPDATE designer_profiles SET bio=CASE WHEN COALESCE(bio,'')='' THEN ? ELSE bio END,categories=CASE WHEN COALESCE(categories,'[]')='[]' THEN ? ELSE categories END,brand_defaults_initialized=1 WHERE id=?").run(bio||null,JSON.stringify(categories),matches[0].id);
       log('info','designer_profile_synced',{brandName,designerId:matches[0].id});
     }
   }
@@ -1742,6 +1762,10 @@ function createApp(options = {}) {
     const results = [];
     for (const group of groups) {
       const existing = db.prepare('SELECT * FROM designer_transfers WHERE order_id = ? AND designer_id = ?').get(orderId, group.designer_id);
+      if ((order.refund_status&&!db.prepare('SELECT 1 FROM order_refunds WHERE order_id=?').get(orderId)) || db.prepare("SELECT 1 FROM order_refunds WHERE order_id=? AND scope IN ('full',?)").get(orderId,group.designer_id)) {
+        results.push({designer_id:group.designer_id,status:'pending',reason:'refund_hold'}); continue;
+      }
+      if (existing?.payout_in_flight) { results.push({designer_id:group.designer_id,status:'pending',reason:'transfer_processing'}); continue; }
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
       if (releaseReason === 'tracking_verified' && (!existing.tracking_number || !existing.tracking_verified_at)) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
@@ -1752,6 +1776,7 @@ function createApp(options = {}) {
       }
       const transferId = existing?.id || makeId();
       if (!existing) db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, accountId, group.amount_cents, new Date().toISOString());
+      db.prepare("UPDATE designer_transfers SET payout_in_flight=1 WHERE id=?").run(transferId);
       try {
         const body = new URLSearchParams({
           amount: String(group.amount_cents),
@@ -1762,11 +1787,11 @@ function createApp(options = {}) {
           'metadata[designer_id]': group.designer_id
         });
         const transfer = await stripeApi('transfers', { method: 'POST', body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
-        db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
+        db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', payout_in_flight=0, error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
         await notifyPayout(transferId, 'paid');
         results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
       } catch (error) {
-        db.prepare("UPDATE designer_transfers SET status = 'failed', error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
+        db.prepare("UPDATE designer_transfers SET status = 'failed', payout_in_flight=0, error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
         await notifyPayout(transferId, 'failed');
         results.push({ designer_id: group.designer_id, status: 'failed' });
       }
@@ -1867,7 +1892,7 @@ function createApp(options = {}) {
           if(session.id===donation.stripe_session_id&&session.metadata?.donation_id===donation.id&&session.status==='expired'&&donation.status==='pending')db.prepare("UPDATE donations SET status='failed' WHERE id=? AND status='pending'").run(donation.id);
         }catch(error){
           results.errors++;
-          if(/No such checkout\.session|No such checkout session/i.test(String(error?.message))){
+          if(error?.providerCode==='resource_missing'||/No such checkout\.session|No such checkout session/i.test(String(error?.message))){
             results.unavailableSessions++;
             db.prepare("UPDATE donations SET reconciliation_blocked_at=COALESCE(reconciliation_blocked_at,?),reconciliation_blocked_reason=COALESCE(reconciliation_blocked_reason,'stripe_session_unavailable') WHERE id=?").run(new Date().toISOString(),donation.id);
             log('error','donation_reconciliation_quarantined',{donationId:donation.id,reason:'stripe_session_unavailable'});
@@ -2905,38 +2930,71 @@ function createApp(options = {}) {
     if(!order)return fail(res,404,'order_not_found','Order not found.');
     const items=db.prepare('SELECT listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents FROM order_items WHERE order_id=?').all(order.id);
     const payouts=db.prepare('SELECT designer_id,amount_cents,status,error_message,paid_at,tracking_carrier,tracking_number,tracking_status,tracking_verified_at,release_reason,stripe_reversal_id FROM designer_transfers WHERE order_id=?').all(order.id);
-    return res.json({order,items,payouts});
+    const refunds=db.prepare('SELECT scope,amount_cents,status,stripe_refund_id,created_at,updated_at FROM order_refunds WHERE order_id=?').all(order.id);
+    return res.json({order,items,payouts,refunds});
   });
 
-  app.post('/api/admin/orders/:orderId/refund', authAdmin, async (req,res,next)=>{
-    try{
-      let order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
+  function updateRefundSummary(orderId) {
+    const order=db.prepare('SELECT subtotal_cents FROM orders WHERE id=?').get(orderId);
+    const rows=db.prepare('SELECT * FROM order_refunds WHERE order_id=?').all(orderId);
+    const total=rows.filter(row=>row.status==='succeeded').reduce((sum,row)=>sum+row.amount_cents,0);
+    const unsettled=rows.some(row=>!['succeeded','failed','canceled'].includes(row.status));
+    const status=total>=order.subtotal_cents?'succeeded':unsettled?'pending':total>0?'partial':rows.some(row=>row.status==='failed')?'failed':'canceled';
+    const full=rows.find(row=>row.scope==='full');
+    db.prepare('UPDATE orders SET refund_status=?,stripe_refund_id=COALESCE(?,stripe_refund_id),refunded_at=? WHERE id=?').run(status,full?.stripe_refund_id||null,status==='succeeded'?new Date().toISOString():null,orderId);
+  }
+
+  async function refundOrder(req,res,next,scope='full') {
+    try {
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
       if(!order)return fail(res,404,'order_not_found','Order not found.');
       if(order.status!=='paid')return fail(res,409,'not_paid','Only paid orders can be refunded.');
-      if(order.payment_provider!=='stripe')return fail(res,409,'refund_provider_unsupported','This order was paid through '+order.payment_provider+'. Refund it through the original payment provider; House cannot issue or record that refund automatically.');
-      if(order.refund_status==='succeeded')return fail(res,409,'already_refunded','This order has already been refunded.');
+      if(order.payment_provider!=='stripe')return fail(res,409,'refund_provider_unsupported','Refund this order through the original payment provider; House cannot issue or record that refund automatically.');
+      const items=db.prepare("SELECT * FROM order_items WHERE order_id=? AND (?='full' OR designer_id=?)").all(order.id,scope,scope);
+      if(scope!=='full'&&!items.length)return fail(res,404,'seller_order_not_found','Seller portion not found.');
+      const amount=scope==='full'?order.subtotal_cents:items.reduce((sum,item)=>sum+item.line_total_cents,0);
+      const hold=db.transaction(()=>{
+        const existing=db.prepare('SELECT * FROM order_refunds WHERE order_id=? AND scope=?').get(order.id,scope);
+        if(existing)return existing;
+        const conflict=db.prepare("SELECT 1 FROM order_refunds WHERE order_id=? AND (?='full' OR scope='full')").get(order.id,scope);
+        if(conflict||(order.refund_status&&!db.prepare('SELECT 1 FROM order_refunds WHERE order_id=?').get(order.id)))throw Object.assign(new Error('This order already has a refund. Use the same refund action to check its status; overlapping refund actions are not supported.'),{statusCode:409});
+        if(db.prepare("SELECT 1 FROM designer_transfers WHERE order_id=? AND payout_in_flight=1").get(order.id))throw Object.assign(new Error('A payout is being processed. Retry the refund after it finishes.'),{statusCode:409});
+        const now=new Date().toISOString();
+        db.prepare("INSERT INTO order_refunds(order_id,scope,amount_cents,status,created_at,updated_at) VALUES (?,?,?,'initiating',?,?)").run(order.id,scope,amount,now,now);
+        updateRefundSummary(order.id);
+        return db.prepare('SELECT * FROM order_refunds WHERE order_id=? AND scope=?').get(order.id,scope);
+      }).immediate();
+      if(hold.stripe_refund_id)return res.json({ok:true,refundId:hold.stripe_refund_id,status:hold.status,amountCents:hold.amount_cents});
+      // Keep uncertain requests within the provider's idempotency retention window.
+      if(Date.now()-Date.parse(hold.created_at)>23*60*60*1000)return fail(res,409,'refund_review_required','This unresolved refund needs provider review before retrying. Payouts remain held.');
       let paymentIntent=order.stripe_payment_intent_id;
       if(!paymentIntent&&order.stripe_session_id){
         const session=await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
         paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:'';
         if(paymentIntent)db.prepare('UPDATE orders SET stripe_payment_intent_id=? WHERE id=?').run(paymentIntent,order.id);
       }
-      if(!paymentIntent)return fail(res,409,'payment_reference_missing','Stripe payment reference is unavailable for this order.');
-      const paidTransfers=db.prepare("SELECT * FROM designer_transfers WHERE order_id=? AND status='paid'").all(order.id);
-      for(const transfer of paidTransfers){
-        if(!transfer.stripe_transfer_id)return fail(res,409,'transfer_reference_missing','A released designer payout is missing its Stripe transfer reference.');
+      if(!paymentIntent)return fail(res,409,'payment_reference_missing','Stripe payment reference is unavailable. Payouts remain held until the refund is resolved.');
+      const transfers=db.prepare("SELECT * FROM designer_transfers WHERE order_id=? AND status='paid' AND (?='full' OR designer_id=?)").all(order.id,scope,scope);
+      for(const transfer of transfers){
+        if(!transfer.stripe_transfer_id)return fail(res,409,'transfer_reference_missing','A released payout is missing its Stripe reference.');
         if(!transfer.stripe_reversal_id){
           const reversal=await stripeApi(`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(transfer.amount_cents),'metadata[order_id]':order.id,'metadata[designer_id]':transfer.designer_id}).toString(),idempotencyKey:`hob-refund-reversal-${order.id}-${transfer.designer_id}`});
-          db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,release_reason='refund_reversed' WHERE id=?").run(reversal.id,transfer.id);
+          db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,refunded_cents=?,release_reason='refund_reversed' WHERE id=?").run(reversal.id,transfer.amount_cents,transfer.id);
         }
       }
-      const body=new URLSearchParams({payment_intent:paymentIntent,reason:'requested_by_customer','metadata[order_id]':order.id});
-      const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:`hob-refund-${order.id}`});
-      db.prepare("UPDATE orders SET refund_status=?,stripe_refund_id=?,refunded_at=? WHERE id=?").run(refund.status||'pending',refund.id||null,refund.status==='succeeded'?new Date().toISOString():null,order.id);
-      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund was issued for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
-      return res.json({ok:true,refundId:refund.id,status:refund.status});
+      const body=new URLSearchParams({payment_intent:paymentIntent,amount:String(amount),reason:'requested_by_customer','metadata[order_id]':order.id,'metadata[refund_scope]':scope});
+      const key=scope==='full'?`hob-refund-${order.id}`:`hob-seller-refund-${order.id}-${scope}`;
+      const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:key});
+      if(!refund.id)throw new Error('Payment provider returned no refund reference.');
+      db.transaction(()=>{
+        db.prepare("UPDATE order_refunds SET status=CASE WHEN status='succeeded' THEN status ELSE ? END,stripe_refund_id=?,updated_at=? WHERE order_id=? AND scope=?").run(refund.status||'pending',refund.id,new Date().toISOString(),order.id,scope);
+        updateRefundSummary(order.id);
+      }).immediate();
+      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`Refund requested for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
+      return res.json({ok:true,refundId:refund.id,status:refund.status,amountCents:amount});
     }catch(error){return next(error);}
-  });
+  }
+  app.post('/api/admin/orders/:orderId/refund',authAdmin,(req,res,next)=>refundOrder(req,res,next));
 
   async function expireOpenCheckout(order) {
     if (order.stripe_session_id) {
@@ -3195,25 +3253,7 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  app.post('/api/admin/orders/:orderId/designers/:designerId/refund', authAdmin, async (req,res,next)=>{
-    try{
-      const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(req.params.orderId);if(!order)return fail(res,404,'order_not_found','Paid order not found.');
-      if(order.payment_provider!=='stripe')return fail(res,409,'refund_provider_unsupported','This order was paid through '+order.payment_provider+'. Refund it through the original payment provider; House cannot issue or record that refund automatically.');
-      const items=db.prepare('SELECT * FROM order_items WHERE order_id=? AND designer_id=?').all(order.id,req.params.designerId);if(!items.length)return fail(res,404,'seller_order_not_found','Seller portion not found.');
-      const refundCents=items.reduce((s,i)=>s+i.line_total_cents,0);const designerCents=items.reduce((s,i)=>s+i.designer_amount_cents,0);
-      let paymentIntent=order.stripe_payment_intent_id;if(!paymentIntent&&order.stripe_session_id){const session=await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);paymentIntent=typeof session.payment_intent==='string'?session.payment_intent:'';if(paymentIntent)db.prepare('UPDATE orders SET stripe_payment_intent_id=? WHERE id=?').run(paymentIntent,order.id);}
-      if(!paymentIntent)return fail(res,409,'payment_reference_missing','Stripe payment reference is unavailable.');
-      const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(order.id,req.params.designerId);
-      if(transfer?.status==='paid'&&transfer.stripe_transfer_id&&Number(transfer.refunded_cents||0)<designerCents){
-        const amount=designerCents-Number(transfer.refunded_cents||0);const reversal=await stripeApi(`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(amount),'metadata[order_id]':order.id,'metadata[designer_id]':req.params.designerId}).toString(),idempotencyKey:`hob-seller-refund-reversal-${order.id}-${req.params.designerId}`});
-        db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,refunded_cents=?,release_reason='seller_refund' WHERE id=?").run(reversal.id,designerCents,transfer.id);
-      }
-      const refund=await stripeApi('refunds',{method:'POST',body:new URLSearchParams({payment_intent:paymentIntent,amount:String(refundCents),reason:'requested_by_customer','metadata[order_id]':order.id,'metadata[designer_id]':req.params.designerId}).toString(),idempotencyKey:`hob-seller-refund-${order.id}-${req.params.designerId}`});
-      db.prepare("UPDATE orders SET refund_status='partial' WHERE id=? AND COALESCE(refund_status,'')!='succeeded'").run(order.id);
-      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`A refund of ${(refundCents/100).toFixed(2)} was issued for one designer shipment in order ${order.id}.`});
-      res.json({ok:true,refundId:refund.id,status:refund.status,amountCents:refundCents,designerId:req.params.designerId});
-    }catch(error){return next(error);}
-  });
+  app.post('/api/admin/orders/:orderId/designers/:designerId/refund',authAdmin,(req,res,next)=>refundOrder(req,res,next,req.params.designerId));
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
     const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,

@@ -73,3 +73,11 @@ Stripe must send its signed webhook to `/api/stripe/webhook`. EasyPost must send
 The built-in signup and checkout rate limits use the request IP. No reverse-proxy trust setting is enabled by default because the correct trust boundary depends on the hosting provider. If the production host places the app behind a proxy, validate the provider's documented proxy topology before configuring Express `trust proxy`; do not enable it globally without that validation.
 
 Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend now installs, passes gateway contract tests, and builds. Verify the frontend/backend hosting connection and Taskade authentication, chat, and inquiry services before treating it as ready to launch.
+
+### Refund and payout safeguards
+
+Stripe webhook subscriptions must include `refund.created`, `refund.updated`, and `refund.failed` in addition to the existing Checkout and Connect events. Refund events refresh the current provider record, verify its payment reference, currency and amount, and update the durable `order_refunds` ledger and order summary. Existing pending full refunds with a saved Stripe refund ID are also supported.
+
+A refund holds its seller payout before any provider request; a full refund holds every seller. Individual seller refunds can be issued for separate sellers, but a full refund cannot be combined with seller refunds on the same order. Use the same refund action for safe retries/status checks. Uncertain requests older than 23 hours require provider review, and failed/canceled refund operations remain held for staff review. Admin order details include the refund ledger. A payout interrupted while its `payout_in_flight` marker is set must be reconciled with Stripe before clearing that marker; do not blindly retry or clear financial holds.
+
+Listing inquiries allow the original item request plus the designer's Available/Not available response. Existing thread history remains visible, and further assistance goes through House customer support. Configured brand profile defaults are initialized once and preserve populated details and subsequent edits.
