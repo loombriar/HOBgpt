@@ -352,17 +352,19 @@
         <a class="secondary-button" id="modal-close" href="/#shop" aria-label="Back to shopping">← Back to shopping</a>
       </div>
       <section id="designer-login-panel" class="login-panel">
-        <p>Sign in with your designer access token to manage your listings. Your identity is verified by the server.</p>
+        <h3>Already a designer? Sign in here</h3>
+        <p>Enter your existing designer access token. This is <strong>not a password you create</strong> — House of Briar provides it when your designer account is created. If you are new, use the Create designer account form below instead.</p>
         <form id="designer-login-form" class="stack-form">
           <label for="designer-token">Designer access token</label>
-          <input id="designer-token" name="token" type="password" autocomplete="current-password" required />
-          <button class="primary-button" type="submit">Sign in</button>
+          <input id="designer-token" name="token" type="password" autocomplete="off" aria-describedby="designer-token-help" required />
+          <p id="designer-token-help" class="small-print">Do not enter your email or a new password here. If you have lost your token, contact House of Briar support for help accessing your account.</p>
+          <button class="primary-button" type="submit">Sign in with access token</button>
         </form>
         <p id="designer-auth-message" class="form-message" role="status" aria-live="polite"></p>
         <div id="designer-signup" class="designer-signup-panel">
           <p class="eyebrow">New to the House?</p>
           <h3>Make yourself at home.</h3>
-          <p>No application or portfolio required. Tell us who you are and what you make.</p>
+          <p><strong>New designer? Start here.</strong> No access token or password is needed to sign up. Enter your details below and we will open your Designer’s Room after your account is created. No application or portfolio required.</p>
           <form id="designer-signup-form" class="stack-form">
             <label>Your name<input name="displayName" type="text" autocomplete="name" required /></label>
             <label>Designer or brand name<input name="brandName" type="text" required /></label>
