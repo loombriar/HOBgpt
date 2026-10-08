@@ -192,7 +192,7 @@ test('founding designer announcement advertises the badge and opens signup', asy
   const banner = page.getByRole('complementary', { name: 'Founding designers' });
   await expect(banner).toContainText('The first 25 designers to join');
   await expect(banner.locator('#founder-spots')).toContainText('founding spots remain');
-  await banner.getByRole('link', { name: 'Move in' }).click();
+  await banner.getByRole('link', { name: 'Sign up as a designer' }).click();
   await expect(page).toHaveURL(/designers\/room#designer-signup/);
   await expect(page.locator('#designer-signup-form')).toBeVisible();
 });
