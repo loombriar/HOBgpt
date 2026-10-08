@@ -711,6 +711,7 @@ byId('measurement-profile-form')?.addEventListener('submit', (event) => {
     waist: byId('measurement-profile-waist')?.value || '',
     hips: byId('measurement-profile-hips')?.value || '',
     height: byId('measurement-profile-height')?.value || '',
+    inseam: byId('measurement-profile-inseam')?.value || '',
     notes: byId('measurement-profile-notes')?.value || ''
   });
   saveMeasurementProfiles(rows);
