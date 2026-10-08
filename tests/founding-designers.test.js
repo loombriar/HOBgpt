@@ -35,3 +35,28 @@ test('first 25 designer slots persist across restart and suspension; later signu
     assert.equal(ctx.db.prepare('SELECT * FROM founding_designers WHERE designer_id=?').get(later.designer.id),undefined);
   }finally {if(server)await new Promise(r=>server.close(r));ctx?.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('marketplace identity stays private and releases its founder slot without changing real awards', async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-system-designer-'));
+  const options={dataDir:dir,designerTokens:{system:'house-of-briar',loom:'loom-briar'},seedProducts:[{id:'legacy-house-piece',title:'Legacy piece',price:20}]};
+  let ctx,server;
+  try {
+    ctx=createApp(options);
+    assert.equal(ctx.db.prepare("SELECT status FROM designer_profiles WHERE id='house-of-briar'").get().status,'suspended');
+    const loom=ctx.db.prepare("SELECT * FROM founding_designers WHERE designer_id='loom-briar'").get();
+    ctx.db.prepare("INSERT INTO founding_designers VALUES ('house-of-briar',25,'old-award')").run();
+    ctx.db.prepare("UPDATE designer_profiles SET status='active' WHERE id='house-of-briar'").run();
+    ctx.db.close();ctx=createApp(options);
+    assert.deepEqual(ctx.db.prepare("SELECT * FROM founding_designers WHERE designer_id='loom-briar'").get(),loom);
+    assert.equal(ctx.db.prepare("SELECT * FROM founding_designers WHERE designer_id='house-of-briar'").get(),undefined);
+    assert.ok(ctx.db.prepare("SELECT * FROM listings WHERE id='legacy-house-piece'").get());
+    server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
+    const origin='http://127.0.0.1:'+server.address().port;
+    assert.equal((await fetch(origin+'/api/designers/house-of-briar')).status,404);
+    assert.equal((await fetch(origin+'/api/designers/loom-briar')).status,200);
+    const directory=await (await fetch(origin+'/api/designers')).json();
+    assert.ok(!directory.designers.some(d=>d.id==='house-of-briar'));
+    const gallery=await (await fetch(origin+'/api/gallery')).json();
+    assert.ok(!gallery.items.some(d=>d.designerId==='house-of-briar'));
+  }finally{if(server)await new Promise(r=>server.close(r));ctx?.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
