@@ -1512,7 +1512,20 @@ async function signIn(tokenValue) {
 }
 
 async function signOut() {
-  try { await fetch('/api/session',{method:'DELETE',credentials:'same-origin'}); } catch {}
+  const signoutButton=byId('signout-btn');
+  if(signoutButton)signoutButton.disabled=true;
+  try {
+    const response=await fetch('/api/session',{method:'DELETE',credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error(`Server returned ${response.status}`);
+    // Verify that the server no longer recognizes the designer cookie before leaving.
+    const verify=await fetch('/api/my/designer-profile',{credentials:'same-origin',cache:'no-store'});
+    if(verify.status!==401)throw new Error('Your designer session is still active.');
+  } catch(error) {
+    if(signoutButton)signoutButton.disabled=false;
+    setMessage(designerAuthMessage,`Could not sign out: ${error.message}. Please try again.`, 'error');
+    window.alert('Sign out did not complete. Please try again.');
+    return;
+  }
   designerToken = '';
   designerReadinessState={profile:null,listings:[],stripe:null};renderSellerReadiness();
   localStorage.removeItem('briarDesignerToken');
