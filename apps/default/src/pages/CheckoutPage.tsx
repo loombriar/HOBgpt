@@ -132,6 +132,7 @@ export default function CheckoutPage() {
   }, [returnState, sessionId, snapshot]);
 
   const beginCheckout = async () => {
+    if (!canCheckout || paymentState === 'opening' || paymentState === 'verifying' || paymentState === 'paid') return;
     setPaymentState('opening');
     setPaymentError('');
     const checkoutItems: CheckoutItem[] = catalogItems.map(({ id, name, amount, quantity }) => ({ id, name, amount, quantity,giftNote:giftNotes[id]||undefined }));
@@ -149,7 +150,7 @@ export default function CheckoutPage() {
   };
 
   const paymentComplete = paymentState === 'paid';
-  const emptyBag = !loading && !hasItems && !paymentComplete;
+  const emptyBag = !loading && !loadError && !hasItems && !paymentComplete;
 
   return <HouseShell>
     <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
@@ -168,6 +169,7 @@ export default function CheckoutPage() {
       {!loading && loadError && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{loadError} <button type="button" onClick={() => window.location.reload()} className="ml-2 underline underline-offset-4">Retry</button></div>}
       {emptyBag && <div className="mt-8 rounded-3xl border border-border bg-card p-8 text-center sm:p-12"><p className="font-serif text-3xl">Your suitcase is waiting for a piece.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Explore the collection <ArrowRight size={16} /></Link></div>}
 
+      {!loading && paymentComplete && !hasItems && <section role="status" className="mt-8 rounded-3xl border border-primary/30 bg-card p-8 text-center"><BadgeCheck size={36} className="mx-auto text-primary"/><h2 className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-3 text-sm text-muted-foreground">Stripe verified your payment. Your suitcase has been updated.</p><p className="mt-2 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Continue shopping</Link></section>}
       {!loading && !loadError && hasItems && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="delivery-heading">
