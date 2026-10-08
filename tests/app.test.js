@@ -396,7 +396,7 @@ test('stores listing SEO and shipping metadata and supports guarded bulk catalog
   });
   assert.equal(created.response.status, 201);
   assert.equal(created.body.item.seoTitle, 'Botanical wearable art');
-  assert.equal(created.body.item.shippingCostCents, 1250);
+  assert.equal(created.body.item.shippingCostCents, 0);
   assert.equal(created.body.item.handlingDaysMax, 5);
   assert.equal(created.body.item.internationalShipping, true);
 

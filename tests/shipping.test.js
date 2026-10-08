@@ -40,35 +40,35 @@ async function fixture(run) {
   try{await run({ctx,calls,sessions,request,origin});}finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 }
 
-test('shipping thresholds are seller scoped, pre-discount, per piece and never imply a missing rate is free',()=>{
-  const item=(id,gross,rate,threshold,quantity=1)=>({designerId:id,designerName:id,grossCents:gross,shippingCostCents:rate,freeShippingThresholdCents:threshold,quantity,lineTotalCents:gross/2,designerAmountCents:gross/2-100});
-  const rows=[item('a',6000,795,10000),item('a',5000,600,null),item('b',2000,250,null,2)];
-  const quote=applyShipping(rows);assert.equal(quote.shippingCents,1100);assert.equal(rows[0].shippingCents,0);assert.equal(rows[1].shippingCents,600);assert.equal(rows[2].shippingCents,500);assert.equal(rows[1].designerAmountCents,3000);
-  assert.equal(applyShipping([item('a',10000,null,100)]).shippingReady,false);
-  assert.equal(applyShipping([item('a',10000,0,null)]).shippingCents,0);
-  assert.equal(applyShipping([item('a',6000,795,10000),item('b',5000,0,null)]).shippingCents,795);
+test('all new US delivery quotes are free regardless of stored rates and thresholds',()=>{
+  const rows=[{designerId:'a',designerName:'A',grossCents:6000,shippingCostCents:795,quantity:2,lineTotalCents:6000,designerAmountCents:5400},{designerId:'b',designerName:'B',grossCents:5000,shippingCostCents:null,quantity:1,lineTotalCents:5000,designerAmountCents:4500}];
+  const quote=applyShipping(rows);assert.equal(quote.shippingReady,true);assert.equal(quote.shippingCents,0);assert.equal(rows[0].lineTotalCents,6000);assert.equal(rows[0].designerAmountCents,5400);assert.equal(rows[1].shippingCents,0);assert.equal(quote.designers.length,2);
 });
 
-test('canonical shipping quote prices mixed sellers and blocks missing rates, stale totals and unsupported countries before reserving',async()=>fixture(async({ctx,calls,request})=>{
+test('canonical shipping quote offers free delivery for mixed sellers and blocks stale totals and unsupported countries before reserving',async()=>fixture(async({ctx,calls,request})=>{
   const items=[{id:'a1',quantity:1},{id:'a2',quantity:1},{id:'b1',quantity:2}];
-  let result=await request('/api/checkout/quote',{items});assert.equal(result.status,200);assert.equal(result.body.shippingCents,1100);assert.equal(result.body.merchandiseCents,13000);assert.equal(result.body.totalBeforeTaxCents,14100);
-  for(const extra of [{expectedTotalBeforeTaxCents:13000},{shippingCountry:'CA'}]){result=await request('/api/checkout/session',{items,...extra});assert.ok([409,422].includes(result.status));}
-  ctx.db.prepare("UPDATE listings SET shipping_cost_cents=NULL WHERE id='a1'").run();result=await request('/api/checkout/quote',{items});assert.equal(result.body.shippingReady,false);assert.equal(result.body.totalBeforeTaxCents,null);
-  result=await request('/api/checkout/session',{items});assert.equal(result.status,409);assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM orders').get().n,0);assert.equal(calls.filter(c=>c.endpoint==='checkout/sessions').length,0);
+  let result=await request('/api/checkout/quote',{items});assert.equal(result.status,200);assert.equal(result.body.shippingCents,0);assert.equal(result.body.merchandiseCents,13000);assert.equal(result.body.totalBeforeTaxCents,13000);
+  for(const extra of [{expectedTotalBeforeTaxCents:14100},{shippingCountry:'CA'}]){result=await request('/api/checkout/session',{items,...extra});assert.ok([409,422].includes(result.status));}
+  ctx.db.prepare("UPDATE listings SET shipping_cost_cents=NULL WHERE id='a1'").run();result=await request('/api/checkout/quote',{items});assert.equal(result.body.shippingReady,true);assert.equal(result.body.totalBeforeTaxCents,13000);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM orders').get().n,0);assert.equal(calls.filter(c=>c.endpoint==='checkout/sessions').length,0);
   result=await request('/api/checkout/quote',{items:[{id:'b1',quantity:6},{id:'b1',quantity:6}]});assert.equal(result.status,422);
 }));
 
-test('paid shipping reaches only the owning designer with the private address and follows existing payout/refund holds',async()=>fixture(async({ctx,calls,sessions,request})=>{
-  const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1}],expectedTotalBeforeTaxCents:6795});assert.equal(checkout.status,201);
-  const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(checkout.body.orderId);assert.equal(order.subtotal_cents,6795);assert.equal(order.shipping_cents,795);assert.equal(order.platform_fee_cents,600);assert.equal(order.designer_amount_cents,6195);
-  const params=new URLSearchParams(calls.find(c=>c.endpoint==='checkout/sessions').options.body);assert.equal(params.get('shipping_address_collection[allowed_countries][0]'),'US');assert.equal(params.get('line_items[1][price_data][unit_amount]'),'795');
-  const session=sessions.get(checkout.body.sessionId);session.amount_total=6794;assert.equal((await request('/api/checkout/session/'+session.id)).status,409);session.amount_total=6795;
+test('free delivery preserves private addresses and payout/refund holds; prior seller terms still release existing orders',async()=>fixture(async({ctx,calls,sessions,request})=>{
+  const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1}],expectedTotalBeforeTaxCents:6000});assert.equal(checkout.status,201);
+  const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(checkout.body.orderId);assert.equal(order.subtotal_cents,6000);assert.equal(order.shipping_cents,0);assert.equal(order.platform_fee_cents,600);assert.equal(order.designer_amount_cents,5400);
+  const params=new URLSearchParams(calls.find(c=>c.endpoint==='checkout/sessions').options.body);assert.equal(params.get('shipping_address_collection[allowed_countries][0]'),'US');assert.equal(params.get('line_items[1][price_data][unit_amount]'),null);
+  const session=sessions.get(checkout.body.sessionId);session.amount_total=5999;assert.equal((await request('/api/checkout/session/'+session.id)).status,409);session.amount_total=6000;
   session.collected_information.shipping_details={...address,address:{...address.address,country:'CA'}};assert.equal((await request('/api/checkout/session/'+session.id)).status,409);session.collected_information.shipping_details=address;
   const paid=await request('/api/checkout/session/'+session.id);assert.equal(paid.body.paid,true);assert.equal('shippingDetails' in paid.body,false);
-  await request('/api/checkout/session/'+session.id);assert.equal(ctx.db.prepare('SELECT shipping_cents FROM order_items WHERE order_id=?').get(order.id).shipping_cents,795);
-  const seller=await request('/api/my/orders',null,'sellerA');assert.deepEqual(seller.body.orders[0].shippingDetails,address);assert.equal(seller.body.orders[0].shippingCents,795);assert.equal((await request('/api/my/orders',null,'sellerB')).body.orders.length,0);assert.equal((await request('/api/my/orders')).status,401);assert.equal(calls.filter(c=>c.endpoint==='transfers').length,0);
-  assert.equal((await request('/api/orders/'+order.id+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'6195');
-  assert.equal((await request('/api/admin/orders/'+order.id+'/refund',{},'admin')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers/tr_shipping/reversals').options.body).get('amount'),'6195');
+  await request('/api/checkout/session/'+session.id);assert.equal(ctx.db.prepare('SELECT shipping_cents FROM order_items WHERE order_id=?').get(order.id).shipping_cents,0);
+  const seller=await request('/api/my/orders',null,'sellerA');assert.deepEqual(seller.body.orders[0].shippingDetails,address);assert.equal(seller.body.orders[0].shippingCents,0);assert.equal((await request('/api/my/orders',null,'sellerB')).body.orders.length,0);assert.equal((await request('/api/my/orders')).status,401);assert.equal(calls.filter(c=>c.endpoint==='transfers').length,0);
+  ctx.db.prepare('DELETE FROM designer_terms_acceptances WHERE designer_id=?').run('a');
+  ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('a','2026-10-06',new Date().toISOString(),'legacy-test');
+  // A new sale requires updated consent; fulfillment of the paid order keeps its prior consent.
+  assert.equal((await request('/api/checkout/session',{items:[{id:'a2',quantity:1}]})).status,409);
+  assert.equal((await request('/api/orders/'+order.id+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'5400');
+  assert.equal((await request('/api/admin/orders/'+order.id+'/refund',{},'admin')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers/tr_shipping/reversals').options.body).get('amount'),'5400');
 }));
 
 test('signed paid webhook and stale-checkout reconciliation preserve shipping address and total validation',async()=>fixture(async({ctx,sessions,request,origin})=>{
@@ -81,4 +81,20 @@ test('signed paid webhook and stale-checkout reconciliation preserve shipping ad
     const other=await request('/api/checkout/session',{items:[{id:'a2',quantity:1}]});const stale=sessions.get(other.body.sessionId);ctx.db.prepare("UPDATE inventory_reservations SET expires_at='2000-01-01' WHERE order_id=?").run(other.body.orderId);stale.amount_total--;
     await ctx.reconcilePendingCheckouts();assert.equal(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(other.body.orderId).status,'pending');stale.amount_total++;await ctx.reconcilePendingCheckouts();assert.equal(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(other.body.orderId).status,'paid');
   }finally{if(previous===undefined)delete process.env.STRIPE_WEBHOOK_SECRET;else process.env.STRIPE_WEBHOOK_SECRET=previous;}
+}));
+
+test('historical paid delivery amounts survive confirmation and refund under prior terms',async()=>fixture(async({ctx,calls,sessions,request})=>{
+  const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1}]});assert.equal(checkout.status,201);
+  // Restore a historical persisted checkout snapshot, with delivery paid separately.
+  ctx.db.prepare('UPDATE orders SET subtotal_cents=6795,shipping_cents=795,designer_amount_cents=6195 WHERE id=?').run(checkout.body.orderId);
+  ctx.db.prepare('UPDATE order_items SET line_total_cents=6795,shipping_cents=795,designer_amount_cents=6195 WHERE order_id=?').run(checkout.body.orderId);
+  const session=sessions.get(checkout.body.sessionId);session.amount_total=6795;
+  assert.equal((await request('/api/checkout/session/'+session.id)).body.paid,true);
+  ctx.db.prepare('DELETE FROM designer_terms_acceptances WHERE designer_id=?').run('a');
+  ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('a','2026-10-06',new Date().toISOString(),'historical');
+  assert.equal((await request('/api/orders/'+checkout.body.orderId+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);
+  assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'6195');
+  assert.equal(ctx.db.prepare('SELECT shipping_cents FROM orders WHERE id=?').get(checkout.body.orderId).shipping_cents,795);
+  assert.equal((await request('/api/admin/orders/'+checkout.body.orderId+'/refund',{},'admin')).status,200);
+  assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='refunds').options.body).get('amount'),'6795');
 }));

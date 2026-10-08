@@ -9,7 +9,7 @@ describe('shipping disclosure',()=>{
     expect(html).toContain('$7.95');expect(html).toContain('$67.95');expect(html).toContain('Atelier A');expect(html).toContain('2–4 business days');expect(html).toContain('excludes carrier transit');expect(html).toContain('Tax calculation is not enabled');expect(html).toContain('/shipping.html');
   });
   it('distinguishes explicitly free shipping from a missing rate',()=>{
-    expect(renderToStaticMarkup(<ShippingSummary quote={{...quote,designers:[{...quote.designers[0],shippingCents:0}]}}/>)).toContain('Free shipping');
+    expect(renderToStaticMarkup(<ShippingSummary quote={{...quote,designers:[{...quote.designers[0],shippingCents:0}]}}/>)).toContain('Free US delivery');
     const html=renderToStaticMarkup(<ShippingSummary quote={{...quote,shippingReady:false,totalBeforeTaxCents:null,designers:[{...quote.designers[0],shippingReady:false}]}}/>);
     expect(html).toContain('checkout unavailable');expect(html).not.toContain('Total before tax:');
   });

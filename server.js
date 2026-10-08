@@ -19,7 +19,7 @@ const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 const CHECKOUT_RESERVATION_MINUTES = 31;
 // Bump this version, the signup forms, and the published terms together when terms change.
-const SELLER_TERMS_VERSION = '2026-10-06';
+const SELLER_TERMS_VERSION = '2026-10-08-free-delivery';
 const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
 const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
@@ -460,8 +460,12 @@ function createApp(options = {}) {
   function sellerTermsAcceptance(designerId) {
     return db.prepare('SELECT terms_version,accepted_at FROM designer_terms_acceptances WHERE designer_id=? AND terms_version=?').get(designerId,SELLER_TERMS_VERSION);
   }
+  // Previously accepted terms still govern fulfillment/payouts of existing orders.
+  function payoutSellerTermsAcceptance(designerId) {
+    return db.prepare('SELECT terms_version,accepted_at FROM designer_terms_acceptances WHERE designer_id=? AND terms_version IN (?,?) ORDER BY accepted_at DESC LIMIT 1').get(designerId,SELLER_TERMS_VERSION,'2026-10-06');
+  }
   function requireSellerTerms(designerId) {
-    if (!sellerTermsAcceptance(designerId)) throw Object.assign(new Error('Review and accept the current House of Briar Seller Terms in your Designer’s Room before selling or releasing payouts.'),{statusCode:409,code:'seller_terms_required'});
+    if (!sellerTermsAcceptance(designerId)) throw Object.assign(new Error('Review and accept the current House of Briar Seller Terms in your Designer’s Room before selling. The current policy includes free US delivery funded by the designer.'),{statusCode:409,code:'seller_terms_required'});
   }
   function recordSellerTerms(designerId,source) {
     db.prepare('INSERT OR IGNORE INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run(designerId,SELLER_TERMS_VERSION,new Date().toISOString(),source);
@@ -1148,8 +1152,8 @@ function createApp(options = {}) {
       seoDescription: row.seo_description || '',
       seoTags: row.seo_tags || '',
       shareImageUrl: row.share_image_url || '',
-      shippingCostCents: row.shipping_cost_cents == null ? null : Number(row.shipping_cost_cents),
-      freeShippingThresholdCents: row.free_shipping_threshold_cents == null ? null : Number(row.free_shipping_threshold_cents),
+      shippingCostCents: 0,
+      freeShippingThresholdCents: null,
       handlingDaysMin: row.handling_days_min == null ? null : Number(row.handling_days_min),
       handlingDaysMax: row.handling_days_max == null ? null : Number(row.handling_days_max),
       internationalShipping: Boolean(row.international_shipping),
@@ -1281,7 +1285,7 @@ function createApp(options = {}) {
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
       db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
       if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Payout release also requires current Seller Terms acceptance.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
-      if (verifiedAt && sellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
+      if (verifiedAt && payoutSellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
       else if(verifiedAt)notifyDesigner(transfer.designer_id,'seller_terms_required','Seller Terms acceptance needed','Tracking is verified. Review and accept the current Seller Terms in your Designer’s Room before your held payout can be released.',{orderId:transfer.order_id,actionPath:'/designers/room',eventKey:`terms-hold:${transfer.id}:${SELLER_TERMS_VERSION}`});
       return res.json({ received: true });
     } catch (error) {
@@ -1923,7 +1927,7 @@ function createApp(options = {}) {
     const order = db.prepare("SELECT * FROM orders WHERE id = ? AND status = 'paid'").get(orderId);
     if (!order) return [];
     if (order.payment_provider !== 'stripe') throw Object.assign(new Error('This payment provider cannot fund Stripe seller payouts.'), {statusCode:409,code:'payout_provider_mismatch'});
-    requireSellerTerms(designerId);
+    if (!payoutSellerTermsAcceptance(designerId)) throw Object.assign(new Error('Accept the Seller Terms before releasing payouts.'),{statusCode:409,code:'seller_terms_required'});
     const groups = db.prepare(`SELECT designer_id, SUM(designer_amount_cents) AS amount_cents FROM order_items WHERE order_id = ? AND designer_id = ? GROUP BY designer_id`).all(orderId, designerId);
     const results = [];
     for (const group of groups) {

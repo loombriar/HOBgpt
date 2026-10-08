@@ -268,7 +268,7 @@
             <p class="eyebrow">How the House works</p>
             <h2 id="how-house-works-title">A marketplace built around independent designers.</h2>
             <p>When a piece sells, House of Briar retains a 10% marketplace fee from the designer’s sale and 90% stays with the designer. Buyers are not charged an extra 10% marketplace fee. The fee helps operate and maintain the marketplace, support orders, promote independent designers, and build tools for the creative businesses in the House.</p>
-            <p class="small-print">Shipping and applicable taxes are shown separately where required.</p>
+            <p class="small-print">Free US delivery. Each designer covers postage and ships their own pieces.</p>
           </div>
         </section>
 
@@ -385,7 +385,7 @@
             <label>Designer or brand name<input name="brandName" type="text" required /></label>
             <label>Email<input name="email" type="email" autocomplete="email" required /></label>
             <label>What do you create?<input name="categories" type="text" placeholder="Fashion, winter wear, art, accessories…" required /></label>
-            <label class="seller-terms-check"><input name="sellerTermsAccepted" type="checkbox" required /> <span>I agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a> (version 2026-10-06), including marketplace fees, shipping responsibilities, returns, prohibited items, and payout rules.</span></label>
+            <label class="seller-terms-check"><input name="sellerTermsAccepted" type="checkbox" required /> <span>I agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a> (version 2026-10-08-free-delivery), including designer-funded free US delivery, marketplace fees, shipping responsibilities, returns, prohibited items, and payout rules.</span></label>
             <button class="primary-button" type="submit">Create designer account</button>
           </form>
           <p id="designer-signup-message" class="form-message" role="status" aria-live="polite"></p>
@@ -414,7 +414,7 @@
           <div id="seller-readiness-list" class="seller-readiness-list" aria-live="polite"></div>
           <form id="seller-terms-form" class="stack-form hidden">
             <p>Review the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a>. Version <span id="seller-terms-version"></span>.</p>
-            <label><input id="seller-terms-consent" type="checkbox" required /> I have read and agree to these Seller Terms.</label>
+            <label><input id="seller-terms-consent" type="checkbox" required /> I agree to these Seller Terms, including covering postage and offering free US delivery.</label>
             <button class="primary-button" type="submit">Accept Seller Terms</button>
             <p id="seller-terms-message" role="status"></p>
           </form>
@@ -444,8 +444,8 @@
           <textarea id="product-description" name="description" maxlength="2000" rows="3"></textarea>
           <fieldset class="listing-form-group"><legend>Price &amp; shipping</legend><div class="form-row">
             <div><label for="product-price">Price</label><input id="product-price" name="price" type="number" min="0" step="0.01" required /></div>
-            <div><label for="product-shipping">US shipping per piece ($)</label><input id="product-shipping" type="number" min="0" max="10000" step="0.01"/><small>$0 means free. Blank prevents checkout.</small></div>
-            <div><label for="product-free-shipping">Free shipping threshold ($)</label><input id="product-free-shipping" type="number" min="0" step="0.01"/><small>Counts this designer’s merchandise before discounts; excludes gift wrapping.</small></div>
+            <div><label for="product-shipping">Customer delivery charge ($)</label><input id="product-shipping" value="0" readonly type="number" min="0" max="10000" step="0.01"/><small>Always $0 for customers. You pay postage; include that cost in your listing price.</small></div>
+            <div hidden><label for="product-free-shipping">Free shipping threshold ($)</label><input id="product-free-shipping" type="number" min="0" step="0.01"/><small>Counts this designer’s merchandise before discounts; excludes gift wrapping.</small></div>
             <label><input id="product-international" type="checkbox"/> Open to international shipping (US checkout only)</label>
             <div><label for="product-handling-min">Preparation days, minimum</label><input id="product-handling-min" type="number" min="0" max="365" step="1"/></div>
             <div><label for="product-handling-max">Preparation days, maximum</label><input id="product-handling-max" type="number" min="0" max="365" step="1"/><small>Business days before shipment; carrier transit is additional. US checkout only.</small></div>
