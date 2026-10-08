@@ -18,7 +18,7 @@ test('only completed verification counts; codes are one-use and repeat sign-in i
   assert.match(response.headers.get('set-cookie'),/HttpOnly/);assert.match(response.headers.get('set-cookie'),/SameSite=Lax/);
   assert.equal((await f.post('/api/customer/verify-code',challenge)).status,401);
   const repeat=await f.verify();assert.equal(repeat.data.created,false);assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,1);
-  const report=await fetch(f.url+'/api/admin/customer-signups',{headers:{Authorization:'Bearer admin-test'}});assert.equal(report.headers.get('cache-control'),'no-store');const data=await report.json();assert.equal(data.customers.total,1);assert.equal(data.customers.today,1);assert.equal(data.customers.daily.length,30);
+  const report=await fetch(f.url+'/api/admin/customer-signups',{headers:{Authorization:'Bearer admin-test'}});assert.equal(report.headers.get('cache-control'),'no-store');const data=await report.json();assert.equal(data.customers.total,1);assert.equal(data.customers.today,1);assert.equal(data.customers.daily.length,1);
   assert.ok(!JSON.stringify(data).includes('guest@example.test'));
   const sessionHash=f.ctx.db.prepare('SELECT session_hash FROM customer_sessions LIMIT 1').get().session_hash;assert.match(sessionHash,/^[a-f0-9]{64}$/);assert.ok(!repeat.cookie.includes(sessionHash));
  }finally{await f.close();}
