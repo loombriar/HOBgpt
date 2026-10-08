@@ -61,25 +61,19 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   const [cartCount, setCartCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openMobileMenu, setOpenMobileMenu] = useState<string | null>(null);
   useEffect(() => {
-    const closeMenus = (event: PointerEvent) => {
-      if (!navRef.current?.contains(event.target as Node)) navRef.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { menu.open = false; });
+    const outside = (event: PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) setOpenMenu(null);
     };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        navRef.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { menu.open = false; });
-        setMobileNavOpen(false);
-      }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpenMenu(null); setOpenMobileMenu(null); setMobileNavOpen(false); }
     };
-    document.addEventListener('pointerdown', closeMenus);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('pointerdown', closeMenus); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
   }, []);
-  const toggleDropdown = (event: React.SyntheticEvent<HTMLDetailsElement>) => {
-    if (!event.currentTarget.open) return;
-    const current = event.currentTarget;
-    current.closest('nav')?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { if (menu !== current) menu.open = false; });
-  };
   useEffect(() => {
     const refresh = () => {
       const stored = window.localStorage.getItem('house-of-briar:cart');
@@ -137,12 +131,12 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 ['Designer studio', '/account'],
                 ['Meet the designers', '/designers']
               ] }
-            ].map((group) => <details key={group.title} onToggle={toggleDropdown} className="group relative z-[100] open:z-[200]">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 whitespace-nowrap text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true" className="text-xs transition-transform group-open:rotate-180">⌄</span></summary>
-              <div className="absolute left-0 top-full z-[9999] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
-                {group.items.map(([label, href], index) => <a key={label} href={href} onClick={() => { navRef.current?.querySelectorAll<HTMLDetailsElement>("details[open]").forEach(menu => { menu.open = false; }); }} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
-              </div>
-            </details>)}
+            ].map((group) => <div key={group.title} className="relative">
+              <button type="button" aria-expanded={openMenu === group.title} aria-haspopup="true" onClick={() => setOpenMenu(current => current === group.title ? null : group.title)} className="flex min-h-11 cursor-pointer items-center gap-1 whitespace-nowrap text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{group.title}<span aria-hidden="true" className={`text-xs transition-transform ${openMenu === group.title ? "rotate-180" : ""}`}>⌄</span></button>
+              {openMenu === group.title && <div className="absolute left-0 top-full z-[9999] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
+                {group.items.map(([label, href], index) => <a key={label} href={href} onClick={() => setOpenMenu(null)} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
+              </div>}
+            </div>)}
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
@@ -161,10 +155,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Suitcase','/cart']]},
               {title:'Visitors',items:[['Your studio','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
               {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer studio','/account'],['Meet designers','/designers']]}
-            ].map(group=><details key={group.title} onToggle={toggleDropdown} className="rounded-xl border-b border-border/50">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 py-3 font-medium [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true">⌄</span></summary>
-              <div className="flex flex-col pb-2 pl-3">{group.items.map(([label,href],index)=><a key={label} href={href} onClick={()=>setMobileNavOpen(false)} className={`rounded-lg px-3 py-2.5 hover:bg-accent ${group.title==='Mess Around'&&index===0?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</a>)}</div>
-            </details>)}
+            ].map(group=><div key={group.title} className="rounded-xl border-b border-border/50">
+              <button type="button" aria-expanded={openMobileMenu === group.title} onClick={() => setOpenMobileMenu(current => current === group.title ? null : group.title)} className="flex min-h-11 w-full cursor-pointer items-center justify-between px-3 py-3 font-medium">{group.title}<span aria-hidden="true">⌄</span></button>
+              {openMobileMenu === group.title && <div className="flex flex-col pb-2 pl-3">{group.items.map(([label,href],index)=><a key={label} href={href} onClick={()=>{setMobileNavOpen(false);setOpenMobileMenu(null);}} className={`rounded-lg px-3 py-2.5 hover:bg-accent ${group.title==='Mess Around'&&index===0?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</a>)}</div>}
+            </div>)}
             <div className="mt-2 border-t border-border/70 pt-2 sm:hidden"><ThemeButton /></div>
           </div>
         </nav>}
