@@ -8,6 +8,8 @@ module.exports = defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
+    // CI installs Chromium; mobile device presets must use that browser too.
+    browserName: 'chromium',
     trace: 'retain-on-failure',
   },
   webServer: {
