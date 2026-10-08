@@ -1,3 +1,4 @@
+const { safeTrackingUrl } = require('./lib/tracking-url');
 const { dailyTraffic: summarizeDailyTraffic } = require('./lib/daily-traffic');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -385,6 +386,7 @@ function createApp(options = {}) {
   ensureColumn('designer_transfers', 'tracking_number', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_submitted_at', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_provider_id', 'TEXT');
+  ensureColumn('designer_transfers', 'tracking_url', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_status', 'TEXT');
   ensureColumn('designer_transfers', 'tracking_verified_at', 'TEXT');
   ensureColumn('designer_transfers', 'release_reason', 'TEXT');
@@ -1268,12 +1270,12 @@ function createApp(options = {}) {
       if (!tracker?.id) return res.json({ received: true, ignored: true });
 
       const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
-      if (!transfer || transfer.status === 'paid') return res.json({ received: true, ignored: true });
+      if (!transfer) return res.json({ received: true, ignored: true });
 
       const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
       const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
-      db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
+      db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?), tracking_url = COALESCE(?, tracking_url) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, safeTrackingUrl(tracker.public_url), transfer.id);
       if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Payout release also requires current Seller Terms acceptance.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
       if (verifiedAt && sellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
       else if(verifiedAt)notifyDesigner(transfer.designer_id,'seller_terms_required','Seller Terms acceptance needed','Tracking is verified. Review and accept the current Seller Terms in your Designer’s Room before your held payout can be released.',{orderId:transfer.order_id,actionPath:'/designers/room',eventKey:`terms-hold:${transfer.id}:${SELLER_TERMS_VERSION}`});
@@ -1910,7 +1912,7 @@ function createApp(options = {}) {
     const acceptedStatuses = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
     const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
     const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
-    return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown' };
+    return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown', publicUrl: safeTrackingUrl(tracker.public_url) };
   }
 
   async function processDesignerTransfers(orderId, designerId, releaseReason = 'tracking_submitted') {
@@ -3387,13 +3389,13 @@ function createApp(options = {}) {
     const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.subtotal_cents,o.created_at,o.paid_at,o.refund_status,o.refunded_at,
       oi.listing_id,oi.designer_id,oi.title,oi.quantity,oi.line_total_cents,
       COALESCE(dp.brand_name,dp.display_name,oi.designer_id) designer_name,
-      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at
+      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.tracking_url
       FROM orders o JOIN order_items oi ON oi.order_id=o.id
       LEFT JOIN designer_profiles dp ON dp.id=oi.designer_id
       LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
       WHERE o.buyer_subject=? ORDER BY o.created_at DESC,oi.title`).all(req.buyerSubject);
     const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
+    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingUrl:safeTrackingUrl(row.tracking_url),trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
     return res.json({orders:[...map.values()]});
   });
 
@@ -3553,12 +3555,12 @@ function createApp(options = {}) {
       if(latest.tracking_verified_at)return fail(res,409,'shipment_verified','Verified shipment tracking cannot be replaced.');
       const verifiedAt=tracker.verified?new Date().toISOString():null;
       db.transaction(() => {
-      db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,order.id,req.designerId);
+      db.prepare(`UPDATE designer_transfers SET tracking_carrier=?,tracking_number=?,tracking_submitted_at=?,tracking_provider_id=?,tracking_status=?,tracking_verified_at=?,tracking_url=? WHERE order_id=? AND designer_id=?`).run(tracker.carrier,trackingNumber,new Date().toISOString(),tracker.id,tracker.status,verifiedAt,safeTrackingUrl(tracker.publicUrl),order.id,req.designerId);
       notifyDesigner(req.designerId,tracker.verified?'tracking_verified':'tracking_submitted',tracker.verified?'Tracking verified':'Tracking submitted',tracker.verified?`Carrier tracking for order ${order.id} is verified. Payout release also requires current Seller Terms acceptance.`:`Tracking for order ${order.id} was received. Payout remains held until the carrier verifies movement.`,{orderId:order.id,actionPath:'/account#orders',priority:tracker.verified?'normal':'important',eventKey:tracker.verified?`tracking-verified:${current.id}`:`tracking-submitted:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`});
       }).immediate();
       const contact=designerOrderContact(order.id,req.designerId);
       if(contact?.email)await sendEmail({to:contact.email,eventKey:`tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Tracking received for your House of Briar sale',text:`Order ${order.id}\nTracking: ${tracker.carrier} ${trackingNumber}\nStatus: ${tracker.status}\n\n${tracker.verified?'Carrier tracking is verified and your payout is being released.':'Your payout remains held until the carrier verifies the shipment.'}`});
-      if(order.buyer_email)await sendEmail({to:order.buyer_email,eventKey:`buyer-tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}`});
+      if(order.buyer_email)await sendEmail({to:order.buyer_email,eventKey:`buyer-tracking-email:${current.id}:${carrier.toLowerCase()}:${trackingNumber}`,subject:'Your House of Briar order is shipping',text:`Your order ${order.id} has tracking.\nCarrier: ${tracker.carrier}\nTracking: ${trackingNumber}${safeTrackingUrl(tracker.publicUrl)?`\nTrack your package: ${safeTrackingUrl(tracker.publicUrl)}`:""}`});
       if(!tracker.verified)return res.status(202).json({verified:false,status:tracker.status});
       const transfers=await processDesignerTransfers(order.id,req.designerId,'tracking_verified');
       return res.json({verified:true,status:tracker.status,transfers});
