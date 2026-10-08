@@ -120,3 +120,9 @@ html:has(.sewing-header){scroll-padding-top:calc(var(--house-header-height,180px
 .blackberry-house .site-header.sewing-header{box-shadow:0 4px 18px #4b293712}
 
 .customer-account-card{padding:22px;border:1px solid #c7ab68;background:#fffaf2;margin-bottom:24px}.customer-account-card [hidden]{display:none!important}.customer-account-card .primary-button{display:inline-flex;align-items:center;min-height:44px}
+
+/* Donation amount stays legible inside narrow support cards. */
+body.blackberry-house .donation-row{grid-template-columns:auto minmax(0,1fr);gap:.75rem}
+body.blackberry-house .donation-row input{min-width:0;min-height:52px;font-size:1.25rem;background:var(--paper,#fffaf0);color:var(--ink,#30232b)}
+body.blackberry-house .donation-row button{grid-column:1 / -1;width:100%;min-height:48px;white-space:normal}
+body.blackberry-house .donation-form .form-message{margin-top:.75rem}

@@ -228,5 +228,21 @@ test('donation button starts checkout with its displayed amount and shows provid
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
   });
   await page.getByRole('button', { name: 'Give by card / bank' }).click();
-  await expect(page).toHaveURL(/donation=canceled/);
+  await expect(page.getByText('Your donation checkout was canceled.', { exact: true })).toBeVisible();
 });
+
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  test(`donation amount is readable and editable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/#support');
+    const amount = page.locator('#donation-amount');
+    await amount.scrollIntoViewIfNeeded();
+    const inputBox = await amount.boundingBox();
+    expect(inputBox.width).toBeGreaterThan(100);
+    expect(inputBox.height).toBeGreaterThanOrEqual(48);
+    await amount.fill('10');
+    await expect(amount).toHaveValue('10');
+    const buttonBox = await page.getByRole('button', { name: 'Give by card / bank' }).boundingBox();
+    expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
+  });
+}
