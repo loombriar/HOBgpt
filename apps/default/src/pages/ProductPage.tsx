@@ -90,14 +90,21 @@ export default function ProductPage() {
   const designerId = getFieldValue(product, '@desid', 'Designer ID') ?? '';
   const availability = getFieldValue(product, '@statx', 'Status') ?? 'Available';
   const isAvailable = availability === 'Available';
-  const description = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.';
+  const rawDescription = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.';
+  const garmentBlock = rawDescription.match(/\\n?\\[GARMENT DETAILS\\]\\n([\\s\\S]*?)\\n\\[END GARMENT DETAILS\\]/);
+  const garmentInfo: Record<string,string> = {};
+  if (garmentBlock) for (const line of garmentBlock[1].split('\\n')) {
+    const index = line.indexOf(': ');
+    if (index > 0) garmentInfo[line.slice(0,index)] = line.slice(index+2);
+  }
+  const description = rawDescription.replace(/\\n?\\[GARMENT DETAILS\\]\\n[\\s\\S]*?\\n\\[END GARMENT DETAILS\\]/,'').trim();
   const category = getFieldValue(product, '@categ', 'Category') ?? 'One-of-a-kind';
   const size = getFieldValue(product, '@sizex', 'Size') ?? 'Made to order';
   const tags = getFieldValue(product, '@tagsx', 'Tags') ?? 'Made with intention';
-  const materialDetails = getFieldValue(product, '@matrl', 'Material') || getFieldValue(product, '@fabric', 'Fabric') || '';
-  const careDetails = getFieldValue(product, '@care', 'Care Instructions') || '';
-  const garmentMeasurements = getFieldValue(product, '@measu', 'Garment Measurements') || '';
-  const fitNotes = getFieldValue(product, '@fitnt', 'Fit Notes') || '';
+  const materialDetails = garmentInfo['Material'] || getFieldValue(product, '@matrl', 'Material') || getFieldValue(product, '@fabric', 'Fabric') || '';
+  const careDetails = garmentInfo['Care Instructions'] || getFieldValue(product, '@care', 'Care Instructions') || '';
+  const garmentMeasurements = garmentInfo['Garment Measurements'] || getFieldValue(product, '@measu', 'Garment Measurements') || '';
+  const fitNotes = garmentInfo['Fit Notes'] || getFieldValue(product, '@fitnt', 'Fit Notes') || '';
   const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs'));
   const primaryImage = images[activeImageIndex] ?? images[0];
   const hasGallery = images.length > 1;
