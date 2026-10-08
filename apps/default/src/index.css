@@ -114,3 +114,34 @@
 .fashion-app header { box-shadow:none; }
 .fashion-app article { box-shadow:none; }
 .fashion-app img { background:hsl(var(--muted)); }
+
+/* Shared House room layout for the marketplace tools. */
+.house-room { color:hsl(var(--foreground)); }
+.house-room > section,.house-room > form,.house-room > div > section { box-shadow:0 4px 20px hsl(var(--foreground)/.035); }
+.house-room section[id],.house-room form[id] { scroll-margin-top:110px; }
+.house-room h1 { font-size:clamp(2.25rem,4vw,3.5rem); line-height:1.12; }
+.house-room h2 { font-size:clamp(1.5rem,3vw,2rem); line-height:1.2; }
+.house-room :is(input,select,textarea) { max-width:100%; }
+.house-room :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size:1rem; }
+.house-room input[type=checkbox] { flex-shrink:0; accent-color:hsl(var(--primary)); }
+.house-room article,.house-room section,.house-room fieldset { min-width:0; }
+.house-room p { line-height:1.65; overflow-wrap:anywhere; }
+.house-room .room-navigation { display:flex; flex-wrap:wrap; gap:.5rem; padding:1rem; border:1px solid hsl(var(--border)); border-radius:1rem; background:hsl(var(--accent)/.4); }
+.house-room .room-navigation a { display:flex; align-items:center; min-height:44px; padding:.65rem 1rem; border:1px solid hsl(var(--border)); border-radius:.75rem; background:hsl(var(--card)); font-size:.85rem; font-weight:600; }
+.house-room .room-navigation a:hover { border-color:hsl(var(--primary)); color:hsl(var(--primary)); }
+.house-room .room-navigation a:focus-visible { outline:3px solid hsl(var(--ring)); outline-offset:3px; }
+.house-room fieldset { background:hsl(var(--accent)/.12); }
+.house-room table { width:100%; border-collapse:collapse; }
+.house-room :is(th,td) { padding:.7rem; text-align:left; border-bottom:1px solid hsl(var(--border)); }
+@media(max-width:640px) {
+ .house-room { padding-top:1.5rem; }
+ .house-room .room-navigation { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:.75rem; }
+ .house-room .room-navigation a { padding:.6rem; font-size:.8rem; }
+ .house-room section,.house-room form { padding:1.1rem; }
+}
+.house-room { --primary:282 15% 36%; --primary-foreground:40 27% 97%; --accent:285 20% 93%; --accent-foreground:282 15% 28%; --border:290 17% 85%; --ring:282 22% 58%; }
+.dark .house-room { --primary:282 25% 80%; --primary-foreground:282 15% 12%; --accent:282 15% 18%; --accent-foreground:282 25% 88%; --border:282 10% 30%; --ring:282 25% 70%; }
+.house-room .rounded-3xl { border-radius:20px; }
+.house-room .rounded-2xl { border-radius:16px; }
+.house-room .rounded-full { border-radius:999px; }
+.house-room input:not([type=checkbox]):not([type=radio]),.house-room select,.house-room textarea { border-radius:12px; }

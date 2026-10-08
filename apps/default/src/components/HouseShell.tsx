@@ -96,7 +96,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
             <span className="min-w-0 leading-none">
               <span className="block truncate font-serif text-base font-semibold tracking-wide sm:text-lg">House of Briar</span>
-              <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
+              <span className="mt-1 hidden whitespace-nowrap text-[8px] sm:block uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
             </span>
           </Link>
           <nav ref={navRef} className="hidden items-center gap-5 text-sm md:flex" aria-label="Primary navigation">
@@ -139,7 +139,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
             </div>)}
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
+            <Link to="/shop?liked=true" aria-label="Saved pieces" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
             <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="size-7 object-contain" />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
             {auth.isAuthenticated && <button type="button" onClick={() => void auth.signoutRedirect()} className="min-h-11 rounded-full border border-border bg-card px-3 text-sm">Sign out</button>}
             <span className="hidden sm:inline-flex"><ThemeButton /></span>

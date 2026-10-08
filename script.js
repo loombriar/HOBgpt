@@ -1297,7 +1297,8 @@ async function loadDesignerListings() {
         } catch {}
       }
       if (loadId !== designerListingsLoad) return;
-      row.appendChild(preview);
+      if (preview.getAttribute('src')) row.appendChild(preview);
+      else row.appendChild(makeElement('span', 'designer-image-placeholder', 'No photo'));
 
       const info = makeElement('div', 'designer-product-info');
       info.appendChild(makeElement('h4', '', listing.title));
@@ -1894,8 +1895,8 @@ async function renderAdminOverview() {
     ['Listing reports', '/api/admin/listing-reports']
   ];
   await Promise.all(sections.map(async ([title, url]) => {
-    const section = makeElement('section', 'admin-summary-section');
-    section.append(makeElement('h3', '', title)); host.append(section);
+    const section = makeElement('details', 'admin-summary-section');
+    section.append(makeElement('summary', '', title)); host.append(section);
     try {
       const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminToken) return;
       if (data.customers) {
@@ -1950,7 +1951,9 @@ async function renderAdminOverview() {
       }
       if (data.summary) {
         section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
-        for (const [key, value] of Object.entries(data.summary)) section.append(makeElement('p', '', `${key.replace(/([A-Z])/g, ' $1')}: ${value}`));
+        const stats = makeElement('div', 'admin-traffic-stats');
+        for (const [key, value] of Object.entries(data.summary)) { const card = makeElement('div', 'admin-traffic-stat'); card.append(makeElement('strong', '', String(value)), makeElement('span', '', key.replace(/([A-Z])/g, ' $1'))); stats.append(card); }
+        section.append(stats);
         for (const order of data.orders || []) section.append(makeElement('p', '', `Order ${order.id} · ${order.status} · ${(order.subtotal_cents / 100).toFixed(2)} ${order.currency}`));
       }
       if (data.reports) {
@@ -2217,3 +2220,17 @@ byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-fo
 byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
 if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
 refreshCustomerAccount();
+
+// Room shortcuts retain existing forms and open disclosures before focusing a section.
+document.querySelectorAll('[data-room-target]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = byId(button.dataset.roomTarget);
+    if (!target) return;
+    for (let parent = target; parent; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+    target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+    target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  });
+});

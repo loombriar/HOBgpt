@@ -1,0 +1,111 @@
+/* House rooms: one shared surface, readable controls and clear section boundaries. */
+:root { --room-ink:#493b4b; --room-muted:#746776; --room-border:#dfd2da; --room-paper:#fffdfb; --room-accent:#65506a; }
+.app-dialog { padding:0; color:var(--room-ink); border:1px solid var(--room-border); border-radius:24px; width:min(900px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; overscroll-behavior:contain; }
+.app-dialog::backdrop { background:rgba(38,26,40,.58); backdrop-filter:blur(4px); }
+.app-dialog > .dialog-header { position:sticky; top:0; z-index:30; padding:20px 24px; background:var(--room-paper); box-shadow:0 1px 0 var(--room-border); }
+.dialog-header h2 { margin:0; font-size:clamp(1.6rem,3vw,2.2rem); line-height:1.2; }
+.dialog-header .eyebrow { margin:0 0 6px; }
+.dialog-header .icon-button { flex:0 0 44px; background:#f5eef3; color:var(--room-ink); }
+.app-dialog > :not(.dialog-header) { margin-left:24px; margin-right:24px; }
+.app-dialog > :last-child { margin-bottom:24px; }
+.app-dialog .login-panel { padding:24px 0; }
+.app-dialog .dialog-header + .form-message:empty,.form-message:empty { display:none; }
+.app-dialog :is(input,select,textarea),.designer-room-page :is(input,select,textarea) { color:var(--room-ink); font:inherit; max-width:100%; box-sizing:border-box; }
+.app-dialog :is(input:not([type=checkbox]):not([type=radio]),select,textarea),.designer-room-page :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { min-height:46px; padding:11px 13px; background:#fff; border:1px solid #cbbbc9; border-radius:12px!important; }
+.app-dialog :is(input[type=checkbox],input[type=radio]),.designer-room-page :is(input[type=checkbox],input[type=radio]) { width:18px; height:18px; min-height:18px; padding:0; flex:0 0 18px; accent-color:var(--room-accent); }
+.app-dialog :focus-visible,.designer-room-page :focus-visible { outline:3px solid #a982ae; outline-offset:3px; }
+.app-dialog :is(p,li),.designer-room-page :is(p,li) { line-height:1.65; overflow-wrap:anywhere; }
+.app-dialog :is(button,a),.designer-room-page :is(button,a) { overflow-wrap:anywhere; }
+.form-actions,.studio-toolbar-actions,.designer-product-actions { flex-wrap:wrap; }
+.room-navigation { display:flex; flex-wrap:wrap; gap:8px; padding:12px; border:1px solid var(--room-border); border-radius:16px; background:#f5eef3; }
+.room-navigation :is(button,a) { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 16px; border:1px solid #ded0da; border-radius:10px; background:var(--room-paper); color:var(--room-ink); font:600 .88rem/1.3 Inter,sans-serif; text-decoration:none; cursor:pointer; }
+.room-navigation :is(button,a):hover { background:#eadfeb; border-color:#af91b4; }
+.designer-room-page { margin:24px auto 48px; background:#f8f3f6; border-color:var(--room-border); box-shadow:0 12px 40px #493b4b0b; }
+.designer-room-header { background:transparent; align-items:center; }
+.designer-room-page #designer-workspace { gap:24px; }
+.designer-room-page :is(.room-card,.seller-readiness-card,.payout-setup-card,.fabric-finder-card,.designer-welcome,.designer-settings-card) { margin:0; padding:clamp(18px,3vw,28px); border:1px solid var(--room-border); border-radius:20px; background:var(--room-paper); box-shadow:0 4px 16px #493b4b04; min-width:0; }
+.designer-room-page .designer-settings-card { padding:0; }
+.designer-room-page .designer-settings-card > summary { padding:20px 24px; }
+.designer-room-page :is(h3,summary) { color:var(--room-ink); }
+.designer-room-page .stack-form { gap:12px; }
+.designer-room-page .stack-form > label { margin-top:8px; }
+.designer-room-page .stack-form label > :is(input:not([type=checkbox]),select,textarea) { display:block; margin-top:8px; }
+.designer-room-page .stack-form :is(input[type=file]) { width:100%; padding:12px; border-style:dashed; background:#faf7fa; }
+.designer-room-page :is(.seller-terms-check,.check-row,.check-label,.rules-confirmation) { display:flex; align-items:flex-start; gap:10px; }
+.designer-room-page :is(.seller-terms-check,.check-row,.check-label,.rules-confirmation) input { margin-top:3px; }
+.designer-room-page .listing-form-group,.designer-room-page .listing-enhancements,.designer-room-page .fit-ranges { min-width:0; margin:12px 0; padding:20px; border:1px solid var(--room-border); border-radius:14px; background:#fcf9fb; }
+.designer-room-page legend { padding:0 8px; font:600 1rem/1.5 Inter,sans-serif; color:var(--room-accent); }
+.designer-room-page .listing-detail-fields { display:grid; gap:10px; }
+.designer-room-page .listing-detail-fields > label { margin-top:12px; }
+.designer-room-page .listing-form-group .form-row { gap:20px; align-items:start; }
+.designer-room-page .form-row > div > input { margin-top:8px; }
+.designer-room-page .form-row > label:has(input[type=checkbox]) { display:flex; gap:10px; align-items:flex-start; }
+.designer-room-page :is(#designer-brand-form,#product-form,#designer-products,#designer-settings,#seller-readiness-title) { scroll-margin-top:32px; }
+.designer-products:empty::before { content:"Your pieces will appear here. Create your first listing when you’re ready."; color:var(--room-muted); }
+.designer-product-item { background:#fff; border-color:var(--room-border); padding:16px; gap:16px; }
+.designer-product-item img { object-fit:contain; width:80px; height:96px; background:#f5f0f4; }
+.designer-product-item { grid-template-columns:80px minmax(0,1fr) auto; }
+.designer-product-actions button { min-height:44px; }
+.designer-size-reference > summary { cursor:pointer; font-size:1.2rem; font-weight:600; }
+.designer-size-reference[open] > summary { margin-bottom:16px; }
+#designer-login-panel { max-width:740px; margin:auto; }
+.designer-signup-panel { background:var(--room-paper); border:1px solid var(--room-border); border-radius:20px; padding:24px; margin-top:32px; }
+.admin-review-dialog { width:min(1180px,calc(100vw - 32px)); }
+#admin-review-workspace { padding-bottom:8px; }
+#admin-review-workspace > .room-navigation { margin:20px 0; }
+#admin-review-workspace .studio-toolbar { align-items:center; padding:20px; border:1px solid var(--room-border); border-radius:16px; background:#f8f3f6; }
+#admin-review-workspace .studio-toolbar :is(h3,p) { margin:0; }
+.admin-review-list { padding:0; gap:20px; }
+.admin-review-card { padding:20px; border-color:var(--room-border); border-radius:18px; background:var(--room-paper); align-items:start; }
+.admin-review-media img { height:260px; object-fit:contain; }
+.admin-review-copy { min-width:0; gap:12px; }
+.admin-review-copy h3 { margin:0; }
+.admin-review-copy :is(textarea,select) { width:100%; }
+#admin-overview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin-top:24px; align-items:start; }
+.admin-summary-section { min-width:0; margin:0; padding:20px; border:1px solid var(--room-border); border-radius:18px; background:var(--room-paper); overflow:auto; }
+.admin-summary-section > summary { cursor:pointer; font:600 1.1rem/1.5 Inter,sans-serif; }
+.admin-summary-section[open] > summary { margin-bottom:20px; }
+.admin-summary-section :is(h4,p) { margin:14px 0 8px; }
+.admin-traffic-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin:16px 0; }
+.admin-traffic-stat { display:flex; flex-direction:column; gap:6px; padding:16px; border:1px solid var(--room-border); border-radius:12px; background:#f5eef3; }
+.admin-traffic-stat strong { font-size:1.8rem; line-height:1.2; }
+.admin-traffic-stat span { font-size:.8rem; color:var(--room-muted); }
+.admin-traffic-table { width:100%; border-collapse:collapse; font-size:.85rem; margin:16px 0; }
+.admin-traffic-table :is(th,td) { padding:10px 12px; text-align:left; border-bottom:1px solid var(--room-border); overflow-wrap:anywhere; }
+.admin-traffic-table th { background:#f5eef3; }
+.admin-support-item { border-color:var(--room-border); padding:16px; background:#fcf9fb; }
+/* Category windows use normal document flow: artwork cannot cover or stretch controls. */
+body.blackberry-house .product-section .shop-drop-windows { display:grid!important; grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))!important; gap:16px!important; width:100%!important; max-width:1180px!important; }
+body.blackberry-house .product-section .shop-drop-window { display:flex!important; flex-direction:column!important; position:relative!important; height:auto!important; min-height:128px!important; aspect-ratio:auto!important; gap:12px!important; padding:20px!important; background:#fffdfb!important; border:1px solid #d5c4d2!important; border-radius:16px!important; box-shadow:0 3px 12px #493b4b08!important; overflow:visible!important; }
+body.blackberry-house .product-section .shop-drop-window .category-window-art { display:none!important; }
+body.blackberry-house .product-section .shop-drop-window .category-window-title { position:static!important; inset:auto!important; padding:0!important; color:#614763!important; font:600 .95rem/1.4 Inter,sans-serif!important; }
+body.blackberry-house .product-section .shop-drop-window > select { position:static!important; inset:auto!important; width:100%!important; height:48px!important; min-height:48px!important; padding:10px 32px 10px 12px!important; opacity:1!important; color:#493b4b!important; background:#f8f3f6!important; border:1px solid #cbbbc9!important; border-radius:10px!important; font:400 .9rem/1.4 Inter,sans-serif!important; cursor:pointer!important; }
+body.blackberry-house .product-section .shop-drop-window:focus-within { outline:3px solid #a982ae!important; outline-offset:3px!important; }
+.nav-dropdown-menu { border-radius:16px; box-shadow:0 14px 40px #493b4b26; }
+@media(max-width:700px) {
+  .app-dialog { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); border-radius:18px; }
+  .app-dialog > .dialog-header { padding:16px; }
+  .app-dialog > :not(.dialog-header) { margin-left:16px; margin-right:16px; }
+  .designer-room-page { margin-top:0; border-radius:0; }
+  .designer-room-header { align-items:flex-start; flex-direction:column; gap:16px; }
+  .room-navigation { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .room-navigation :is(a,button) { padding:10px; font-size:.8rem; }
+  .designer-room-page .form-row { grid-template-columns:1fr; }
+  .designer-room-page :is(.listing-form-group,.listing-enhancements,.fit-ranges) { padding:14px; }
+  .designer-product-item { grid-template-columns:64px minmax(0,1fr); }
+  .designer-product-item img { width:64px; height:80px; }
+  .designer-product-actions { grid-column:1/-1; }
+  #admin-overview { grid-template-columns:1fr; }
+  #admin-review-workspace .studio-toolbar { align-items:stretch; gap:16px; }
+  .admin-review-card { grid-template-columns:1fr; padding:16px; }
+}
+
+body.blackberry-house .designer-room-header { position:relative; top:auto; z-index:2; background:transparent; padding:0 0 20px; }
+
+.admin-summary-section[open] { grid-column:1/-1; }
+body.designer-room-open .site-header .briar-wordmark { display:none!important; }
+
+body.blackberry-house .product-section .shop-drop-window .category-window-title { padding-right:36px!important; text-align:left!important; }
+.designer-image-placeholder { display:grid; place-items:center; width:80px; height:96px; padding:8px; border:1px dashed var(--room-border); border-radius:10px; background:#f5f0f4; color:var(--room-muted); font-size:.75rem; text-align:center; }
+.designer-product-info > label { display:flex; align-items:center; gap:8px; margin:10px 0; font-size:.85rem; }
+@media(max-width:700px) { .designer-image-placeholder { width:64px; height:80px; } }
