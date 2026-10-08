@@ -169,3 +169,7 @@ body.blackberry-house .customer-account-card{padding:clamp(18px,3vw,28px);border
 body.blackberry-house .hero.sewing-hero{min-height:400px!important}
 body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:clamp(32px,5vw,64px) clamp(24px,6vw,90px)!important}
 @media(max-width:650px){body.blackberry-house .hero.sewing-hero{min-height:0!important}.fashion-hero-side{display:none!important}.sewing-hero-actions{display:flex;flex-wrap:wrap;gap:12px}.sewing-hero-actions a{min-height:48px;white-space:normal}}
+
+.customer-next-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.customer-next-steps :is(a,button){min-height:48px;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;padding:12px}
+@media(max-width:600px){.customer-next-steps{grid-template-columns:1fr}}

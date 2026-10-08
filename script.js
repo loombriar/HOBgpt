@@ -2274,3 +2274,20 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
 document.querySelectorAll('[data-customer-welcome]').forEach(button => {
   button.addEventListener('click', () => byId('header-customer-auth-btn')?.click());
 });
+
+byId('customer-start-shopping')?.addEventListener('click', () => {
+  byId('visitor-suite-modal')?.close();
+  const shop = byId('shop');
+  shop?.scrollIntoView({ block: 'start' });
+  shop?.setAttribute('tabindex', '-1');
+  shop?.focus({ preventScroll: true });
+});
+document.querySelectorAll('[data-customer-section]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = byId(button.dataset.customerSection);
+    if (!target) return;
+    if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
+    target.scrollIntoView({ block: 'center' });
+    target.focus({ preventScroll: true });
+  });
+});
