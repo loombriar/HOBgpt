@@ -25,7 +25,7 @@ test('first 25 designer slots persist across restart and suspension; later signu
     const publicLater=await (await fetch(origin+'/api/designers/'+later.designer.id)).json();
     assert.ok(!publicLater.designer.badges.some(b=>b.type==='founding_designer'));
     assert.equal((await fetch(origin+'/api/my/designer-profile')).status,401);
-    const image=await fetch(origin+'/founding-designer-v2.webp');assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/webp/);
+    const image=await fetch(origin+'/founding-designer-berry-v1.webp');assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/webp/);
     ctx.db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='maker0'").run();
     assert.equal((await fetch(origin+'/api/designers/maker0')).status,404);
     const before=ctx.db.prepare('SELECT * FROM founding_designers ORDER BY slot').all();

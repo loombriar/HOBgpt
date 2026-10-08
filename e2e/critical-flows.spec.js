@@ -129,7 +129,7 @@ test('admin panel entry displays daily traffic without a public website views sh
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Website views', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Admin panel', exact: true }).click();
-  await expect(page.locator('#support .founding-designer-card img')).toHaveAttribute('src', '/founding-designer-v2.webp');
+  await expect(page.locator('#support .founding-designer-card img')).toHaveAttribute('src', '/founding-designer-berry-v1.webp');
   await expect(page.locator('#admin-review-workspace')).toBeHidden();
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
   await page.locator('#admin-login-form button[type="submit"]').click();
@@ -148,7 +148,7 @@ test('admin panel entry displays daily traffic without a public website views sh
 test('founding designer badge appears on listings and public designer storefront', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#product-grid .founding-badge').first()).toBeVisible();
-  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-v2.webp');
+  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-berry-v1.webp');
   await page.goto('/designers/maker');
   await expect(page.getByText('Founding Designer', { exact: true })).toBeVisible();
 });
@@ -163,3 +163,24 @@ test('founding designer announcement advertises the badge and opens signup', asy
   await expect(page).toHaveURL(/designers\/room#designer-signup/);
   await expect(page.locator('#designer-signup-form')).toBeVisible();
 });
+
+for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
+  test(`home navigation stays visible while scrolling at ${viewport.width}px`, async ({page}) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    const header=page.locator('.site-header.sewing-header');
+    await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
+    await expect.poll(async()=>Math.round((await header.boundingBox()).y)).toBe(0);
+    await expect(page.locator('#cart-btn')).toBeInViewport();
+    await page.locator('.sewing-nav').getByRole('link',{name:'Support and Badges',exact:true}).click();
+    await expect.poll(async()=>{
+      const h=await header.boundingBox(),section=await page.locator('#support').boundingBox();
+      return section.y >= h.y+h.height-2;
+    }).toBe(true);
+    for(const name of ['heart-of-the-house-berry-v1.webp','verified-buyer-berry-v1.webp','founding-designer-berry-v1.webp']){
+      const artwork=page.locator(`#support img[src="/${name}"]`);
+      await expect(artwork).toBeVisible();
+      await expect.poll(()=>artwork.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+    }
+  });
+}

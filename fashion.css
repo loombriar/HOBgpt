@@ -4,7 +4,7 @@ body,body.blackberry-house{background:#f8f6f2!important;background-image:none!im
 body h1,body h2,body h3,.brand-name{font-family:'Cormorant Garamond',Georgia,serif!important;font-weight:400!important;letter-spacing:-.035em!important}
 .container{max-width:1440px;padding-inline:clamp(20px,5vw,80px)}
 .page-shell::before,.page-shell::after,.briar-divider,.briar-side-vine,.atelier-icon,.atelier-stitch,.atelier-motion-button,.dropdown-measuring-tape,.fit-search-avatar{display:none!important}
-.blackberry-house .site-header.sewing-header{position:relative!important;display:flex!important;flex-direction:column!important;gap:0!important;background:#f8f6f2!important;padding:24px 24px 0!important;border-bottom:1px solid #d6d0c8!important}
+.blackberry-house .site-header.sewing-header{position:sticky!important;top:0!important;z-index:80!important;display:flex!important;flex-direction:column!important;gap:0!important;background:#f8f6f2!important;padding:24px 24px 0!important;border-bottom:1px solid #d6d0c8!important}
 .blackberry-house .sewing-header .briar-wordmark{width:auto!important;max-width:100%!important;order:0!important;margin:0 auto!important;padding:0!important}
 .fashion-wordmark{display:block;text-align:center;font-family:Georgia,serif;font-size:clamp(26px,4vw,56px);line-height:1.1;letter-spacing:.05em;color:#252323}
 .fashion-wordmark i{font-weight:400;font-size:.7em;letter-spacing:0}
@@ -113,3 +113,8 @@ body.blackberry-house .footer-links{flex-wrap:wrap;align-items:center}
 body.blackberry-house .curation-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1050px){body.blackberry-house .curation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){body.blackberry-house .curation-grid{grid-template-columns:1fr}}
+
+/* Keep the navigation attached to the document viewport; clip avoids a nested scroll container. */
+.blackberry-house .page-shell{overflow:clip}
+html:has(.sewing-header){scroll-padding-top:calc(var(--house-header-height,180px) + 16px)}
+.blackberry-house .site-header.sewing-header{box-shadow:0 4px 18px #4b293712}

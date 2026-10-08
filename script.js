@@ -1,3 +1,12 @@
+// Match anchor offsets to the wrapped navigation height on desktop and mobile.
+const scrollingHeader = document.querySelector('.sewing-header');
+if (scrollingHeader) {
+  const syncHeaderHeight = () => document.documentElement.style.setProperty('--house-header-height', `${Math.ceil(scrollingHeader.getBoundingClientRect().height)}px`);
+  syncHeaderHeight();
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncHeaderHeight).observe(scrollingHeader);
+  else window.addEventListener('resize', syncHeaderHeight);
+}
+
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -272,7 +281,7 @@ function createBadgePill(label, className = 'badge') {
   if (className.includes('supporter-badge')) {
     pill.title = 'You helped keep the House in stitches. Thank you.';
     const artwork = makeElement('img', 'supporter-badge-art');
-    artwork.src = '/heart-of-the-house-v1.webp';
+    artwork.src = '/heart-of-the-house-berry-v1.webp';
     artwork.alt = '';
     artwork.setAttribute('aria-hidden', 'true');
     pill.prepend(artwork);
@@ -280,7 +289,7 @@ function createBadgePill(label, className = 'badge') {
   if (className.includes('verified-badge')) {
     pill.title = 'Excellent taste. Receipt to prove it.';
     const artwork = makeElement('img', 'supporter-badge-art');
-    artwork.src = '/verified-buyer-v1.webp';
+    artwork.src = '/verified-buyer-berry-v1.webp';
     artwork.alt = '';
     artwork.setAttribute('aria-hidden', 'true');
     pill.prepend(artwork);
@@ -288,7 +297,7 @@ function createBadgePill(label, className = 'badge') {
   if (className.includes('founding-badge')) {
     pill.title = 'One of the first 25 designers to join House of Briar.';
     const artwork = makeElement('img', 'supporter-badge-art');
-    artwork.src = '/founding-designer-v2.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
+    artwork.src = '/founding-designer-berry-v1.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
   }
   return pill;
 }
