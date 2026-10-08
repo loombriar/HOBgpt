@@ -83,7 +83,7 @@ export default function CheckoutPage() {
   const hasItems = items.length > 0;
   const {quote,error:shippingError}=useShippingQuote(sourceIds,promoCodes,returnState!=='success');
   const guestCatalog = !auth.isAuthenticated;
-  const canCheckout = quote?.shippingReady === true && catalogItems.length === sourceIds.length && catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
+  const canCheckout = returnState !== 'success' && quote?.shippingReady === true && catalogItems.length === sourceIds.length && catalogItems.length > 0 && catalogItems.every((item) => item.amount > 0) && !loading;
 
   useEffect(() => {
     if (returnState !== 'canceled' || !canceledOrderId || !cancelToken) return;
@@ -150,7 +150,7 @@ export default function CheckoutPage() {
   };
 
   const paymentComplete = paymentState === 'paid';
-  const emptyBag = !loading && !loadError && !hasItems && !paymentComplete;
+  const emptyBag = !loading && !loadError && !hasItems && !paymentComplete && returnState !== 'success';
 
   return <HouseShell>
     <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
@@ -165,12 +165,14 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {loading && <div className="mt-8 grid gap-4 md:grid-cols-[1.3fr_0.7fr]"><div className="h-56 animate-pulse rounded-3xl bg-muted" /><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}
-      {!loading && loadError && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{loadError} <button type="button" onClick={() => window.location.reload()} className="ml-2 underline underline-offset-4">Retry</button></div>}
+      {returnState === 'success' && paymentState === 'verifying' && <p role="status" className="mt-8 rounded-2xl border border-border bg-card p-5 text-sm">Verifying your payment with Stripe. Please keep this page open.</p>}
+      {returnState === 'success' && paymentState === 'failed' && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-card p-5 text-sm"><p className="font-semibold">Payment confirmation is not available yet.</p><p className="mt-2 text-muted-foreground">{paymentError} Do not start another payment until you check your receipt or contact support.</p><Link to="/cart" className="mt-3 inline-flex min-h-11 items-center underline">Return to suitcase</Link></div>}
+      {loading && !paymentComplete && <div className="mt-8 grid gap-4 md:grid-cols-[1.3fr_0.7fr]"><div className="h-56 animate-pulse rounded-3xl bg-muted" /><div className="h-56 animate-pulse rounded-3xl bg-muted" /></div>}
+      {!loading && loadError && !paymentComplete && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{loadError} <button type="button" onClick={() => window.location.reload()} className="ml-2 underline underline-offset-4">Retry</button></div>}
       {emptyBag && <div className="mt-8 rounded-3xl border border-border bg-card p-8 text-center sm:p-12"><p className="font-serif text-3xl">Your suitcase is waiting for a piece.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Explore the collection <ArrowRight size={16} /></Link></div>}
 
-      {!loading && paymentComplete && !hasItems && <section role="status" className="mt-8 rounded-3xl border border-primary/30 bg-card p-8 text-center"><BadgeCheck size={36} className="mx-auto text-primary"/><h2 className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-3 text-sm text-muted-foreground">Stripe verified your payment. Your suitcase has been updated.</p><p className="mt-2 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Continue shopping</Link></section>}
-      {!loading && !loadError && hasItems && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+      {paymentComplete && <section role="status" className="mt-8 rounded-3xl border border-primary/30 bg-card p-8 text-center"><BadgeCheck size={36} className="mx-auto text-primary"/><h2 className="mt-4 font-serif text-3xl">Order confirmed</h2><p className="mt-3 text-sm text-muted-foreground">Stripe verified your payment. Your suitcase has been updated.</p><p className="mt-2 text-xs text-muted-foreground">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Continue shopping</Link></section>}
+      {!loading && !loadError && hasItems && !paymentComplete && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="delivery-heading">
             <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><Truck size={19} /></span><div><h2 id="delivery-heading" className="font-serif text-2xl">Delivery, your way</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">This order contains {shipmentCount} {shipmentCount===1?'designer shipment':'designer shipments'}. Each designer fulfills separately, so packages and delivery dates can differ. Stripe collects your delivery address, which is shared with the designers fulfilling your order. Card details stay with Stripe.</p></div></div>
