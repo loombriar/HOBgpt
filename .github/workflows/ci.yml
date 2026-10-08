@@ -24,7 +24,7 @@ jobs:
       - name: Install marketplace dependencies
         working-directory: apps/default
         run: npm ci
-      - name: Test marketplace gateway contracts
+      - name: Run checkout and marketplace regression tests
         working-directory: apps/default
         run: npm test
       - name: Build marketplace
