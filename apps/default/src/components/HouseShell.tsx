@@ -102,10 +102,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <nav ref={navRef} className="hidden items-center gap-5 text-sm md:flex" aria-label="Primary navigation">
             {[
               { title: 'Mess Around', items: [
-                ['Find Your Fashion Personality', '/fashion-personality'],['Find out…', '/#mess-around'],
-                ['Briar Runway — Coming Soon', '/#mess-around'],
+                ['Find out…', '/fashion-personality'],['Find Your Fashion Personality', '/fashion-personality'],
+                ['Briar Runway — Coming Soon', '/fashion-personality'],
                 ['AI styling companion', '/#house-styling-title'],
-                ['AI photo try-on', '/#mess-around'],
+                ['AI photo try-on', '/#shop'],
                 ['Measurement avatar', '/account'],
                 ['Heart your favorites', '/shop?liked=true'],
                 ['Seasonal collections', '/#house-collections-title'],
@@ -151,7 +151,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
         {mobileNavOpen && <nav id="mobile-navigation" className="border-t border-border/70 px-4 py-3 md:hidden" aria-label="Mobile navigation">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm">
             {[
-              {title:'Mess Around',items:[['Find Your Fashion Personality','/fashion-personality'],['Find out…','/#mess-around'],['Briar Runway','/#mess-around'],['AI styling companion','/#house-styling-title'],['AI photo try-on','/#mess-around'],['Measurement avatar','/account'],['Heart your favorites','/shop?liked=true'],['Seasonal collections','/#house-collections-title'],['Designer stories & lookbooks','/#house-stories-title'],['Photo style search','/shop'],['House badges','/#support']]},
+              {title:'Mess Around',items:[['Find out…', '/fashion-personality'],['Find Your Fashion Personality', '/fashion-personality'],['Briar Runway — Coming Soon','/fashion-personality'],['AI styling companion','/#house-styling-title'],['AI photo try-on','/#shop'],['Measurement avatar','/account'],['Heart your favorites','/shop?liked=true'],['Seasonal collections','/#house-collections-title'],['Designer stories & lookbooks','/#house-stories-title'],['Photo style search','/shop'],['House badges','/#support']]},
               {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Suitcase','/cart']]},
               {title:'Visitors',items:[['Your studio','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
               {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer studio','/account'],['Meet designers','/designers']]}

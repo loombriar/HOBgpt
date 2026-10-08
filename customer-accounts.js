@@ -51,7 +51,8 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
  app.delete('/api/customer/session',origin,(req,res)=>{clearSession(req,res);return res.set('Cache-Control','no-store').json({ok:true});});
  app.get('/api/admin/customer-signups',authAdmin,(_req,res)=>{
   const rows=db.prepare('SELECT id,created_at FROM customer_accounts WHERE created_at>=?').all(new Date(Date.now()-31*86400000).toISOString());
-  const calendar=dailyTraffic(rows.map(r=>({...r,session_id:r.id})));
+  const started=db.prepare('SELECT MIN(created_at) started FROM customer_accounts').get().started;
+  const calendar=dailyTraffic(rows.map(r=>({...r,session_id:r.id})),new Date(),30,started||new Date());
   const daily=calendar.daily.map(r=>({day:r.day,signups:r.views}));
   return res.set('Cache-Control','no-store').json({customers:{total:db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,today:calendar.today.views,last30Days:daily.reduce((sum,r)=>sum+r.signups,0),timeZone:calendar.timeZone,daily}});
  });

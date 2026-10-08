@@ -23,3 +23,9 @@ test('daily grouping handles daylight saving transition without duplicate dates'
  assert.deepEqual(result.daily.at(-2),{day:'2026-11-01',views:3,visits:2});
  assert.equal(new Set(result.daily.map(row=>row.day)).size,30);
 });
+
+test('tracking calendar starts at its first recorded day and retains subsequent zero days',()=>{
+ const result=dailyTraffic([{created_at:'2026-10-06T16:00:00Z',session_id:'a'}],new Date('2026-10-08T16:00:00Z'),30,'2026-10-06T16:00:00Z');
+ assert.deepEqual(result.daily.map(r=>r.day),['2026-10-06','2026-10-07','2026-10-08']);
+ assert.equal(result.daily[1].views,0);
+});
