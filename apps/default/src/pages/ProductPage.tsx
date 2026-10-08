@@ -91,13 +91,13 @@ export default function ProductPage() {
   const availability = getFieldValue(product, '@statx', 'Status') ?? 'Available';
   const isAvailable = availability === 'Available';
   const rawDescription = getFieldValue(product, '@descr', 'Description') ?? 'A one-of-a-kind piece made with intention.';
-  const garmentBlock = rawDescription.match(/\n?\[GARMENT DETAILS\]\n([\s\\S]*?)\n\[END GARMENT DETAILS\]/);
+  const garmentBlock = rawDescription.match(/\n?\[GARMENT DETAILS\]\n([\s\S]*?)\n\[END GARMENT DETAILS\]/);
   const garmentInfo: Record<string,string> = {};
   if (garmentBlock) for (const line of garmentBlock[1].split('\n')) {
     const index = line.indexOf(': ');
     if (index > 0) garmentInfo[line.slice(0,index)] = line.slice(index+2);
   }
-  const description = rawDescription.replace(/\n?\[GARMENT DETAILS\]\n[\s\\S]*?\n\[END GARMENT DETAILS\]/,'').trim();
+  const description = rawDescription.replace(/\n?\[GARMENT DETAILS\]\n[\s\S]*?\n\[END GARMENT DETAILS\]/,'').trim();
   const category = getFieldValue(product, '@categ', 'Category') ?? 'One-of-a-kind';
   const size = getFieldValue(product, '@sizex', 'Size') ?? 'Made to order';
   const tags = getFieldValue(product, '@tagsx', 'Tags') ?? 'Made with intention';
