@@ -125,11 +125,11 @@ test('runway studio uploads a garment, walks, pauses and exports a preview', asy
 });
 
 
-test('private admin entry displays daily traffic and public footer hides admin tools', async ({ page }) => {
+test('admin panel entry displays daily traffic without a public website views shortcut', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Website views', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Admin panel', exact: true })).toHaveCount(0);
-  await page.goto('/#admin-review');
+  await page.getByRole('button', { name: 'Admin panel', exact: true }).click();
+  await expect(page.locator('#support .founding-designer-card img')).toHaveAttribute('src', '/founding-designer-v2.webp');
   await expect(page.locator('#admin-review-workspace')).toBeHidden();
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
   await page.locator('#admin-login-form button[type="submit"]').click();
