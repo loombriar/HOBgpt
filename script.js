@@ -2294,7 +2294,7 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
 
 // Keep navigation behavior in an external script permitted by the CSP.
 
-      /* Click-to-open menus; one at a time; close on outside click, Escape, or scrolling. */
+      /* Click-to-open menus; one at a time; close after selection, outside click, or Escape. */
       (() => {
         const init = () => {
           const menus = [...document.querySelectorAll('.sewing-nav details.nav-dropdown')];
@@ -2323,7 +2323,6 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
             if (!menus.some(menu => menu.contains(event.target))) closeAll();
           });
           document.addEventListener('keydown', event => { if (event.key === 'Escape') { const active = menus.find(menu => menu.open); closeAll(); active?.querySelector('summary')?.focus(); } });
-          window.addEventListener('scroll', () => closeAll(), { passive: true });
           window.addEventListener('resize', () => closeAll());
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
