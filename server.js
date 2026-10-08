@@ -1599,7 +1599,15 @@ function createApp(options = {}) {
 
   async function requireQuoteSellersReady(quote) {
     const ids=[...new Set((quote?.items||[]).map(item=>item.designerId).filter(Boolean))];
-    for(const designerId of ids)await requireStripeSellerReady(designerId);
+    for (const designerId of ids) {
+      try { await requireStripeSellerReady(designerId); }
+      catch (error) {
+        if (['seller_terms_required','payout_setup_required','payout_setup_incomplete'].includes(error.code)) {
+          throw Object.assign(new Error('This piece isn’t ready to purchase yet. The designer needs to finish their selling setup. Please choose another piece or try again later.'), { statusCode: 409, code: 'piece_not_ready' });
+        }
+        throw error;
+      }
+    }
     return quote;
   }
 
