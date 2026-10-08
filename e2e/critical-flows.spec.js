@@ -45,11 +45,12 @@ test('cookie-authenticated cross-site mutation is rejected and same-origin mutat
 
 test('storefront route records an anonymous designer view without storing an IP field', async ({ page, request }) => {
   await page.goto('/designers/maker');
-  await page.waitForLoadState('networkidle');
-  const analytics = await request.get('/api/admin/analytics', { headers: { Authorization: 'Bearer e2e-admin-token' } });
-  expect(analytics.ok()).toBeTruthy();
-  const body = await analytics.json();
-  expect(body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1)).toBeTruthy();
+  await expect.poll(async () => {
+    const analytics = await request.get('/api/admin/analytics', { headers: { Authorization: 'Bearer e2e-admin-token' } });
+    expect(analytics.ok()).toBeTruthy();
+    const body = await analytics.json();
+    return body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1);
+  }).toBeTruthy();
 });
 
 
