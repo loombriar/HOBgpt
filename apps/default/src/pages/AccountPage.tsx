@@ -322,19 +322,19 @@ function StudioContent() {
   </section>{sellerCommerceSection}{designerInquiriesSection}{collectorNotesSection}</div>;
 }
 
-const garmentDetailsPattern = /\\n?\\[GARMENT DETAILS\\]\\n([\\s\\S]*?)\\n\\[END GARMENT DETAILS\\]/;
+const garmentDetailsPattern = /\n?\[GARMENT DETAILS\]\n([\s\\S]*?)\n\[END GARMENT DETAILS\]/;
 function unpackGarmentDetails(description: string) {
   const match = description.match(garmentDetailsPattern);
   const details: Record<string,string> = {};
-  if (match) for (const line of match[1].split('\\n')) {
+  if (match) for (const line of match[1].split('\n')) {
     const colon = line.indexOf(': ');
     if (colon > 0) details[line.slice(0,colon)] = line.slice(colon+2);
   }
   return { description: description.replace(garmentDetailsPattern,'').trim(), details };
 }
 function packGarmentDetails(description:string, details:Record<string,string>) {
-  const lines=Object.entries(details).filter(([,value])=>value.trim()).map(([key,value])=>`${key}: ${value.trim().replace(/\\n/g,'; ')}`);
-  return lines.length ? `${description.trim()}\\n\\n[GARMENT DETAILS]\\n${lines.join('\\n')}\\n[END GARMENT DETAILS]` : description.trim();
+  const lines=Object.entries(details).filter(([,value])=>value.trim()).map(([key,value])=>`${key}: ${value.trim().replace(/\n/g,'; ')}`);
+  return lines.length ? `${description.trim()}\n\n[GARMENT DETAILS]\n${lines.join('\n')}\n[END GARMENT DETAILS]` : description.trim();
 }
 export default function AccountPage() {
   return <HouseShell><StudioContent /></HouseShell>;
