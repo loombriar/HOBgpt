@@ -9,9 +9,9 @@ const {createApp,SELLER_TERMS_VERSION} = require('../server');
 const {applyShipping} = require('../shipping');
 
 const address={name:'Shipping Buyer',address:{line1:'25 Test Street',line2:'Unit 2',city:'Cleveland',state:'OH',postal_code:'44101',country:'US'}};
-async function fixture(run) {
+async function fixture(run, options={}) {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-shipping-'));
-  const sessions=new Map(),calls=[];
+  const sessions=new Map(),calls=[],emails=[];let failedBuyerEmail=false;
   const ctx=createApp({dataDir:dir,seedProducts:[
     {id:'a1',designerId:'a',title:'A1',price:60,shippingCostCents:795},
     {id:'a2',designerId:'a',title:'A2',price:50,shippingCostCents:600},
@@ -30,14 +30,14 @@ async function fixture(run) {
     if(endpoint==='transfers/tr_shipping/reversals')return{id:'trr_shipping'};
     if(endpoint==='refunds')return{id:'re_shipping',status:'succeeded'};
     throw new Error('Unexpected provider call: '+endpoint);
-  },verifyShipmentTracking:async()=>({verified:true,id:'trk_shipping',carrier:'USPS',status:'in_transit'}),sendEmail:async()=>true});
+  },verifyShipmentTracking:async()=>({verified:true,id:'trk_shipping',carrier:'USPS',status:'in_transit'}),sendEmail:async message=>{emails.push(message);if(options.failFirstBuyerEmail && message.subject==='Your House of Briar order is confirmed' && !failedBuyerEmail){failedBuyerEmail=true;throw new Error('Temporary email failure');}return true;}});
   for(const id of ['a','b'])ctx.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run('acct_'+id,id);
   for(const id of ['a','b'])ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run(id,SELLER_TERMS_VERSION,new Date().toISOString(),'test');
   ctx.db.prepare("UPDATE listings SET free_shipping_threshold_cents=10000 WHERE id='a1'").run();
   ctx.db.prepare("UPDATE listings SET production_type='Made to Order' WHERE id='b1'").run();
   const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
   const request=async(route,body,token)=>{const response=await fetch(origin+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});return{status:response.status,body:await response.json()};};
-  try{await run({ctx,calls,sessions,request,origin});}finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+  try{await run({ctx,calls,sessions,request,origin,emails});}finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 }
 
 test('all new US delivery quotes are free regardless of stored rates and thresholds',()=>{
@@ -103,3 +103,35 @@ test('historical paid delivery amounts survive confirmation and refund under pri
   assert.equal((await request('/api/admin/orders/'+checkout.body.orderId+'/refund',{},'admin')).status,200);
   assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='refunds').options.body).get('amount'),'6795');
 }));
+
+
+test('buyer confirmation requires verified payment, is queued once, and retries a delivery failure',async()=>fixture(async({ctx,sessions,request,emails})=>{
+  const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1},{id:'b1',quantity:2}]});
+  assert.equal(checkout.status,201);
+  const session=sessions.get(checkout.body.sessionId);
+  session.customer_details={email:'buyer@example.test'};
+  const confirmations=()=>emails.filter(email=>email.subject==='Your House of Briar order is confirmed');
+  assert.equal(confirmations().length,0);
+  session.amount_total-=1;
+  assert.equal((await request('/api/checkout/session/'+session.id)).status,409);
+  assert.equal(confirmations().length,0);
+  session.amount_total+=1;
+  assert.equal((await request('/api/checkout/session/'+session.id)).body.paid,true);
+  assert.equal(confirmations().length,1);
+  const message=confirmations()[0];
+  assert.equal(message.to,'buyer@example.test');
+  assert.match(message.text,/A1 × 1/);assert.match(message.text,/B1 × 2/);
+  assert.match(message.text,/Total paid: \$80.00/);assert.match(message.text,/Free US delivery/);
+  assert.match(message.text,/may arrive separately/);
+  assert.doesNotMatch(message.text,/acct_|pi_|Test Street|designer earnings/i);
+  const eventKey='buyer-order-confirmation:'+checkout.body.orderId;
+  let row=ctx.db.prepare('SELECT * FROM email_outbox WHERE event_key=?').get(eventKey);
+  assert.equal(row.status,'failed');
+  await request('/api/checkout/session/'+session.id);
+  assert.equal(confirmations().length,1);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM email_outbox WHERE event_key=?').get(eventKey).n,1);
+  ctx.db.prepare('UPDATE email_outbox SET next_attempt_at=? WHERE event_key=?').run(new Date(0).toISOString(),eventKey);
+  await ctx.processEmailOutbox();
+  row=ctx.db.prepare('SELECT * FROM email_outbox WHERE event_key=?').get(eventKey);
+  assert.equal(row.status,'sent');assert.equal(row.attempts,2);assert.equal(confirmations().length,2);
+}, {failFirstBuyerEmail:true}));

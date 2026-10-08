@@ -1796,6 +1796,19 @@ function createApp(options = {}) {
   }
 
   async function notifySale(orderId) {
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!order || order.status !== 'paid') return;
+    if (order.buyer_email) {
+      const items = db.prepare('SELECT title, quantity FROM order_items WHERE order_id = ? ORDER BY id').all(orderId);
+      const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currency }).format(cents / 100);
+      const delivery = order.shipping_cents ? money(order.shipping_cents) : 'Free US delivery';
+      await sendEmail({
+        to: order.buyer_email,
+        eventKey: `buyer-order-confirmation:${orderId}`,
+        subject: 'Your House of Briar order is confirmed',
+        text: `Thank you for shopping with House of Briar. Your payment is confirmed.\n\nOrder: ${orderId}\n${items.map(item => `${item.title} × ${item.quantity}`).join('\n')}\n\nTotal paid: ${money(order.subtotal_cents)}\nDelivery: ${delivery}\n\nYour designer will prepare your order within the processing time shown on the listing. If your order includes pieces from different designers, they may arrive separately. We will email you when tracking is added.\n\nKeep this email and order number for your records.`
+      });
+    }
     const groups = db.prepare('SELECT DISTINCT designer_id FROM order_items WHERE order_id = ?').all(orderId);
     for (const group of groups) {
       const contact = designerOrderContact(orderId, group.designer_id);
