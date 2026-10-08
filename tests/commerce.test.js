@@ -209,7 +209,7 @@ test('seller terms consent and completed Stripe payouts remain required', async 
     let checkout=await post('/api/checkout/session',cart);assert.equal(checkout.status,409);assert.match(checkout.body.error.message,/unavailable/);
     ctx.db.prepare("INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)").run('gated-designer',SELLER_TERMS_VERSION,new Date().toISOString(),'test-fixture');
     ctx.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run('acct_incomplete','gated-designer');
-    checkout=await post('/api/checkout/session',cart);assert.equal(checkout.status,409);assert.match(checkout.body.error.message,/verification or payout setup/);
+    checkout=await post('/api/checkout/session',cart);assert.equal(checkout.status,409);assert.match(checkout.body.error.message,/isn’t ready to purchase yet/);
     assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM orders').get().n,0);
   } finally {await new Promise(resolve=>srv.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });

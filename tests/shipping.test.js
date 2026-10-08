@@ -66,7 +66,12 @@ test('free delivery preserves private addresses and payout/refund holds; prior s
   ctx.db.prepare('DELETE FROM designer_terms_acceptances WHERE designer_id=?').run('a');
   ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('a','2026-10-06',new Date().toISOString(),'legacy-test');
   // A new sale requires updated consent; fulfillment of the paid order keeps its prior consent.
-  assert.equal((await request('/api/checkout/session',{items:[{id:'a2',quantity:1}]})).status,409);
+  for (const route of ['/api/checkout/quote','/api/checkout/session']) {
+    const blocked = await request(route,{items:[{id:'a2',quantity:1}]});
+    assert.equal(blocked.status,409);
+    assert.match(blocked.body.error.message,/isn’t ready to purchase yet/);
+    assert.doesNotMatch(blocked.body.error.message,/accept.*terms|Stripe|payout/i);
+  }
   assert.equal((await request('/api/orders/'+order.id+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'5400');
   assert.equal((await request('/api/admin/orders/'+order.id+'/refund',{},'admin')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers/tr_shipping/reversals').options.body).get('amount'),'5400');
 }));
