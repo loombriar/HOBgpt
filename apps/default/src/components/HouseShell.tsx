@@ -85,11 +85,44 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
             </span>
           </Link>
-          <nav className="hidden items-center gap-7 text-sm md:flex" aria-label="Primary navigation">
-            <a href="/#mess-around" className="text-muted-foreground transition hover:text-foreground">Mess Around</a>
-            <NavLink to="/shop" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
-            <NavLink to="/designers" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
-            <NavLink to="/account" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
+          <nav className="hidden items-center gap-5 text-sm md:flex" aria-label="Primary navigation">
+            {[
+              { title: 'Mess Around', items: [
+                ['Find out…', '/#mess-around'],
+                ['Briar Runway', '/#mess-around'],
+                ['AI styling companion', '/#house-styling-title'],
+                ['AI photo try-on', '/#mess-around'],
+                ['Measurement avatar', '/account'],
+                ['Heart your favorites', '/shop?liked=true'],
+                ['Seasonal collections', '/#house-collections-title'],
+                ['Designer stories & lookbooks', '/#house-stories-title'],
+                ['Photo style search', '/shop'],
+                ['House badges', '/#support']
+              ] },
+              { title: 'Shop', items: [
+                ['Shop all pieces', '/shop'],
+                ['Find your favorites', '/shop?liked=true'],
+                ['Browse designers', '/designers'],
+                ['Your suitcase', '/cart']
+              ] },
+              { title: 'Visitors', items: [
+                ['Your studio', '/account'],
+                ['Saved favorites', '/shop?liked=true'],
+                ['Browse the shop', '/shop'],
+                ['Meet designers', '/designers']
+              ] },
+              { title: 'Designers', items: [
+                ['Become a Founding Designer', '/sell'],
+                ['Designer sign up', '/sell#designer-signup'],
+                ['Designer studio', '/account'],
+                ['Meet the designers', '/designers']
+              ] }
+            ].map((group) => <details key={group.title} className="group relative">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 whitespace-nowrap text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true" className="text-xs transition-transform group-open:rotate-180">⌄</span></summary>
+              <div className="absolute left-0 top-full z-[80] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
+                {group.items.map(([label, href], index) => <a key={label} href={href} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
+              </div>
+            </details>)}
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
@@ -103,10 +136,15 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
         </div>
         {mobileNavOpen && <nav id="mobile-navigation" className="border-t border-border/70 px-4 py-3 md:hidden" aria-label="Mobile navigation">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm">
-            <a href="/#mess-around" onClick={() => setMobileNavOpen(false)} className="rounded-lg px-3 py-3 text-muted-foreground hover:bg-accent hover:text-foreground">Mess Around</a>
-            <NavLink to="/shop" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Shop</NavLink>
-            <NavLink to="/designers" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Designers</NavLink>
-            <NavLink to="/account" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Your studio</NavLink>
+            {[
+              {title:'Mess Around',items:[['Find out…','/#mess-around'],['Briar Runway','/#mess-around'],['AI styling companion','/#house-styling-title'],['AI photo try-on','/#mess-around'],['Measurement avatar','/account'],['Heart your favorites','/shop?liked=true'],['Seasonal collections','/#house-collections-title'],['Designer stories & lookbooks','/#house-stories-title'],['Photo style search','/shop'],['House badges','/#support']]},
+              {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Suitcase','/cart']]},
+              {title:'Visitors',items:[['Your studio','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
+              {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer studio','/account'],['Meet designers','/designers']]}
+            ].map(group=><details key={group.title} className="rounded-xl border-b border-border/50">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 py-3 font-medium [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true">⌄</span></summary>
+              <div className="flex flex-col pb-2 pl-3">{group.items.map(([label,href],index)=><a key={label} href={href} onClick={()=>setMobileNavOpen(false)} className={`rounded-lg px-3 py-2.5 hover:bg-accent ${group.title==='Mess Around'&&index===0?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</a>)}</div>
+            </details>)}
             <div className="mt-2 border-t border-border/70 pt-2 sm:hidden"><ThemeButton /></div>
           </div>
         </nav>}
