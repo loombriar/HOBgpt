@@ -776,6 +776,9 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
+  // This legacy seed identity represents the marketplace, not an independent designer.
+  // Retain its rows for order history while removing it from public seller surfaces.
+  db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='house-of-briar'").run();
   // Founder slots belong to designer accounts permanently, including during suspension.
   db.exec(`CREATE TABLE IF NOT EXISTS founding_designers (
     designer_id TEXT PRIMARY KEY REFERENCES designer_profiles(id),
@@ -784,13 +787,15 @@ function createApp(options = {}) {
   )`);
   function reconcileFoundingDesigners() {
     const fill = db.transaction(() => {
-      let slot = Number(db.prepare('SELECT COALESCE(MAX(slot),0) slot FROM founding_designers').get().slot);
-      if (slot >= 25) return;
+      db.prepare("DELETE FROM founding_designers WHERE designer_id='house-of-briar'").run();
+      const occupied = new Set(db.prepare('SELECT slot FROM founding_designers').all().map(row => row.slot));
+      const available = Array.from({length:25}, (_, i) => i + 1).filter(slot => !occupied.has(slot));
+      if (!available.length) return;
       const designers = db.prepare(`SELECT id FROM designer_profiles
-        WHERE id NOT IN (SELECT designer_id FROM founding_designers)
-        ORDER BY created_at ASC, rowid ASC LIMIT ?`).all(25 - slot);
+        WHERE id != 'house-of-briar' AND id NOT IN (SELECT designer_id FROM founding_designers)
+        ORDER BY created_at ASC, rowid ASC LIMIT ?`).all(available.length);
       const insert = db.prepare('INSERT INTO founding_designers (designer_id,slot,awarded_at) VALUES (?,?,?)');
-      for (const designer of designers) insert.run(designer.id, ++slot, new Date().toISOString());
+      for (const [index, designer] of designers.entries()) insert.run(designer.id, available[index], new Date().toISOString());
     });
     fill.immediate();
   }

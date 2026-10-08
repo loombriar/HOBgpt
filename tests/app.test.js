@@ -364,7 +364,7 @@ test('designer logos preserve proportions, ownership and public maker attributio
 
 test('listing reports are validated, persisted and visible only to admins', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'briar-report-'));
-  const instance = createApp({ dataDir: directory, seedProducts: [{ id: 'report-piece', title: 'Reported piece', price: 30 }], adminToken: ADMIN_TOKEN });
+  const instance = createApp({ dataDir: directory, seedProducts: [{ id: 'report-piece', designerId: 'report-maker', title: 'Reported piece', price: 30 }], adminToken: ADMIN_TOKEN });
   const listener = instance.app.listen(0, '127.0.0.1'); await once(listener, 'listening');
   const origin = `http://127.0.0.1:${listener.address().port}`;
   try {
