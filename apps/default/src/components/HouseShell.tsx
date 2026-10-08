@@ -103,7 +103,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
             {[
               { title: 'Mess Around', items: [
                 ['Find out…', '/#mess-around'],
-                ['Briar Runway', '/#mess-around'],
+                ['Briar Runway — Coming Soon', '/#mess-around'],
                 ['AI styling companion', '/#house-styling-title'],
                 ['AI photo try-on', '/#mess-around'],
                 ['Measurement avatar', '/account'],
