@@ -2,7 +2,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Heart, Menu as MenuIcon, Moon, ShoppingBag, Sun, X as CloseIcon } from '@/lib/icons';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FloatingAgentChat } from '@/components/blocks/agent-chat/FloatingAgentChat';
 import { HOUSE_OF_BRIAR_AGENT_ID, HOUSE_OF_BRIAR_PUBLIC_AGENT_ID } from '@/lib/marketplace';
 import { createDonationSession } from '@/lib/stripe';
@@ -60,6 +60,26 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   const auth = useAuth();
   const [cartCount, setCartCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const closeMenus = (event: PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) navRef.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { menu.open = false; });
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        navRef.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { menu.open = false; });
+        setMobileNavOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', closeMenus);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', closeMenus); document.removeEventListener('keydown', onKey); };
+  }, []);
+  const toggleDropdown = (event: React.SyntheticEvent<HTMLDetailsElement>) => {
+    if (!event.currentTarget.open) return;
+    const current = event.currentTarget;
+    current.closest('nav')?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(menu => { if (menu !== current) menu.open = false; });
+  };
   useEffect(() => {
     const refresh = () => {
       const stored = window.localStorage.getItem('house-of-briar:cart');
@@ -85,7 +105,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               <span className="mt-1 block whitespace-nowrap text-[8px] uppercase tracking-[0.12em] text-muted-foreground sm:text-[9px] sm:tracking-[0.16em]">Made by someone, not everyone.</span>
             </span>
           </Link>
-          <nav className="hidden items-center gap-5 text-sm md:flex" aria-label="Primary navigation">
+          <nav ref={navRef} className="hidden items-center gap-5 text-sm md:flex" aria-label="Primary navigation">
             {[
               { title: 'Mess Around', items: [
                 ['Find out…', '/#mess-around'],
@@ -117,10 +137,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 ['Designer studio', '/account'],
                 ['Meet the designers', '/designers']
               ] }
-            ].map((group) => <details key={group.title} className="group relative z-[100] open:z-[200]">
+            ].map((group) => <details key={group.title} onToggle={toggleDropdown} className="group relative z-[100] open:z-[200]">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 whitespace-nowrap text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true" className="text-xs transition-transform group-open:rotate-180">⌄</span></summary>
               <div className="absolute left-0 top-full z-[9999] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
-                {group.items.map(([label, href], index) => <a key={label} href={href} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
+                {group.items.map(([label, href], index) => <a key={label} href={href} onClick={() => { navRef.current?.querySelectorAll<HTMLDetailsElement>("details[open]").forEach(menu => { menu.open = false; }); }} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
               </div>
             </details>)}
           </nav>
@@ -141,7 +161,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Suitcase','/cart']]},
               {title:'Visitors',items:[['Your studio','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
               {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer studio','/account'],['Meet designers','/designers']]}
-            ].map(group=><details key={group.title} className="rounded-xl border-b border-border/50">
+            ].map(group=><details key={group.title} onToggle={toggleDropdown} className="rounded-xl border-b border-border/50">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 py-3 font-medium [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true">⌄</span></summary>
               <div className="flex flex-col pb-2 pl-3">{group.items.map(([label,href],index)=><a key={label} href={href} onClick={()=>setMobileNavOpen(false)} className={`rounded-lg px-3 py-2.5 hover:bg-accent ${group.title==='Mess Around'&&index===0?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</a>)}</div>
             </details>)}
