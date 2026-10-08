@@ -322,7 +322,7 @@ function StudioContent() {
   </section>{sellerCommerceSection}{designerInquiriesSection}{collectorNotesSection}</div>;
 }
 
-const garmentDetailsPattern = /\n?\[GARMENT DETAILS\]\n([\s\\S]*?)\n\[END GARMENT DETAILS\]/;
+const garmentDetailsPattern = /\n?\[GARMENT DETAILS\]\n([\s\S]*?)\n\[END GARMENT DETAILS\]/;
 function unpackGarmentDetails(description: string) {
   const match = description.match(garmentDetailsPattern);
   const details: Record<string,string> = {};
