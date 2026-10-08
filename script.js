@@ -1912,6 +1912,7 @@ async function renderAdminOverview() {
       }
       if (data.traffic) {
         section.id = 'admin-website-views';
+        section.append(makeElement('p','small-print','City and state are approximate network locations, not precise addresses. VPNs and mobile networks can differ from the visitor’s location. Older visits remain Unknown; raw IP addresses are not saved in analytics. Location lookup includes GeoLite2 data created by MaxMind (maxmind.com).'));
         section.append(makeElement('p', '', `Website activity in the last ${data.periodDays || 30} days.`));
         if (data.traffic.today) {
           section.append(makeElement('h4', '', 'Today'));
@@ -1938,7 +1939,7 @@ async function renderAdminOverview() {
           for (const row of [...data.traffic.daily].reverse()) { const tr = document.createElement('tr'); tr.append(makeElement('td', '', row.day), makeElement('td', '', Number(row.views || 0).toLocaleString()), makeElement('td', '', Number(row.visits || 0).toLocaleString())); body.append(tr); }
           table.append(head, body); section.append(table);
         }
-        for (const [title, rows, key] of [['Top pages', data.traffic.topPages, 'path'], ['Traffic sources', data.traffic.sources, 'source'], ['Devices', data.traffic.devices, 'device']]) {
+        for (const [title, rows, key] of [['Top pages', data.traffic.topPages, 'path'], ['Traffic sources', data.traffic.sources, 'source'], ['Devices', data.traffic.devices, 'device'], ['Approximate visitor locations', data.traffic.locations?.map(row=>({...row,location:[row.city,row.region,row.country].filter(value=>value&&value!=='Unknown').join(', ')||'Unknown'})), 'location']]) {
           section.append(makeElement('h4', '', title));
           if (!rows?.length) { section.append(makeElement('p', '', 'No tracked activity yet.')); continue; }
           const table = makeElement('table', 'admin-traffic-table');

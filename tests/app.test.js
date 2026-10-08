@@ -438,7 +438,7 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
 test('records anonymous site visits and exposes traffic summaries without IP storage', async () => {
   const first = await getJson('/api/analytics/events', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/private/path?secret=value',deviceCategory:'mobile'})
+    body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/private/path?secret=value',deviceCategory:'mobile',city:'Forged city',region:'XX',country:'ZZ'})
   });
   assert.equal(first.response.status,202);
   const second = await getJson('/api/analytics/events', {
@@ -457,6 +457,11 @@ test('records anonymous site visits and exposes traffic summaries without IP sto
   const columns=context.db.prepare('PRAGMA table_info(analytics_events)').all().map(row=>row.name);
   assert.equal(columns.includes('ip'),false);
   assert.equal(columns.includes('ip_address'),false);
+  assert.ok(dashboard.body.traffic.locations.some(row=>row.country==='Unknown'));
+  assert.deepEqual(context.db.prepare("SELECT country,region,city FROM analytics_events WHERE session_id='visit-one' LIMIT 1").get(),{country:null,region:null,city:null});
+  context.db.prepare("UPDATE analytics_events SET country='US',region='NY',city='Albany' WHERE session_id='visit-one'").run();
+  const locations=(await getJson('/api/admin/analytics',{headers:{Authorization:`Bearer ${ADMIN_TOKEN}`}})).body.traffic.locations;
+  assert.deepEqual(locations.find(row=>row.city==='Albany'),{country:'US',region:'NY',city:'Albany',views:2,visits:1});
 });
 
 
