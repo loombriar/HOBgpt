@@ -291,6 +291,20 @@
 
     <dialog id="visitor-suite-modal" class="app-dialog visitor-suite-dialog" aria-labelledby="visitor-suite-title">
       <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Visitor’s Suite</h2></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Visitor’s Suite">×</button></div>
+      <section class="customer-account-card" aria-labelledby="customer-account-title">
+        <h3 id="customer-account-title">Make yourself at home</h3>
+        <p>A customer account keeps your favorites, purchase history and earned badges together. Signing up is free. You can still shop as a guest.</p>
+        <div id="customer-signed-in" hidden><p id="customer-account-greeting"></p><a class="primary-button" href="/account">Open my account</a> <button id="customer-signout" type="button" class="secondary-button">Sign out of customer account</button></div>
+        <form id="customer-signup-form" class="stack-form">
+          <label>Your name <span class="small-print">(optional)</span><input id="customer-signup-name" maxlength="80" autocomplete="given-name" /></label>
+          <label>Email<input id="customer-signup-email" type="email" maxlength="254" autocomplete="email" required /></label>
+          <p class="small-print">Signing in again? Use the same email. We’ll send a code—no password needed.</p>
+          <label class="small-print"><input id="customer-rules-consent" type="checkbox" required /> I agree to the <a href="/rules" target="_blank" rel="noopener">House rules</a> and have read the privacy information.</label>
+          <button class="primary-button" type="submit">Email me a sign-in code</button>
+        </form>
+        <form id="customer-code-form" class="stack-form" hidden><label>Email code<input id="customer-signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required /></label><button class="primary-button" type="submit">Verify and enter my Suite</button><button id="customer-code-back" type="button" class="text-button">Use another email or request a new code</button></form>
+        <p id="customer-signup-status" class="form-message" role="status" aria-live="polite"></p>
+      </section>
       <section id="visitor-suite" class="visitor-suite-section">
         <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
         <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer unless you choose to send them.</p>

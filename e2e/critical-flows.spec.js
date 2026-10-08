@@ -184,3 +184,28 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     }
   });
 }
+
+test('customers verify email, get a private account and appear once in the Admin signup tracker',async({page,request})=>{
+ const email='shopper-e2e@example.test';
+ await page.goto('/?visitors=signup');
+ const suite=page.locator('#visitor-suite-modal');await expect(suite).toBeVisible();
+ await page.locator('#customer-signup-name').fill('E2E Shopper');
+ await page.locator('#customer-signup-email').fill(email);
+ await page.locator('#customer-rules-consent').check();
+ await suite.getByRole('button',{name:'Email me a sign-in code',exact:true}).click();
+ await expect(page.locator('#customer-code-form')).toBeVisible();
+ const codeResponse=await request.get('/__test/customer-code?email='+encodeURIComponent(email));const {code}=await codeResponse.json();
+ await page.locator('#customer-signin-code').fill(code);
+ await suite.getByRole('button',{name:'Verify and enter my Suite',exact:true}).click();
+ await expect(page.locator('#customer-account-greeting')).toContainText(email);
+ await suite.getByRole('link',{name:'Open my account',exact:true}).click();
+ await expect(page).toHaveURL(/\/account$/);
+ await expect(page.getByText('Your buyer account is ready.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);
+ await page.goto('/');await page.getByRole('button',{name:'Admin panel',exact:true}).click();
+ await page.getByLabel('Administrator code').fill('e2e-admin-token');await page.locator('#admin-login-form button[type="submit"]').click();
+ const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();
+ await expect(tracker.getByText("Today's new customers",{exact:true})).toBeVisible();
+ await expect(tracker.locator('.admin-traffic-stat strong').first()).toHaveText('1');
+ await expect(tracker.locator('tbody tr')).toHaveCount(30);
+});

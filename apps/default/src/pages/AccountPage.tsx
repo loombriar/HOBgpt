@@ -210,7 +210,7 @@ function StudioContent() {
           void refreshSellerSettings();
           return;
         }
-        if (response.status === 403 || response.status === 404) { setStudioAccess('signup'); return; }
+        if (response.status === 401 || response.status === 403 || response.status === 404) { setStudioAccess('signup'); return; }
         setStudioAccess('error');
       } catch { if (active) setStudioAccess('error'); }
     })();
@@ -231,7 +231,7 @@ function StudioContent() {
   };
 
   if (!auth.isAuthenticated) {
-    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><LogIn className="mx-auto text-primary" size={28} /><h1 className="mt-5 font-serif text-4xl">Your studio is yours to shape.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to manage your private listings. Each designer sees only records owned by their account.</p><button type="button" onClick={() => void auth.signinRedirect()} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Sign in or create account</button></div>;
+    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><LogIn className="mx-auto text-primary" size={28} /><h1 className="mt-5 font-serif text-4xl">Your private shopping room.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to see your favorites, purchase history and badges. Designer tools are available separately.</p><a href="/?visitors=signup" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Sign in or create customer account</a></div>;
   }
 
   const saveListing = async (event: FormEvent) => {

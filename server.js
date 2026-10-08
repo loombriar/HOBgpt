@@ -508,6 +508,8 @@ function createApp(options = {}) {
   db.exec('CREATE INDEX IF NOT EXISTS analytics_events_session_created ON analytics_events(session_id,created_at)');
   ensureColumn('analytics_events', 'designer_id', 'TEXT');
   ensureColumn('analytics_events', 'device_category', 'TEXT');
+  const customerRouter=express.Router();
+  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession});
   recordMigration(4, 'first_party_commerce_analytics');
   ensureColumn('listings', 'seo_title', 'TEXT');
   ensureColumn('listings', 'seo_description', 'TEXT');
@@ -709,7 +711,9 @@ function createApp(options = {}) {
     const identity=db.prepare(`SELECT di.subject FROM designer_identities di JOIN designer_profiles dp ON dp.id=di.designer_id WHERE lower(dp.email)=? AND dp.status='active'`).get(normalized);
     if(identity?.subject)return identity.subject;
     const designer=db.prepare("SELECT id FROM designer_profiles WHERE lower(email)=? AND status='active'").get(normalized);
-    return designer ? designerBadgeSubject(designer.id) : null;
+    if(designer)return designerBadgeSubject(designer.id);
+    const customer=db.prepare('SELECT id FROM customer_accounts WHERE email=?').get(normalized);
+    return customer?'customer:'+customer.id:null;
   }
   function reconcileVerifiedBuyerBadges(){
     const paid=db.prepare("SELECT id,buyer_subject,buyer_email FROM orders WHERE status='paid'").all();
@@ -898,6 +902,13 @@ function createApp(options = {}) {
   }
 
   async function resolveBuyerIdentity(req, token) {
+    if(!token){
+      const customer=customerAccounts.authenticate(req);if(customer)return customer;
+      const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
+      if(!sessionToken)return null;
+      const session=db.prepare("SELECT p.id,p.email FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=? AND s.expires_at>? AND p.status='active'").get(crypto.createHash('sha256').update(sessionToken).digest('hex'),new Date().toISOString());
+      return session?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
+    }
     const hash=crypto.createHash('sha256').update(token).digest('hex');
     const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'").get(hash);
     const configured=Object.entries(designerTokens).find(([key])=>safeEqual(token,key))?.[1];
@@ -911,13 +922,13 @@ function createApp(options = {}) {
 
   async function authBuyer(req, res, next) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
+    if (!token && !customerAccounts.hasCookie(req) && !cookieValue(req,DESIGNER_SESSION_COOKIE)) return fail(res, 401, 'unauthorized', 'Sign in to view your orders.');
     try {
       const profile = await resolveBuyerIdentity(req, token);
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
       req.buyerSubject = profile.sub.trim();
       req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-      return next();
+      return requireDesignerRequestOrigin(req,res,next);
     } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
 
@@ -937,6 +948,7 @@ function createApp(options = {}) {
     res.cookie(DESIGNER_SESSION_COOKIE,token,{httpOnly:true,sameSite:'lax',secure,path:'/',maxAge:maxAgeSeconds*1000});
   }
   function issueDesignerSession(req,res,designerId) {
+    customerAccounts.clearSession(req,res);
     const token=crypto.randomBytes(32).toString('base64url');
     const hash=crypto.createHash('sha256').update(token).digest('hex');
     const now=new Date(),expires=new Date(now.getTime()+DESIGNER_SESSION_TTL_MS);
@@ -947,13 +959,13 @@ function createApp(options = {}) {
   function clearDesignerSession(req,res) {
     const token=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(token){const hash=crypto.createHash('sha256').update(token).digest('hex');db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(hash);}
-    setDesignerSessionCookie(req,res,'',0);
+    if(token)setDesignerSessionCookie(req,res,'',0);
   }
 
   function requireDesignerRequestOrigin(req,res,next) {
     if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return next();
     // Legacy bearer/OIDC clients are not cookie-authenticated and are not exposed to browser CSRF.
-    if (!cookieValue(req,DESIGNER_SESSION_COOKIE)) return next();
+    if (!cookieValue(req,DESIGNER_SESSION_COOKIE) && !customerAccounts.hasCookie(req)) return next();
     const expectedOrigin=trustedAppOrigin(req);
     const origin=req.get('origin');
     const fetchSite=String(req.get('sec-fetch-site')||'').toLowerCase();
@@ -1407,6 +1419,7 @@ function createApp(options = {}) {
   // Parse analytics before the general parser so its smaller limit is enforced.
   app.use('/api/analytics/events',express.json({limit:'16kb'}));
   app.use(express.json({ limit: '64kb' }));
+  app.use(customerRouter);
 
   app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
     const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
@@ -1570,7 +1583,7 @@ function createApp(options = {}) {
     res.set('Cache-Control','no-store').json({ ok: true, designerId: req.designerId });
   });
   app.delete('/api/session', requireDesignerRequestOrigin, (req,res) => {
-    clearDesignerSession(req,res);
+    clearDesignerSession(req,res);customerAccounts.clearSession(req,res);
     return res.set('Cache-Control','no-store').json({ok:true});
   });
 
@@ -2168,13 +2181,13 @@ function createApp(options = {}) {
     catch (error) { return fail(res, error.statusCode || 422, error.code || 'invalid_cart', error.message); }
   });
 
-  app.post('/api/donations/session', checkoutLimiter, async (req,res,next) => {
+  app.post('/api/donations/session', requireDesignerRequestOrigin, checkoutLimiter, async (req,res,next) => {
     try {
       const amountCents=Math.round(Number(req.body?.amount)*100);
       if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');
       let buyerSubject=null,buyerEmail=null;
       const token=req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-      if(token){try{const profile=await resolveBuyerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim()){buyerSubject=profile.sub.trim();buyerEmail=typeof profile.email==='string'?profile.email.trim().toLowerCase():null;}}catch{}}
+      {try{const profile=await resolveBuyerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim()){buyerSubject=profile.sub.trim();buyerEmail=typeof profile.email==='string'?profile.email.trim().toLowerCase():null;}}catch{}}
       const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);
       db.prepare("INSERT INTO donations (id,buyer_subject,buyer_email,amount_cents,currency,status,created_at) VALUES (?,?,?,?,'usd','pending',?)").run(id,buyerSubject,buyerEmail,amountCents,now);
       const body=new URLSearchParams({mode:'payment',success_url:`${origin}/?donation=success`,cancel_url:`${origin}/?donation=canceled`,'metadata[donation_id]':id,'metadata[purpose]':'house_of_briar_support','payment_intent_data[metadata][donation_id]':id});
@@ -2205,7 +2218,7 @@ function createApp(options = {}) {
   function paypalPayerEmail(payload){return payload?.payment_source?.paypal?.email_address||payload?.payment_source?.venmo?.email_address||payload?.payer?.email_address||null;}
   async function paypalBuyerIdentity(req){
     let buyerSubject=null,buyerEmail=null;const token=req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if(token){try{const profile=await resolveBuyerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim()){buyerSubject=profile.sub.trim();buyerEmail=typeof profile.email==='string'?profile.email.trim().toLowerCase():null;}}catch{}}
+    {try{const profile=await resolveBuyerIdentity(req,token);if(profile&&typeof profile.sub==='string'&&profile.sub.trim()){buyerSubject=profile.sub.trim();buyerEmail=typeof profile.email==='string'?profile.email.trim().toLowerCase():null;}}catch{}}
     return {buyerSubject,buyerEmail};
   }
   function paypalExperience(origin,kind,id){
@@ -2217,19 +2230,19 @@ function createApp(options = {}) {
   const paypalMerchandiseUnavailable = (_req,res) => fail(res,503,'payment_method_unavailable','PayPal and Venmo merchandise checkout are temporarily unavailable. Please pay by card or bank.');
   app.post('/api/paypal/checkout/order',checkoutLimiter,paypalMerchandiseUnavailable);
   app.post('/api/paypal/checkout/capture',checkoutLimiter,paypalMerchandiseUnavailable);
-  app.post('/api/paypal/donations/order',checkoutLimiter,async(req,res,next)=>{
+  app.post('/api/paypal/donations/order',requireDesignerRequestOrigin,checkoutLimiter,async(req,res,next)=>{
     try{const amountCents=Math.round(Number(req.body?.amount)*100);if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');const {buyerSubject,buyerEmail}=await paypalBuyerIdentity(req);const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);db.prepare("INSERT INTO donations (id,buyer_subject,buyer_email,amount_cents,currency,status,created_at,payment_provider) VALUES (?,?,?,?,'usd','pending',?,'paypal')").run(id,buyerSubject,buyerEmail,amountCents,now);
       const pp=await paypalApi('/v2/checkout/orders',{method:'POST',idempotencyKey:'hob-paypal-donation-'+id,body:{intent:'CAPTURE',purchase_units:[{reference_id:id,custom_id:id,description:'Support House of Briar',amount:{currency_code:'USD',value:(amountCents/100).toFixed(2)}}],payment_source:{paypal:{experience_context:paypalExperience(origin,'donation',id)}}}});db.prepare('UPDATE donations SET paypal_order_id=? WHERE id=?').run(pp.id,id);return res.status(201).json({donationId:id,paypalOrderId:pp.id,url:paypalApprovalUrl(pp)});}catch(error){next(error);}
   });
-  app.post('/api/paypal/donations/capture',checkoutLimiter,async(req,res,next)=>{
+  app.post('/api/paypal/donations/capture',requireDesignerRequestOrigin,checkoutLimiter,async(req,res,next)=>{
     try{const paypalOrderId=String(req.body?.paypalOrderId||'');const donation=db.prepare("SELECT * FROM donations WHERE paypal_order_id=? AND payment_provider='paypal'").get(paypalOrderId);if(!donation)return fail(res,404,'not_found','PayPal donation not found.');const pp=await paypalApi('/v2/checkout/orders/'+encodeURIComponent(paypalOrderId)+'/capture',{method:'POST',idempotencyKey:'hob-paypal-donation-capture-'+donation.id});const capture=pp.purchase_units?.[0]?.payments?.captures?.[0],amount=capture?.amount||pp.purchase_units?.[0]?.amount,cents=Math.round(Number(amount?.value)*100);if(pp.status!=='COMPLETED'||String(amount?.currency_code||'').toLowerCase()!=='usd'||cents!==donation.amount_cents)throw Object.assign(new Error('PayPal donation payment does not match.'),{statusCode:409});if(donation.status!=='paid'){const email=paypalPayerEmail(pp);db.prepare("UPDATE donations SET status='paid',paid_at=?,buyer_email=COALESCE(buyer_email,?),paypal_capture_id=? WHERE id=?").run(new Date().toISOString(),email,capture?.id||null,donation.id);const subject=donationBadgeSubject(donation,email);if(subject&&donation.amount_cents>=500)awardBadge(subject,'supporter','donation',donation.id);}return res.json({status:'paid'});}catch(error){next(error);}
   });
 
-  app.post('/api/checkout/session', checkoutLimiter, async (req, res, next) => {
+  app.post('/api/checkout/session', requireDesignerRequestOrigin, checkoutLimiter, async (req, res, next) => {
     let buyerSubject = null;
     let buyerEmail = null;
     const buyerToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (buyerToken) {
+    {
       try { const profile = await resolveBuyerIdentity(req, buyerToken); if (profile && typeof profile.sub === 'string' && profile.sub.trim()) { buyerSubject = profile.sub.trim(); buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : null; } } catch {}
     }
     try {

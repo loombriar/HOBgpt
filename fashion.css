@@ -118,3 +118,5 @@ body.blackberry-house .curation-grid{grid-template-columns:repeat(4,minmax(0,1fr
 .blackberry-house .page-shell{overflow:clip}
 html:has(.sewing-header){scroll-padding-top:calc(var(--house-header-height,180px) + 16px)}
 .blackberry-house .site-header.sewing-header{box-shadow:0 4px 18px #4b293712}
+
+.customer-account-card{padding:22px;border:1px solid #c7ab68;background:#fffaf2;margin-bottom:24px}.customer-account-card [hidden]{display:none!important}.customer-account-card .primary-button{display:inline-flex;align-items:center;min-height:44px}
