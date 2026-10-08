@@ -1,4 +1,5 @@
 // Match anchor offsets to the wrapped navigation height on desktop and mobile.
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
 const scrollingHeader = document.querySelector('.sewing-header');
 if (scrollingHeader) {
   const syncHeaderHeight = () => document.documentElement.style.setProperty('--house-header-height', `${Math.ceil(scrollingHeader.getBoundingClientRect().height)}px`);
@@ -710,6 +711,7 @@ byId('measurement-profile-form')?.addEventListener('submit', (event) => {
     waist: byId('measurement-profile-waist')?.value || '',
     hips: byId('measurement-profile-hips')?.value || '',
     height: byId('measurement-profile-height')?.value || '',
+    inseam: byId('measurement-profile-inseam')?.value || '',
     notes: byId('measurement-profile-notes')?.value || ''
   });
   saveMeasurementProfiles(rows);
@@ -836,6 +838,7 @@ function openProductDetails(item) {
   sizingBox.appendChild(makeElement('p', 'small-print', 'Choose a saved Visitor’s Suite profile or enter measurements here. They are attached only to this piece.'));
 
   const profileSelect = document.createElement('select');
+  profileSelect.setAttribute('aria-label', 'Saved measurement profile');
   profileSelect.innerHTML = '<option value="">Choose saved profile (optional)</option>';
   loadMeasurementProfiles().forEach((p) => {
     const option = document.createElement('option');
@@ -854,6 +857,15 @@ function openProductDetails(item) {
   hips.placeholder = 'Hips';
   height.placeholder = 'Height';
   note.placeholder = 'Sizing request for this piece';
+  for (const input of [bust, waist, hips, height]) {
+    input.type = 'number'; input.min = '0.01'; input.max = '150'; input.step = '0.01';
+    input.setAttribute('aria-label', `${input.placeholder} in inches`);
+  }
+  note.maxLength = 500;
+  note.setAttribute('aria-label', 'Sizing request for this piece');
+  const sizingMessage = makeElement('p', 'form-message');
+  sizingMessage.setAttribute('role', 'status');
+  sizingMessage.setAttribute('aria-live', 'polite');
   profileSelect.addEventListener('change', () => {
     const match = loadMeasurementProfiles().find((x) => x.id === profileSelect.value);
     if (!match) return;
@@ -866,25 +878,27 @@ function openProductDetails(item) {
   const send = makeElement('button', 'secondary-button', 'Send measurement request');
   send.type = 'button';
   send.addEventListener('click', async () => {
-    const measurements = [
-      bust.value && `Bust/chest: ${bust.value}`,
-      waist.value && `Waist: ${waist.value}`,
-      hips.value && `Hips: ${hips.value}`,
-      height.value && `Height: ${height.value}`,
-      note.value && `Notes: ${note.value}`
-    ].filter(Boolean);
-    if (!measurements.length) {
-      setMessage(shopStatus, 'Add at least one measurement before sending.', 'error');
-      return;
+    const measurements = {};
+    for (const [key, input] of Object.entries({ bust, waist, hips, height })) {
+      if (!input.value.trim()) continue;
+      if (!input.checkValidity()) { setMessage(sizingMessage, 'Enter positive measurements up to 150 inches with at most two decimal places.', 'error'); return; }
+      measurements[key] = Number(input.value);
     }
-    setMessage(shopStatus, `Measurement request prepared for ${item.title}.`, 'success');
+    if (!Object.keys(measurements).length) { setMessage(sizingMessage, 'Add at least one measurement in inches before sending.', 'error'); return; }
+    send.disabled = true;
+    try {
+      await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/inquiries`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ measurements, message: note.value.trim() }) });
+      setMessage(sizingMessage, `Your measurement request for ${item.title} was saved and sent to the designer.`, 'success');
+    } catch (error) { setMessage(sizingMessage, error.status === 401 ? 'Sign in to your Visitor’s Suite or Designer’s Room to send measurements.' : error.message, 'error'); }
+    finally { send.disabled = false; }
   });
-  sizingBox.append(profileSelect, bust, waist, hips, height, note, send);
+  sizingBox.append(profileSelect, bust, waist, hips, height, note, send, sizingMessage);
   copy.appendChild(sizingBox);
 
   const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Suitcase' : 'Add to Suitcase');
   addButton.type = 'button';
-  addButton.disabled = getCartIds().includes(item.id);
+  addButton.disabled = getCartIds().includes(item.id) || item.shippingCostCents == null;
+  if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
   addButton.addEventListener('click', () => addToCart(item));
   copy.appendChild(addButton);
   if (typeof houseTryOnButton === 'function') copy.appendChild(houseTryOnButton(item));
@@ -1661,13 +1675,19 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
   }
 });
 
-byId('newsletter-form')?.addEventListener('submit', (event) => {
+byId('newsletter-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = byId('email');
-  if (email && email.value.trim()) {
+  const button = event.currentTarget.querySelector('button');
+  const message = byId('newsletter-message');
+  if (!email?.checkValidity() || !byId('newsletter-consent')?.checked) return;
+  button.disabled = true;
+  try {
+    await apiRequest('/api/newsletter/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.value.trim(), consent: true }) });
     email.value = '';
-    email.placeholder = 'Thanks for joining!';
-  }
+    setMessage(message, 'Thanks for joining! Your signup has been saved.', 'success');
+  } catch (error) { setMessage(message, error.message || 'Your signup could not be saved. Please try again.', 'error'); }
+  finally { button.disabled = false; }
 });
 
 async function restoreDesignerSession() {

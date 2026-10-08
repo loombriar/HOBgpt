@@ -1,5 +1,36 @@
 const { test, expect } = require('@playwright/test');
 
+test('newsletter saves through the API and preserves the email when the server rejects signup', async ({ page }) => {
+  await page.goto('/');
+  const form = page.locator('#newsletter-form');
+  await form.getByRole('textbox', { name: 'Email address' }).fill('newsletter-e2e@example.com');
+  await form.getByRole('checkbox', { name: 'I want to receive House notes by email.' }).check();
+  const saved = page.waitForResponse(response => response.url().includes('/api/newsletter/subscribe') && response.request().method() === 'POST');
+  await form.getByRole('button', { name: 'Join', exact: true }).click();
+  expect((await saved).status()).toBe(202);
+  await expect(form.getByRole('status')).toHaveText('Thanks for joining! Your signup has been saved.');
+  await page.route('**/api/newsletter/subscribe', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Please try again later.' } }) }));
+  await form.getByRole('textbox', { name: 'Email address' }).fill('retry-e2e@example.com');
+  await form.getByRole('button', { name: 'Join', exact: true }).click();
+  await expect(form.getByRole('status')).toHaveText('Please try again later.');
+  await expect(form.getByRole('textbox', { name: 'Email address' })).toHaveValue('retry-e2e@example.com');
+});
+
+test('homepage measurements reach the designer inquiry list instead of only displaying success', async ({ page }) => {
+  await openDesignerSession(page.request);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'View Moonlit E2E Piece details', exact: true }).click();
+  const dialog = page.locator('#product-dialog');
+  await dialog.getByRole('spinbutton', { name: 'Bust / chest in inches' }).fill('34.25');
+  await dialog.getByRole('textbox', { name: 'Sizing request for this piece' }).fill('Please check the bodice fit.');
+  await dialog.getByRole('button', { name: 'Send measurement request' }).click();
+  await expect(dialog.locator('.measurement-request [role="status"]')).toHaveText('Your measurement request for Moonlit E2E Piece was saved and sent to the designer.');
+  const response = await page.request.get('/api/my/designer-inquiries');
+  expect(response.ok()).toBeTruthy();
+  const { inquiries } = await response.json();
+  expect(inquiries.some(inquiry => inquiry.listingId === 'e2e-piece' && inquiry.message.includes('bust: 34.25 in') && inquiry.message.includes('Please check the bodice fit.'))).toBeTruthy();
+});
+
 async function openDesignerSession(request) {
   const response = await request.post('/api/session', { headers: { Authorization: 'Bearer e2e-designer-token' } });
   expect(response.ok()).toBeTruthy();
