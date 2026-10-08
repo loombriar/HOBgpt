@@ -1564,6 +1564,7 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   loadGallery();
 });
 
+byId('header-customer-auth-btn')?.addEventListener('click', () => byId('visitor-suite-btn')?.click());
 byId('visitor-suite-btn')?.addEventListener('click', () => {
   renderVisitorFavorites();
   byId('visitor-suite-modal')?.showModal();
@@ -2227,6 +2228,7 @@ async function refreshCustomerAccount() {
   try {
     const response=await fetch('/api/customer/session',{cache:'no-store'});
     const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
+    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Customer Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn;
     byId('customer-code-form').hidden=true;
