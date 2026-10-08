@@ -246,3 +246,34 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
   });
 }
+
+
+test('popup exits remain reachable after scrolling long content on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  for (const [id, closeId] of [
+    ['visitor-suite-modal','visitor-suite-close'],
+    ['admin-review-dialog','admin-review-close'],
+    ['designer-storefront-dialog','storefront-close'],
+    ['product-dialog','product-dialog-close'],
+    ['support-dialog','support-dialog-close'],
+    ['cart-dialog','cart-dialog-close'],
+    ['production-info-dialog','production-info-close'],
+    ['house-tryon-dialog','house-tryon-close']
+  ]) {
+    await page.locator(`#${id}`).evaluate(dialog => {
+      const content = document.createElement('div');
+      content.style.height = '2000px';
+      content.textContent = 'Long popup content';
+      dialog.append(content);
+      dialog.showModal();
+      dialog.scrollTop = dialog.scrollHeight;
+    });
+    const close = page.locator(`#${closeId}`);
+    const box = await close.boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    await close.click();
+    await expect(page.locator(`#${id}`)).not.toBeVisible();
+  }
+});
