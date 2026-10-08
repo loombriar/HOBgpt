@@ -77,7 +77,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="fashion-app min-h-screen bg-background text-foreground">
 
-      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-xl">
+      <header className="sticky top-0 isolate z-[9999] overflow-visible border-b border-border/70 bg-background shadow-sm">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
           <Link to="/" className="group flex min-w-0 items-center gap-2 sm:gap-3" aria-label="House of Briar home">
             <span className="min-w-0 leading-none">
@@ -117,9 +117,9 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 ['Designer studio', '/account'],
                 ['Meet the designers', '/designers']
               ] }
-            ].map((group) => <details key={group.title} className="group relative">
+            ].map((group) => <details key={group.title} className="group relative z-[100] open:z-[200]">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 whitespace-nowrap text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">{group.title}<span aria-hidden="true" className="text-xs transition-transform group-open:rotate-180">⌄</span></summary>
-              <div className="absolute left-0 top-full z-[80] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
+              <div className="absolute left-0 top-full z-[9999] mt-1 max-h-[min(70vh,34rem)] w-64 overflow-y-auto rounded-2xl border border-border bg-background p-2 text-sm shadow-2xl">
                 {group.items.map(([label, href], index) => <a key={label} href={href} className={`block rounded-xl px-3 py-2.5 transition hover:bg-accent hover:text-foreground focus-visible:bg-accent ${index === 0 && group.title === 'Mess Around' ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</a>)}
               </div>
             </details>)}
