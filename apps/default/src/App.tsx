@@ -39,6 +39,7 @@ function AppRoutes() {
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
       <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
+      <Route path="*" element={<main style={{ minHeight: "60vh", padding: "5rem 1.5rem", textAlign: "center" }}><h1>Page not found</h1><p>That page does not exist or may have moved.</p><a href="/shop">Explore the shop</a></main>} />
     </Routes>
   </BrowserRouter>;
 }
@@ -58,16 +59,16 @@ export default function App() {
     themeColor.setAttribute('content', '#c9ae72');
     if (!themeColor.parentNode) document.head.appendChild(themeColor);
 
-    const logoUrl = '/icons/house-of-briar-512.png';
+    const logoUrl = '/icons/briar-icon.svg';
     const favicon = document.querySelector('link[rel="icon"]') ?? document.createElement('link');
     favicon.setAttribute('rel', 'icon');
-    favicon.setAttribute('type', 'image/png');
+    favicon.setAttribute('type', 'image/svg+xml');
     favicon.setAttribute('href', logoUrl);
     if (!favicon.parentNode) document.head.appendChild(favicon);
 
     const appleIcon = document.querySelector('link[rel="apple-touch-icon"]') ?? document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
-    appleIcon.setAttribute('href', logoUrl);
+    appleIcon.setAttribute('href', '/icons/briar-icon.svg');
     if (!appleIcon.parentNode) document.head.appendChild(appleIcon);
   }, []);
 
