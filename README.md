@@ -18,11 +18,11 @@ Photo enhancement uses local Sharp clarity cleanup, orientation correction and a
 
 ## Shipping checkout
 
-Designers must set a US shipping price on each listing; blank rates block checkout, and 0 explicitly means free. Rates are charged per unit. A listing’s free-shipping threshold uses only its designer’s merchandise subtotal before designer discounts, excluding gift wrapping and other sellers; it waives only that listing’s shipping. Checkout supports US addresses only. Preparation days are separate from carrier transit.
+All new US orders include delivery in the listing price. Canonical quotes return zero delivery charges, regardless of legacy per-item rates or thresholds. Designers pay postage and packaging themselves and should price accordingly; the marketplace fee remains based on the sale price. The House does not reimburse or automatically purchase postage.
 
-Canonical quotes include `merchandiseCents`, `shippingCents`, `totalBeforeTaxCents` and designer breakdowns. For compatibility, stored `orders.subtotal_cents` and `order_items.line_total_cents` remain the exact charged totals, now including shipping; separate shipping columns support display and reconciliation. Shipping is a labeled Stripe line item per designer, and the designer receives its full amount without a marketplace commission on shipping. Existing verified-shipment payout holds and refund reversals apply. Address collection is required for new orders; only owning designers receive saved fulfillment details through authenticated order routes. Legacy orders retain existing verification behavior.
+Seller Terms version `2026-10-08-free-delivery` requires explicit acceptance before new sales. No acceptance is backfilled. Prior `2026-10-06` acceptance still permits fulfillment/payouts of already-paid orders, without weakening tracking verification or refund holds. Historical order shipping charges, totals and refund amounts stay intact. Existing listing prices are never automatically increased.
 
-Automatic tax calculation is not implemented by this shipping change. Tax configuration and applicable registrations remain a separate launch task; shipping documentation does not represent legal or tax clearance. No existing listing is silently assigned a free rate. Additive schema columns preserve existing orders, and seed shipping values are applied only on first insert.
+US address collection, private seller-scoped fulfillment details, handling times and carrier tracking remain required. Delivery timing is separate from designer preparation. Automatic tax calculation is not enabled by this change.
 
 ## House support agent
 

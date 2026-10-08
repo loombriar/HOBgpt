@@ -1097,8 +1097,8 @@ function readFormValues() {
     description: byId('product-description').value.trim(),
     price: byId('product-price').value,
     internationalShipping: Boolean(byId('product-international')?.checked),
-    shippingCostCents: byId('product-shipping').value === '' ? null : Math.round(Number(byId('product-shipping').value)*100),
-    freeShippingThresholdCents: byId('product-free-shipping').value === '' ? null : Math.round(Number(byId('product-free-shipping').value)*100),
+    shippingCostCents: 0,
+    freeShippingThresholdCents: null,
     handlingDaysMin: byId('product-handling-min').value === '' ? null : Number(byId('product-handling-min').value),
     handlingDaysMax: byId('product-handling-max').value === '' ? null : Number(byId('product-handling-max').value),
     category: 'apparel',
@@ -1363,7 +1363,7 @@ async function editListing(listingId) {
     if (byId('product-description')) byId('product-description').value = listing.description;
     if (byId('product-price')) byId('product-price').value = listing.price;
     byId('product-international').checked = Boolean(listing.internationalShipping);
-    byId('product-shipping').value = listing.shippingCostCents == null ? '' : listing.shippingCostCents/100;
+    byId('product-shipping').value = 0;
     byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
     byId('product-handling-min').value = listing.handlingDaysMin ?? '';
     byId('product-handling-max').value = listing.handlingDaysMax ?? '';
@@ -1636,7 +1636,7 @@ if (designerSignupForm) {
           email: String(form.get('email') || '').trim(),
           categories,
           sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on',
-          sellerTermsVersion: '2026-10-06'
+          sellerTermsVersion: '2026-10-08-free-delivery'
         })
       });
       const payload = await response.json().catch(() => ({}));

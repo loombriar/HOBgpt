@@ -112,8 +112,8 @@ export default function ProductPage() {
   const seoTitle = getFieldValue(product, '@seotl', 'SEO Title') || `${name} by ${designer}`;
   const seoDescription = getFieldValue(product, '@seods', 'SEO Description') || description;
   const shareImage = getFieldValue(product, '@share', 'Share Image') || primaryImage || '';
-  const shippingCostCents = Number(getFieldValue(product, '@shipc', 'Shipping Cost') || NaN);
-  const freeShippingThresholdCents = Number(getFieldValue(product, '@shipf', 'Free Shipping Threshold') || NaN);
+  const shippingCostCents = 0; // US delivery is included for all new purchases.
+  const freeShippingThresholdCents = NaN; // Delivery has no minimum order threshold.
   const handlingMin = Number(getFieldValue(product, '@handl', 'Handling Min') || NaN);
   const handlingMax = Number(getFieldValue(product, '@handx', 'Handling Max') || NaN);
   const internationalShipping = getFieldValue(product, '@intl', 'International Shipping') === 'yes';

@@ -6,7 +6,7 @@ test('designer signup queues one admin email alert',async()=>{
  const ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{},signupAlertEmail:'owner@example.test',sendEmail:async email=>{sent.push(email);return true;}});
  const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
  try{
-  const body={email:'maker@example.test',displayName:'Maker Name',brandName:'Moon Moss',categories:['apparel'],sellerTermsAccepted:true,sellerTermsVersion:'2026-10-06'};
+  const body={email:'maker@example.test',displayName:'Maker Name',brandName:'Moon Moss',categories:['apparel'],sellerTermsAccepted:true,sellerTermsVersion:'2026-10-08-free-delivery'};
   const response=await fetch(origin+'/api/designer-applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   assert.equal(response.status,201);
   await new Promise(resolve=>setTimeout(resolve,20));
