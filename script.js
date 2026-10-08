@@ -1493,6 +1493,7 @@ async function signIn(tokenValue) {
     localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
     if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    if(byId('designer-room-signout'))byId('designer-room-signout').hidden=false;
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     setMessage(designerAuthMessage, '', '');
@@ -1524,6 +1525,7 @@ async function signOut() {
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
   if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  if(byId('designer-room-signout'))byId('designer-room-signout').hidden=true;
   // Reload the public page so private profile, order and payout data leave the DOM.
   location.replace('/');
 }
@@ -1647,8 +1649,10 @@ if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
 byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
+byId('designer-room-signout')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
 if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+if(byId('designer-room-signout'))byId('designer-room-signout').hidden=!designerToken;
 // Legacy bearer-token removal in another tab is a migration event, not a logout signal.
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
