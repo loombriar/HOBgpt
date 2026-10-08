@@ -1494,6 +1494,7 @@ async function signIn(tokenValue) {
     localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
     if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
     setMessage(designerAuthMessage, '', '');
@@ -1538,6 +1539,7 @@ async function signOut() {
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
   if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=false;
   // Prevent an in-flight session restore or stale navigation from reopening private data.
   sessionStorage.setItem('house-of-briar:designer-signed-out','1');
   location.replace('/designers/room');
@@ -1664,6 +1666,7 @@ byId('start-profile-setup')?.addEventListener('click', () => byId('designer-bran
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
 if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=!!designerToken;
 // Legacy bearer-token removal in another tab is a migration event, not a logout signal.
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
@@ -1721,6 +1724,7 @@ async function restoreDesignerSession() {
     if(loginPanel)loginPanel.classList.add('hidden');
     if(designerWorkspace)designerWorkspace.classList.remove('hidden');
     if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     await loadDesignerListings();await loadDesignerBrand();await refreshStripePayoutStatus();
   }catch{}
 }
