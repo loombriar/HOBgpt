@@ -1428,33 +1428,37 @@ function renderSellerReadiness(){
   const {profile,listings,stripe}=designerReadinessState;
   byId('seller-terms-form')?.classList.toggle('hidden',!profile || Boolean(profile.sellerTermsAccepted));
   if(byId('seller-terms-version'))byId('seller-terms-version').textContent=profile?.sellerTermsVersion||'';
-  const checks=[
-    ['Seller Terms accepted',Boolean(profile?.sellerTermsAccepted),'Agree to the House of Briar Seller Terms.'],
-    ['Stripe connected',Boolean(stripe?.connected),'Connect your Stripe payout account.'],
-    ['Identity & details submitted',Boolean(stripe?.onboardingComplete),'Finish the identity/details requested by Stripe.'],
-    ['Payouts enabled',Boolean(stripe?.payoutsEnabled),'Complete any remaining Stripe payout requirements.'],
-    ['Designer profile completed',profileIsComplete(profile),'Add your brand name, bio, and what you create.'],
-    ['At least one listing created',Array.isArray(listings)&&listings.length>0,'Create your first piece.']
+  const accepted=Boolean(profile?.sellerTermsAccepted);
+  const profileReady=accepted&&profileIsComplete(profile);
+  const payoutsReady=Boolean(stripe?.connected&&stripe?.onboardingComplete&&stripe?.payoutsEnabled&&stripe?.readyToSell);
+  const listingReady=Array.isArray(listings)&&listings.some(item=>item.status==='published'||item.status==='active');
+  const stages=[
+    {label:'Profile ready',done:profileReady,hint:!accepted?'Accept the seller terms, then complete your public profile.':'Add your brand name, bio and categories.',action:'Complete profile',target:!accepted?'seller-terms-form':'designer-brand-form'},
+    {label:'Payouts connected',done:payoutsReady,hint:'Complete Stripe verification and enable payouts.',action:'Continue Stripe setup',run:openStripeOnboarding},
+    {label:'First piece listed',done:listingReady,hint:'Create a piece and complete any required approval before it can sell.',action:'Create a piece',target:'product-form'},
+    {label:'Ready to sell',done:profileReady&&payoutsReady&&listingReady,hint:'Complete all previous milestones to start selling.',action:'Review unfinished steps'}
   ];
   list.replaceChildren();
-  for(const [label,done,hint] of checks){
-    const row=document.createElement('div');row.className='seller-readiness-item '+(done?'is-complete':'is-pending');
-    const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=done?'✓':'○';mark.setAttribute('aria-hidden','true');
-    const copy=document.createElement('div');copy.append(makeElement('strong','',label));
-    if(!done){
-      copy.append(makeElement('span','seller-readiness-hint',hint));
-      const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';
-      if(label==='Seller Terms accepted'){action.textContent='Review and accept seller terms';action.addEventListener('click',()=>byId('seller-terms-form')?.scrollIntoView({behavior:'smooth',block:'center'}));}
-      else if(label==='Stripe connected'||label==='Identity & details submitted'||label==='Payouts enabled'){action.textContent=label==='Stripe connected'?'Set up payouts':'Continue Stripe setup';action.addEventListener('click',openStripeOnboarding);}
-      else if(label==='Designer profile completed'){action.textContent='Complete profile';action.addEventListener('click',()=>byId('designer-brand-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
-      else {action.textContent='Create a piece';action.addEventListener('click',()=>byId('product-form')?.scrollIntoView({behavior:'smooth',block:'start'}));}
+  for(const stage of stages){
+    const row=document.createElement('div');row.className='seller-readiness-item '+(stage.done?'is-complete':'is-pending');
+    const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=stage.done?'✓':'○';mark.setAttribute('aria-hidden','true');
+    const copy=document.createElement('div');copy.append(makeElement('strong','',stage.label));
+    if(!stage.done){
+      copy.append(makeElement('span','seller-readiness-hint',stage.hint));
+      const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';action.textContent=stage.action;
+      action.addEventListener('click',()=>{
+        if(stage.run){stage.run();return;}
+        const target=stage.target||stages.find(item=>!item.done&&item.target)?.target;
+        if(target)byId(target)?.scrollIntoView({behavior:'smooth',block:'center'});
+        else if(!payoutsReady)openStripeOnboarding();
+      });
       copy.append(action);
     }
     row.append(mark,copy);list.append(row);
   }
-  const ready=checks.every(([,done])=>done)&&Boolean(stripe?.readyToSell);
+  const ready=stages.every(stage=>stage.done);
   if(badge){badge.textContent=ready?'Ready to sell':'Setup in progress';badge.dataset.ready=ready?'true':'false';}
-  if(summary)summary.textContent=ready?'Your seller setup is complete. Approved pieces can be sold through House of Briar.':'Complete the remaining steps below. You can keep building your profile and drafting pieces while setup is in progress.';
+  if(summary)summary.textContent=ready?'Your setup is complete and your approved piece is available for sale.':'Complete each milestone below. Drafts do not count as published pieces.';
 }
 async function refreshStripePayoutStatus() {
   const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
