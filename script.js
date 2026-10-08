@@ -7,6 +7,8 @@ if (scrollingHeader) {
   else window.addEventListener('resize', syncHeaderHeight);
 }
 
+let customerSignedIn = false;
+let customerSigninRequest = '';
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -197,7 +199,7 @@ async function toggleFavorite(item) {
   setFavoriteIds(next);
   renderGallery();
   renderVisitorFavorites();
-  if (!designerToken) return;
+  if (!designerToken && !customerSignedIn) return;
   try {
     await apiRequest(`/api/my/favorites/${encodeURIComponent(item.id)}`, { method: saving ? 'POST' : 'DELETE' });
   } catch (error) {
@@ -206,7 +208,7 @@ async function toggleFavorite(item) {
 }
 
 async function syncAccountFavorites() {
-  if (!designerToken) return;
+  if (!designerToken && !customerSignedIn) return;
   const localIds = getFavoriteIds();
   try {
     if (localIds.length) {
@@ -1529,6 +1531,7 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 byId('visitor-suite-btn')?.addEventListener('click', () => {
   renderVisitorFavorites();
   byId('visitor-suite-modal')?.showModal();
+  refreshCustomerAccount();
   syncAccountFavorites();
 });
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
@@ -1639,6 +1642,9 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
     setMessage(message, 'Choose a donation between $1 and $1,000.', 'error');
     return;
   }
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  if (button?.disabled) return;
+  if (button) button.disabled = true;
   try {
     setMessage(message, 'Opening secure checkout…', '');
     const payload = await apiRequest('/api/donations/session', {
@@ -1650,6 +1656,8 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
     window.location.assign(payload.url);
   } catch (error) {
     setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
+  } finally {
+    if (button) button.disabled = false;
   }
 });
 
@@ -1859,6 +1867,7 @@ async function renderAdminOverview() {
   const load = ++adminOverviewLoad; host.replaceChildren();
   const sections = [
     ['Website views', '/api/admin/analytics'],
+    ['Customer sign-ups', '/api/admin/customer-signups'],
     ['Operations', '/api/admin/operations'],
     ['Designer sign-ups', '/api/admin/designer-applications'],
     ['Customer service', '/api/admin/support'],
@@ -1869,6 +1878,17 @@ async function renderAdminOverview() {
     section.append(makeElement('h3', '', title)); host.append(section);
     try {
       const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminToken) return;
+      if (data.customers) {
+        section.id='admin-customer-signups';
+        const stats=makeElement('div','admin-traffic-stats');
+        for(const [label,value] of [["Today's new customers",data.customers.today],['Last 30 days',data.customers.last30Days],['Total customer accounts',data.customers.total]]){
+          const card=makeElement('div','admin-traffic-stat');card.append(makeElement('strong','',Number(value||0).toLocaleString()),makeElement('span','',label));stats.append(card);
+        }
+        section.append(stats,makeElement('p','small-print','Counts completed email-verified customer registrations once. Repeat sign-ins, guest visits and designer signups do not add to this count. Daily totals use Eastern time. Tracking begins with the new customer signup feature.'));
+        const table=makeElement('table','admin-traffic-table');table.id='admin-daily-customer-signups';
+        const head=document.createElement('thead'),row=document.createElement('tr');for(const label of ['Date (Eastern)','New customers']){const th=makeElement('th','',label);th.scope='col';row.append(th);}head.append(row);
+        const body=document.createElement('tbody');for(const item of [...data.customers.daily].reverse()){const row=makeElement('tr');row.append(makeElement('td','',item.day),makeElement('td','',Number(item.signups||0).toLocaleString()));body.append(row);}table.append(head,body);section.append(table);
+      }
       if (data.traffic) {
         section.id = 'admin-website-views';
         section.append(makeElement('p', '', `Website activity in the last ${data.periodDays || 30} days.`));
@@ -2154,3 +2174,26 @@ byId('shop-fit-form')?.addEventListener('submit', event => {
 });
 byId('shop-fit-remove')?.addEventListener('click', () => { activeMeasurements = null; setMessage(byId('shop-fit-message'), 'Measurement filter removed.', ''); loadGallery(); });
 refreshShopFitProfiles();
+
+async function refreshCustomerAccount() {
+  try {
+    const response=await fetch('/api/customer/session',{cache:'no-store'});
+    const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
+    byId('customer-signed-in').hidden=!customerSignedIn;
+    byId('customer-signup-form').hidden=customerSignedIn;
+    byId('customer-code-form').hidden=true;
+    if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
+  }catch{customerSignedIn=false;}
+}
+byId('customer-signup-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{const data=await apiRequest('/api/customer/signin-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:byId('customer-signup-email').value,name:byId('customer-signup-name').value,acceptedRules:byId('customer-rules-consent').checked})});customerSigninRequest=data.requestId;byId('customer-signup-form').hidden=true;byId('customer-code-form').hidden=false;setMessage(byId('customer-signup-status'),data.message,'success');byId('customer-signin-code').focus();}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+});
+byId('customer-code-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+});
+byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
+byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
+if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
+refreshCustomerAccount();

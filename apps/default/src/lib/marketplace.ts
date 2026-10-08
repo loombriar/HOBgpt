@@ -181,9 +181,9 @@ export async function getPersistentFavoriteIds(accessToken?: string | null) {
   if (!accessToken) return getSavedProductIds();
   const guestIds = getSavedProductIds();
   if (guestIds.length) {
-    await fetch('/api/my/favorites/merge', { method:'POST', headers:{ Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
   }
-  const response=await fetch('/api/my/favorites',{headers:{Authorization:`Bearer ${accessToken}`,Accept:'application/json'}});
+  const response=await fetch('/api/my/favorites',{headers:{...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}),Accept:'application/json'}});
   if(!response.ok) throw new Error('Saved pieces could not be loaded.');
   const data=await response.json();
   const ids=Array.isArray(data?.ids)?data.ids.filter((id:unknown):id is string=>typeof id==='string'):[];
@@ -197,7 +197,7 @@ export async function setPersistentFavorite(productId:string,saved:boolean,acces
     setSavedProductIds(saved?[...current,productId]:current.filter(id=>id!==productId));
     return;
   }
-  const response=await fetch(`/api/my/favorites/${encodeURIComponent(productId)}`,{method:saved?'POST':'DELETE',headers:{Authorization:`Bearer ${accessToken}`,Accept:'application/json'}});
+  const response=await fetch(`/api/my/favorites/${encodeURIComponent(productId)}`,{method:saved?'POST':'DELETE',headers:{...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}),Accept:'application/json'}});
   if(!response.ok) throw new Error('Saved piece could not be updated.');
   const current=getSavedProductIds();
   setSavedProductIds(saved?[...current,productId]:current.filter(id=>id!==productId));

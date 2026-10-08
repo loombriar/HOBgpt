@@ -8,7 +8,12 @@ export async function validateHouseSession(token='',request:typeof fetch=fetch):
   if(!exchange.ok)return null;
  }
  const response=await request('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
- if(!response.ok)return null;
+ if(!response.ok){
+  if(![401,403,404].includes(response.status))return null;
+  const buyerResponse=await request('/api/customer/session',{cache:'no-store',credentials:'same-origin'});if(!buyerResponse.ok)return null;
+  const {customer}=await buyerResponse.json();if(!customer?.id)return null;
+  return new User({access_token:'',token_type:'Bearer',profile:{sub:'customer:'+customer.id,email:customer.email||'',name:customer.name||'House guest',iss:window.location.origin,aud:'house',exp:0,iat:0}});
+ }
  const {designer}=await response.json();if(!designer?.id||designer.status!=='active')return null;
  return new User({access_token:'',token_type:'Bearer',profile:{sub:designer.id,email:designer.email||'',name:designer.displayName||designer.brandName||designer.id,iss:window.location.origin,aud:'house',exp:0,iat:0}});
 }

@@ -45,11 +45,12 @@ test('cookie-authenticated cross-site mutation is rejected and same-origin mutat
 
 test('storefront route records an anonymous designer view without storing an IP field', async ({ page, request }) => {
   await page.goto('/designers/maker');
-  await page.waitForLoadState('networkidle');
-  const analytics = await request.get('/api/admin/analytics', { headers: { Authorization: 'Bearer e2e-admin-token' } });
-  expect(analytics.ok()).toBeTruthy();
-  const body = await analytics.json();
-  expect(body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1)).toBeTruthy();
+  await expect.poll(async () => {
+    const analytics = await request.get('/api/admin/analytics', { headers: { Authorization: 'Bearer e2e-admin-token' } });
+    expect(analytics.ok()).toBeTruthy();
+    const body = await analytics.json();
+    return body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1);
+  }).toBeTruthy();
 });
 
 
@@ -184,3 +185,95 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     }
   });
 }
+
+test('customers verify email, get a private account and appear once in the Admin signup tracker',async({page,request})=>{
+ const email='shopper-e2e@example.test';
+ await page.goto('/?visitors=signup');
+ const suite=page.locator('#visitor-suite-modal');await expect(suite).toBeVisible();
+ await page.locator('#customer-signup-name').fill('E2E Shopper');
+ await page.locator('#customer-signup-email').fill(email);
+ await page.locator('#customer-rules-consent').check();
+ await suite.getByRole('button',{name:'Email me a sign-in code',exact:true}).click();
+ await expect(page.locator('#customer-code-form')).toBeVisible();
+ const codeResponse=await request.get('/__test/customer-code?email='+encodeURIComponent(email));const {code}=await codeResponse.json();
+ await page.locator('#customer-signin-code').fill(code);
+ await suite.getByRole('button',{name:'Verify and enter my Suite',exact:true}).click();
+ await expect(page.locator('#customer-account-greeting')).toContainText(email);
+ await suite.getByRole('link',{name:'Open my account',exact:true}).click();
+ await expect(page).toHaveURL(/\/account$/);
+ await expect(page.getByText('Your buyer account is ready.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);
+ await page.goto('/');await page.getByRole('button',{name:'Admin panel',exact:true}).click();
+ await page.getByLabel('Administrator code').fill('e2e-admin-token');await page.locator('#admin-login-form button[type="submit"]').click();
+ const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();
+ await expect(tracker.getByText("Today's new customers",{exact:true})).toBeVisible();
+ await expect(tracker.locator('.admin-traffic-stat strong').first()).toHaveText('1');
+ await expect(tracker.locator('tbody tr')).toHaveCount(30);
+});
+
+
+test('donation button starts checkout with its displayed amount and shows provider errors', async ({ page }) => {
+  await page.route('**/api/donations/session', route => route.fulfill({
+    status: 503, contentType: 'application/json',
+    body: JSON.stringify({ error: { message: 'Checkout is temporarily unavailable. Please try again.' } })
+  }));
+  await page.goto('/#support');
+  await expect(page.locator('#donation-amount')).toHaveValue('25');
+  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
+  await expect(page.getByRole('button', { name: 'Give by card / bank' })).toBeEnabled();
+  await page.unroute('**/api/donations/session');
+  await page.route('**/api/donations/session', async route => {
+    expect(route.request().postDataJSON().amount).toBe(25);
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
+  });
+  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await expect(page.getByText('Your donation checkout was canceled.', { exact: true })).toBeVisible();
+});
+
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  test(`donation amount is readable and editable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/#support');
+    const amount = page.locator('#donation-amount');
+    await amount.scrollIntoViewIfNeeded();
+    const inputBox = await amount.boundingBox();
+    expect(inputBox.width).toBeGreaterThan(100);
+    expect(inputBox.height).toBeGreaterThanOrEqual(48);
+    await amount.fill('10');
+    await expect(amount).toHaveValue('10');
+    const buttonBox = await page.getByRole('button', { name: 'Give by card / bank' }).boundingBox();
+    expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
+  });
+}
+
+
+test('popup exits remain reachable after scrolling long content on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  for (const [id, closeId] of [
+    ['visitor-suite-modal','visitor-suite-close'],
+    ['admin-review-dialog','admin-review-close'],
+    ['designer-storefront-dialog','storefront-close'],
+    ['product-dialog','product-dialog-close'],
+    ['support-dialog','support-dialog-close'],
+    ['cart-dialog','cart-dialog-close'],
+    ['production-info-dialog','production-info-close'],
+    ['house-tryon-dialog','house-tryon-close']
+  ]) {
+    await page.locator(`#${id}`).evaluate(dialog => {
+      const content = document.createElement('div');
+      content.style.height = '2000px';
+      content.textContent = 'Long popup content';
+      dialog.append(content);
+      dialog.showModal();
+      dialog.scrollTop = dialog.scrollHeight;
+    });
+    const close = page.locator(`#${closeId}`);
+    const box = await close.boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    await close.click();
+    await expect(page.locator(`#${id}`)).not.toBeVisible();
+  }
+});

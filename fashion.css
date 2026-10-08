@@ -118,3 +118,18 @@ body.blackberry-house .curation-grid{grid-template-columns:repeat(4,minmax(0,1fr
 .blackberry-house .page-shell{overflow:clip}
 html:has(.sewing-header){scroll-padding-top:calc(var(--house-header-height,180px) + 16px)}
 .blackberry-house .site-header.sewing-header{box-shadow:0 4px 18px #4b293712}
+
+.customer-account-card{padding:22px;border:1px solid #c7ab68;background:#fffaf2;margin-bottom:24px}.customer-account-card [hidden]{display:none!important}.customer-account-card .primary-button{display:inline-flex;align-items:center;min-height:44px}
+
+/* Donation amount stays legible inside narrow support cards. */
+body.blackberry-house .donation-row{grid-template-columns:auto minmax(0,1fr);gap:.75rem}
+body.blackberry-house .donation-row input{min-width:0;min-height:52px;font-size:1.25rem;background:var(--paper,#fffaf0);color:var(--ink,#30232b)}
+body.blackberry-house .donation-row button{grid-column:1 / -1;width:100%;min-height:48px;white-space:normal}
+body.blackberry-house .donation-form .form-message{margin-top:.75rem}
+
+/* Keep popup exits within reach while long content scrolls. */
+body.blackberry-house :is(dialog.app-dialog,#house-tryon-dialog){max-height:calc(100dvh - 2rem);overflow-y:auto;overscroll-behavior:contain}
+body.blackberry-house :is(dialog.app-dialog,#house-tryon-dialog)>.dialog-header{position:sticky;top:0;z-index:10;background:#fffaf0;border-bottom:1px solid #a69b91;box-shadow:0 4px 12px #30232b12}
+body.blackberry-house .dialog-header>:is(button,a){flex-shrink:0;min-width:44px;min-height:44px}
+body.blackberry-house .designer-room-header{position:sticky;top:var(--house-header-height,0px);z-index:70;background:#fffaf0;padding:1rem;margin-bottom:1rem}
+@media(max-width:650px){body.blackberry-house .dialog-header{gap:.5rem;padding:1rem}.designer-room-header h2{font-size:1.5rem}}
