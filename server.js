@@ -971,7 +971,11 @@ function createApp(options = {}) {
     const expectedOrigin=trustedAppOrigin(req);
     const origin=req.get('origin');
     const fetchSite=String(req.get('sec-fetch-site')||'').toLowerCase();
-    if (origin && !isSameOriginUrl(origin,expectedOrigin)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
+    if (origin && !isSameOriginUrl(origin,expectedOrigin)) {
+      // Railway may serve a custom domain while APP_ORIGIN names its Railway domain.
+      // Browser-controlled Fetch Metadata proves a same-origin request even then.
+      if (fetchSite !== 'same-origin') return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
+    }
     if (!origin && fetchSite && !['same-origin','same-site','none'].includes(fetchSite)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
     if (!origin && !fetchSite) return fail(res,403,'invalid_origin','A trusted request origin is required.');
     return next();
