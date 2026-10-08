@@ -1490,6 +1490,7 @@ async function signIn(tokenValue) {
   try {
     await apiRequest('/api/session', { method: 'POST' });
     designerToken = COOKIE_SESSION_MARKER;
+    sessionStorage.removeItem('house-of-briar:designer-signed-out');
     localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
     if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
@@ -1537,8 +1538,9 @@ async function signOut() {
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
   if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
-  // Reload the public page so private profile, order and payout data leave the DOM.
-  location.replace('/');
+  // Prevent an in-flight session restore or stale navigation from reopening private data.
+  sessionStorage.setItem('house-of-briar:designer-signed-out','1');
+  location.replace('/designers/room');
 }
 
 function applyFilterButtons() {
@@ -1709,11 +1711,12 @@ byId('newsletter-form')?.addEventListener('submit', async (event) => {
 });
 
 async function restoreDesignerSession() {
+  if(sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
   const legacyToken=designerToken && designerToken!==COOKIE_SESSION_MARKER ? designerToken : '';
   if(legacyToken){await signIn(legacyToken);return;}
   try{
     const response=await fetch('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
-    if(!response.ok)return;
+    if(!response.ok || sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
     designerToken=COOKIE_SESSION_MARKER;
     if(loginPanel)loginPanel.classList.add('hidden');
     if(designerWorkspace)designerWorkspace.classList.remove('hidden');
