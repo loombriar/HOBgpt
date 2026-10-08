@@ -17,7 +17,7 @@ for (const width of [390, 1280]) {
     const response = await page.request.get(`/__test/customer-code?email=${encodeURIComponent(email)}`);
     expect(response.ok()).toBeTruthy();
     await page.getByLabel('Six-digit email code', { exact: true }).fill((await response.json()).code);
-    await page.getByRole('button', { name: 'Verify and enter my Suite', exact: true }).click();
+    await page.getByRole('button', { name: 'Verify and sign in', exact: true }).click();
     await expect(page.locator('#customer-signed-in')).toBeVisible();
     await page.getByRole('button', { name: 'Save my measurements', exact: true }).click();
     await expect(page.locator('#measurement-profile-name')).toBeFocused();

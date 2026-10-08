@@ -175,9 +175,9 @@ function updateCartButton() {
   if (!cartButton) return;
   const count = getCartIds().length;
   const label = byId('suitcase-label');
-  if (label) label.textContent = `Suitcase (${count})`;
-  else cartButton.textContent = `Suitcase (${count})`;
-  cartButton.setAttribute('aria-label', `Suitcase, ${count} ${count === 1 ? 'item' : 'items'}`);
+  if (label) label.textContent = `Cart (${count})`;
+  else cartButton.textContent = `Cart (${count})`;
+  cartButton.setAttribute('aria-label', `Cart, ${count} ${count === 1 ? 'item' : 'items'}`);
 }
 
 function getFavoriteIds() {
@@ -260,7 +260,7 @@ function renderVisitorFavorites(accountItems = []) {
     copy.append(makeElement('strong', '', item.title), makeElement('span', '', item.designerName || item.designer_name || ''), makeElement('span', 'price', `${Number(item.price || 0).toFixed(2)}`));
     const actions = makeElement('div', 'wishlist-card-actions');
     const view = makeElement('button', 'secondary-button', 'View piece'); view.type='button'; view.addEventListener('click',()=>openProductDetails(item));
-    const move = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Suitcase' : 'Move to Suitcase'); move.type='button'; move.disabled=getCartIds().includes(item.id); move.addEventListener('click',()=>{ addToCart(item); renderVisitorFavorites(accountItems); });
+    const move = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Cart' : 'Move to Cart'); move.type='button'; move.disabled=getCartIds().includes(item.id); move.addEventListener('click',()=>{ addToCart(item); renderVisitorFavorites(accountItems); });
     const remove = makeElement('button', 'text-button', 'Remove'); remove.type='button'; remove.addEventListener('click',()=>toggleFavorite(item));
     actions.append(view,move,remove); copy.append(actions); card.append(copy); host.append(card);
   }
@@ -319,20 +319,20 @@ function addToCart(item) {
   if (!ids.includes(item.id)) ids.push(item.id);
   setCartIds(ids);
   if (productDialog?.open) productDialog.close();
-  setMessage(shopStatus, `${item.title} added to your Suitcase. Select Suitcase to check out.`, 'success');
+  setMessage(shopStatus, `${item.title} added to your Cart. Select Cart to check out.`, 'success');
 }
 
 function removeFromCart(item) {
   setCartIds(getCartIds().filter((id) => id !== item.id));
   setGiftWrapIds(getGiftWrapIds().filter((id) => id !== item.id));
-  setMessage(shopStatus, `${item.title} removed from your Suitcase.`, 'success');
+  setMessage(shopStatus, `${item.title} removed from your Cart.`, 'success');
   renderGallery();
 }
 
 async function checkoutCart() {
   const ids = getCartIds();
   if (!ids.length) {
-    setMessage(shopStatus, 'Your Suitcase is empty. Open a piece and choose Add to Suitcase.', 'error');
+    setMessage(shopStatus, 'Your Cart is empty. Open a piece and choose Add to Cart.', 'error');
     document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
     return;
   }
@@ -341,7 +341,7 @@ async function checkoutCart() {
     cartButton.textContent = 'Opening checkout…';
   }
   try {
-    if(!cartShippingQuote?.shippingReady||cartShippingKey!==JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))}))throw Error('Review shipping in your Suitcase before continuing.');
+    if(!cartShippingQuote?.shippingReady||cartShippingKey!==JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))}))throw Error('Review shipping in your Cart before continuing.');
     const payload = await apiRequest('/api/checkout/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -366,7 +366,7 @@ function openCart() {
   const badgeReward = byId('cart-badge-reward');
   if (badgeReward) badgeReward.hidden = !ids.length;
   if (!ids.length) {
-    cartItems.appendChild(makeElement('p', 'notice', 'Your Suitcase is empty.'));
+    cartItems.appendChild(makeElement('p', 'notice', 'Your Cart is empty.'));
     if (checkoutButton) checkoutButton.disabled = true;
   } else {
     if (checkoutButton) checkoutButton.disabled = true;
@@ -385,7 +385,7 @@ function openCart() {
         wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);openCart();});
         wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
       }
-      const remove = makeElement('button', 'text-button', 'Remove from Suitcase');
+      const remove = makeElement('button', 'text-button', 'Remove from Cart');
       remove.type = 'button';
       remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
       row.append(copy, remove);
@@ -731,7 +731,7 @@ byId('support-dialog-close')?.addEventListener('click',()=>byId('support-dialog'
 byId('support-form')?.addEventListener('submit',async event=>{
   event.preventDefault(); const status=byId('support-form-status'); const message=byId('support-message')?.value.trim()||''; const orderId=byId('support-order-id')?.value.trim()||'';
   try{const result=await apiRequest('/api/support/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,orderId:orderId||null})}); setMessage(status,result.message?.autoReply?'Message sent. We also emailed the available order or shipping information to you.':'Message sent to House of Briar Customer Support.','success');}
-  catch(error){setMessage(status,error.message==='Sign in to view your orders.'?'Please sign in through the Visitor’s Suite to send an in-site support message, or use the email link below.':error.message,'error');}
+  catch(error){setMessage(status,error.message==='Sign in to view your orders.'?'Please sign in through the Customer account to send an in-site support message, or use the email link below.':error.message,'error');}
 });
 
 function openProductDetails(item) {
@@ -771,7 +771,7 @@ function openProductDetails(item) {
     productionButton.type = 'button';
     productionButton.addEventListener('click', () => {
       const info = {
-        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your Suitcase does not reserve it; it is secured when checkout begins.',
+        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your Cart does not reserve it; it is secured when checkout begins.',
         'Upcycled': 'This piece gives existing materials or garments a new life through the designer’s creative work.',
         'Made in Multiple': 'This design can be made more than once. Individual pieces may still vary because they are independently made.'
       };
@@ -835,7 +835,7 @@ function openProductDetails(item) {
   }); reportSection.append(reportForm); copy.append(reportSection);
   const sizingBox = makeElement('div', 'measurement-request');
   sizingBox.appendChild(makeElement('h4', '', 'Send measurements for this piece'));
-  sizingBox.appendChild(makeElement('p', 'small-print', 'Choose a saved Visitor’s Suite profile or enter measurements here. They are attached only to this piece.'));
+  sizingBox.appendChild(makeElement('p', 'small-print', 'Choose a saved Customer account profile or enter measurements here. They are attached only to this piece.'));
 
   const profileSelect = document.createElement('select');
   profileSelect.setAttribute('aria-label', 'Saved measurement profile');
@@ -889,13 +889,13 @@ function openProductDetails(item) {
     try {
       await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/inquiries`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ measurements, message: note.value.trim() }) });
       setMessage(sizingMessage, `Your measurement request for ${item.title} was saved and sent to the designer.`, 'success');
-    } catch (error) { setMessage(sizingMessage, error.status === 401 ? 'Sign in to your Visitor’s Suite or Designer’s Room to send measurements.' : error.message, 'error'); }
+    } catch (error) { setMessage(sizingMessage, error.status === 401 ? 'Sign in to your Customer account or Designer dashboard to send measurements.' : error.message, 'error'); }
     finally { send.disabled = false; }
   });
   sizingBox.append(profileSelect, bust, waist, hips, height, note, send, sizingMessage);
   copy.appendChild(sizingBox);
 
-  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Suitcase' : 'Add to Suitcase');
+  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Cart' : 'Add to Cart');
   addButton.type = 'button';
   addButton.disabled = getCartIds().includes(item.id) || item.shippingCostCents == null;
   if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
@@ -1643,7 +1643,7 @@ if (designerSignupForm) {
       if (!response.ok) throw new Error(payload.error || 'Designer sign up could not be completed.');
       designerSignupForm.reset();
       if (!payload.accessToken) throw new Error('Your profile was created, but studio access could not be started.');
-      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Opening your Designer’s Room…';
+      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Opening your Designer dashboard…';
       await signIn(payload.accessToken);
       byId('designer-welcome')?.classList.remove('hidden');
       requestAnimationFrame(() => byId('designer-welcome')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -1658,7 +1658,7 @@ if (designerLoginBtn) {
     if (!designerToken) {
       if (loginPanel) loginPanel.classList.remove('hidden');
       if (designerWorkspace) designerWorkspace.classList.add('hidden');
-      setMessage(designerAuthMessage, '🔒 Designer’s Room is locked. Designer access is required to enter.', '');
+      setMessage(designerAuthMessage, '🔒 Designer dashboard is locked. Designer access is required to enter.', '');
     } else {
       if (loginPanel) loginPanel.classList.add('hidden');
       if (designerWorkspace) designerWorkspace.classList.remove('hidden');

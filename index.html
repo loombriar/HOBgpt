@@ -66,11 +66,11 @@
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
-          <details class="nav-dropdown"><summary class="nav-hotspot">Visitors <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Visitor options"><button type="button" id="visitor-suite-btn">Open Visitor’s Suite</button><button type="button" data-mess-around-suite="measurement-profile-name">My Measurements &amp; Avatar</button><button type="button" data-mess-around-suite="visitor-favorites-title">Saved Favorites</button><a href="/#shop">Browse the House</a></div></details>
-          <details class="nav-dropdown"><summary class="nav-hotspot">Designers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Designer options"><button type="button" id="designer-login-btn">Open Designer’s Room</button><a href="/designers/room#designer-signup">Become a Designer</a><a href="/#house-stories-title">Designer Stories</a><a href="/#how-house-works">How the House Works</a></div></details>
-          <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Your traveling suitcase: chosen treasures wait here before their journey through checkout and home to you.</span></button>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Customers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Visitor options"><button type="button" id="visitor-suite-btn">Open customer account</button><button type="button" data-mess-around-suite="measurement-profile-name">My Measurements &amp; Avatar</button><button type="button" data-mess-around-suite="visitor-favorites-title">Saved Favorites</button><a href="/#shop">Browse the House</a></div></details>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Designers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Designer options"><button type="button" id="designer-login-btn">Open designer dashboard</button><a href="/designers/room#designer-signup">Become a Designer</a><a href="/#house-stories-title">Designer Stories</a><a href="/#how-house-works">How the House Works</a></div></details>
+          <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Cart, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Cart (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Review your items, shipping costs and total before checkout.</span></button>
           <button id="header-customer-auth-btn" class="nav-hotspot" type="button" aria-label="Customer sign in or create an account">Sign in / Sign up</button>
-          <a id="header-designer-auth-link" class="nav-hotspot" href="/designers/room">Designer Account</a>
+          <a id="header-designer-auth-link" class="nav-hotspot" href="/designers/room">Designer dashboard</a>
           <button id="header-signout-btn" class="nav-hotspot" type="button" hidden>Sign out</button>
         </nav>
         <a class="sewing-brand briar-wordmark" href="#top" aria-label="House of Briar — back to top"><span class="fashion-wordmark">HOUSE <i>of</i> BRIAR<span class="fashion-brand-caption">INDEPENDENT BY DESIGN</span></span></a>
@@ -95,7 +95,7 @@
 <ol class="welcome-steps">
 <li><span aria-hidden="true">01</span><h3>Find your piece</h3><p>Explore clothing and accessories by category, size, style and price.</p><a href="#shop">Browse the pieces →</a></li>
 <li><span aria-hidden="true">02</span><h3>Get to know the fit</h3><p>Open a piece for measurements, shipping, processing time and return details before you buy.</p><a href="/shipping.html">Shipping explained →</a></li>
-<li><span aria-hidden="true">03</span><h3>Keep your favorites close</h3><p>Your free Visitor’s Suite brings together your shopping account, favorites and measurements.</p><button type="button" class="text-button" data-customer-welcome>Sign in / Create an account →</button></li>
+<li><span aria-hidden="true">03</span><h3>Keep your favorites close</h3><p>Your free Customer account brings together your shopping account, favorites and measurements.</p><button type="button" class="text-button" data-customer-welcome>Sign in / Create an account →</button></li>
 </ol><p class="welcome-guest-note">Just browsing? You’re welcome here. You can shop without creating an account.</p></div></section>
         <section id="shop" class="product-section">
           <div class="container">
@@ -243,12 +243,12 @@
         </section>
 
         <section class="house-stories" aria-labelledby="house-stories-title"><div class="container"><p class="eyebrow">Designer spotlight stories</p><h2 id="house-stories-title">Meet the hands behind the magic.</h2><p>A peek into the process, the personality, and the occasional creative chaos.</p><div id="house-spotlights" class="atelier-spotlights"></div></div></section>
-        <section class="house-styling" aria-labelledby="house-styling-title"><div class="container"><p class="eyebrow">Your Briar styling companion</p><h2 id="house-styling-title">Main-character energy. Wardrobe assistance.</h2><p>Find ideas from pieces actually in the House. Sign in to your Visitor’s Suite or Designer’s Room to use AI styling and try-on.</p><form id="house-styling-form" class="stack-form"><label for="house-styling-prompt">What are you dressing for?</label><input id="house-styling-prompt" maxlength="500" required placeholder="An autumn wedding, romantic but a little dramatic…" /><p class="small-print">Your request and public listing details are sent to OpenAI to create suggestions. Suggestions do not confirm fit or availability.</p><button class="primary-button" type="submit">Ask the Briar stylist</button><p id="house-styling-status" role="status"></p></form><div id="house-styling-results"></div></div></section>
+        <section class="house-styling" aria-labelledby="house-styling-title"><div class="container"><p class="eyebrow">Your Briar styling companion</p><h2 id="house-styling-title">Main-character energy. Wardrobe assistance.</h2><p>Find ideas from pieces actually in the House. Sign in to your Customer account or Designer dashboard to use AI styling and try-on.</p><form id="house-styling-form" class="stack-form"><label for="house-styling-prompt">What are you dressing for?</label><input id="house-styling-prompt" maxlength="500" required placeholder="An autumn wedding, romantic but a little dramatic…" /><p class="small-print">Your request and public listing details are sent to OpenAI to create suggestions. Suggestions do not confirm fit or availability.</p><button class="primary-button" type="submit">Ask the Briar stylist</button><p id="house-styling-status" role="status"></p></form><div id="house-styling-results"></div></div></section>
         <aside class="founder-announcement" aria-label="Founding designers">
           <div class="container founder-announcement-inner">
             <img src="/founding-designer-berry-v1.webp" alt="Founding Designer badge with the House gold briar border" width="80" height="80" />
             <div><p class="eyebrow">The founding 25</p><p id="founder-announcement-copy">The first 25 designers to join earn a permanent Founding Designer badge on their profiles and pieces.</p><p id="founder-spots" class="small-print" role="status"></p></div>
-            <a href="/designers/room#designer-signup" class="secondary-button" id="founder-signup-link">Move in →</a>
+            <a href="/designers/room#designer-signup" class="secondary-button" id="founder-signup-link">Sign up as a designer →</a>
           </div>
         </aside>
         <section id="designers-wanted" class="designer-callout-section" aria-labelledby="designers-wanted-title">
@@ -319,7 +319,7 @@
     </div>
 
     <dialog id="visitor-suite-modal" class="app-dialog visitor-suite-dialog" aria-labelledby="visitor-suite-title">
-      <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Visitor’s Suite</h2><p class="small-print">Your shopping account, favorites &amp; measurements</p></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Visitor’s Suite">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Customer account</h2><p class="small-print">Your shopping account, favorites &amp; measurements</p></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Customer account">×</button></div>
       <section class="customer-account-card" aria-labelledby="customer-account-title">
         <p class="eyebrow">Your free shopping account</p><h3 id="customer-account-title">Welcome to your corner of the House.</h3>
         <p>Save favorites, keep your measurements handy and find your purchase history in one place. New here or returning? Start with your email.</p>
@@ -336,11 +336,11 @@
           <label class="small-print"><input id="customer-rules-consent" type="checkbox" required /> I agree to the <a href="/rules" target="_blank" rel="noopener">House rules</a> and have read the privacy information.</label>
           <button class="primary-button" type="submit">Email me a sign-in code</button>
         </form>
-        <form id="customer-code-form" class="stack-form" hidden><p class="eyebrow">One more step</p><h4>Check your inbox</h4><p id="customer-code-help" class="small-print">Enter the six-digit code from House of Briar. Check your spam folder if you don’t see the email.</p><label>Six-digit email code<input aria-describedby="customer-code-help" id="customer-signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required /></label><button class="primary-button" type="submit">Verify and enter my Suite</button><button id="customer-code-back" type="button" class="text-button">Use another email or request a new code</button></form>
+        <form id="customer-code-form" class="stack-form" hidden><p class="eyebrow">One more step</p><h4>Check your inbox</h4><p id="customer-code-help" class="small-print">Enter the six-digit code from House of Briar. Check your spam folder if you don’t see the email.</p><label>Six-digit email code<input aria-describedby="customer-code-help" id="customer-signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required /></label><button class="primary-button" type="submit">Verify and sign in</button><button id="customer-code-back" type="button" class="text-button">Use another email or request a new code</button></form>
         <p id="customer-signup-status" class="form-message" role="status" aria-live="polite"></p>
       </section>
       <section id="visitor-suite" class="visitor-suite-section">
-        <div class="section-heading"><div><p class="eyebrow">Visitor’s Suite</p><h2>Your private shopping room</h2></div></div>
+        <div class="section-heading"><div><p class="eyebrow">Customer account</p><h2>Your shopping account</h2></div></div>
         <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer unless you choose to send them.</p>
         <p class="small-print">Profiles are saved in this browser, not securely in your account. Anyone using this browser can access them. Avoid saving measurements on shared devices, and delete profiles you no longer need.</p>
         <div class="measurement-avatar-intro"><div id="measurement-avatar-preview"></div><p>Your little fit companion changes as you enter measurements in inches. A stylized guide; use the saved numbers for sizing. Blank measurements use a default shape.</p></div>
@@ -363,7 +363,7 @@
 
     <section id="designer-modal" class="designer-room-page hidden" aria-labelledby="designer-dialog-title" tabindex="-1">
       <div class="dialog-header designer-room-header">
-        <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer’s Room</h2></div>
+        <div><p class="eyebrow">For independent makers</p><h2 id="designer-dialog-title">Designer dashboard</h2></div>
         <a class="secondary-button" id="modal-close" href="/#shop" aria-label="Back to shopping">← Back to shopping</a>
       </div>
       <section id="designer-login-panel" class="login-panel">
@@ -379,7 +379,7 @@
         <div id="designer-signup" class="designer-signup-panel">
           <p class="eyebrow">New to the House?</p>
           <h3>Make yourself at home.</h3>
-          <p><strong>New designer? Start here.</strong> No access token or password is needed to sign up. Enter your details below and we will open your Designer’s Room after your account is created. No application or portfolio required.</p>
+          <p><strong>New designer? Start here.</strong> No access token or password is needed to sign up. Enter your details below and we will open your Designer dashboard after your account is created. No application or portfolio required.</p>
           <form id="designer-signup-form" class="stack-form">
             <label>Your name<input name="displayName" type="text" autocomplete="name" required /></label>
             <label>Designer or brand name<input name="brandName" type="text" required /></label>
@@ -410,7 +410,7 @@
         <p id="designer-listings-message" class="form-message" role="status" aria-live="polite"></p>
         <section class="seller-readiness-card" aria-labelledby="seller-readiness-title">
           <div class="seller-readiness-heading"><div><p class="eyebrow">Designer onboarding</p><h3 id="seller-readiness-title">Ready to Sell</h3><div id="designer-founding-badge" class="listing-badges"></div></div><span id="seller-readiness-badge" class="status-badge">Checking…</span></div>
-          <p id="seller-readiness-summary" class="small-print">Checking your Designer’s Room setup.</p>
+          <p id="seller-readiness-summary" class="small-print">Checking your Designer dashboard setup.</p>
           <div id="seller-readiness-list" class="seller-readiness-list" aria-live="polite"></div>
           <form id="seller-terms-form" class="stack-form hidden">
             <p>Review the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a>. Version <span id="seller-terms-version"></span>.</p>
@@ -422,7 +422,7 @@
         <section class="payout-setup-card" aria-labelledby="payout-setup-title"><p class="eyebrow">Step 2 · Get paid</p><h3 id="payout-setup-title">Set up designer payouts</h3><p id="stripe-payout-status">Connect Stripe to verify your seller details and choose where House of Briar sends your earnings. You can draft pieces before this is finished, but they cannot go on sale until payouts are ready.</p><div class="form-actions"><button id="stripe-onboarding-btn" class="primary-button" type="button">Set up payouts with Stripe</button><button id="stripe-status-btn" class="secondary-button" type="button">Check payout status</button></div></section>
         <div id="designer-welcome" class="designer-welcome hidden">
           <p class="eyebrow">Welcome to House of Briar</p>
-          <h3>Your Designer’s Room is ready.</h3>
+          <h3>Your Designer dashboard is ready.</h3>
           <p>Set up your public designer identity, then add your first piece.</p>
           <button id="start-profile-setup" class="primary-button" type="button">Set up my designer profile</button>
         </div>
@@ -646,7 +646,7 @@
 
     <dialog id="cart-dialog" class="app-dialog cart-dialog" aria-labelledby="cart-dialog-title">
       <div class="dialog-header">
-        <div><p class="eyebrow">Your selections</p><h2 id="cart-dialog-title">Your Suitcase</h2></div>
+        <div><p class="eyebrow">Your selections</p><h2 id="cart-dialog-title">Your Cart</h2></div>
         <button id="cart-dialog-close" class="icon-button" type="button" aria-label="Close cart">×</button>
       </div>
       <div id="cart-items" class="designer-products"></div>
@@ -660,7 +660,7 @@
           <a href="/rules">House Rules &amp; Returns</a>
         </nav>
       </aside>
-      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Suitcase does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable before payment is complete.</p>
+      <p class="notice"><strong>One-of-a-kind pieces:</strong> adding one to your Cart does not guarantee it is yours yet. The piece is secured when checkout begins and may become unavailable before payment is complete.</p>
       <p class="small-print">Have a promo code? Choose Continue to payment and enter it securely on the payment page.</p>
       <div class="form-actions">
         <button id="continue-shopping-btn" class="secondary-button" type="button">Continue shopping</button>

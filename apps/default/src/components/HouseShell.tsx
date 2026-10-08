@@ -117,10 +117,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 ['Shop all pieces', '/shop'],
                 ['Find your favorites', '/shop?liked=true'],
                 ['Browse designers', '/designers'],
-                ['Your suitcase', '/cart']
+                ['Your cart', '/cart']
               ] },
-              { title: 'Visitors', items: [
-                ['Your studio', '/account'],
+              { title: 'Customers', items: [
+                ['Customer account', '/account'],
                 ['Saved favorites', '/shop?liked=true'],
                 ['Browse the shop', '/shop'],
                 ['Meet designers', '/designers']
@@ -128,7 +128,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               { title: 'Designers', items: [
                 ['Become a Founding Designer', '/sell'],
                 ['Designer sign up', '/sell#designer-signup'],
-                ['Designer studio', '/account'],
+                ['Designer dashboard', '/account'],
                 ['Meet the designers', '/designers']
               ] }
             ].map((group) => <div key={group.title} className="relative">
@@ -140,7 +140,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </nav>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Link to="/shop?liked=true" aria-label="Saved pieces" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"><Heart size={17} /></Link>
-            <div className="group relative"><Link to="/cart" aria-label={`Suitcase with ${cartCount} items. Open your suitcase.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="size-7 object-contain" />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your traveling suitcase</strong><span className="mt-1 block text-muted-foreground">Pieces you choose wait here before checkout — like treasures packed for the journey home.</span></span></div>
+            <div className="group relative"><Link to="/cart" aria-label={`Cart with ${cartCount} items. Open your cart.`} aria-describedby="suitcase-help" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary focus:border-primary focus:text-primary"><img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="size-7 object-contain" />{cartCount > 0 && <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">{cartCount}</span>}</Link><span id="suitcase-help" role="tooltip" className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs leading-5 text-foreground shadow-xl group-hover:block group-focus-within:block"><strong className="block font-serif text-base">Your cart</strong><span className="mt-1 block text-muted-foreground">Review your items, shipping costs and total before checkout.</span></span></div>
             {auth.isAuthenticated && <button type="button" onClick={() => void auth.signoutRedirect()} className="min-h-11 rounded-full border border-border bg-card px-3 text-sm">Sign out</button>}
             <span className="hidden sm:inline-flex"><ThemeButton /></span>
             <button type="button" aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={mobileNavOpen} aria-controls="mobile-navigation" onClick={() => setMobileNavOpen((open) => !open)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary md:hidden">
@@ -152,9 +152,9 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm">
             {[
               {title:'Mess Around',items:[['Find out…', '/fashion-personality'],['Find Your Fashion Personality', '/fashion-personality'],['Briar Runway — Coming Soon','/fashion-personality'],['AI styling companion','/#house-styling-title'],['AI photo try-on','/#shop'],['Measurement avatar','/account'],['Heart your favorites','/shop?liked=true'],['Seasonal collections','/#house-collections-title'],['Designer stories & lookbooks','/#house-stories-title'],['Photo style search','/shop'],['House badges','/#support']]},
-              {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Suitcase','/cart']]},
-              {title:'Visitors',items:[['Your studio','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
-              {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer studio','/account'],['Meet designers','/designers']]}
+              {title:'Shop',items:[['Shop all','/shop'],['Saved favorites','/shop?liked=true'],['Meet designers','/designers'],['Cart','/cart']]},
+              {title:'Customers',items:[['Customer account','/account'],['Saved favorites','/shop?liked=true'],['Browse the shop','/shop']]},
+              {title:'Designers',items:[['Become a Founding Designer','/sell'],['Designer sign up','/sell#designer-signup'],['Designer dashboard','/account'],['Meet designers','/designers']]}
             ].map(group=><div key={group.title} className="rounded-xl border-b border-border/50">
               <button type="button" aria-expanded={openMobileMenu === group.title} onClick={() => setOpenMobileMenu(current => current === group.title ? null : group.title)} className="flex min-h-11 w-full cursor-pointer items-center justify-between px-3 py-3 font-medium">{group.title}<span aria-hidden="true">⌄</span></button>
               {openMobileMenu === group.title && <div className="flex flex-col pb-2 pl-3">{group.items.map(([label,href],index)=><a key={label} href={href} onClick={()=>{setMobileNavOpen(false);setOpenMobileMenu(null);}} className={`rounded-lg px-3 py-2.5 hover:bg-accent ${group.title==='Mess Around'&&index===0?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</a>)}</div>}

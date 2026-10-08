@@ -47,7 +47,7 @@ for(const width of [390,1280]) {
   expect(session.ok()).toBeTruthy();
   await page.goto('/account');
   await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
-  await expect(page.locator('details').filter({has:page.getByText('Your Visitor’s Suite',{exact:true})})).not.toHaveAttribute('open');
+  await expect(page.locator('details').filter({has:page.getByText('Your Customer account',{exact:true})})).not.toHaveAttribute('open');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-studio-${width}.png`});
   await page.goto('/admin');

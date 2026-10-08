@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 test('mobile checkout has readable heading and an accessible route back to the bag', async ({ page }) => {
   await page.goto('/checkout');
   await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
-  const back = page.getByRole('link', { name: /back to suitcase/i });
+  const back = page.getByRole('link', { name: /back to cart/i });
   await expect(back).toBeVisible();
   await back.focus();
   await expect(back).toBeFocused();
@@ -23,7 +23,7 @@ test('mobile checkout has readable heading and an accessible route back to the b
 test('cancelled checkout preserves a clear recovery route on mobile', async ({ page }) => {
   await page.goto('/checkout?checkout=canceled');
   await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /back to suitcase/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /back to cart/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /explore the collection/i })).toBeVisible();
 });
 
@@ -40,7 +40,7 @@ test('missing Stripe receipt reference shows a payment warning without clearing 
   await page.goto('/checkout?checkout=success');
   await expect(page.getByRole('alert').filter({ hasText: /payment confirmation is not available yet/i })).toBeVisible();
   await expect(page.getByText(/did not include a receipt reference/i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /return to suitcase/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /return to cart/i })).toBeVisible();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('house-of-briar:cart') || '[]'));
   expect(saved).toContain('saved-piece-for-recovery');
 });
@@ -51,7 +51,7 @@ test('cancelled checkout displays recovery status and does not discard saved pie
   });
   await page.goto('/checkout?checkout=canceled');
   await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /back to suitcase/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /back to cart/i })).toBeVisible();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('house-of-briar:cart') || '[]'));
   expect(saved).toContain('saved-piece-for-recovery');
 });
