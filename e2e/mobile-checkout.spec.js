@@ -1,6 +1,6 @@
 const { test, expect, devices } = require('@playwright/test');
 
-test.use({ ...devices['iPhone 13'], defaultBrowserType: 'chromium' });
+test.use({ ...devices['iPhone 13'] });
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -16,7 +16,8 @@ test('mobile checkout has readable heading and an accessible route back to the b
   await expect(back).toBeVisible();
   await back.focus();
   await expect(back).toBeFocused();
-  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.locator('body').evaluate(el => el.clientWidth));
+  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(hasHorizontalOverflow).toBe(false);
 });
 
 test('cancelled checkout preserves a clear recovery route on mobile', async ({ page }) => {
