@@ -1431,7 +1431,7 @@ function renderSellerReadiness(){
   const accepted=Boolean(profile?.sellerTermsAccepted);
   const profileReady=accepted&&profileIsComplete(profile);
   const payoutsReady=Boolean(stripe?.connected&&stripe?.onboardingComplete&&stripe?.payoutsEnabled&&stripe?.readyToSell);
-  const listingReady=Array.isArray(listings)&&listings.some(item=>item.status==='published'||item.status==='active');
+  const listingReady=Array.isArray(listings)&&listings.some(item=>['published','active','approved'].includes(String(item.status||'').toLowerCase()) || item.isPublished===true || item.published===true);
   const stages=[
     {label:'Profile ready',done:profileReady,hint:!accepted?'Accept the seller terms, then complete your public profile.':'Add your brand name, bio and categories.',action:'Complete profile',target:!accepted?'seller-terms-form':'designer-brand-form'},
     {label:'Payouts connected',done:payoutsReady,hint:'Complete Stripe verification and enable payouts.',action:'Continue Stripe setup',run:openStripeOnboarding},
