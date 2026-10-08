@@ -1642,6 +1642,9 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
     setMessage(message, 'Choose a donation between $1 and $1,000.', 'error');
     return;
   }
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  if (button?.disabled) return;
+  if (button) button.disabled = true;
   try {
     setMessage(message, 'Opening secure checkout…', '');
     const payload = await apiRequest('/api/donations/session', {
@@ -1653,6 +1656,8 @@ byId('donation-form')?.addEventListener('submit', async (event) => {
     window.location.assign(payload.url);
   } catch (error) {
     setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
+  } finally {
+    if (button) button.disabled = false;
   }
 });
 

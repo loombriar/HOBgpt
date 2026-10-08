@@ -210,3 +210,23 @@ test('customers verify email, get a private account and appear once in the Admin
  await expect(tracker.locator('.admin-traffic-stat strong').first()).toHaveText('1');
  await expect(tracker.locator('tbody tr')).toHaveCount(30);
 });
+
+
+test('donation button starts checkout with its displayed amount and shows provider errors', async ({ page }) => {
+  await page.route('**/api/donations/session', route => route.fulfill({
+    status: 503, contentType: 'application/json',
+    body: JSON.stringify({ error: { message: 'Checkout is temporarily unavailable. Please try again.' } })
+  }));
+  await page.goto('/#support');
+  await expect(page.locator('#donation-amount')).toHaveValue('25');
+  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
+  await expect(page.getByRole('button', { name: 'Give by card / bank' })).toBeEnabled();
+  await page.unroute('**/api/donations/session');
+  await page.route('**/api/donations/session', async route => {
+    expect(route.request().postDataJSON().amount).toBe(25);
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
+  });
+  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await expect(page).toHaveURL(/donation=canceled/);
+});
