@@ -28,15 +28,10 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=header-4" />
-    <script src="/script.js?v=verified-settings-34" defer></script>
+    <script src="/script.js?v=audit-20261008" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=editorial-1" />
     <script src="/atelier.js?v=blackberry-3" defer></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
-      }
-    </script>
   </head>
   <body>
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">A little wardrobe daydream</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
@@ -273,8 +268,10 @@
             <div><p class="eyebrow">House notes</p><h2>Sign up for new drops and thoughtful inspiration.</h2></div>
             <form id="newsletter-form" class="newsletter-form">
               <label class="sr-only" for="email">Email</label>
-              <input id="email" type="email" placeholder="Your email" aria-label="Email address" />
+              <input id="email" type="email" required maxlength="254" autocomplete="email" placeholder="Your email" aria-label="Email address" />
+              <label class="small-print"><input id="newsletter-consent" type="checkbox" required /> I want to receive House notes by email.</label>
               <button class="primary-button" type="submit">Join</button>
+              <p id="newsletter-message" class="form-message" role="status" aria-live="polite"></p>
             </form>
           </div>
         </section>

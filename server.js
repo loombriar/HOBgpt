@@ -1419,12 +1419,27 @@ function createApp(options = {}) {
   // Parse analytics before the general parser so its smaller limit is enforced.
   app.use('/api/analytics/events',express.json({limit:'16kb'}));
   app.use(express.json({ limit: '64kb' }));
+  app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(customerRouter);
+  require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
 
-  app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
-    const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND p.status='active'`).get(req.params.listingId);
+  app.post('/api/listings/:listingId/inquiries', authBuyer, reportLimiter, (req,res)=>{
+    const listing=db.prepare(`SELECT l.id,l.title,l.designer_id,p.email AS designer_email FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.id=? AND l.status='published' AND l.moderation_status='approved' AND COALESCE(l.paused_by_designer,0)=0 AND p.status='active'`).get(req.params.listingId);
     if(!listing)return fail(res,404,'listing_not_found','This listing is not available for inquiries.');
-    const message=String(req.body?.message||'').trim();
+    let message=typeof req.body?.message==='string'?req.body.message.trim():'';
+    if (req.body?.measurements !== undefined) {
+      const measurements = req.body.measurements;
+      if (!measurements || typeof measurements !== 'object' || Array.isArray(measurements)) return fail(res,422,'validation_error','Enter valid measurements in inches.');
+      const lines = [];
+      for (const key of ['bust','waist','hips','height']) {
+        if (measurements[key] === undefined) continue;
+        const value = measurements[key];
+        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 150 || Math.abs(value * 100 - Math.round(value * 100)) > 0.000001) return fail(res,422,'validation_error','Measurements must be positive numbers up to 150 inches, with at most two decimal places.');
+        lines.push(`${key}: ${value} in`);
+      }
+      if (!lines.length) return fail(res,422,'validation_error','Enter at least one measurement.');
+      message = [...lines, message].filter(Boolean).join('\n');
+    }
     if(!message||message.length>800)return fail(res,422,'validation_error','Write a message between 1 and 800 characters.');
     const id=makeId(),now=new Date().toISOString();
     db.prepare(`INSERT INTO listing_inquiries (id,listing_id,designer_id,buyer_subject,buyer_email,message,created_at) VALUES (?,?,?,?,?,?,?)`).run(id,listing.id,listing.designer_id,req.buyerSubject,req.buyerEmail||null,message,now);
@@ -3650,6 +3665,19 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'service-worker.js'));
   });
   const sendFrontend = (_req, res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html'));
+  app.get('/robots.txt', (req, res) => {
+    const origin = trustedAppOrigin(req);
+    res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /account\nDisallow: /checkout\nDisallow: /cart\nDisallow: /designers/room\nSitemap: ${origin}/sitemap.xml\n`);
+  });
+  app.get('/sitemap.xml', (req, res) => {
+    const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
+    const origin = trustedAppOrigin(req);
+    const paths = ['/', '/shop', '/designers', '/rules', '/shipping.html', '/collections/autumn-atelier', '/collections/winter-briar', '/collections/garden-party', '/collections/independent-by-design'];
+    const designers = db.prepare("SELECT id FROM designer_profiles WHERE status='active'").all();
+    paths.push(...designers.map(row => '/designers/' + encodeURIComponent(row.id)));
+    if (hasReactBuild) paths.push(...db.prepare("SELECT l.id FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.status='published' AND l.moderation_status='approved' AND p.status='active' AND COALESCE(l.paused_by_designer,0)=0").all().map(row => '/shop/' + encodeURIComponent(row.id)));
+    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(route => `<url><loc>${escape(origin + route)}</loc></url>`).join('')}</urlset>`);
+  });
   const collectionPages = {
     'winter-briar': {title:'Winter Briar',description:'Velvet, golden details, and a candlelit winter edit from independent designers.'},
     'autumn-atelier': {title:'The Autumn Atelier',description:'Velvet and rich textures from independent designers. Explore the autumn edit at House of Briar.'},
@@ -3676,7 +3704,7 @@ function createApp(options = {}) {
   app.get('/checkout', sendFrontend);
 
   if (hasReactBuild) {
-    app.get(['/shop','/shop/:productId','/cart','/admin','/sell'], sendFrontend);
+    app.get(['/shop','/shop/:productId','/designers','/cart','/admin','/sell'], sendFrontend);
   }
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
   for(const asset of ['atelier.css','atelier.js','fashion.css','runway.css','runway.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
@@ -3752,6 +3780,8 @@ function createApp(options = {}) {
 
 
   app.use((error, _req, res, _next) => {
+    if (error?.type === 'entity.parse.failed') return fail(res,400,'invalid_json','Send a valid JSON request.');
+    if (error?.type === 'entity.too.large') return fail(res,413,'request_too_large','This request is too large.');
     if (error instanceof multer.MulterError) {
       const code = error.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'upload_error';
       const message = error.code === 'LIMIT_FILE_SIZE' ? 'Each image must be 10 MiB or smaller.' : 'The upload could not be processed.';
