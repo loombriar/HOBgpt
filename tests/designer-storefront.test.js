@@ -6,6 +6,7 @@ const {createApp}=require('../server');
 test('public storefront aggregates saved likes, linked badges, available pieces and sold quantities without exposing hidden listings or buyer identities', async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-storefront-'));
   const ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{test:'storefront-designer'}});
+  require('./helpers/ready-seller')(ctx.db,'storefront-designer');
   const db=ctx.db,now=new Date().toISOString();
   const insert=db.prepare(`INSERT INTO listings(id,designer_id,title,price,category,status,moderation_status,created_at,updated_at,stock_quantity,production_type) VALUES (?,'storefront-designer',?,50,'Dress',?,?,?, ?,?,?)`);
   insert.run('sf-current','Current','published','approved',now,now,1,'One of a Kind');

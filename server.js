@@ -1116,6 +1116,20 @@ function createApp(options = {}) {
     return null;
   }
 
+  function customerListingVisible(row) {
+    if (!row || row.status !== 'published' || row.moderation_status !== 'approved') return false;
+    const designer = db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(row.designer_id);
+    if (!designer || designer.status !== 'active') return false;
+    // Sold work remains a public portfolio, never a new purchase opportunity.
+    const inventory = listingInventory(row);
+    if (inventory.availableQuantity === 0) return inventory.soldQuantity > 0;
+    if (row.paused_by_designer || designer.vacation_mode || !designer.stripe_account_id || !sellerTermsAcceptance(designer.id)) return false;
+    let requirements;
+    try { requirements = JSON.parse(designer.stripe_requirements_due || '[]'); } catch { return false; }
+    return Boolean(designer.stripe_details_submitted && designer.stripe_payouts_enabled &&
+      designer.stripe_status_checked_at && Array.isArray(requirements) && requirements.length === 0);
+  }
+
   function serializeListing(row, mode = 'public') {
     if (!row) return null;
     const designer = db.prepare('SELECT brand_name, display_name, logo_storage_key FROM designer_profiles WHERE id = ?').get(row.designer_id);
@@ -2482,7 +2496,7 @@ function createApp(options = {}) {
       LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
       WHERE ${conditions.join(' AND ')} ORDER BY ${order}
     `).all(...values);
-    let items = rows.map((row) => serializeListing(row, 'public'));
+    let items = rows.filter(customerListingVisible).map((row) => serializeListing(row, 'public'));
     if (filters.q) {
       const query = filters.q.toLowerCase();
       items = items.filter(item => [item.title, item.description, item.style, item.aesthetic,
@@ -2513,14 +2527,14 @@ function createApp(options = {}) {
       WHERE oi.listing_id=?
       GROUP BY oi2.listing_id ORDER BY pair_count DESC LIMIT 6
     `).all(listingId);
-    return res.json({frequentlyBoughtTogether:boughtTogether.map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
+    return res.json({frequentlyBoughtTogether:boughtTogether.filter(row=>customerListingVisible(getListing(row.listing_id))).map(row=>({listingId:row.listing_id,pairCount:row.pair_count}))});
   });
 
-  require('./visual-search').registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeListing,options});
+  require('./visual-search').registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeListing,customerListingVisible,options});
   require('./support-agent').registerSupportAgent({app,db,authBuyer,fail,rateLimit,options});
   require('./seller-tools').registerSellerTools({app,db,authDesigner,upload,fail,rateLimit,options});
   require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
-  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,options});
+  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,customerListingVisible,options});
 
   app.get('/api/founding-designers', (_req,res) => {
     const awarded=Number(db.prepare('SELECT COUNT(*) count FROM founding_designers').get().count);
@@ -2537,7 +2551,7 @@ function createApp(options = {}) {
       LEFT JOIN listings l ON l.designer_id=dp.id AND l.status!='deleted'
       LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
       WHERE dp.status='active' GROUP BY dp.id ORDER BY COALESCE(dp.brand_name,dp.display_name)`).all();
-    return res.json({designers:rows.map(d=>({id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:d.piece_count||0,soldCount:d.sold_count||0,availableCount:d.available_count||0}))});
+    return res.json({designers:rows.map(d=>({id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:d.piece_count||0,soldCount:d.sold_count||0,availableCount:db.prepare('SELECT * FROM listings WHERE designer_id=?').all(d.id).filter(row=>customerListingVisible(row) && (listingInventory(row).availableQuantity===null || listingInventory(row).availableQuantity>0)).length}))});
   });
 
   app.get('/api/designers/:designerId', (req, res) => {
@@ -2556,7 +2570,7 @@ function createApp(options = {}) {
       .map(b=>({type:b.badge_type,label:b.badge_type==='supporter'?'House Supporter':b.badge_type==='verified_buyer'?'Verified Buyer':b.badge_type,awardedAt:b.awarded_at}));
     const foundingBadge = foundingDesignerBadge(designer.id);
     if (foundingBadge) badges.push(foundingBadge);
-    const items=rows.map(row=>serializeListing(row,'public'));
+    const items=rows.filter(customerListingVisible).map(row=>serializeListing(row,'public'));
     const currentItems=items.filter(item=>item.availableQuantity===null||item.availableQuantity>0);
     const soldItems=items.filter(item=>item.soldQuantity>0);
     return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
@@ -3342,7 +3356,7 @@ function createApp(options = {}) {
       JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
       WHERE bf.buyer_subject=? AND l.status='published' AND l.moderation_status='approved'
       ORDER BY bf.created_at DESC`).all(req.buyerSubject);
-    return res.json({ids:rows.map(row=>row.id),items:rows.map(row=>serializeListing(row,'public'))});
+    return res.json({ids:rows.map(row=>row.id),items:rows.filter(customerListingVisible).map(row=>serializeListing(row,'public'))});
   });
 
   app.post('/api/my/favorites/:listingId', authBuyer, (req,res) => {
@@ -3709,7 +3723,7 @@ function createApp(options = {}) {
     const paths = ['/', '/shop', '/designers', '/rules', '/shipping.html', '/collections/autumn-atelier', '/collections/winter-briar', '/collections/garden-party', '/collections/independent-by-design'];
     const designers = db.prepare("SELECT id FROM designer_profiles WHERE status='active'").all();
     paths.push(...designers.map(row => '/designers/' + encodeURIComponent(row.id)));
-    if (hasReactBuild) paths.push(...db.prepare("SELECT l.id FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.status='published' AND l.moderation_status='approved' AND p.status='active' AND COALESCE(l.paused_by_designer,0)=0").all().map(row => '/shop/' + encodeURIComponent(row.id)));
+    if (hasReactBuild) paths.push(...db.prepare("SELECT l.* FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.status='published' AND l.moderation_status='approved' AND p.status='active' AND COALESCE(l.paused_by_designer,0)=0").all().filter(customerListingVisible).map(row => '/shop/' + encodeURIComponent(row.id)));
     res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(route => `<url><loc>${escape(origin + route)}</loc></url>`).join('')}</urlset>`);
   });
   const collectionPages = {

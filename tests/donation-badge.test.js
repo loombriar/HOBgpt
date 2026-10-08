@@ -24,6 +24,7 @@ test('designer donation identity, paid recovery, threshold and replay are correc
         }
         return sessions.get(endpoint.split('/').pop());
       },sendEmail:async()=>true});
+    require('./helpers/ready-seller')(context.db,'loom');
     context.db.prepare("UPDATE designer_profiles SET email='loom@example.test' WHERE id='loom'").run();
     server=context.app.listen(0,'127.0.0.1');await once(server,'listening');
     const origin=`http://127.0.0.1:${server.address().port}`;

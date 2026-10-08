@@ -1,9 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),sharp=require('sharp');
-const {once}=require('node:events'),{createApp}=require('../server');
+const {once}=require('node:events'),{createApp,SELLER_TERMS_VERSION}=require('../server');
 async function fixture(run,provider){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-visual-')),calls=[];
  const ctx=createApp({dataDir:dir,seedProducts:[{id:'piece',designerId:'maker',title:'Botanical skirt',description:'Green floral skirt',price:50},{id:'private',designerId:'maker',title:'PRIVATE_DRAFT',price:60}],designerTokens:{},resolveIdentity:async({token})=>token==='buyer'?{sub:'buyer',email:'secret@example.test'}:null,houseAiKey:'test-key',houseAiFetch:async(url,request)=>{const body=JSON.parse(request.body);calls.push(body);return provider?provider(ctx,body):{ok:true,json:async()=>({output_text:JSON.stringify({matches:[{listingId:'piece',reason:'Similar floral style.'},{listingId:'piece',reason:'Duplicate'}],note:'Style suggestions.'})})};}});
- ctx.db.prepare("UPDATE designer_profiles SET stripe_account_id='acct_test' WHERE id='maker'").run();ctx.db.prepare("UPDATE listings SET status='draft' WHERE id='private'").run();
+ ctx.db.prepare("UPDATE designer_profiles SET stripe_account_id='acct_test',stripe_payouts_enabled=1,stripe_details_submitted=1,stripe_status_checked_at=CURRENT_TIMESTAMP WHERE id='maker'").run();ctx.db.prepare("UPDATE listings SET status='draft' WHERE id='private'").run();
+ ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('maker',SELLER_TERMS_VERSION,new Date().toISOString(),'test');
  const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
  const image=await sharp({create:{width:1000,height:800,channels:3,background:'#99bb99'}}).jpeg().withMetadata({exif:{IFD0:{Artist:'PRIVATE_PERSON'}}}).toBuffer();
  async function call({token='buyer',consent='true',bytes=image}={}){const body=new FormData();body.append('image',new Blob([bytes],{type:'image/jpeg'}),'reference.jpg');body.append('consent',consent);const response=await fetch(origin+'/api/my/visual-search',{method:'POST',headers:token?{Authorization:'Bearer '+token}:{},body});return{status:response.status,body:await response.json(),headers:response.headers};}

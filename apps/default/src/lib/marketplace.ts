@@ -2,57 +2,6 @@ import { type GenesisNode } from '@/lib/genesis-data';
 
 export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
 
-const PUBLIC_PRODUCTS_SNAPSHOT: GenesisNode[] = [
-  {
-    id: '48a0cc6f-e6ac-4538-8a9f-a4889ce21c4c',
-    parentId: null,
-    content: 'Tulip Dress',
-    fieldValues: {
-      '/attributes/@price': '295',
-      '/attributes/@categ': 'One-of-a-kind',
-      '/attributes/@tagsx': 'Upcycled',
-      '/attributes/@sizex': 'Large',
-      '/attributes/@desig': 'Loom Briar',
-      '/attributes/@descr': 'A one-of-a-kind upcycled Tulip Dress with a sculpted floral bodice and a flowing abstract botanical skirt. Made by Loom Briar in a size Large.',
-      '/attributes/@statx': 'Available',
-      '/attributes/@image': 'https://files.taskade.com/space-files/dfa11d10-4b73-432f-afba-40a94ed855b7/original/tulips-front.png',
-      '/attributes/@gally': 'https://files.taskade.com/space-files/dfa11d10-4b73-432f-afba-40a94ed855b7/original/tulips-front.png\nhttps://files.taskade.com/space-files/b4b416e9-4a6d-4150-9600-216fe6d1240d/original/tulips-angle.png\nhttps://files.taskade.com/space-files/d97b38e6-dd6c-43e0-9e1a-eb1ff6e771c4/original/tulips-back.png\nhttps://files.taskade.com/space-files/31b90e78-f441-49ed-a7cd-71dd8091dae4/original/4eb67f7d-151e-4bca-bd57-a0a25e424619.png',
-    },
-  },
-  {
-    id: 'f54a0902-1b79-45a1-8009-66c9d9494e7c',
-    parentId: null,
-    content: 'Velvet Gold',
-    fieldValues: {
-      '/attributes/@price': '195',
-      '/attributes/@categ': 'One-of-a-kind',
-      '/attributes/@tagsx': 'Upcycled',
-      '/attributes/@sizex': 'Large',
-      '/attributes/@desig': 'Loom Briar',
-      '/attributes/@descr': 'Hand beaded velvet top',
-      '/attributes/@statx': 'Available',
-      '/attributes/@image': 'https://www.taskade.com/web-api/media/2a285be0-cb9a-46c0-a624-9a3d9db127bb/download',
-      '/attributes/@gally': 'https://www.taskade.com/web-api/media/a94ce5f9-370e-43f4-98a0-1707516c80e3/download',
-    },
-  },
-  {
-    id: '644e29d9-3100-43d6-b2f6-b5369bde7dc4',
-    parentId: null,
-    content: 'Lavender Palm Dress',
-    fieldValues: {
-      '/attributes/@price': '295',
-      '/attributes/@categ': 'One-of-a-kind',
-      '/attributes/@tagsx': 'Handmade, Statement piece, Vintage-inspired',
-      '/attributes/@sizex': 'Large',
-      '/attributes/@desig': 'Loom Briar',
-      '/attributes/@descr': 'A sculpted lavender bodice paired with a layered asymmetrical skirt, made as wearable art with a dramatic, one-of-a-kind silhouette.',
-      '/attributes/@statx': 'Available',
-      '/attributes/@image': 'https://www.taskade.com/web-api/media/6c7b4a35-9eba-4452-aa70-b36d89db632b/download',
-      '/attributes/@gally': 'https://www.taskade.com/web-api/media/2443e89f-14ea-460a-9583-929d1a08574f/download',
-    },
-  },
-];
-
 type GalleryItem = {
   id: string;
   title: string;
@@ -104,16 +53,11 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
 }
 
 export async function getCatalogProducts(_isAuthenticated: boolean): Promise<GenesisNode[]> {
-  try {
-    const response = await fetch('/api/gallery', { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error('Marketplace gallery unavailable.');
-    const data = await response.json();
-    const items = Array.isArray(data?.items) ? data.items : [];
-    if (items.length > 0) return items.map(galleryItemToGenesis);
-  } catch {
-    // Keep the founding edit visible while the API is unavailable or before the first moderated listings launch.
-  }
-  return PUBLIC_PRODUCTS_SNAPSHOT;
+  const response = await fetch('/api/gallery', { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error('Marketplace gallery unavailable.');
+  const data = await response.json();
+  if (!Array.isArray(data?.items)) throw new Error('Marketplace gallery unavailable.');
+  return data.items.map(galleryItemToGenesis);
 }
 export const DESIGNERS_PROJECT_ID = 'WEttcv6jabX2q9a9';
 export const PRIVATE_DESIGNER_LISTINGS_PROJECT_ID = 'QUQPuN1aFvGorkJ3';

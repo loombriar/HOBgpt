@@ -1,5 +1,5 @@
 const sharp = require('sharp');
-function registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeListing,options}) {
+function registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeListing,customerListingVisible,options}) {
   db.exec('CREATE TABLE IF NOT EXISTS visual_search_usage(day TEXT,buyer_subject TEXT,count INTEGER NOT NULL,PRIMARY KEY(day,buyer_subject))');
   const limiter=rateLimit({windowMs:60*60*1000,max:15,keyPrefix:'visual-search'});
   function catalog() {
@@ -7,7 +7,7 @@ function registerVisualSearch({app,db,authBuyer,upload,fail,rateLimit,serializeL
       WHERE l.status='published' AND l.moderation_status='approved' AND dp.status='active'
       AND COALESCE(l.paused_by_designer,0)=0 AND COALESCE(dp.vacation_mode,0)=0
       AND dp.stripe_account_id IS NOT NULL AND dp.stripe_account_id!=''
-      ORDER BY l.published_at DESC,l.id LIMIT 120`).all().map(row=>serializeListing(row,'public'))
+      ORDER BY l.published_at DESC,l.id LIMIT 120`).all().filter(customerListingVisible).map(row=>serializeListing(row,'public'))
       .filter(item=>item.availableQuantity===null||item.availableQuantity>0);
   }
   app.post('/api/my/visual-search',authBuyer,limiter,upload.single('image'),async(req,res)=>{
