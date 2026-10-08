@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test",
+    "test": "node --test tests/*.test.js",
     "backup": "node scripts/backup-data.js",
     "verify:backup": "node scripts/verify-backup.js",
     "test:e2e": "playwright test",

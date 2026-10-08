@@ -31,6 +31,7 @@
     <script src="/script.js?v=audit-20261008" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=mess-around-1" />
+    <link rel="stylesheet" href="/rooms.css?v=rooms-20261008" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
     <style>
       /* Legacy homepage: keep menu panels above all hero/section layers. */
@@ -55,7 +56,7 @@
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">A little wardrobe daydream</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
     <div class="page-shell">
       <header class="site-header sewing-header">
-        
+
 
         <nav class="sewing-nav" aria-label="Main navigation">
           <details class="nav-dropdown"><summary class="nav-hotspot">Mess Around <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Mess Around options">
@@ -381,7 +382,7 @@
         <p id="designer-auth-message" class="form-message" role="status" aria-live="polite"></p>
         <div id="designer-signup" class="designer-signup-panel">
           <p class="eyebrow">New to the House?</p>
-          <h3>Join the Designer List</h3>
+          <h3>Make yourself at home.</h3>
           <p>No application or portfolio required. Tell us who you are and what you make.</p>
           <form id="designer-signup-form" class="stack-form">
             <label>Your name<input name="displayName" type="text" autocomplete="name" required /></label>
@@ -389,12 +390,20 @@
             <label>Email<input name="email" type="email" autocomplete="email" required /></label>
             <label>What do you create?<input name="categories" type="text" placeholder="Fashion, winter wear, art, accessories…" required /></label>
             <label class="seller-terms-check"><input name="sellerTermsAccepted" type="checkbox" required /> <span>I agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener">House of Briar Seller Terms</a> (version 2026-10-06), including marketplace fees, shipping responsibilities, returns, prohibited items, and payout rules.</span></label>
-            <button class="primary-button" type="submit">Join the Designer List</button>
+            <button class="primary-button" type="submit">Create designer account</button>
           </form>
           <p id="designer-signup-message" class="form-message" role="status" aria-live="polite"></p>
         </div>
       </section>
       <section id="designer-workspace" class="hidden" aria-label="Your designer workspace">
+        <nav class="room-navigation" aria-label="Designer room sections">
+          <button type="button" data-room-target="seller-readiness-title">Getting started</button>
+          <button type="button" data-room-target="designer-products">Your listings</button>
+          <button type="button" data-room-target="product-form">Create a piece</button>
+          <button type="button" data-room-target="designer-brand-form">Brand &amp; profile</button>
+          <button type="button" data-room-target="designer-settings">Settings</button>
+          <a href="/account#orders">Orders &amp; messages ↗</a>
+        </nav>
         <div class="studio-toolbar">
           <div><h3>Your listings</h3><p>Only published listings appear in the public shop.</p></div>
           <div class="studio-toolbar-actions">
@@ -421,90 +430,31 @@
           <p>Set up your public designer identity, then add your first piece.</p>
           <button id="start-profile-setup" class="primary-button" type="button">Set up my designer profile</button>
         </div>
-        <details id="designer-settings" class="designer-settings-card">
-          <summary>Designer settings</summary>
-          <form id="designer-settings-form" class="stack-form">
-            <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
-            <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
-            <label for="designer-account-email">House account email</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required aria-describedby="house-email-help" />
-            <p id="house-email-help" class="small-print">Used for House of Briar seller messages. A change only takes effect after you verify the code sent to the new address. Your sign-in provider stays separate.</p>
-            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Use “Review Stripe payout setup” above to review those details.</p>
-            <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
-            <p id="designer-settings-message" role="status" class="form-message"></p>
-          </form>
-          <form id="designer-email-verify-form" class="stack-form hidden">
-            <p id="designer-pending-email" class="small-print"></p>
-            <label for="designer-email-code">Email verification code</label><input id="designer-email-code" autocomplete="off" maxlength="43" required />
-            <button class="primary-button" type="submit">Verify new House email</button>
-            <p id="designer-email-verify-message" role="status"></p>
-          </form>
-        </details>
-        <form id="designer-brand-form" class="stack-form">
-          <h3>Your designer identity</h3>
-          <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
-          <label for="designer-bio">About your work</label><textarea id="designer-bio" maxlength="2000" rows="3" placeholder="Tell shoppers about you, your process, and what you make."></textarea>
-          <label for="designer-studio-story">Behind the scenes: your studio story</label><textarea id="designer-studio-story" maxlength="2000" rows="4" placeholder="Show us your process, inspiration, or the story behind your latest piece."></textarea><label for="designer-studio-photo">Studio photo (PNG, JPEG or WebP)</label><input id="designer-studio-photo" type="file" accept="image/png,image/jpeg,image/webp" /><button id="designer-studio-remove" class="text-button" type="button">Remove studio photo</button>
-          <label for="designer-categories">What you create</label><input id="designer-categories" maxlength="500" placeholder="Fashion, jewelry, art, accessories…" />
-          <label for="designer-social">Social or website link</label><input id="designer-social" type="url" maxlength="500" placeholder="https://" />
-          <label for="designer-logo">Upload your logo (PNG, JPEG or WebP)</label><input id="designer-logo" type="file" accept="image/png,image/jpeg,image/webp" />
-          <img id="designer-logo-preview" class="designer-logo-preview hidden" alt="Your designer logo" />
-          <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
-          <p id="designer-brand-message" role="status" class="form-message"></p>
-        </form>
+
+
         <p><span class="primary-button" aria-label="The Briar Runway is coming soon">The Briar Runway — Coming Soon</span></p>
         <section id="designer-studio-overview" aria-label="Studio overview"></section>
         <p><a href="/account">Full Studio: seller AI, orders, gift notes and shared access</a></p>
-        <div id="designer-products" class="designer-products" aria-live="polite"></div>
-        <section class="designer-size-reference" aria-labelledby="us-size-reference-title">
-          <p class="eyebrow">Fit reference</p>
-          <h3 id="us-size-reference-title">US Women’s Standard Size Reference</h3>
-          <p>Use this as a general body-measurement reference when describing fit. Sizing varies by brand and garment, so always list the actual measurements your piece fits when you know them.</p>
-          <div class="size-chart-scroll" role="region" aria-label="US women’s size measurement reference" tabindex="0">
-            <table class="size-reference-table">
-              <thead><tr><th>US size</th><th>Bust / chest</th><th>Waist</th><th>Hips</th></tr></thead>
-              <tbody>
-                <tr><th>00 / XXS</th><td>31–32 in</td><td>23–24 in</td><td>33–34 in</td></tr>
-                <tr><th>0–2 / XS</th><td>32–33.5 in</td><td>24–25.5 in</td><td>34–35.5 in</td></tr>
-                <tr><th>4–6 / S</th><td>34–35.5 in</td><td>26–27.5 in</td><td>36–37.5 in</td></tr>
-                <tr><th>8–10 / M</th><td>36–37.5 in</td><td>28–29.5 in</td><td>38–39.5 in</td></tr>
-                <tr><th>12–14 / L</th><td>38–40.5 in</td><td>30–32.5 in</td><td>40–42.5 in</td></tr>
-                <tr><th>16–18 / XL</th><td>41–44 in</td><td>33–36 in</td><td>43–46 in</td></tr>
-                <tr><th>20–22 / 2XL</th><td>45–48 in</td><td>37–40 in</td><td>47–50 in</td></tr>
-                <tr><th>24–26 / 3XL</th><td>49–52 in</td><td>41–44 in</td><td>51–54 in</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
-        </section>
-                <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
-          <p class="eyebrow">Designer tool</p>
-          <h3 id="fabric-finder-title">Fabric Finder</h3>
-          <p>Upload up to three clear photos of a fabric. House of Briar will give you a best-effort visual identification, likely uses, and suggested care.</p>
-          <form id="fabric-finder-form" class="stack-form">
-            <label for="fabric-finder-photos">Fabric photos</label>
-            <input id="fabric-finder-photos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required />
-            <p class="small-print">JPEG, PNG, or WebP · 1–3 photos. Visual identification cannot prove exact fiber content.</p>
-            <button id="fabric-finder-submit" class="secondary-button" type="submit">Identify fabric</button>
-          </form>
-          <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
-          <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
-        </section>
+        <div id="designer-products" class="designer-products room-card" aria-live="polite"></div>
+
+
         <hr class="soft-rule" />
-        <form id="product-form" class="stack-form" novalidate>
+        <form id="product-form" class="stack-form room-card" novalidate>
           <input id="product-id" name="listingId" type="hidden" />
           <h3 id="listing-form-title">Add a design</h3>
           <label for="product-name">Design name</label>
           <input id="product-name" name="title" maxlength="120" required />
           <label for="product-description">Description</label>
           <textarea id="product-description" name="description" maxlength="2000" rows="3"></textarea>
-          <div class="form-row">
+          <fieldset class="listing-form-group"><legend>Price &amp; shipping</legend><div class="form-row">
             <div><label for="product-price">Price</label><input id="product-price" name="price" type="number" min="0" step="0.01" required /></div>
             <div><label for="product-shipping">US shipping per piece ($)</label><input id="product-shipping" type="number" min="0" max="10000" step="0.01"/><small>$0 means free. Blank prevents checkout.</small></div>
             <div><label for="product-free-shipping">Free shipping threshold ($)</label><input id="product-free-shipping" type="number" min="0" step="0.01"/><small>Counts this designer’s merchandise before discounts; excludes gift wrapping.</small></div>
             <label><input id="product-international" type="checkbox"/> Open to international shipping (US checkout only)</label>
             <div><label for="product-handling-min">Preparation days, minimum</label><input id="product-handling-min" type="number" min="0" max="365" step="1"/></div>
             <div><label for="product-handling-max">Preparation days, maximum</label><input id="product-handling-max" type="number" min="0" max="365" step="1"/><small>Business days before shipment; carrier transit is additional. US checkout only.</small></div>
-            <div>
+            </div></fieldset>
+            <fieldset class="listing-form-group"><legend>Details &amp; fit</legend><div class="listing-detail-fields">
               <label for="product-style">Garment type</label>
               <select id="product-style" name="style" required>
                 <option value="">Choose a garment type</option>
@@ -555,8 +505,7 @@
                 <div class="fit-range"><span>Inseam</span><label>Minimum<input id="product-fit-inseam-min" type="number" min="0.1" max="150" step="any"></label><label>Maximum<input id="product-fit-inseam-max" type="number" min="0.1" max="150" step="any"></label></div>
               </fieldset>
               <input id="product-category" name="category" type="hidden" value="apparel" />
-            </div>
-          </div>
+            </div></fieldset>
           <fieldset class="listing-enhancements">
             <legend>Presentation &amp; gifting</legend>
             <label class="check-label"><input id="product-gift-wrap" type="checkbox" /> I offer gift wrapping for this piece</label>
@@ -588,6 +537,70 @@
           </div>
           <p class="small-print">Submission follows the server’s configured publication policy. Drafts and pending items stay out of the public gallery.</p>
         </form>
+        <form id="designer-brand-form" class="stack-form room-card">
+          <h3>Your designer identity</h3>
+          <label for="designer-brand-name">Brand name shown on your pieces</label><input id="designer-brand-name" maxlength="120" required />
+          <label for="designer-bio">About your work</label><textarea id="designer-bio" maxlength="2000" rows="3" placeholder="Tell shoppers about you, your process, and what you make."></textarea>
+          <label for="designer-studio-story">Behind the scenes: your studio story</label><textarea id="designer-studio-story" maxlength="2000" rows="4" placeholder="Show us your process, inspiration, or the story behind your latest piece."></textarea><label for="designer-studio-photo">Studio photo (PNG, JPEG or WebP)</label><input id="designer-studio-photo" type="file" accept="image/png,image/jpeg,image/webp" /><button id="designer-studio-remove" class="text-button" type="button">Remove studio photo</button>
+          <label for="designer-categories">What you create</label><input id="designer-categories" maxlength="500" placeholder="Fashion, jewelry, art, accessories…" />
+          <label for="designer-social">Social or website link</label><input id="designer-social" type="url" maxlength="500" placeholder="https://" />
+          <label for="designer-logo">Upload your logo (PNG, JPEG or WebP)</label><input id="designer-logo" type="file" accept="image/png,image/jpeg,image/webp" />
+          <img id="designer-logo-preview" class="designer-logo-preview hidden" alt="Your designer logo" />
+          <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
+          <p id="designer-brand-message" role="status" class="form-message"></p>
+        </form>
+        <details id="designer-settings" class="designer-settings-card">
+          <summary>Designer settings</summary>
+          <form id="designer-settings-form" class="stack-form">
+            <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
+            <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
+            <label for="designer-account-email">House account email</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required aria-describedby="house-email-help" />
+            <p id="house-email-help" class="small-print">Used for House of Briar seller messages. A change only takes effect after you verify the code sent to the new address. Your sign-in provider stays separate.</p>
+            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Use “Review Stripe payout setup” above to review those details.</p>
+            <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
+            <p id="designer-settings-message" role="status" class="form-message"></p>
+          </form>
+          <form id="designer-email-verify-form" class="stack-form hidden">
+            <p id="designer-pending-email" class="small-print"></p>
+            <label for="designer-email-code">Email verification code</label><input id="designer-email-code" autocomplete="off" maxlength="43" required />
+            <button class="primary-button" type="submit">Verify new House email</button>
+            <p id="designer-email-verify-message" role="status"></p>
+          </form>
+        </details>
+        <details class="designer-size-reference room-card" aria-labelledby="us-size-reference-title">
+          <summary id="us-size-reference-title">US size reference</summary>
+          <p class="eyebrow">Fit reference</p>
+          <p>Use this as a general body-measurement reference when describing fit. Sizing varies by brand and garment, so always list the actual measurements your piece fits when you know them.</p>
+          <div class="size-chart-scroll" role="region" aria-label="US women’s size measurement reference" tabindex="0">
+            <table class="size-reference-table">
+              <thead><tr><th>US size</th><th>Bust / chest</th><th>Waist</th><th>Hips</th></tr></thead>
+              <tbody>
+                <tr><th>00 / XXS</th><td>31–32 in</td><td>23–24 in</td><td>33–34 in</td></tr>
+                <tr><th>0–2 / XS</th><td>32–33.5 in</td><td>24–25.5 in</td><td>34–35.5 in</td></tr>
+                <tr><th>4–6 / S</th><td>34–35.5 in</td><td>26–27.5 in</td><td>36–37.5 in</td></tr>
+                <tr><th>8–10 / M</th><td>36–37.5 in</td><td>28–29.5 in</td><td>38–39.5 in</td></tr>
+                <tr><th>12–14 / L</th><td>38–40.5 in</td><td>30–32.5 in</td><td>40–42.5 in</td></tr>
+                <tr><th>16–18 / XL</th><td>41–44 in</td><td>33–36 in</td><td>43–46 in</td></tr>
+                <tr><th>20–22 / 2XL</th><td>45–48 in</td><td>37–40 in</td><td>47–50 in</td></tr>
+                <tr><th>24–26 / 3XL</th><td>49–52 in</td><td>41–44 in</td><td>51–54 in</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
+        </details>
+        <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
+          <p class="eyebrow">Designer tool</p>
+          <h3 id="fabric-finder-title">Fabric Finder</h3>
+          <p>Upload up to three clear photos of a fabric. House of Briar will give you a best-effort visual identification, likely uses, and suggested care.</p>
+          <form id="fabric-finder-form" class="stack-form">
+            <label for="fabric-finder-photos">Fabric photos</label>
+            <input id="fabric-finder-photos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required />
+            <p class="small-print">JPEG, PNG, or WebP · 1–3 photos. Visual identification cannot prove exact fiber content.</p>
+            <button id="fabric-finder-submit" class="secondary-button" type="submit">Identify fabric</button>
+          </form>
+          <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
+        </section>
       </section>
     </section>
 
@@ -606,10 +619,11 @@
       </section>
       <p id="admin-review-message" class="form-message" role="status" aria-live="polite"></p>
       <section id="admin-review-workspace" class="hidden">
+        <nav class="room-navigation" aria-label="Admin room sections"><button type="button" data-room-target="admin-review-list">Review listings</button><button type="button" data-room-target="admin-overview">House overview</button><a href="/admin">Orders, inventory &amp; support ↗</a></nav>
         <div class="studio-toolbar"><div><h3>Pending clothing</h3><p>Approve pieces to publish them in the Shop, or reject them with a reason.</p></div><button id="admin-signout-btn" class="text-button" type="button">Sign out</button></div>
         <label for="admin-listing-view">Listing view</label><select id="admin-listing-view"><option value="pending_review">Pending approval</option><option value="published">Published</option><option value="all">All active listings</option></select><button id="admin-refresh-btn" type="button" class="secondary-button">Refresh admin panel</button>
-        <div id="admin-overview"></div>
         <div id="admin-review-list" class="admin-review-list" aria-live="polite"></div>
+        <div id="admin-overview"></div>
       </section>
     </dialog>
 

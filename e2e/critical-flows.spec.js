@@ -166,7 +166,8 @@ test('admin panel entry displays daily traffic without a public website views sh
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
   await page.locator('#admin-login-form button[type="submit"]').click();
   const traffic = page.locator('#admin-website-views');
-  await expect(traffic.getByRole('heading', { name: 'Website views', exact: true })).toBeVisible();
+  await traffic.locator('summary').click();
+  await expect(traffic.locator('summary')).toHaveText('Website views');
   await expect(traffic.getByText('Page views', { exact: true })).toBeVisible();
   await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
   await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
@@ -236,7 +237,7 @@ test('customers verify email, get a private account and appear once in the Admin
  await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);
  await page.goto('/');await page.getByRole('button',{name:'Admin panel',exact:true}).click();
  await page.getByLabel('Administrator code').fill('e2e-admin-token');await page.locator('#admin-login-form button[type="submit"]').click();
- const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();
+ const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();await tracker.locator('summary').click();
  await expect(tracker.getByText("Today's new customers",{exact:true})).toBeVisible();
  await expect(tracker.locator('.admin-traffic-stat strong').first()).toHaveText('1');
  await expect(tracker.locator('tbody tr')).toHaveCount(30);
