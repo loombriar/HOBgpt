@@ -1564,7 +1564,14 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   loadGallery();
 });
 
-byId('header-customer-auth-btn')?.addEventListener('click', () => byId('visitor-suite-btn')?.click());
+byId('header-customer-auth-btn')?.addEventListener('click', () => {
+  byId('visitor-suite-btn')?.click();
+  requestAnimationFrame(() => {
+    const target = customerSignedIn ? byId('customer-signed-in') : byId('customer-signup-email');
+    target?.scrollIntoView({block:'nearest'});
+    if (!customerSignedIn) target?.focus({preventScroll:true});
+  });
+});
 byId('visitor-suite-btn')?.addEventListener('click', () => {
   renderVisitorFavorites();
   byId('visitor-suite-modal')?.showModal();
@@ -2228,13 +2235,14 @@ async function refreshCustomerAccount() {
   try {
     const response=await fetch('/api/customer/session',{cache:'no-store'});
     const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
-    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Customer Sign in / Sign up';
+    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Customer Account';
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn;
     byId('customer-code-form').hidden=true;
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
-  }catch{customerSignedIn=false;}
+  }catch{customerSignedIn=false;if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Customer Account';}
 }
+void refreshCustomerAccount();
 byId('customer-signup-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
   try{const data=await apiRequest('/api/customer/signin-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:byId('customer-signup-email').value,name:byId('customer-signup-name').value,acceptedRules:byId('customer-rules-consent').checked})});customerSigninRequest=data.requestId;byId('customer-signup-form').hidden=true;byId('customer-code-form').hidden=false;setMessage(byId('customer-signup-status'),data.message,'success');byId('customer-signin-code').focus();}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
