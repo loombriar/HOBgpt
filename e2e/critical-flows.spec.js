@@ -16,8 +16,8 @@ test('newsletter saves through the API and preserves the email when the server r
   await expect(form.getByRole('textbox', { name: 'Email address' })).toHaveValue('retry-e2e@example.com');
 });
 
-test('homepage measurements reach the designer inquiry list instead of only displaying success', async ({ page, request }) => {
-  await openDesignerSession(request);
+test('homepage measurements reach the designer inquiry list instead of only displaying success', async ({ page }) => {
+  await openDesignerSession(page.request);
   await page.goto('/');
   await page.getByRole('button', { name: 'View Moonlit E2E Piece details', exact: true }).click();
   const dialog = page.locator('#product-dialog');
@@ -25,7 +25,7 @@ test('homepage measurements reach the designer inquiry list instead of only disp
   await dialog.getByRole('textbox', { name: 'Sizing request for this piece' }).fill('Please check the bodice fit.');
   await dialog.getByRole('button', { name: 'Send measurement request' }).click();
   await expect(dialog.locator('.measurement-request [role="status"]')).toHaveText('Your measurement request for Moonlit E2E Piece was saved and sent to the designer.');
-  const response = await request.get('/api/my/designer-inquiries');
+  const response = await page.request.get('/api/my/designer-inquiries');
   expect(response.ok()).toBeTruthy();
   const { inquiries } = await response.json();
   expect(inquiries.some(inquiry => inquiry.listingId === 'e2e-piece' && inquiry.message.includes('bust: 34.25 in') && inquiry.message.includes('Please check the bodice fit.'))).toBeTruthy();
