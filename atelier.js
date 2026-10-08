@@ -161,3 +161,15 @@ document.querySelectorAll('.house-editorial,.house-collections,.house-stories,.h
   if(index===0||index===2){const rail=makeElement('div','briar-side-vine');rail.setAttribute('aria-hidden','true');rail.append(blackberryVine(true));section.append(rail);}
   if(briarVisibility)briarVisibility.observe(section);else section.classList.add('briar-in-view');
 });
+
+// Reuse the Suite entry point so favorites and profiles retain their normal setup.
+document.querySelectorAll('[data-mess-around-suite]').forEach(button => {
+  button.addEventListener('click', () => {
+    byId('visitor-suite-btn')?.click();
+    const target = byId(button.dataset.messAroundSuite);
+    if (!target) return;
+    target.scrollIntoView({ block: 'nearest' });
+    if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  });
+});
