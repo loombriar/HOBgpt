@@ -2235,12 +2235,12 @@ async function refreshCustomerAccount() {
   try {
     const response=await fetch('/api/customer/session',{cache:'no-store'});
     const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
-    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Customer Account';
+    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn;
     byId('customer-code-form').hidden=true;
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
-  }catch{customerSignedIn=false;if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Customer Account';}
+  }catch{customerSignedIn=false;if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
 void refreshCustomerAccount();
 byId('customer-signup-form')?.addEventListener('submit',async event=>{
@@ -2268,4 +2268,9 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
     target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
   });
+});
+
+// Keep welcome actions on the same customer account entry point.
+document.querySelectorAll('[data-customer-welcome]').forEach(button => {
+  button.addEventListener('click', () => byId('header-customer-auth-btn')?.click());
 });
