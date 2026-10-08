@@ -24,7 +24,7 @@ test('homepage measurements reach the designer inquiry list instead of only disp
   await dialog.getByRole('spinbutton', { name: 'Bust / chest in inches' }).fill('34.25');
   await dialog.getByRole('textbox', { name: 'Sizing request for this piece' }).fill('Please check the bodice fit.');
   await dialog.getByRole('button', { name: 'Send measurement request' }).click();
-  await expect(dialog.getByText('Your measurement request for Moonlit E2E Piece was saved and sent to the designer.')).toBeVisible();
+  await expect(dialog.locator('.measurement-request [role="status"]')).toHaveText('Your measurement request for Moonlit E2E Piece was saved and sent to the designer.');
   const response = await request.get('/api/my/designer-inquiries');
   expect(response.ok()).toBeTruthy();
   const { inquiries } = await response.json();
