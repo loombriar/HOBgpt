@@ -86,6 +86,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm md:flex" aria-label="Primary navigation">
+            <a href="/#mess-around" className="text-muted-foreground transition hover:text-foreground">Mess Around</a>
             <NavLink to="/shop" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Shop</NavLink>
             <NavLink to="/designers" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Designers</NavLink>
             <NavLink to="/account" className={({ isActive }) => isActive ? 'font-medium text-primary' : 'text-muted-foreground transition hover:text-foreground'}>Your studio</NavLink>
@@ -102,6 +103,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
         </div>
         {mobileNavOpen && <nav id="mobile-navigation" className="border-t border-border/70 px-4 py-3 md:hidden" aria-label="Mobile navigation">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 text-sm">
+            <a href="/#mess-around" onClick={() => setMobileNavOpen(false)} className="rounded-lg px-3 py-3 text-muted-foreground hover:bg-accent hover:text-foreground">Mess Around</a>
             <NavLink to="/shop" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Shop</NavLink>
             <NavLink to="/designers" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Designers</NavLink>
             <NavLink to="/account" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => `rounded-lg px-3 py-3 ${isActive ? 'bg-accent font-medium text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>Your studio</NavLink>

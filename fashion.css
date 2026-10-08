@@ -133,3 +133,14 @@ body.blackberry-house :is(dialog.app-dialog,#house-tryon-dialog)>.dialog-header{
 body.blackberry-house .dialog-header>:is(button,a){flex-shrink:0;min-width:44px;min-height:44px}
 body.blackberry-house .designer-room-header{position:sticky;top:var(--house-header-height,0px);z-index:70;background:#fffaf0;padding:1rem;margin-bottom:1rem}
 @media(max-width:650px){body.blackberry-house .dialog-header{gap:.5rem;padding:1rem}.designer-room-header h2{font-size:1.5rem}}
+
+/* A discoverable directory of the House's existing playful experiences. */
+.mess-around-section { padding: clamp(32px, 5vw, 64px) 0; border-bottom: 1px solid #d6d0c8; background: #f8f6f2; scroll-margin-top: 24px; }
+.mess-around-section h2 { margin: 0 0 16px; font-size: clamp(38px, 4vw, 64px); }
+.mess-around-intro { max-width: 720px; }
+.mess-around-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 20px; padding: 0; margin: 28px 0; list-style: none; }
+.mess-around-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; border: 1px solid #d6d0c8; background: #fffdf9; }
+.mess-around-card h3 { margin: 0 0 12px; font-size: 26px; }
+.mess-around-card p { flex: 1; margin: 0 0 16px; color: #68615d; line-height: 1.7; }
+.mess-around-card .text-button { align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; text-align: left; }
+.mess-around-card .text-button:focus-visible { outline: 2px solid #713d4e; outline-offset: 4px; }
