@@ -109,3 +109,7 @@ body.blackberry-house .footer-links{flex-wrap:wrap;align-items:center}
 @media(max-width:650px){.founder-announcement-inner{flex-wrap:wrap;gap:12px}.founder-announcement-inner>img{width:64px;height:64px}.founder-announcement-inner>div{min-width:180px}.founder-announcement .secondary-button{margin-left:76px}}
 /* Match the existing badge pills' gold border, spacing and image size. */
 .founding-badge{display:inline-flex!important;align-items:center;gap:7px!important;background:#fff7ee!important;color:#714b3d!important;border:1px solid #c7ab68!important;padding:5px 10px 5px 5px!important}
+
+body.blackberry-house .curation-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1050px){body.blackberry-house .curation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){body.blackberry-house .curation-grid{grid-template-columns:1fr}}
