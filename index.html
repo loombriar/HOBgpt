@@ -32,6 +32,16 @@
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=mess-around-1" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
+    <style>
+      .sewing-nav .nav-dropdown { position: relative; display: inline-flex; align-items: center; }
+      .sewing-nav .nav-dropdown > summary { list-style: none; cursor: pointer; white-space: nowrap; }
+      .sewing-nav .nav-dropdown > summary::-webkit-details-marker { display: none; }
+      .sewing-nav .nav-dropdown[open] > summary { text-decoration: underline; text-underline-offset: 5px; }
+      .sewing-nav .nav-dropdown-menu { position: absolute; top: 100%; left: 0; z-index: 200; width: max-content; min-width: 225px; max-width: min(90vw, 320px); max-height: 65vh; overflow-y: auto; padding: 9px; background: #faf8f5; color: #1d241d; border: 1px solid #c8bca7; border-radius: 12px; box-shadow: 0 12px 28px #0003; }
+      .sewing-nav .nav-dropdown-menu a, .sewing-nav .nav-dropdown-menu button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; font-size: 13px; line-height: 1.4; text-align: left; text-decoration: none; cursor: pointer; }
+      .sewing-nav .nav-dropdown-menu a:hover, .sewing-nav .nav-dropdown-menu button:hover, .sewing-nav .nav-dropdown-menu a:focus-visible, .sewing-nav .nav-dropdown-menu button:focus-visible { background: #e9e1d5; outline-offset: 2px; }
+      @media (max-width: 720px) { .sewing-nav .nav-dropdown-menu { left: 0; } .sewing-nav .nav-dropdown:nth-of-type(4) .nav-dropdown-menu { left: auto; right: 0; } }
+    </style>
   </head>
   <body>
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">A little wardrobe daydream</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
@@ -40,13 +50,15 @@
         
 
         <nav class="sewing-nav" aria-label="Main navigation">
-          <a class="nav-hotspot" href="/#mess-around">Mess Around</a>
-          <a class="nav-hotspot" href="/#shop" aria-label="Shop">Shop</a>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Mess Around <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Mess Around options">
+            <a href="/#mess-around">All fun features</a><a href="/runway">Briar Runway</a><a href="/#house-styling-title">AI Styling Companion</a><a href="/#shop">AI Photo Try-On</a><a href="/#mess-around">Measurement Avatar</a><a href="/#mess-around">Heart Your Favorites</a><a href="/#house-collections-title">Mood &amp; Seasonal Collections</a><a href="/#house-stories-title">Designer Stories &amp; Lookbooks</a><a href="/shop#visual-search-title">Photo Style Search</a><a href="/#support">House Badges</a>
+          </div></details>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Shop <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Shop options"><a href="/#shop">Shop All</a><a href="/#shop">Clothing &amp; Garments</a><a href="/shop#visual-search-title">Search by Photo</a><a href="/#house-collections-title">Seasonal Collections</a><a href="/#house-stories-title">Meet Designers</a></div></details>
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
-          <button class="nav-hotspot room-button" type="button" id="visitor-suite-btn" aria-label="Visitor’s Suite" aria-describedby="visitor-door-info"><span class="door-name">Visitor’s Suite</span><span class="door-info" id="visitor-door-info" role="tooltip">Your cozy shopping room: save measurements, revisit your hearts, and see past purchases.</span></button>
-          <button class="nav-hotspot room-button" type="button" id="designer-login-btn" aria-label="Designer’s Room — locked" aria-describedby="designer-door-info"><span class="door-name">Designer’s Room</span><span class="door-info" id="designer-door-info" role="tooltip">Your creative corner: sign in or move in to manage your profile, pieces, and orders. All designers are welcome.</span></button>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Visitors <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Visitor options"><button type="button" id="visitor-suite-btn">Open Visitor’s Suite</button><button type="button" data-mess-around-suite="measurement-profile-name">My Measurements &amp; Avatar</button><button type="button" data-mess-around-suite="visitor-favorites-title">Saved Favorites</button><a href="/#shop">Browse the House</a></div></details>
+          <details class="nav-dropdown"><summary class="nav-hotspot">Designers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Designer options"><button type="button" id="designer-login-btn">Open Designer’s Room</button><a href="/designers/room#designer-signup">Become a Designer</a><a href="/#house-stories-title">Designer Stories</a><a href="/#how-house-works">How the House Works</a></div></details>
           <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Suitcase, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Suitcase (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Your traveling suitcase: chosen treasures wait here before their journey through checkout and home to you.</span></button>
           <button id="header-signout-btn" class="nav-hotspot" type="button" hidden>Sign out</button>
         </nav>
