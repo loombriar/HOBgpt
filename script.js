@@ -2291,3 +2291,40 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
     target.focus({ preventScroll: true });
   });
 });
+
+// Keep navigation behavior in an external script permitted by the CSP.
+
+      /* Click-to-open menus; one at a time; close after selection, outside click, or Escape. */
+      (() => {
+        const init = () => {
+          const menus = [...document.querySelectorAll('.sewing-nav details.nav-dropdown')];
+          const closeAll = (except) => menus.forEach(menu => { if (menu !== except) menu.open = false; });
+          const alignPanel = menu => {
+            const panel = menu.querySelector('.nav-dropdown-menu');
+            if (!panel) return;
+            panel.style.setProperty('--nav-shift', '0px');
+            const bounds = panel.getBoundingClientRect();
+            const gutter = 12;
+            const shift = Math.max(gutter - bounds.left, Math.min(0, window.innerWidth - gutter - bounds.right));
+            panel.style.setProperty('--nav-shift', shift + 'px');
+          };
+          menus.forEach(menu => {
+            const summary = menu.querySelector('summary');
+            if (summary) summary.setAttribute('aria-expanded', String(menu.open));
+            menu.addEventListener('toggle', () => {
+              if (summary) summary.setAttribute('aria-expanded', String(menu.open));
+              if (menu.open) { closeAll(menu); alignPanel(menu); }
+            });
+            menu.querySelectorAll('.nav-dropdown-menu a, .nav-dropdown-menu button').forEach(item =>
+              item.addEventListener('click', () => { menu.open = false; })
+            );
+          });
+          document.addEventListener('pointerdown', event => {
+            if (!menus.some(menu => menu.contains(event.target))) closeAll();
+          });
+          document.addEventListener('keydown', event => { if (event.key === 'Escape') { const active = menus.find(menu => menu.open); closeAll(); active?.querySelector('summary')?.focus(); } });
+          window.addEventListener('resize', () => closeAll());
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+      })();
