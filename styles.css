@@ -1812,3 +1812,10 @@ body{background-color:#faf5ef!important;color:#493b4b}
 body.designer-room-open .designer-room-header #modal-close{position:fixed;top:max(0.75rem,env(safe-area-inset-top));right:max(0.75rem,env(safe-area-inset-right));z-index:1000;box-shadow:0 3px 14px rgba(0,0,0,.18)}
 body.designer-room-open .designer-room-header{padding-right:clamp(9rem,28vw,13rem)}
 @media(max-width:600px){body.designer-room-open .designer-room-header{min-height:4.25rem;padding-right:9rem}body.designer-room-open .designer-room-header #modal-close{font-size:.85rem;padding:.65rem .8rem}}
+
+/* Persistent Designer Room account controls, including on small screens. */
+body.designer-room-open .designer-room-actions{position:fixed;top:max(.75rem,env(safe-area-inset-top));right:max(.75rem,env(safe-area-inset-right));z-index:1000;display:flex;align-items:center;gap:.4rem}
+body.designer-room-open .designer-room-actions #modal-close{position:static;box-shadow:none}
+body.designer-room-open .designer-room-actions .secondary-button{white-space:nowrap;font-size:.85rem;padding:.65rem .75rem;box-shadow:0 3px 14px rgba(0,0,0,.14)}
+body.designer-room-open .designer-room-actions [hidden]{display:none!important}
+@media(max-width:600px){body.designer-room-open .designer-room-header{padding-right:1rem;padding-top:4.25rem;min-height:7rem}}
