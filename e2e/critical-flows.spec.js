@@ -94,7 +94,7 @@ test('buyer can review a seeded piece in the suitcase and remove it', async ({ p
   await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Remove Moonlit E2E Piece from bag' }).click();
-  await expect(page.getByText('Your suitcase is open and waiting.')).toBeVisible();
+  await expect(page.getByText('Your cart is open and waiting.')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('house-of-briar:cart'))).toBe('[]');
 });
 
@@ -192,7 +192,7 @@ test('founding designer announcement advertises the badge and opens signup', asy
   const banner = page.getByRole('complementary', { name: 'Founding designers' });
   await expect(banner).toContainText('The first 25 designers to join');
   await expect(banner.locator('#founder-spots')).toContainText('founding spots remain');
-  await banner.getByRole('link', { name: 'Move in' }).click();
+  await banner.getByRole('link', { name: 'Sign up as a designer' }).click();
   await expect(page).toHaveURL(/designers\/room#designer-signup/);
   await expect(page.locator('#designer-signup-form')).toBeVisible();
 });
@@ -229,9 +229,9 @@ test('customers verify email, get a private account and appear once in the Admin
  await expect(page.locator('#customer-code-form')).toBeVisible();
  const codeResponse=await request.get('/__test/customer-code?email='+encodeURIComponent(email));const {code}=await codeResponse.json();
  await page.locator('#customer-signin-code').fill(code);
- await suite.getByRole('button',{name:'Verify and enter my Suite',exact:true}).click();
+ await suite.getByRole('button',{name:'Verify and sign in',exact:true}).click();
  await expect(page.locator('#customer-account-greeting')).toContainText(email);
- await suite.getByRole('link',{name:'Open my account',exact:true}).click();
+ await suite.getByRole('link',{name:'My account & orders →',exact:true}).click();
  await expect(page).toHaveURL(/\/account$/);
  await expect(page.getByText('Your buyer account is ready.',{exact:false})).toBeVisible();
  await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);

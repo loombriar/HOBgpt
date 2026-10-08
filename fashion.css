@@ -144,3 +144,32 @@ body.blackberry-house .designer-room-header{position:sticky;top:var(--house-head
 .mess-around-card p { flex: 1; margin: 0 0 16px; color: #68615d; line-height: 1.7; }
 .mess-around-card .text-button { align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; text-align: left; }
 .mess-around-card .text-button:focus-visible { outline: 2px solid #713d4e; outline-offset: 4px; }
+
+/* A readable welcome path from discovery to shopping. */
+body.blackberry-house .shop-welcome{padding:clamp(24px,4vw,48px) 0;background:#fffaf0;border-bottom:1px solid #d6c7bc}
+.shop-welcome h2{font-size:clamp(28px,3.4vw,44px);line-height:1.12;margin:6px 0 24px}
+.welcome-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;list-style:none;padding:0;margin:0}
+.welcome-steps li{display:flex;flex-direction:column;padding:22px;border:1px solid #d6c7bc;border-radius:14px;background:#fffdf9;min-width:0}
+.welcome-steps li>span{color:#713d4e;font:600 14px Inter,sans-serif;border-bottom:2px solid #c9ae72;align-self:start;padding-bottom:5px;margin-bottom:14px}
+.welcome-steps h3{font-size:24px;margin:0 0 8px;line-height:1.2}
+.welcome-steps p{font:14px/1.65 Inter,sans-serif;color:#66575e;margin:0 0 12px;flex:1}
+.welcome-steps a,.welcome-steps button{font:600 13px/1.5 Inter,sans-serif;color:#713d4e;text-decoration:underline;display:inline-flex;align-items:center;min-height:44px;text-align:left;align-self:start}
+.welcome-guest-note{margin:18px 0 0;color:#66575e;font:14px/1.6 Inter,sans-serif}
+body.blackberry-house .customer-account-card{padding:clamp(18px,3vw,28px);border:1px solid #d6c7bc;border-radius:14px;background:#fffdf9}
+.customer-account-card h3{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:8px 0 14px}
+.customer-account-card p{line-height:1.65}
+.customer-account-card input:not([type=checkbox]){min-height:48px;font-size:16px;width:100%;box-sizing:border-box}
+.customer-account-card .primary-button{min-height:48px}
+.customer-account-card input:focus-visible,.welcome-steps :is(a,button):focus-visible{outline:3px solid #713d4e;outline-offset:4px}
+#customer-signin-code{letter-spacing:.25em;font-variant-numeric:tabular-nums}
+#shop,#shop-welcome-title{scroll-margin-top:calc(var(--house-header-height,100px) + 20px)}
+@media(max-width:700px){.welcome-steps{grid-template-columns:1fr;gap:10px}.welcome-steps li{padding:16px}.welcome-steps h3{font-size:22px}}
+
+/* Keep the first visit focused on pieces rather than a second promotional hero. */
+body.blackberry-house .hero.sewing-hero{min-height:400px!important}
+body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:clamp(32px,5vw,64px) clamp(24px,6vw,90px)!important}
+@media(max-width:650px){body.blackberry-house .hero.sewing-hero{min-height:0!important}.fashion-hero-side{display:none!important}.sewing-hero-actions{display:flex;flex-wrap:wrap;gap:12px}.sewing-hero-actions a{min-height:48px;white-space:normal}}
+
+.customer-next-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.customer-next-steps :is(a,button){min-height:48px;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;padding:12px}
+@media(max-width:600px){.customer-next-steps{grid-template-columns:1fr}}
