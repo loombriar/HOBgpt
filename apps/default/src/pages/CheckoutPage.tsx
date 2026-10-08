@@ -157,7 +157,7 @@ export default function CheckoutPage() {
       <Link to="/cart" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground transition hover:text-primary"><ArrowLeft size={16} /> Back to suitcase</Link>
       <div className="mt-7 border-b border-border pb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">House of Briar checkout</p>
-        <h1 className="mt-3 font-serif text-4xl sm:text-5xl">A thoughtful final step.</h1>
+        <h1 className="mt-3 font-serif text-3xl leading-tight sm:text-5xl">A thoughtful final step.</h1>
         <div className="mt-6 flex flex-wrap gap-3 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground" aria-label="Checkout steps">
           <span className="rounded-full bg-accent px-4 py-2 text-accent-foreground">01 · Bag</span>
           <span className="rounded-full border border-border px-4 py-2">02 · Delivery</span>
