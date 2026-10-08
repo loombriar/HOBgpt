@@ -36,6 +36,7 @@ test('designer discounts are scoped, sent to Stripe, and verified payment awards
       {id:'promo-b',designerId:'maker-b',title:'Piece B',price:100,category:'fashion'}
     ],designerTokens:{'seller-a':'maker-a'},resolveIdentity:async({token})=>token==='buyer'?{sub:'buyer-sub',email:'buyer@example.test',email_verified:true}:token==='other-buyer'?{sub:'other-sub',email:'other@example.test',email_verified:true}:null,
     stripeApi:async(endpoint,options)=>{
+      if(endpoint==='checkout/sessions/cs_promo_badge')return{id:'cs_promo_badge',status:'complete',payment_status:'paid',metadata:{order_id:context.db.prepare("SELECT id FROM orders WHERE stripe_session_id='cs_promo_badge'").get().id},currency:'usd',amount_total:17500,shipping_details:{name:'Fixture Buyer',address:{line1:'1 Test Lane',city:'Test City',postal_code:'44101',country:'US'}}};
       assert.equal(endpoint,'checkout/sessions');checkoutBody=new URLSearchParams(options.body);
       return{id:'cs_promo_badge',url:'https://checkout.stripe.test/fixture'};
     },sendEmail:async()=>true});
@@ -57,6 +58,11 @@ test('designer discounts are scoped, sent to Stripe, and verified payment awards
     };
     assert.equal((await paid(17499)).status,400);assert.equal(context.db.prepare('SELECT COUNT(*) n FROM user_badges').get().n,0);
     assert.equal((await paid(17500)).status,200);assert.equal((await paid(17500)).status,200);
+    assert.equal(context.db.prepare("SELECT use_count FROM designer_promo_codes WHERE code='BRIAR25'").get().use_count,1);
+    for(let i=0;i<2;i++)assert.equal((await fetch(origin+'/api/checkout/session/cs_promo_badge')).status,200);
+    const promoStats=context.db.prepare("SELECT use_count,revenue_cents,discount_cents FROM designer_promo_codes WHERE code='BRIAR25'").get();
+    assert.deepEqual(promoStats,{use_count:1,revenue_cents:7500,discount_cents:2500});
+    assert.equal(context.db.prepare("SELECT COUNT(*) n FROM analytics_events WHERE event_name='purchase' AND order_id=?").get(orderId).n,1);
     const badges=context.db.prepare('SELECT * FROM user_badges').all();assert.equal(badges.length,1);assert.equal(badges[0].buyer_subject,'buyer-sub');assert.equal(badges[0].badge_type,'verified_buyer');assert.equal(badges[0].source_id,orderId);
     const other=await fetch(origin+'/api/my/badges',{headers:{Authorization:'Bearer other-buyer'}});assert.equal(other.status,200);assert.deepEqual((await other.json()).badges,[]);
   }finally{

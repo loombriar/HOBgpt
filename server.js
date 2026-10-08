@@ -1404,6 +1404,8 @@ function createApp(options = {}) {
     },
     crossOriginEmbedderPolicy: false
   }));
+  // Parse analytics before the general parser so its smaller limit is enforced.
+  app.use('/api/analytics/events',express.json({limit:'16kb'}));
   app.use(express.json({ limit: '64kb' }));
 
   app.post('/api/listings/:listingId/inquiries', authBuyer, (req,res)=>{
@@ -1952,9 +1954,45 @@ function createApp(options = {}) {
     return expiresAt;
   }
 
+  const hadPromoStatsColumn=db.prepare('PRAGMA table_info(orders)').all().some(column=>column.name==='promo_stats_recorded');
+  ensureColumn('orders', 'promo_stats_recorded', 'INTEGER NOT NULL DEFAULT 0');
+  // Existing paid orders must not have historical promotion usage replayed on startup.
+  if(!hadPromoStatsColumn)db.transaction(()=>{
+    for(const promo of db.prepare('SELECT id FROM designer_promo_codes').all()){
+      const totals=db.prepare(`SELECT COUNT(DISTINCT oi.order_id) uses,COALESCE(SUM(oi.line_total_cents),0) revenue,COALESCE(SUM(oi.discount_cents),0) discount FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.status='paid' AND oi.promo_code_id=?`).get(promo.id);
+      db.prepare('UPDATE designer_promo_codes SET use_count=?,revenue_cents=?,discount_cents=? WHERE id=?').run(totals.uses,totals.revenue,totals.discount,promo.id);
+    }
+    db.prepare("UPDATE orders SET promo_stats_recorded=1 WHERE status='paid'").run();
+  }).immediate();
+
+  db.exec('CREATE INDEX IF NOT EXISTS analytics_events_order_name ON analytics_events(order_id,event_name)');
+  function recordPurchaseAnalytics(orderId) {
+    const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(orderId);
+    if(!order)return;
+    const existing=db.prepare("SELECT id FROM analytics_events WHERE event_name='purchase' AND order_id IN (?,?) ORDER BY created_at,rowid").all(order.id,order.stripe_session_id);
+    if(existing.length){
+      db.prepare('UPDATE analytics_events SET order_id=?,value=?,currency=? WHERE id=?').run(order.id,order.subtotal_cents/100,order.currency,existing[0].id);
+      for(const row of existing.slice(1))db.prepare('DELETE FROM analytics_events WHERE id=?').run(row.id);
+    }else{
+      db.prepare("INSERT INTO analytics_events (id,event_name,order_id,value,currency,source,created_at) VALUES (?,'purchase',?,?,?,'verified_payment',?)").run(makeId(),order.id,order.subtotal_cents/100,order.currency,order.paid_at||order.created_at);
+    }
+  }
+  db.prepare("DELETE FROM analytics_events WHERE event_name='purchase' AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.status='paid' AND (o.id=analytics_events.order_id OR o.stripe_session_id=analytics_events.order_id))").run();
+  for(const order of db.prepare("SELECT id FROM orders WHERE status='paid'").all())recordPurchaseAnalytics(order.id);
+
   function markOrderInventorySold(orderId) {
     db.transaction(() => {
+      const paidOrder=db.prepare("SELECT * FROM orders WHERE id=? AND status='paid'").get(orderId);
+      if(!paidOrder)return;
+      const subject=paidOrder.buyer_subject||badgeSubjectForEmail(paidOrder.buyer_email);
+      if(subject)awardBadge(subject,'verified_buyer','order',orderId);
       const now = new Date().toISOString();
+      const accounted=db.prepare("UPDATE orders SET promo_stats_recorded=1 WHERE id=? AND status='paid' AND promo_stats_recorded=0").run(orderId).changes;
+      if(accounted){
+        const stats=db.prepare(`SELECT promo_code_id,SUM(discount_cents) discount_cents,SUM(line_total_cents) revenue_cents FROM order_items WHERE order_id=? AND promo_code_id IS NOT NULL GROUP BY promo_code_id`).all(orderId);
+        for(const stat of stats)db.prepare('UPDATE designer_promo_codes SET use_count=use_count+1,revenue_cents=revenue_cents+?,discount_cents=discount_cents+? WHERE id=?').run(stat.revenue_cents,stat.discount_cents,stat.promo_code_id);
+      }
+      recordPurchaseAnalytics(orderId);
       const sold=db.prepare(`SELECT l.* FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id
         WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
       db.prepare("UPDATE inventory_reservations SET status = 'sold', sold_at = ? WHERE order_id = ? AND status = 'reserved'").run(now, orderId);
@@ -2056,6 +2094,9 @@ function createApp(options = {}) {
       try {
         const session = await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}`);
         if (session.payment_status === 'paid') {
+          const current=db.prepare('SELECT status FROM orders WHERE id=?').get(order.id);
+          if(!current || !['pending','paid'].includes(current.status))throw Object.assign(new Error('Checkout order is no longer payable.'),{statusCode:409});
+          if(session.id!==order.stripe_session_id || session.metadata?.order_id!==order.id || session.status!=='complete' || String(session.currency).toLowerCase()!==String(order.currency).toLowerCase() || !Number.isInteger(session.amount_total) || session.amount_total!==order.subtotal_cents)throw Object.assign(new Error('Checkout payment does not match this order.'),{statusCode:409});
           saveShippingDetails(order, session);
           db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
           markOrderInventorySold(order.id);
@@ -2063,8 +2104,7 @@ function createApp(options = {}) {
           await notifySale(order.id);
           results.paid += 1;
         } else if (session.status === 'expired') {
-          releaseOrderInventory(order.id);
-          results.released += 1;
+          if(releaseOrderInventory(order.id))results.released += 1;
         }
       } catch (error) {
         results.errors += 1;
@@ -2268,16 +2308,24 @@ function createApp(options = {}) {
       if (order.stripe_session_id) {
         await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`, { method: 'POST' });
       }
-      releaseOrderInventory(order.id);
+      if(!releaseOrderInventory(order.id))return fail(res,409,'already_paid','Paid orders cannot be canceled from checkout.');
       return res.json({ orderId: order.id, status: 'canceled', inventoryReleased: true, checkoutExpired: Boolean(order.stripe_session_id) });
     } catch (error) { return next(error); }
   });
 
-  app.post('/api/analytics/events', express.json({ limit: '16kb' }), (req, res) => {
+  app.post('/api/analytics/events', (req, res) => {
     const allowed = new Set(['page_view','view_designer','view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const eventName = String(body.event || '');
     if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
+    if(eventName==='purchase'){
+      const order=db.prepare("SELECT id FROM orders WHERE status='paid' AND (id=? OR stripe_session_id=?)").get(String(body.orderId||''),String(body.orderId||''));
+      if(!order)return fail(res,409,'unverified_purchase','A verified paid order is required.');
+      recordPurchaseAnalytics(order.id);
+      const short=value=>typeof value==='string'?value.slice(0,200):null;
+      db.prepare("UPDATE analytics_events SET session_id=COALESCE(session_id,?),utm_source=COALESCE(utm_source,?),utm_medium=COALESCE(utm_medium,?),utm_campaign=COALESCE(utm_campaign,?) WHERE event_name='purchase' AND order_id=?").run(short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign),order.id);
+      return res.status(202).json({accepted:true});
+    }
     const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
     const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
     db.prepare(`INSERT INTO analytics_events (
@@ -2299,6 +2347,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/admin/analytics', authAdmin, (_req, res) => {
+    res.set('Cache-Control','no-store');
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const events = db.prepare(`SELECT event_name, COUNT(*) count FROM analytics_events WHERE created_at >= ? GROUP BY event_name ORDER BY count DESC`).all(since);
     const funnelNames = ['view_product','add_to_cart','begin_checkout','purchase'];
@@ -2308,13 +2357,14 @@ function createApp(options = {}) {
     const revenueRow=db.prepare(`SELECT ROUND(COALESCE(SUM(value),0),2) revenue, COUNT(*) purchases, ROUND(COALESCE(AVG(value),0),2) aov FROM analytics_events WHERE event_name='purchase' AND created_at>=?`).get(since);
     const startedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='begin_checkout' AND created_at>=?`).get(since)?.count||0);
     const purchasedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT session_id) count FROM analytics_events WHERE event_name='purchase' AND created_at>=?`).get(since)?.count||0);
-    const abandonedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT b.session_id) count FROM analytics_events b WHERE b.event_name='begin_checkout' AND b.created_at>=? AND b.created_at < datetime('now','-2 hours') AND NOT EXISTS (SELECT 1 FROM analytics_events p WHERE p.session_id=b.session_id AND p.event_name='purchase' AND p.created_at>=b.created_at)`).get(since)?.count||0);
+    const abandonedSessions=Number(db.prepare(`SELECT COUNT(DISTINCT b.session_id) count FROM analytics_events b WHERE b.event_name='begin_checkout' AND b.created_at>=? AND julianday(b.created_at) < julianday('now','-2 hours') AND NOT EXISTS (SELECT 1 FROM analytics_events p WHERE p.session_id=b.session_id AND p.event_name='purchase' AND p.created_at>=b.created_at)`).get(since)?.count||0);
     const trafficRow=db.prepare(`SELECT COUNT(*) page_views, COUNT(DISTINCT CASE WHEN session_id IS NOT NULL AND session_id!='' THEN session_id END) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=?`).get(since);
     const topPages=db.prepare(`SELECT path,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND path IS NOT NULL AND created_at>=? GROUP BY path ORDER BY views DESC LIMIT 20`).all(since);
     const topDesigners=db.prepare(`SELECT designer_id designerId,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name='view_designer' AND designer_id IS NOT NULL AND created_at>=? GROUP BY designer_id ORDER BY views DESC LIMIT 20`).all(since);
     const trafficSources=db.prepare(`SELECT COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) source,COUNT(*) views,COUNT(DISTINCT session_id) visits FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer='' THEN 'direct' ELSE referrer END) ORDER BY views DESC LIMIT 20`).all(since);
     const devices=db.prepare(`SELECT COALESCE(device_category,'unknown') device,COUNT(*) views FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=? GROUP BY COALESCE(device_category,'unknown') ORDER BY views DESC`).all(since);
-    const calendarTraffic=summarizeDailyTraffic(db.prepare(`SELECT created_at,session_id FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=?`).iterate(since));
+    const calendarSince = new Date(Date.now()-31*24*60*60*1000).toISOString();
+    const calendarTraffic=summarizeDailyTraffic(db.prepare(`SELECT created_at,session_id FROM analytics_events WHERE event_name IN ('page_view','view_designer') AND created_at>=?`).iterate(calendarSince));
     const rate=(from,to)=>from>0?Math.round((to/from)*1000)/10:0;
     const funnel={...counts, conversionRates:{viewToCart:rate(counts.view_product,counts.add_to_cart),cartToCheckout:rate(counts.add_to_cart,counts.begin_checkout),checkoutToPurchase:rate(counts.begin_checkout,counts.purchase),viewToPurchase:rate(counts.view_product,counts.purchase)},dropOff:{viewToCart:Math.max(0,counts.view_product-counts.add_to_cart),cartToCheckout:Math.max(0,counts.add_to_cart-counts.begin_checkout),checkoutToPurchase:Math.max(0,counts.begin_checkout-counts.purchase)}};
     res.json({ periodDays: 30, events, traffic:{pageViews:Number(trafficRow?.page_views||0),visits:Number(trafficRow?.visits||0),topPages,topDesigners,sources:trafficSources,devices,...calendarTraffic}, funnel, searches, purchaseSources: sources, commerce:{revenue:Number(revenueRow?.revenue||0),purchases:Number(revenueRow?.purchases||0),averageOrderValue:Number(revenueRow?.aov||0),checkoutSessions:startedSessions,purchasedSessions,estimatedAbandonedCheckouts:abandonedSessions} });
@@ -3504,8 +3554,6 @@ function createApp(options = {}) {
         if (order.status === 'canceled' || order.status === 'failed') return fail(res, 409, 'order_closed', 'Checkout order is no longer payable.');
         saveShippingDetails(order, session);
         if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
-        const promoStats=db.prepare(`SELECT promo_code_id,SUM(discount_cents) discount_cents,SUM(line_total_cents) revenue_cents FROM order_items WHERE order_id=? AND promo_code_id IS NOT NULL GROUP BY promo_code_id`).all(order.id);
-        for(const stat of promoStats)db.prepare('UPDATE designer_promo_codes SET use_count=use_count+1,revenue_cents=revenue_cents+?,discount_cents=discount_cents+? WHERE id=?').run(stat.revenue_cents,stat.discount_cents,stat.promo_code_id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
         await notifySale(order.id);
