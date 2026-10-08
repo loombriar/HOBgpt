@@ -132,3 +132,5 @@ Set `DESIGNER_SIGNUP_ALERT_EMAIL` in Railway to the inbox that should receive an
 Required production variables: `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, and `BACKUP_S3_SECRET_ACCESS_KEY`. Optional variables are `BACKUP_S3_REGION` (defaults to `auto`) and `BACKUP_RETENTION_DAYS` (defaults to `30`). Use a bucket-scoped read/write credential and an HTTPS endpoint. For Cloudflare R2, use the account S3 endpoint and region `auto`.
 
 The job intentionally uploads only after local verification succeeds. Keep the bucket private and independent of the Railway volume.
+
+Customer shipment links use the EasyPost Tracker `public_url` and appear in My orders and the initial shipping email. Only HTTPS links on `track.easypost.com` are accepted. Existing shipments gain links when EasyPost sends a tracker update containing `public_url`; tracking status continues updating after seller payout. WeSupply account verification and notification delivery must be checked separately in WeSupply.

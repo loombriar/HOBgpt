@@ -13,7 +13,7 @@ async function fixture() {
   const emails=[];
   ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{seller:'designer-a'},adminToken:'admin',connectAccounts:{'designer-a':'acct_test'},
     sendEmail:async message=>{emails.push(message);return true;},
-    verifyShipmentTracking:async(number,carrier)=>({id:`trk_${++trackingCalls}`,verified:immediatelyVerified,carrier,status:immediatelyVerified?'in_transit':'pre_transit'}),
+    verifyShipmentTracking:async(number,carrier)=>({id:`trk_${++trackingCalls}`,verified:immediatelyVerified,carrier,publicUrl:'https://track.easypost.com/test-tracker',status:immediatelyVerified?'in_transit':'pre_transit'}),
     stripeApi:async endpoint=>{
       if(endpoint==='transfers')return {id:'tr_test'};
       const order=ctx.db.prepare('SELECT * FROM orders WHERE stripe_session_id=?').get(endpoint.split('/').at(-1));
@@ -98,17 +98,24 @@ test('tracking retries and carrier webhooks share one verified event and cannot 
   try {
     for(const immediate of [false,true]) {
       const id=immediate?'immediate':'carrier';f.seed(id);await f.call(`/api/checkout/session/cs_${id}`);f.setVerified(immediate);
+      f.ctx.db.prepare('UPDATE orders SET buyer_subject=?,buyer_email=? WHERE id=?').run('designer:designer-a','buyer@example.test',id);
       const input={carrier:'USPS',trackingNumber:'1234567890'};
       const before=f.trackingCalls;
       assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',input)).status,immediate?200:202);
       assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',input)).status,immediate?200:202);
       assert.equal(f.trackingCalls,before+1);
       const transfer=f.ctx.db.prepare('SELECT * FROM designer_transfers WHERE order_id=?').get(id);
+      assert.equal(transfer.tracking_url,'https://track.easypost.com/test-tracker');
+      const purchases=await f.call('/api/my/purchases');
+      assert.equal(purchases.body.orders.find(order=>order.id===id).items[0].trackingUrl,transfer.tracking_url);
+      assert.ok(f.emails.some(email=>email.to==='buyer@example.test'&&email.text.includes('Track your package: '+transfer.tracking_url)));
       const tracker={id:transfer.tracking_provider_id,status:'in_transit',tracking_details:[{status:'in_transit'}]};
       assert.equal((await f.trackingWebhook(tracker)).status,200);
       assert.equal((await f.trackingWebhook(tracker)).status,200);
       assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',input)).status,200);
       assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',{...input,trackingNumber:'different123'})).status,409);
+      assert.equal((await f.trackingWebhook({...tracker,status:'delivered'})).status,200);
+      assert.equal(f.ctx.db.prepare('SELECT tracking_status FROM designer_transfers WHERE id=?').get(transfer.id).tracking_status,'delivered');
       const notices=f.ctx.db.prepare('SELECT type,event_key FROM designer_notifications WHERE order_id=? AND type LIKE ?').all(id,'tracking_%');
       assert.equal(notices.filter(x=>x.type==='tracking_verified').length,1);
       assert.equal(notices.filter(x=>x.type==='tracking_submitted').length,immediate?0:1);
