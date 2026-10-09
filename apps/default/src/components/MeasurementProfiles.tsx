@@ -6,6 +6,7 @@ export const MEASUREMENT_PROFILES_KEY='house-of-briar:measurement-profiles';
 let sessionProfiles: MeasurementProfile[] = [];
 export function loadMeasurementProfiles():MeasurementProfile[]{return sessionProfiles.map(p=>({...p}));}
 export function clearLegacyMeasurementProfiles(){try{localStorage.removeItem(MEASUREMENT_PROFILES_KEY);}catch{/* storage unavailable */}}
+if (typeof window !== 'undefined') clearLegacyMeasurementProfiles();
 export default function MeasurementProfiles(){
  const [profiles,setProfiles]=useState<MeasurementProfile[]>([]);
  const [draft,setDraft]=useState<Omit<MeasurementProfile,'id'>>({label:'',bust:'',waist:'',hips:'',height:'',notes:''});
