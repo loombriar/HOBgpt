@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics';
 import { GenesisSection } from '@/lib/genesis';
 import { GenesisAuth } from '@/lib/genesis-auth';
+import AndroidBackHandler from '@/components/AndroidBackHandler';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const ShopPage = lazy(() => import('@/pages/ShopPage'));
@@ -29,6 +30,7 @@ function TrafficTracker() {
 function AppRoutes() {
   return <BrowserRouter>
     <TrafficTracker />
+    <AndroidBackHandler />
     <Routes>
       <Route path="/" element={<Section name="Home"><HomePage /></Section>} />
       <Route path="/shop" element={<Section name="Shop"><ShopPage /></Section>} />

@@ -1,0 +1,47 @@
+name: Android unsigned verification
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', 'apps/default/**', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['mobile/**', 'apps/default/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/default
+      - run: npm install --no-audit --no-fund
+        working-directory: mobile
+      - name: Build bundled website
+        run: npm run build:web
+        working-directory: mobile
+      - name: Generate native Android project
+        run: npx cap add android
+        working-directory: mobile
+      - name: Verify target API
+        run: npm run android:verify
+        working-directory: mobile
+      - name: Sync native plugins\n        run: npx cap sync android\n        working-directory: mobile\n      - name: Build unsigned release and debug APK
+        run: ./gradlew assembleDebug bundleRelease
+        working-directory: mobile/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-unsigned-builds
+          path: |
+            mobile/android/app/build/outputs/apk/debug/*.apk
+            mobile/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 7

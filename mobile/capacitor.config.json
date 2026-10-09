@@ -1,0 +1,13 @@
+{
+  "appId": "com.houseofbriar.app",
+  "appName": "House of Briar",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "url": "https://houseofbriar.shop",
+    "cleartext": false,
+    "androidScheme": "https"
+  }
+}
