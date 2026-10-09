@@ -1,0 +1,20 @@
+{
+  "name": "house-of-briar-android",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync": "npm run build:web && cap sync android",
+    "build:web": "npm --prefix ../apps/default run build && node scripts/copy-web.mjs",
+    "android:init": "npm run build:web && cap add android",
+    "android:open": "cap open android",
+    "android:verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/android": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}
