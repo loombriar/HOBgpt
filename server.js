@@ -3247,7 +3247,11 @@ function createApp(options = {}) {
       reversedPayouts: payouts.filter(row=>Boolean(row.stripe_reversal_id)).length,
       activeReservations: inventory.filter(row=>row.status==='reserved').length
     };
-    return res.json({summary,orders,payouts,inventory});
+    const emailCounts=db.prepare("SELECT SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) sent FROM email_outbox").get();
+    const emailMessages=db.prepare('SELECT id,subject,status,attempts,next_attempt_at,created_at,sent_at FROM email_outbox ORDER BY created_at DESC,id DESC LIMIT 30').all();
+    const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
+    res.set('Cache-Control','no-store');
+    return res.json({summary,orders,payouts,inventory,emails});
   });
 
   app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
