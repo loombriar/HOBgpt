@@ -20,7 +20,7 @@ function createApp(options) {
     if (stripeFixture) { const result=await stripeFixture(endpoint, request); if(result?.payment_status==='paid' && !result.shipping_details)result.shipping_details={name:'Fixture Buyer',address:{line1:'1 Test Lane',city:'Test City',state:'OH',postal_code:'44101',country:'US'}}; return result; }
     throw new Error('Unexpected Stripe fixture endpoint: ' + endpoint);
   }});
-  for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(account,id);
+  for (const [id, account] of Object.entries(connectAccounts)) context.db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=1,stripe_details_submitted=1,stripe_status_checked_at=CURRENT_TIMESTAMP WHERE id=?').run(account,id);
   for (const id of designerIds) context.db.prepare("INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)").run(id,SELLER_TERMS_VERSION,new Date().toISOString(),"test-fixture");
   return context;
 }

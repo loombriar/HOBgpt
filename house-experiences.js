@@ -3,13 +3,13 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const sharp = require('sharp');
 
-function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,options}) {
+function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,customerListingVisible,options}) {
   db.exec(`CREATE TABLE IF NOT EXISTS designer_stories (designer_id TEXT PRIMARY KEY, story TEXT NOT NULL DEFAULT '', photo_key TEXT);
     CREATE TABLE IF NOT EXISTS house_ai_usage (day TEXT, subject TEXT, kind TEXT, count INTEGER NOT NULL, PRIMARY KEY(day,subject,kind));`);
   const apiKey = () => options.houseAiKey || process.env.OPENAI_API_KEY;
   const providerFetch = options.houseAiFetch || fetch;
   const catalog = () => db.prepare(`SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id
-    WHERE dp.status='active' AND l.status='published' AND l.moderation_status='approved' ORDER BY l.published_at DESC LIMIT 60`).all().map(row=>serializeListing(row,'public')).filter(item=>item.availableQuantity===null || item.availableQuantity>0);
+    WHERE dp.status='active' AND l.status='published' AND l.moderation_status='approved' ORDER BY l.published_at DESC LIMIT 60`).all().filter(customerListingVisible).map(row=>serializeListing(row,'public')).filter(item=>item.availableQuantity===null || item.availableQuantity>0);
   const limiter = rateLimit({windowMs:60*60*1000,max:12,keyPrefix:'house-ai'});
   function quota(req,res,kind) {
     const day=new Date().toISOString().slice(0,10),limit=kind==='tryon'?3:10,globalLimit=kind==='tryon'?20:100;

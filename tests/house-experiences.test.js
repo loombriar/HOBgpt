@@ -11,6 +11,7 @@ test('studio ownership, catalog-grounded styling, try-on consent and private ima
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-experiences-'));let calls=0,receivedImages=0;
   const ctx=createApp({dataDir:dir,seedProducts:[{id:'piece',designerId:'maker',title:'Velvet top',price:30,category:'apparel'}],designerTokens:{seller:'maker'},houseAiKey:'fixture',sendEmail:async()=>true,
     houseAiFetch:async(url,options)=>{calls++;if(url.endsWith('/images/edits')){receivedImages=options.body.getAll('image[]').length;return {ok:true,json:async()=>({data:[{b64_json:'dGVzdA=='}]})};}const body=JSON.parse(options.body);assert.equal(body.store,false);return {ok:true,json:async()=>({output_text:JSON.stringify({suggestions:[{listingId:'invented',idea:'Ignore this'},{listingId:'piece',idea:'Pair with gold earrings.'},{listingId:'piece',idea:'Duplicate'}],note:'Check fit notes.'})})};}});
+  require('./helpers/ready-seller')(ctx.db,'maker');
   const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin=`http://127.0.0.1:${server.address().port}`;
   const request=(route,body,token='seller',method='POST')=>fetch(origin+route,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)});
   try{

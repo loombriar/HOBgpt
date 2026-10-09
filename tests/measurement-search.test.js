@@ -9,6 +9,7 @@ const { createApp } = require('../server');
 test('measurement ranges persist and search excludes missing or mismatched fit data', async () => {
  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-fit-'));
  const instance=createApp({dataDir,seedProducts:[],designerTokens:{'fit-token':'fit-maker'}});
+ require('./helpers/ready-seller')(instance.db,'fit-maker');
  const server=instance.app.listen(0,'127.0.0.1');await once(server,'listening');
  const base=`http://127.0.0.1:${server.address().port}`;
  const request=async(route,body,method='POST')=>{const response=await fetch(base+route,{method,headers:{'Content-Type':'application/json',Authorization:'Bearer fit-token'},body:JSON.stringify(body)});return {status:response.status,body:await response.json()};};

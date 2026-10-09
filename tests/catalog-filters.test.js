@@ -10,6 +10,8 @@ test('catalog backend composes category filters, sorts and protects unpublished 
   const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-filter-'));
   const fixtures=[{id:'dress',designerId:'maker-a',category:'apparel',title:'Floral dress',price:300},{id:'top',designerId:'maker-b',category:'apparel',title:'Velvet top',price:100},{id:'bag',designerId:'maker-a',category:'accessories',title:'Floral bag',price:200},{id:'costume',designerId:'maker-a',category:'costumes',title:'Fairy costume',price:150},{id:'hidden',designerId:'maker-a',category:'apparel',title:'Private draft',price:1}];
   const context=createApp({dataDir,seedProducts:fixtures});
+  require('./helpers/ready-seller')(context.db,'maker-a');
+  require('./helpers/ready-seller')(context.db,'maker-b');
   context.db.prepare("UPDATE listings SET style='Dress',pattern='Floral',aesthetic='Boho' WHERE id='dress'").run();
   context.db.prepare("UPDATE listings SET style='Top',pattern='Solid' WHERE id='top'").run();
   context.db.prepare("UPDATE listings SET style='Purse / Bag',pattern='Floral' WHERE id='bag'").run();

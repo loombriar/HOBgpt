@@ -13,7 +13,7 @@ const { app:houseApp,db }=createApp({
     throw new Error('Unexpected E2E Stripe request: '+endpoint);
   }
 });
-db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run('acct_e2e_maker','maker');
+db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_details_submitted=1,stripe_payouts_enabled=1,stripe_status_checked_at=CURRENT_TIMESTAMP WHERE id=?').run('acct_e2e_maker','maker');
 db.prepare('INSERT OR IGNORE INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('maker',SELLER_TERMS_VERSION,new Date().toISOString(),'e2e-fixture');
 const app=require('express')();
 // This endpoint exists only in the isolated E2E fixture; never mount it in server.js.

@@ -82,7 +82,7 @@ export default function ProductPage() {
   }
 
   if (!product) {
-    return <HouseShell><div className="mx-auto max-w-3xl px-4 py-24 text-center"><p className="font-serif text-3xl">This piece is still finding its way here.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Back to collection</Link></div></HouseShell>;
+    return <HouseShell><div className="mx-auto max-w-3xl px-4 py-24 text-center"><p className="font-serif text-3xl">This piece is not available right now.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Back to collection</Link></div></HouseShell>;
   }
 
   const name = getTitle(product, 'Name') ?? 'Untitled piece';
