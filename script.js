@@ -1979,6 +1979,14 @@ async function renderAdminOverview() {
           table.append(head, body); section.append(table);
         }
       }
+      if (data.emails) {
+        const emails=data.emails;
+        section.append(makeElement('h4','','Email delivery status'),makeElement('p','small-print',emails.configured?'Email sending is configured. Sent means accepted by the provider, not confirmed inbox delivery.':'Email sending is not configured. Pending messages cannot be sent yet.'));
+        section.append(makeElement('p','',`Pending: ${emails.counts.pending} · Failed: ${emails.counts.failed} · Sent: ${emails.counts.sent}`));
+        if(emails.counts.failed>0)section.open=true;
+        for(const message of emails.messages){const row=makeElement('div','admin-traffic-stat');row.append(makeElement('strong','',message.subject),makeElement('p','',`${message.status==='sent'?'Sent to provider':message.status==='failed'?'Failed — retry scheduled':'Pending'} · ${message.attempts} attempts`),makeElement('p','small-print',message.status==='sent'?`Sent: ${new Date(message.sentAt||message.createdAt).toLocaleString()}`:`Next send attempt: ${new Date(message.nextAttemptAt).toLocaleString()}`));section.append(row);}
+        section.append(makeElement('p','small-print','Failed sends retry automatically. Recipient addresses and message bodies are kept out of this view.'));
+      }
       if (data.summary) {
         section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
         const stats = makeElement('div', 'admin-traffic-stats');
