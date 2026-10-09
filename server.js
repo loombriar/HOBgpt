@@ -3693,6 +3693,10 @@ function createApp(options = {}) {
     return res.sendFile(path.join(rootDir, 'rules.html'));
   });
   app.get('/shipping.html', (_req, res) => res.sendFile(path.join(rootDir, 'shipping.html')));
+  app.get(['/privacy', '/privacy.html'], (_req, res) => {
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    return res.sendFile(path.join(rootDir, 'privacy.html'));
+  });
 
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
