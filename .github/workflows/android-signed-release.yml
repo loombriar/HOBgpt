@@ -71,7 +71,10 @@ jobs:
           ./gradlew bundleRelease
           AAB=app/build/outputs/bundle/release/app-release.aab
           test -s "$AAB"
-          jarsigner -verify -strict -certs "$AAB"
+          jarsigner -verify -strict -certs \
+            -keystore app/release-upload.jks \
+            -storepass:env SIGNING_STORE_PASSWORD \
+            "$AAB" "$SIGNING_KEY_ALIAS"
           keytool -printcert -jarfile "$AAB" | grep -E 'SHA256:|Owner:'
       - name: Remove signing keystore
         if: always()
