@@ -66,7 +66,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   }
   db.transaction(()=>{
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
-    db.prepare('DELETE FROM user_badges WHERE subject=?').run(subject);
+    db.prepare('DELETE FROM user_badges WHERE buyer_subject=?').run(subject);
     db.prepare('DELETE FROM customer_sessions WHERE customer_id=?').run(identity.customerId);
     db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);
     db.prepare('DELETE FROM customer_accounts WHERE id=?').run(identity.customerId);
