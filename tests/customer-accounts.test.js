@@ -60,3 +60,26 @@ test('cookie-authenticated donations attach to the customer and switching to des
   assert.equal((await fetch(f.url+'/api/my/favorites',{headers:{Cookie:designerCookie}})).status,200);
  }finally{await f.close();}
 });
+
+test('customer deletion requires confirmation, revokes sessions, and clears favorites',async()=>{
+ const f=await setup();try{
+  const buyer=await f.verify('delete@example.test');
+  assert.equal((await f.post('/api/my/favorites/piece',{},buyer.cookie)).status,201);
+  const del=(confirmation,origin=f.url)=>fetch(f.url+'/api/customer/account',{method:'DELETE',headers:{Cookie:buyer.cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
+  assert.equal((await del('DELETE','https://evil.example')).status,403);
+  assert.equal((await del('no')).status,422);
+  assert.equal((await del('DELETE')).status,200);
+  assert.equal((await fetch(f.url+'/api/customer/session',{headers:{Cookie:buyer.cookie}})).status,401);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,0);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM buyer_favorites').get().n,0);
+ }finally{await f.close();}
+});
+test('customer deletion blocks accounts with financial records',async()=>{
+ const f=await setup();try{
+  const buyer=await f.verify('paid@example.test');
+  assert.equal((await f.post('/api/donations/session',{amount:5},buyer.cookie)).status,201);
+  const response=await fetch(f.url+'/api/customer/account',{method:'DELETE',headers:{Cookie:buyer.cookie,Origin:f.url,'Content-Type':'application/json'},body:JSON.stringify({confirmation:'DELETE'})});
+  assert.equal(response.status,409);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,1);
+ }finally{await f.close();}
+});
