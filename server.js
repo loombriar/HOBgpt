@@ -1759,25 +1759,38 @@ function createApp(options = {}) {
     }catch(error){return next(error);}
   });
 
-  async function deliverEmail({ to, subject, text }) {
-    if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text }));
+  async function deliverEmail({ to, subject, text, idempotencyKey }) {
+    if (typeof options.sendEmail === 'function') return Boolean(await options.sendEmail({ to, subject, text, idempotencyKey }));
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from || !to) return false;
     const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({ from, to: [to], subject, text })
     });
     if (!response.ok) throw new Error(`Resend returned ${response.status}: ${(await response.text()).slice(0,300)}`);
     return true;
   }
 
+  let emailOutboxRun = null;
   async function processEmailOutbox(limit = 20) {
+    if (emailOutboxRun) return emailOutboxRun;
+    emailOutboxRun = deliverQueuedEmails(limit).finally(() => { emailOutboxRun = null; });
+    return emailOutboxRun;
+  }
+
+  async function deliverQueuedEmails(limit) {
     const rows = db.prepare("SELECT * FROM email_outbox WHERE status IN ('pending','failed') AND next_attempt_at <= ? ORDER BY created_at LIMIT ?").all(new Date().toISOString(), limit);
     for (const row of rows) {
+      const now = new Date().toISOString();
+      const leaseUntil = new Date(Date.now() + 5 * 60_000).toISOString();
+      // Claim before awaiting the provider, including across processes sharing this database.
+      const claimed = db.prepare("UPDATE email_outbox SET next_attempt_at=? WHERE id=? AND status IN ('pending','failed') AND next_attempt_at<=?").run(leaseUntil,row.id,now);
+      if (!claimed.changes) continue;
       try {
-        const sent = await deliverEmail({ to: row.recipient, subject: row.subject, text: row.body_text });
-        if (!sent) continue;
+        const sent = await deliverEmail({ to: row.recipient, subject: row.subject, text: row.body_text, idempotencyKey: `hob-email-${row.id}` });
+        if (!sent) { db.prepare('UPDATE email_outbox SET next_attempt_at=? WHERE id=?').run(now,row.id); continue; }
         db.prepare("UPDATE email_outbox SET status='sent',attempts=attempts+1,last_error=NULL,sent_at=? WHERE id=?").run(new Date().toISOString(), row.id);
       } catch (error) {
         const attempts = row.attempts + 1;
