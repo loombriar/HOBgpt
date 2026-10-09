@@ -15,7 +15,7 @@ for(const width of [390,1280]) {
   await page.screenshot({path:`/tmp/hob-windows-${width}.png`});
   await page.goto('/designers/room');
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
-  await page.locator('#designer-login-form button').click();
+  await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
