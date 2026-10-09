@@ -3774,7 +3774,47 @@ function createApp(options = {}) {
   app.get('/checkout', sendFrontend);
 
   if (hasReactBuild) {
-    app.get(['/shop','/shop/:productId','/designers','/cart','/admin','/sell'], sendFrontend);
+    // Render metadata into the initial HTML: social preview crawlers often do not run React.
+    const escapeMeta = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+    const absoluteShareImage = (value, origin) => {
+      if (!value) return '';
+      try {
+        const url = new URL(value, origin);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+      } catch { return ''; }
+    };
+    app.get('/shop/:productId', (req, res) => {
+      const row = getListing(req.params.productId);
+      if (!customerListingVisible(row)) return fail(res, 404, 'not_found', 'Product not found.');
+      const origin = trustedAppOrigin(req);
+      const designer = db.prepare('SELECT brand_name, display_name FROM designer_profiles WHERE id=?').get(row.designer_id);
+      const title = (row.seo_title || `${row.title} by ${designer?.brand_name || designer?.display_name || 'Independent designer'}`).trim();
+      const description = (row.seo_description || row.description || 'Discover one-of-a-kind wearable art at House of Briar.').replace(/\\s+/g, ' ').trim().slice(0, 180);
+      const url = `${origin}/shop/${encodeURIComponent(row.id)}`;
+      const image = absoluteShareImage(row.share_image_url || getImages(row.id)[0]?.url || row.legacy_image_url || '/house-of-briar-512.png', origin);
+      const meta = [
+        `<title>${escapeMeta(title)} | House of Briar</title>`,
+        `<meta name="description" content="${escapeMeta(description)}" />`,
+        `<link rel="canonical" href="${escapeMeta(url)}" />`,
+        '<meta property="og:type" content="product" />',
+        '<meta property="og:site_name" content="House of Briar" />',
+        `<meta property="og:title" content="${escapeMeta(title)}" />`,
+        `<meta property="og:description" content="${escapeMeta(description)}" />`,
+        `<meta property="og:url" content="${escapeMeta(url)}" />`,
+        `<meta property="og:image" content="${escapeMeta(image)}" />`,
+        `<meta property="og:image:alt" content="${escapeMeta(row.title)}" />`,
+        '<meta name="twitter:card" content="summary_large_image" />',
+        `<meta name="twitter:title" content="${escapeMeta(title)}" />`,
+        `<meta name="twitter:description" content="${escapeMeta(description)}" />`,
+        `<meta name="twitter:image" content="${escapeMeta(image)}" />`
+      ].join('\\n    ');
+      const html = fs.readFileSync(reactIndexFile, 'utf8').replace(/<title>[^<]*<\\/title>/i, '').replace('</head>', `    ${meta}\\n  </head>`);
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.type('html').send(html);
+    });
+    app.get(['/shop','/designers','/cart','/admin','/sell'], sendFrontend);
   }
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
   for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
