@@ -21,9 +21,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Install marketplace dependencies
+      - name: Install marketplace dependencies and reconcile stale lockfile
         working-directory: apps/default
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Run checkout and marketplace regression tests
         working-directory: apps/default
         run: npm test
