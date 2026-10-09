@@ -22,7 +22,7 @@ Subsequent builds: `npm run sync` from mobile. Do not run `cap add android` agai
 
 ## Release gates
 
-- Confirm package ID `com.houseofbriar.app` and Play Console ownership before first publication (cannot be changed after release).
+- Confirm package ID `com.houseofbriar.market` and Play Console ownership before first publication (cannot be changed after release).
 - Build signed AAB using a securely managed upload key; never commit keystores or passwords.
 - Inspect manifest and merged permissions; minimize permissions and confirm no cleartext traffic.
 - Inspect final AAB target API with bundletool and verify signing certificate fingerprint.
