@@ -136,7 +136,10 @@ const CART_KEY = 'house-of-briar:cart';
 const GIFT_WRAP_KEY = 'house-of-briar:gift-wrap';
 
 const COOKIE_SESSION_MARKER = '__house_session__';
-let designerToken = localStorage.getItem('briarDesignerToken') || sessionStorage.getItem('briarDesignerToken') || '';
+// Do not restore bearer credentials from browser storage. Use the HttpOnly session cookie.
+localStorage.removeItem('briarDesignerToken');
+sessionStorage.removeItem('briarDesignerToken');
+let designerToken = '';
 let adminToken = sessionStorage.getItem('briarAdminToken') || '';
 let currentListingId = '';
 let currentIdempotencyKey = '';
@@ -1720,8 +1723,6 @@ byId('newsletter-form')?.addEventListener('submit', async (event) => {
 
 async function restoreDesignerSession() {
   if(sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
-  const legacyToken=designerToken && designerToken!==COOKIE_SESSION_MARKER ? designerToken : '';
-  if(legacyToken){await signIn(legacyToken);return;}
   try{
     const response=await fetch('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
     if(!response.ok || sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
