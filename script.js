@@ -927,7 +927,7 @@ function resetListingForm() {
 
 function validateSelectedImage(file) {
   const isAllowedMime = ALLOWED_MIME_TYPES.has(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
-  if (!isAllowedMime) return 'Choose a JPEG, PNG, or WebP image.';
+  if (!isAllowedMime) return /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/i.test(file.type) ? 'iPhone HEIC/HEIF photos are not supported yet. Export or share this photo as JPEG, then upload the JPEG.' : 'Unsupported photo format. Choose a JPEG, PNG, or WebP image.';
   if (file.size > MAX_IMAGE_BYTES) return 'Each image must be 10 MiB or smaller.';
   return '';
 }
@@ -1477,6 +1477,7 @@ async function openStripeOnboarding(){
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
+byId('welcome-stripe-setup')?.addEventListener('click',openStripeOnboarding);
 byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
 
 async function signIn(tokenValue) {

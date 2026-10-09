@@ -379,7 +379,7 @@
         <div id="designer-signup" class="designer-signup-panel">
           <p class="eyebrow">New to the House?</p>
           <h3>Make yourself at home.</h3>
-          <p><strong>New designer? Start here.</strong> No access token or password is needed to sign up. Enter your details below and we will open your Designer dashboard after your account is created. No application or portfolio required.</p>
+          <p><strong>New designer? Start here.</strong> No product, listing, portfolio, or photo is required to join. Create your account first; then choose whether to connect Stripe, set up your profile, or create a listing later.</p>
           <form id="designer-signup-form" class="stack-form">
             <label>Your name<input name="displayName" type="text" autocomplete="name" required /></label>
             <label>Designer or brand name<input name="brandName" type="text" required /></label>
@@ -423,7 +423,7 @@
         <div id="designer-welcome" class="designer-welcome hidden">
           <p class="eyebrow">Welcome to House of Briar</p>
           <h3>Your Designer dashboard is ready.</h3>
-          <p>Set up your public designer identity, then add your first piece.</p>
+          <p>Your account is created. You do not need to list an item today. Connect Stripe to prepare for future payouts, or complete your profile and listings whenever you are ready.</p><button id="welcome-stripe-setup" class="primary-button" type="button">Connect with Stripe</button>
           <button id="start-profile-setup" class="primary-button" type="button">Set up my designer profile</button>
         </div>
 
@@ -519,7 +519,7 @@
           <div class="upload-heading">
             <div>
               <label for="product-photos">Design photos</label><p class="small-print">For a 360° view, add Front, Back, Left, Right, then detail/close-up photos. You can label each angle below after selecting it.</p>
-              <p>JPEG, PNG, or WebP · up to 10 images · 10 MiB each · first image is the cover.</p>
+              <p>JPEG, PNG, or WebP · up to 10 images · 10 MiB each · first image is the cover. iPhone HEIC/HEIF photos must be exported as JPEG before upload.</p>
             </div>
           </div>
           <input id="product-photos" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple />
