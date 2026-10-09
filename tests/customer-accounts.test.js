@@ -83,3 +83,13 @@ test('customer deletion blocks accounts with financial records',async()=>{
   assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,1);
  }finally{await f.close();}
 });
+
+test('customer deletion requires a recent verified sign-in',async()=>{
+ const f=await setup();try{
+  const buyer=await f.verify('old-session@example.test');
+  f.ctx.db.prepare('UPDATE customer_sessions SET created_at=? WHERE customer_id=?').run(new Date(Date.now()-16*60000).toISOString(),buyer.data.customer.id);
+  const response=await fetch(f.url+'/api/customer/account',{method:'DELETE',headers:{Cookie:buyer.cookie,Origin:f.url,'Content-Type':'application/json'},body:JSON.stringify({confirmation:'DELETE'})});
+  assert.equal(response.status,403);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,1);
+ }finally{await f.close();}
+});

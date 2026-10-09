@@ -52,6 +52,8 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
  app.delete('/api/customer/account',origin,(req,res)=>{
   const identity=authenticate(req);
   if(!identity)return fail(res,401,'unauthorized','Sign in before deleting your account.');
+  const session=db.prepare('SELECT created_at FROM customer_sessions WHERE session_hash=? AND customer_id=?').get(hash(cookie(req)),identity.customerId);
+  if(!session||Date.now()-Date.parse(session.created_at)>15*60*1000)return fail(res,403,'recent_signin_required','For security, sign out and sign in again before deleting your account.');
   if(req.body?.confirmation!=='DELETE')return fail(res,422,'confirmation_required','Type DELETE to confirm account deletion.');
   const subject='customer:'+identity.customerId;
   // Financial and correspondence records must be reviewed rather than silently orphaned.
