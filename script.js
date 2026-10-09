@@ -2257,6 +2257,18 @@ byId('customer-code-form')?.addEventListener('submit',async event=>{
   try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
 });
 byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
+byId('customer-delete-account')?.addEventListener('click',async()=>{
+  const confirmation=window.prompt('Permanently delete your House of Briar customer account and saved favorites? Type DELETE to confirm. Accounts with transaction or message history may require a privacy review.');
+  if(confirmation===null)return;
+  if(confirmation!=='DELETE'){byId('customer-signup-status').textContent='Account deletion canceled. Type DELETE exactly to confirm.';return;}
+  const button=byId('customer-delete-account');button.disabled=true;
+  try{
+    await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
+    customerSignedIn=false;await refreshCustomerAccount();
+    byId('customer-signup-status').textContent='Your customer account has been deleted.';
+  }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}
+  finally{button.disabled=false;}
+});
 byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
 if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
 refreshCustomerAccount();
