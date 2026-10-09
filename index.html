@@ -371,7 +371,7 @@
         <p>Enter your existing designer access token. This is <strong>not a password you create</strong> — House of Briar provides it when your designer account is created. New designer? Skip this token field and use the Create designer account form below.</p>
         <form id="designer-login-form" class="stack-form">
           <label for="designer-token">Designer access token</label>
-          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="designer-token" name="token" type="password" autocomplete="off" aria-describedby="designer-token-help" required /><button type="button" class="secondary-button" aria-controls="designer-token" aria-pressed="false" onclick="const input=document.getElementById('designer-token');const showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide password':'Show password';this.setAttribute('aria-pressed',String(showing))">Show password</button></div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="designer-token" name="token" type="password" autocomplete="off" aria-describedby="designer-token-help" required /><button type="button" class="secondary-button" aria-controls="designer-token" aria-pressed="false">Show password</button></div>
           <p id="designer-token-help" class="small-print">Do not enter your email or a new password here. If you have lost your token, contact House of Briar support for help accessing your account.</p>
           <button class="primary-button" type="submit">Sign in with access token</button>
         </form>
@@ -611,7 +611,7 @@
         <p>Enter your private administrator code to review submitted clothing.</p>
         <form id="admin-login-form" class="stack-form">
           <label for="admin-token">Administrator code</label>
-          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="admin-token" type="password" autocomplete="current-password" required /><button type="button" class="secondary-button" aria-controls="admin-token" aria-pressed="false" onclick="const input=document.getElementById('admin-token');const showing=input.type==='password';input.type=showing?'text':'password';this.textContent=showing?'Hide password':'Show password';this.setAttribute('aria-pressed',String(showing))">Show password</button></div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="admin-token" type="password" autocomplete="current-password" required /><button type="button" class="secondary-button" aria-controls="admin-token" aria-pressed="false">Show password</button></div>
           <button class="primary-button" type="submit">Open admin panel</button>
         </form>
       </section>
