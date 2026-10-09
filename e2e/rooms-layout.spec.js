@@ -28,7 +28,7 @@ for(const width of [390,1280]) {
   await page.goto('/');
   await page.getByRole('button',{name:'Admin panel',exact:true}).click();
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
-  await page.locator('#admin-login-form button').click();
+  await page.locator('#admin-login-form button[type="submit"]').click();
   await expect(page.locator('#admin-overview > details')).toHaveCount(6);
   await page.locator('#admin-overview > details').first().locator('summary').click();
   await expect(page.locator('#admin-daily-traffic')).toBeVisible();
@@ -61,7 +61,7 @@ for(const width of [390,1280]) {
 
 
 test('designer and admin credentials can be revealed and hidden without changing values', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/designers/room');
   await page.locator('#designer-token').fill('example-designer-token');
   const designer = page.locator('#designer-token');
   const designerToggle = page.locator('#designer-login-form').getByRole('button', { name: 'Show password' });
@@ -71,6 +71,8 @@ test('designer and admin credentials can be revealed and hidden without changing
   await expect(designer).toHaveValue('example-designer-token');
   await page.locator('#designer-login-form').getByRole('button', { name: 'Hide password' }).click();
   await expect(designer).toHaveAttribute('type', 'password');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Admin panel', exact: true }).click();
   const admin = page.locator('#admin-token');
   await expect(admin).toHaveAttribute('type', 'password');
   const adminForm = page.locator('#admin-login-form');
