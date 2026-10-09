@@ -58,3 +58,24 @@ for(const width of [390,1280]) {
   await page.screenshot({path:`/tmp/hob-marketplace-admin-${width}.png`});
  });
 }
+
+
+test('designer and admin credentials can be revealed and hidden without changing values', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#designer-token').fill('example-designer-token');
+  const designer = page.locator('#designer-token');
+  const designerToggle = page.locator('#designer-login-form').getByRole('button', { name: 'Show password' });
+  await expect(designer).toHaveAttribute('type', 'password');
+  await designerToggle.click();
+  await expect(designer).toHaveAttribute('type', 'text');
+  await expect(designer).toHaveValue('example-designer-token');
+  await page.locator('#designer-login-form').getByRole('button', { name: 'Hide password' }).click();
+  await expect(designer).toHaveAttribute('type', 'password');
+  const admin = page.locator('#admin-token');
+  await expect(admin).toHaveAttribute('type', 'password');
+  const adminForm = page.locator('#admin-login-form');
+  await adminForm.getByRole('button', { name: 'Show password' }).click();
+  await expect(admin).toHaveAttribute('type', 'text');
+  await adminForm.getByRole('button', { name: 'Hide password' }).click();
+  await expect(admin).toHaveAttribute('type', 'password');
+});
