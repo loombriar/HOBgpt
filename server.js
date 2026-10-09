@@ -1855,9 +1855,10 @@ function createApp(options = {}) {
     if (!contact?.email) return false;
     const amount = (transfer.amount_cents / 100).toFixed(2);
     const success = outcome === 'paid';
-    notifyDesigner(transfer.designer_id,success?'payout_sent':'payout_attention',success?'Payout sent':'Payout needs attention',success?`Your payout of ${amount} for order ${transfer.order_id} was sent.`:`Your payout of ${amount} for order ${transfer.order_id} could not be sent yet.`,{orderId:transfer.order_id,actionPath:'/account#orders'});
+    notifyDesigner(transfer.designer_id,success?'payout_sent':'payout_attention',success?'Payout sent':'Payout needs attention',success?`Your payout of ${amount} for order ${transfer.order_id} was sent.`:`Your payout of ${amount} for order ${transfer.order_id} could not be sent yet.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`payout:${transferId}:${outcome}`});
     const sent = await sendEmail({
       to: contact.email,
+      eventKey: `payout-email:${transferId}:${outcome}`,
       subject: success ? 'Your House of Briar payout was sent' : 'Your House of Briar payout needs attention',
       text: success
         ? `Your payout for order ${transfer.order_id} has been sent.\n\nItems: ${contact.titles}\nPayout: ${amount}\n\nStripe transfer: ${transfer.stripe_transfer_id || 'processing'}`

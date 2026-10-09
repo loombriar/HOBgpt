@@ -4,7 +4,7 @@ The manual workflow `.github/workflows/android-signed-release.yml` builds a sign
 
 ## Configure privately
 
-1. Confirm the final package ID `com.houseofbriar.app` and the upload certificate expected by Google Play Console. If an app already exists in Play Console, **use its existing upload key**, or follow Google's upload-key reset process. Do not generate a replacement blindly.
+1. Confirm the final package ID `com.houseofbriar.market` and the upload certificate expected by Google Play Console. If an app already exists in Play Console, **use its existing upload key**, or follow Google's upload-key reset process. Do not generate a replacement blindly.
 2. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**. Configure:
    - `ANDROID_KEYSTORE_BASE64`: base64 encoding of the upload keystore file (single line, no newlines).
    - `ANDROID_STORE_PASSWORD`: keystore password.
@@ -24,3 +24,10 @@ The manual workflow `.github/workflows/android-signed-release.yml` builds a sign
 ## Customer measurements
 
 Measurement profiles are currently **temporary in-memory entries**, not account-backed saved profiles. Refreshing the app clears them. Previous browser-stored measurement profiles are deleted when the measurement module is loaded; customers should be informed that prior saved profiles cannot be recovered. A secure, authenticated, access-controlled storage feature would require separate design, deletion controls, and tests.
+
+## Verified release evidence — October 9, 2026
+
+- The manual signed release completed successfully after installation and certificate verification fixes.
+- The operator's Play Console screenshot shows version code 4 reached Preview and confirm with one non-blocking deobfuscation warning. Package and upload signing compatibility passed the upload checks.
+- Current package: `com.houseofbriar.market`; version code: `4`; version name: `1.0.4`.
+- Store review, publication, and physical-device behavior remain unverified. This evidence does not complete the device checklist or first-sale acceptance run.

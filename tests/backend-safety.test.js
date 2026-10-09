@@ -106,3 +106,25 @@ test('old unresolved refunds require provider review instead of replaying an exp
   const result=await call(full);assert.equal(result.status,409);assert.equal(result.body.error.code,'refund_review_required');assert.equal(calls.length,0);
   assert.equal((await call(release)).body.results[0].reason,'refund_hold');
 }));
+
+
+test('payout retries queue one failure notification and preserve email delivery retries',()=>fixture(async({ctx,options,call,setHandler})=>{
+  const now=new Date().toISOString();
+  ctx.db.prepare("INSERT INTO listings(id,designer_id,title,price,category,status,moderation_status,created_at,updated_at) VALUES ('piece_maker','maker','Piece',40,'fashion','published','approved',?,?)").run(now,now);
+  ctx.db.prepare("UPDATE designer_profiles SET email='maker@example.test' WHERE id='maker'").run();
+  const messages=[];
+  options.sendEmail=async message=>{messages.push(message);throw Error('Temporary email outage');};
+  setHandler(async()=>{throw Error('Temporary transfer outage');});
+  await call(release);await call(release);
+  const eventKey='payout-email:transfer_maker:failed';
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM email_outbox WHERE event_key=?').get(eventKey).n,1);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) n FROM designer_notifications WHERE event_key='payout:transfer_maker:failed'").get().n,1);
+  assert.equal(messages.length,1);
+  options.sendEmail=async message=>{messages.push(message);return true;};
+  ctx.db.prepare('UPDATE email_outbox SET next_attempt_at=? WHERE event_key=?').run(new Date(0).toISOString(),eventKey);
+  await ctx.processEmailOutbox();
+  assert.equal(messages.length,2);
+  assert.equal(messages[0].idempotencyKey,messages[1].idempotencyKey);
+  assert.equal(ctx.db.prepare('SELECT status FROM email_outbox WHERE event_key=?').get(eventKey).status,'sent');
+}));
+
