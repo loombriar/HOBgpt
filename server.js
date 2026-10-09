@@ -3791,7 +3791,7 @@ function createApp(options = {}) {
       const origin = trustedAppOrigin(req);
       const designer = db.prepare('SELECT brand_name, display_name FROM designer_profiles WHERE id=?').get(row.designer_id);
       const title = (row.seo_title || `${row.title} by ${designer?.brand_name || designer?.display_name || 'Independent designer'}`).trim();
-      const description = (row.seo_description || row.description || 'Discover one-of-a-kind wearable art at House of Briar.').replace(/\\s+/g, ' ').trim().slice(0, 180);
+      const description = (row.seo_description || row.description || 'Discover one-of-a-kind wearable art at House of Briar.').replace(/\s+/g, ' ').trim().slice(0, 180);
       const url = `${origin}/shop/${encodeURIComponent(row.id)}`;
       const image = absoluteShareImage(row.share_image_url || getImages(row.id)[0]?.url || row.legacy_image_url || '/house-of-briar-512.png', origin);
       const meta = [
@@ -3809,8 +3809,8 @@ function createApp(options = {}) {
         `<meta name="twitter:title" content="${escapeMeta(title)}" />`,
         `<meta name="twitter:description" content="${escapeMeta(description)}" />`,
         `<meta name="twitter:image" content="${escapeMeta(image)}" />`
-      ].join('\\n    ');
-      const html = fs.readFileSync(reactIndexFile, 'utf8').replace(/<title>[^<]*<\\/title>/i, '').replace('</head>', `    ${meta}\\n  </head>`);
+      ].join('\n    ');
+      const html = fs.readFileSync(reactIndexFile, 'utf8').replace(/<title>[^<]*<\/title>/i, '').replace('</head>', `    ${meta}\n  </head>`);
       res.set('Cache-Control', 'public, max-age=60');
       return res.type('html').send(html);
     });
