@@ -20,10 +20,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install Android API 36 using runner SDK
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
       - run: npm install --no-audit --no-fund
         working-directory: apps/default
       - run: npm install --no-audit --no-fund
