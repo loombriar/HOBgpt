@@ -155,7 +155,10 @@ function StudioContent() {
   };
 
   const startPayoutSetup = async () => {
-    if (!sellerToken) return;
+    if (!auth.isAuthenticated) {
+      setPayoutMessage('Please sign in to your designer account before setting up payments.');
+      return;
+    }
     setPayoutLoading(true);
     setPayoutMessage('');
     try {
