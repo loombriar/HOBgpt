@@ -1,0 +1,14 @@
+import {useState} from 'react';
+export function estimateDesignerEarnings(price:string,postage:string,packaging:string) {
+  const cents=(value:string)=>{if(!value.trim())return 0;const amount=Number(value);return Number.isFinite(amount)&&amount>=0&&amount<=1000000&&Math.abs(amount*100-Math.round(amount*100))<0.000001?Math.round(amount*100):null;};
+  const total=cents(price),shipping=cents(postage),packing=cents(packaging);
+  if(total===null||total<=0||shipping===null||packing===null)return null;
+  const fee=Math.round(total*.10),earnings=total-fee;
+  return {fee,earnings,remaining:earnings-shipping-packing};
+}
+const money=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);
+export default function DesignerPricingHelper({price}:{price:string}) {
+  const [postage,setPostage]=useState(''),[packaging,setPackaging]=useState('');
+  const estimate=estimateDesignerEarnings(price,postage,packaging);
+  return <section aria-label="Pricing helper" className="mt-4 sm:col-span-2 rounded-2xl border border-primary/20 bg-accent/40 p-4"><h3 className="font-semibold">What will you keep?</h3><p className="mt-2 text-sm text-muted-foreground">Customers get free US delivery. Estimate your postage and packaging before choosing a price.</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm">Estimated postage ($)<input type="number" min="0" max="1000000" step="0.01" value={postage} onChange={e=>setPostage(e.target.value)} placeholder="0.00" className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3"/></label><label className="text-sm">Estimated packaging ($)<input type="number" min="0" max="1000000" step="0.01" value={packaging} onChange={e=>setPackaging(e.target.value)} placeholder="0.00" className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3"/></label></div><div aria-live="polite" className="mt-4">{estimate?<dl className="space-y-2 text-sm"><div className="flex justify-between gap-3"><dt>House of Briar fee (10%)</dt><dd>{money(estimate.fee)}</dd></div><div className="flex justify-between gap-3"><dt>Your earnings before delivery costs</dt><dd>{money(estimate.earnings)}</dd></div><div className="flex justify-between gap-3 border-t border-border pt-2 font-semibold"><dt>Amount left after postage and packaging</dt><dd>{money(estimate.remaining)}</dd></div>{estimate.remaining<0&&<p className="text-destructive">This price does not cover these costs. Consider a higher price or lower delivery costs.</p>}</dl>:<p className="text-sm">Enter a price and valid costs to see your estimate.</p>}</div><p className="mt-3 text-xs text-muted-foreground">Estimate for one piece, before discounts, materials, labor, taxes or other costs. Blank costs count as $0. These estimates are private and do not change your price or charge customers for delivery.</p></section>;
+}

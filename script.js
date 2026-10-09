@@ -1362,6 +1362,7 @@ async function editListing(listingId) {
     if (byId('product-name')) byId('product-name').value = listing.title;
     if (byId('product-description')) byId('product-description').value = listing.description;
     if (byId('product-price')) byId('product-price').value = listing.price;
+    renderDesignerPriceEstimate();
     byId('product-international').checked = Boolean(listing.internationalShipping);
     byId('product-shipping').value = 0;
     byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
@@ -2324,3 +2325,19 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
         else init();
       })();
+
+
+function renderDesignerPriceEstimate() {
+  const output=byId('pricing-estimate');if(!output)return;
+  const cents=value=>{if(!value?.trim())return 0;const n=Number(value);return Number.isFinite(n)&&n>=0&&n<=1000000&&Math.abs(n*100-Math.round(n*100))<0.000001?Math.round(n*100):null;};
+  const price=cents(byId('product-price')?.value),postage=cents(byId('estimated-postage')?.value),packaging=cents(byId('estimated-packaging')?.value);
+  output.replaceChildren();
+  if(price===null||price<=0||postage===null||packaging===null){output.textContent='Enter a price and valid costs to see your estimate.';return;}
+  const fee=Math.round(price*.10),earnings=price-fee,remaining=earnings-postage-packaging;
+  const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
+  for(const text of [`House of Briar fee (10%): ${money(fee)}`,`Your earnings before delivery costs: ${money(earnings)}`,`Amount left after postage and packaging: ${money(remaining)}`])output.append(makeElement('p','',text));
+  if(remaining<0)output.append(makeElement('p','','This price does not cover these costs. Consider a higher price or lower delivery costs.'));
+}
+for(const id of ['product-price','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
+byId('product-form')?.addEventListener('reset',()=>setTimeout(renderDesignerPriceEstimate,0));
+renderDesignerPriceEstimate();
