@@ -35,7 +35,10 @@ jobs:
       - name: Verify target API
         run: npm run android:verify
         working-directory: mobile
-      - name: Sync native plugins\n        run: npx cap sync android\n        working-directory: mobile\n      - name: Build unsigned release and debug APK
+      - name: Sync native plugins
+        run: npx cap sync android
+        working-directory: mobile
+      - name: Build unsigned release and debug APK
         run: ./gradlew assembleDebug bundleRelease
         working-directory: mobile/android
       - uses: actions/upload-artifact@v4
