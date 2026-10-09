@@ -7,6 +7,6 @@ const android = new URL('../android/variables.gradle', import.meta.url);
 if (!existsSync(android)) throw new Error('Android project missing: run npm run android:init');
 const vars = readFileSync(android, 'utf8');
 for (const key of ['compileSdkVersion','targetSdkVersion']) {
-  if (!new RegExp(key + String.raw`\\s*=\\s*36\\b`).test(vars)) throw new Error(key + ' must equal 36');
+  if (!new RegExp(key + String.raw`\s*=\s*36\b`).test(vars)) throw new Error(key + ' must equal 36');
 }
 console.log('Capacitor Android SDK target/compile API 36 verified');
