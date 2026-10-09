@@ -6,6 +6,8 @@
     "allowMixedContent": false
   },
   "server": {
+    "url": "https://houseofbriar.shop",
+    "cleartext": false,
     "androidScheme": "https"
   }
 }
