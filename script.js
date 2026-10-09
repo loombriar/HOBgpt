@@ -2361,3 +2361,15 @@ function renderDesignerPriceEstimate() {
 for(const id of ['product-price','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
 byId('product-form')?.addEventListener('reset',()=>setTimeout(renderDesignerPriceEstimate,0));
 renderDesignerPriceEstimate();
+
+// Password visibility controls use registered listeners to comply with Content Security Policy.
+for (const button of document.querySelectorAll('button[aria-controls="designer-token"], button[aria-controls="admin-token"]')) {
+  button.addEventListener('click', () => {
+    const input = document.getElementById(button.getAttribute('aria-controls'));
+    if (!input) return;
+    const visible = input.type === 'password';
+    input.type = visible ? 'text' : 'password';
+    button.textContent = visible ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-pressed', String(visible));
+  });
+}
