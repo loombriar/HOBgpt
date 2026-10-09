@@ -333,7 +333,7 @@
           <label>Your name <span class="small-print">(optional)</span><input id="customer-signup-name" maxlength="80" autocomplete="given-name" /></label>
           <label>Email<input id="customer-signup-email" type="email" maxlength="254" autocomplete="email" required /></label>
           <p class="small-print"><strong>No password to create or remember.</strong> We’ll email you a six-digit sign-in code. Returning shoppers should use the same email address.</p>
-          <label class="small-print"><input id="customer-rules-consent" type="checkbox" required /> I agree to the <a href="/rules" target="_blank" rel="noopener">House rules</a> and have read the privacy information.</label>
+          <label class="small-print"><input id="customer-rules-consent" type="checkbox" required /> I agree to the <a href="/rules" target="_blank" rel="noopener">House rules</a> and have read the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</label>
           <button class="primary-button" type="submit">Email me a sign-in code</button>
         </form>
         <form id="customer-code-form" class="stack-form" hidden><p class="eyebrow">One more step</p><h4>Check your inbox</h4><p id="customer-code-help" class="small-print">Enter the six-digit code from House of Briar. Check your spam folder if you don’t see the email.</p><label>Six-digit email code<input aria-describedby="customer-code-help" id="customer-signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required /></label><button class="primary-button" type="submit">Verify and sign in</button><button id="customer-code-back" type="button" class="text-button">Use another email or request a new code</button></form>
