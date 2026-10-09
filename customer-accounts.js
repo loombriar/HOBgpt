@@ -49,6 +49,31 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
  });
  app.get('/api/customer/session',(req,res)=>{const identity=authenticate(req);res.set('Cache-Control','no-store');if(!identity)return fail(res,401,'unauthorized','Sign in to your customer account.');return res.json({customer:{id:identity.customerId,name:identity.name,email:identity.email}});});
  app.delete('/api/customer/session',origin,(req,res)=>{clearSession(req,res);return res.set('Cache-Control','no-store').json({ok:true});});
+ app.delete('/api/customer/account',origin,(req,res)=>{
+  const identity=authenticate(req);
+  if(!identity)return fail(res,401,'unauthorized','Sign in before deleting your account.');
+  if(req.body?.confirmation!=='DELETE')return fail(res,422,'confirmation_required','Type DELETE to confirm account deletion.');
+  const subject='customer:'+identity.customerId;
+  // Financial and correspondence records must be reviewed rather than silently orphaned.
+  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers'];
+  for(const table of protectedTables){
+    const columns=db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name);
+    const conditions=[];const values=[];
+    for(const col of ['buyer_subject','sender_subject'])if(columns.includes(col)){conditions.push(col+'=?');values.push(subject);}
+    for(const col of ['buyer_email'])if(columns.includes(col)){conditions.push(col+'=?');values.push(identity.email);}
+    if(conditions.length&&db.prepare('SELECT 1 FROM '+table+' WHERE '+conditions.join(' OR ')+' LIMIT 1').get(...values))
+      return fail(res,409,'account_records_require_review','Your account has orders, donations, or messages that need a privacy review before deletion. Contact House of Briar support.');
+  }
+  db.transaction(()=>{
+    db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
+    db.prepare('DELETE FROM user_badges WHERE buyer_subject=?').run(subject);
+    db.prepare('DELETE FROM customer_sessions WHERE customer_id=?').run(identity.customerId);
+    db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);
+    db.prepare('DELETE FROM customer_accounts WHERE id=?').run(identity.customerId);
+  }).immediate();
+  res.cookie(COOKIE,'',{httpOnly:true,sameSite:'lax',secure:trustedAppOrigin(req).startsWith('https:'),path:'/',maxAge:0});
+  return res.set('Cache-Control','no-store').json({ok:true});
+ });
  app.get('/api/admin/customer-signups',authAdmin,(_req,res)=>{
   const rows=db.prepare('SELECT id,created_at FROM customer_accounts WHERE created_at>=?').all(new Date(Date.now()-31*86400000).toISOString());
   const started=db.prepare('SELECT MIN(created_at) started FROM customer_accounts').get().started;
