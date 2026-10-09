@@ -1419,9 +1419,6 @@ async function editListing(listingId) {
 }
 
 let designerReadinessState={profile:null,listings:[],stripe:null};
-function profileIsComplete(profile){
-  return Boolean(profile?.brandName?.trim() && profile?.bio?.trim() && Array.isArray(profile?.categories) && profile.categories.length);
-}
 function renderSellerReadiness(){
   const list=byId('seller-readiness-list'),badge=byId('seller-readiness-badge'),summary=byId('seller-readiness-summary');
   if(!list)return;
@@ -1429,14 +1426,13 @@ function renderSellerReadiness(){
   byId('seller-terms-form')?.classList.toggle('hidden',!profile || Boolean(profile.sellerTermsAccepted));
   if(byId('seller-terms-version'))byId('seller-terms-version').textContent=profile?.sellerTermsVersion||'';
   const accepted=Boolean(profile?.sellerTermsAccepted);
-  const profileReady=accepted&&profileIsComplete(profile);
+  const accountReady=accepted&&Boolean(stripe?.readyToSell);
   const payoutsReady=Boolean(stripe?.connected&&stripe?.onboardingComplete&&stripe?.payoutsEnabled&&stripe?.readyToSell);
-  const listingReady=Array.isArray(listings)&&listings.some(item=>['published','active','approved'].includes(String(item.status||'').toLowerCase()) || item.isPublished===true || item.published===true);
+  const listingReady=Array.isArray(listings)&&listings.some(item=>item.status==='published' && item.moderationStatus==='approved');
   const stages=[
-    {label:'Profile ready',done:profileReady,hint:!accepted?'Accept the seller terms, then complete your public profile.':'Add your brand name, bio and categories.',action:'Complete profile',target:!accepted?'seller-terms-form':'designer-brand-form'},
-    {label:'Payouts connected',done:payoutsReady,hint:'Complete Stripe verification and enable payouts.',action:'Continue Stripe setup',run:openStripeOnboarding},
-    {label:'First piece listed',done:listingReady,hint:'Create a piece and complete any required approval before it can sell.',action:'Create a piece',target:'product-form'},
-    {label:'Ready to sell',done:profileReady&&payoutsReady&&listingReady,hint:'Complete all previous milestones to start selling.',action:'Review unfinished steps'}
+    {label:'1. Accept the delivery terms',done:accepted,hint:'Customers get free US delivery. You cover postage, so include it in your price.',action:'Review and accept terms',target:'seller-terms-form'},
+    {label:'2. Finish payment setup',done:payoutsReady,hint:'Stripe checks your details and sets up your bank account for designer earnings.',action:stripe?.connected?'Continue payment setup':'Set up payments',run:openStripeOnboarding},
+    {label:'Your pieces',done:listingReady,hint:'Save a draft any time. Submit a finished piece for review; drafts stay private.',action:'Manage listings',target:'product-form'}
   ];
   list.replaceChildren();
   for(const stage of stages){
@@ -1456,9 +1452,9 @@ function renderSellerReadiness(){
     }
     row.append(mark,copy);list.append(row);
   }
-  const ready=stages.every(stage=>stage.done);
-  if(badge){badge.textContent=ready?'Ready to sell':'Setup in progress';badge.dataset.ready=ready?'true':'false';}
-  if(summary)summary.textContent=ready?'Your setup is complete and your approved piece is available for sale.':'Complete each milestone below. Drafts do not count as published pieces.';
+  const ready=accountReady;
+  if(badge){badge.textContent=ready?'Ready to sell':!profile||!stripe?'Checking your setup…':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
+  if(summary)summary.textContent=ready?'Your account is ready. Approved pieces with available stock appear in the shop unless paused or you are on vacation.':'Your pieces stay in your dashboard. Accept the current delivery terms and finish payment setup before customers can buy them.';
 }
 async function refreshStripePayoutStatus() {
   const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
@@ -2081,7 +2077,7 @@ byId('seller-terms-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
   try{
     await apiRequest('/api/my/seller-terms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accepted:byId('seller-terms-consent').checked,termsVersion:designerReadinessState.profile?.sellerTermsVersion})});
-    byId('seller-terms-consent').checked=false;await loadDesignerBrand();
+    byId('seller-terms-consent').checked=false;await loadDesignerBrand();await refreshStripePayoutStatus();setMessage(byId('seller-terms-message'),'Delivery terms accepted.','success');
   }catch(error){setMessage(byId('seller-terms-message'),error.message,'error');}
   finally{if(button)button.disabled=false;}
 });
