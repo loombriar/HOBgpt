@@ -21,11 +21,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Install marketplace dependencies (refresh Capacitor lock metadata)
+      - name: Install marketplace dependencies from committed lockfile
         working-directory: apps/default
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci
+        run: npm ci
       - name: Run checkout and marketplace regression tests
         working-directory: apps/default
         run: npm test
