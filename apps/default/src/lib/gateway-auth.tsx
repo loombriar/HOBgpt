@@ -84,6 +84,8 @@ function setSignInRequired(next: boolean): void {
 
 /** Whether a first-party call was refused for want of a signed-in app user. */
 export function isSignInRequired(): boolean {
+  const path = typeof window === 'undefined' ? '' : window.location.pathname;
+  if (path === '/' || path === '/shop' || path.startsWith('/shop/') || path === '/cart' || path === '/checkout') return false;
   return signInRequired;
 }
 
