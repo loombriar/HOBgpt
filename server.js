@@ -2067,7 +2067,7 @@ function createApp(options = {}) {
       if (existing?.payout_in_flight) { results.push({designer_id:group.designer_id,status:'pending',reason:'transfer_processing'}); continue; }
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
-      if (releaseReason === 'tracking_verified' && (!existing.tracking_number || !existing.tracking_verified_at)) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
+      if (!existing.tracking_number || !existing.tracking_verified_at || !new Set(['transit','in_transit','out_for_delivery','delivered','available_for_pickup']).has(String(existing.tracking_status||'').toLowerCase()) || /^SHIPPO_(TRANSIT|DELIVERED|FAILURE|UNKNOWN|PRE_TRANSIT|OUT_FOR_DELIVERY)$/i.test(existing.tracking_number) || String(existing.tracking_status||'').startsWith('test_')) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'carrier_verification_required' }); continue; }
       const accountId = designerStripeAccount(group.designer_id);
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
