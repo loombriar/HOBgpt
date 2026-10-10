@@ -1968,8 +1968,31 @@ function createApp(options = {}) {
 
   async function verifyShipmentTracking(trackingNumber, carrier) {
     if (typeof options.verifyShipmentTracking === 'function') return options.verifyShipmentTracking(trackingNumber, carrier);
+    const shippoKey = process.env.SHIPPO_API_KEY || process.env.Shippo_Test;
+    if (shippoKey) {
+      const testMode = shippoKey.startsWith('shippo_test_');
+      const response = await fetch('https://api.goshippo.com/tracks/', {
+        method: 'POST',
+        headers: {
+          Authorization: `ShippoToken ${shippoKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({tracking_number:trackingNumber,carrier:carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
+      });
+      const tracker = await response.json().catch(()=>({}));
+      if(!response.ok){
+        log('error','shippo_tracking_api_failed',{status:response.status,providerMessage:String(tracker?.detail||tracker?.message||'').slice(0,300)});
+        throw Object.assign(new Error('Shippo could not accept this carrier and tracking number. Check the carrier name and tracking number.'),{statusCode:422,code:'tracking_verification_failed'});
+      }
+      const status=String(tracker.tracking_status?.status||'UNKNOWN').toLowerCase();
+      const acceptedStatuses=new Set(['transit','out_for_delivery','delivered','available_for_pickup']);
+      const hasCarrierEvent=Array.isArray(tracker.tracking_history)&&tracker.tracking_history.some(event=>Boolean(event?.status_date));
+      // Shippo test tracking is simulated. Never release real payouts from simulated events.
+      const verified=!testMode&&acceptedStatuses.has(status)&&hasCarrierEvent;
+      return {verified,id:tracker.object_id||'',carrier:tracker.carrier||carrier,status:testMode?`test_${status}`:status};
+    }
     const apiKey = process.env.EASYPOST_API_KEY;
-    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured.'), { statusCode: 503 });
+    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in the testing environment.'), { statusCode: 503 });
     const response = await fetch('https://api.easypost.com/v2/trackers', {
       method: 'POST',
       headers: {
