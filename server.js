@@ -1571,8 +1571,15 @@ function createApp(options = {}) {
       }
     }
     if(!accountId){
-      const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
-      const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}-v2`});
+      const accountBody=JSON.stringify({
+          contact_email:designer.email,
+          display_name:designer.brand_name||designer.display_name||designer.email,
+          dashboard:'express',
+          configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
+          defaults:{responsibilities:{fees_collector:'application',losses_collector:'application'}},
+          metadata:{designer_id:designer.id}
+        });
+      const account=await stripeApi('v2/core/accounts',{method:'POST',body:accountBody,idempotencyKey:`hob-connect-account-${designer.id}-accounts-v2`});
       accountId=account.id;
       if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
@@ -1733,8 +1740,15 @@ function createApp(options = {}) {
       if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
       let accountId=designer.stripe_account_id;
       if(!accountId){
-        const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
-        const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}`});
+        const accountBody=JSON.stringify({
+          contact_email:designer.email,
+          display_name:designer.brand_name||designer.display_name||designer.email,
+          dashboard:'express',
+          configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
+          defaults:{responsibilities:{fees_collector:'application',losses_collector:'application'}},
+          metadata:{designer_id:designer.id}
+        });
+        const account=await stripeApi('v2/core/accounts',{method:'POST',body:accountBody,idempotencyKey:`hob-connect-account-${designer.id}-accounts-v2-admin`});
         accountId=account.id;
         if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
         db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
@@ -1872,11 +1886,12 @@ function createApp(options = {}) {
     if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
-    const response = await fetch(`https://api.stripe.com/v1/${pathname}`, {
+    const response = await fetch(`https://api.stripe.com/${pathname.startsWith('v2/')?'':'v1/'}${pathname}`, {
       method: requestOptions.method || 'GET',
       headers: {
         Authorization: `Bearer ${secret}`,
-        ...(requestOptions.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        ...(requestOptions.body ? { 'Content-Type': pathname.startsWith('v2/')?'application/json':'application/x-www-form-urlencoded' } : {}),
+        ...(pathname.startsWith('v2/') ? { 'Stripe-Version': '2026-09-30.endive' } : {}),
         ...(requestOptions.idempotencyKey ? { 'Idempotency-Key': requestOptions.idempotencyKey } : {})
       },
       body: requestOptions.body
