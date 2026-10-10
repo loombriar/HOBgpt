@@ -1573,6 +1573,7 @@ function createApp(options = {}) {
     if(!accountId){
       const accountBody=JSON.stringify({
           contact_email:designer.email,
+          identity:{country:process.env.STRIPE_CONNECTED_ACCOUNT_COUNTRY||'US'},
           display_name:designer.brand_name||designer.display_name||designer.email,
           dashboard:'express',
           configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
@@ -1742,6 +1743,7 @@ function createApp(options = {}) {
       if(!accountId){
         const accountBody=JSON.stringify({
           contact_email:designer.email,
+          identity:{country:process.env.STRIPE_CONNECTED_ACCOUNT_COUNTRY||'US'},
           display_name:designer.brand_name||designer.display_name||designer.email,
           dashboard:'express',
           configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
