@@ -1308,6 +1308,40 @@ function createApp(options = {}) {
     }
   });
 
+  // Shippo sends track_updated events. Treat the payload as a hint only:
+  // independently retrieve tracking status from Shippo before updating any order.
+  app.post('/api/shippo/webhook', express.raw({type:'application/json',limit:'64kb'}), async (req,res) => {
+    try {
+      const key=process.env.SHIPPO_API_KEY||process.env.Shippo_Test;
+      if(!key)return res.status(503).json({error:'Shippo is not configured'});
+      const event=JSON.parse(Buffer.isBuffer(req.body)?req.body.toString('utf8'):JSON.stringify(req.body));
+      if(event?.event!=='track_updated')return res.json({received:true,ignored:true});
+      const payload=event.data||{};
+      const number=String(payload.tracking_number||'');
+      const carrier=String(payload.carrier||'').toLowerCase();
+      if(!number||!carrier)return res.json({received:true,ignored:true});
+      const matches=db.prepare('SELECT * FROM designer_transfers WHERE tracking_number=?').all(number)
+        .filter(t=>String(t.tracking_carrier||'').toLowerCase()===carrier||key.startsWith('shippo_test_'));
+      if(!matches.length)return res.json({received:true,ignored:true});
+      const response=await fetch('https://api.goshippo.com/tracks/'+encodeURIComponent(key.startsWith('shippo_test_')?'shippo':carrier)+'/'+encodeURIComponent(number),{
+        headers:{Authorization:'ShippoToken '+key,Accept:'application/json'}
+      });
+      if(!response.ok)return res.status(502).json({error:'Shippo status lookup failed'});
+      const current=await response.json();
+      if(String(current.tracking_number||'')!==number)return res.status(502).json({error:'Tracking mismatch'});
+      const status=String(current.tracking_status?.status||'UNKNOWN').toLowerCase();
+      const simulated=key.startsWith('shippo_test_')||current.test===true;
+      for(const transfer of matches){
+        db.prepare('UPDATE designer_transfers SET tracking_status=? WHERE id=?').run(simulated?'test_'+status:status,transfer.id);
+      }
+      // No payouts from webhook notifications. Live payout verification must be separately validated.
+      return res.json({received:true,updated:matches.length,simulated});
+    }catch(error){
+      log('error','shippo_webhook_failed',{message:String(error?.message||error).slice(0,200)});
+      return res.status(400).json({error:'Invalid tracking update'});
+    }
+  });
+
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(Boolean);
