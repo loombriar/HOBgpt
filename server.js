@@ -1314,6 +1314,11 @@ function createApp(options = {}) {
     try {
       const key=process.env.SHIPPO_API_KEY||process.env.Shippo_Test;
       if(!key)return res.status(503).json({error:'Shippo is not configured'});
+      // Fail closed until a dedicated webhook secret is configured. Never accept anonymous updates.
+      const webhookSecret=process.env.SHIPPO_WEBHOOK_SECRET;
+      if(!webhookSecret)return res.status(503).json({error:'Shippo webhook authentication is not configured'});
+      const suppliedSecret=String(req.get('x-shippo-webhook-secret')||'');
+      if(!suppliedSecret||!safeEqual(suppliedSecret,webhookSecret))return res.status(401).json({error:'Unauthorized webhook'});
       const rawBody=Buffer.isBuffer(req.body)?req.body:Buffer.from('');
       const event=JSON.parse(rawBody.toString('utf8'));
       if(event?.event!=='track_updated')return res.json({received:true,ignored:true});
@@ -2012,7 +2017,7 @@ function createApp(options = {}) {
           Authorization: `ShippoToken ${shippoKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({tracking_number:trackingNumber,carrier:carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
+        body: JSON.stringify({tracking_number:trackingNumber,carrier:testMode?'shippo':carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
       });
       const tracker = await response.json().catch(()=>({}));
       if(!response.ok){
