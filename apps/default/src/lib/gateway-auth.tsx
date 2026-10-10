@@ -102,6 +102,14 @@ export function useSignInRequired(): boolean {
 
 /** Raises the gate when a settled first-party response is the sign-in refusal. */
 function noteFirstPartyResponse(status: number, bodyText: string): void {
+  // Public storefront routes must never be covered by the app-wide sign-in
+  // modal. Protected APIs still enforce their own authentication server-side.
+  const path = window.location.pathname;
+  const publicStorefront = path === '/' || path === '/shop' || path.startsWith('/shop/') || path === '/cart' || path === '/checkout';
+  if (publicStorefront) {
+    setSignInRequired(false);
+    return;
+  }
   if (isSignInRefusal(status, bodyText)) {
     setSignInRequired(true);
   }
