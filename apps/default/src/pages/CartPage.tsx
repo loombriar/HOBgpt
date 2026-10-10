@@ -67,7 +67,19 @@ export default function CartPage() {
   const [catalogLoading,setCatalogLoading]=useState(true);
   const [catalogError,setCatalogError]=useState('');
   useEffect(() => { let active = true; const raw = window.localStorage.getItem('house-of-briar:cart'); let parsed: string[] = []; try { const value = raw ? JSON.parse(raw) : []; parsed = Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []; } catch {} const unique = Array.from(new Set(parsed)); setIds(unique); if (unique.length !== parsed.length) window.localStorage.setItem('house-of-briar:cart', JSON.stringify(unique)); setCatalogLoading(true); setCatalogError(''); void getCatalogProducts(auth.isAuthenticated).then((rows) => { if (!active) return; setProducts(rows); /* Preserve saved IDs even if the catalog response is incomplete. */ }).catch(() => { if (!active) return; setCatalogError('We could not load your saved pieces. Your cart has not been changed. Please try again.'); }).finally(() => { if (active) setCatalogLoading(false); }); return () => { active = false; }; }, [auth.isAuthenticated]);
-  // Keep the visible cart synchronized when logout clears browser storage.\n  useEffect(() => {\n    const sync = () => {\n      try {\n        const value: unknown = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');\n        setIds(Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []);\n      } catch { setIds([]); }\n    };\n    window.addEventListener('house-of-briar-cart', sync);\n    window.addEventListener('storage', sync);\n    return () => { window.removeEventListener('house-of-briar-cart', sync); window.removeEventListener('storage', sync); };\n  }, []);\n  const items = useMemo(() => products.filter((item) => ids.includes(item.id)).map((item) => ({ ...item, quantity: 1 })), [ids, products]);
+  // Keep the visible cart synchronized when logout clears browser storage.
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const value: unknown = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
+        setIds(Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []);
+      } catch { setIds([]); }
+    };
+    window.addEventListener('house-of-briar-cart', sync);
+    window.addEventListener('storage', sync);
+    return () => { window.removeEventListener('house-of-briar-cart', sync); window.removeEventListener('storage', sync); };
+  }, []);
+  const items = useMemo(() => products.filter((item) => ids.includes(item.id)).map((item) => ({ ...item, quantity: 1 })), [ids, products]);
   const {quote,error:shippingError}=useShippingQuote(ids);
   const missingIds = useMemo(() => ids.filter(id => !products.some(product => product.id === id)), [ids, products]);
   const total = items.reduce((sum, item) => sum + (getFieldNumber(item, '@price', 'Price') ?? 0), 0);
