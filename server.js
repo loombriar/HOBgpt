@@ -1314,7 +1314,8 @@ function createApp(options = {}) {
     try {
       const key=process.env.SHIPPO_API_KEY||process.env.Shippo_Test;
       if(!key)return res.status(503).json({error:'Shippo is not configured'});
-      const event=JSON.parse(Buffer.isBuffer(req.body)?req.body.toString('utf8'):JSON.stringify(req.body));
+      const rawBody=Buffer.isBuffer(req.body)?req.body:Buffer.from('');
+      const event=JSON.parse(rawBody.toString('utf8'));
       if(event?.event!=='track_updated')return res.json({received:true,ignored:true});
       const payload=event.data||{};
       const number=String(payload.tracking_number||'');
