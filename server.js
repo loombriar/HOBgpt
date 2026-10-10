@@ -1317,7 +1317,7 @@ function createApp(options = {}) {
       // Fail closed until a dedicated webhook secret is configured. Never accept anonymous updates.
       const webhookSecret=process.env.SHIPPO_WEBHOOK_SECRET||process.env.SHIPPO_WEBHOOK;
       if(!webhookSecret)return res.status(503).json({error:'Shippo webhook authentication is not configured'});
-      const suppliedSecret=String(req.get('x-shippo-webhook-secret')||'');
+      const suppliedSecret=String(req.get('x-shippo-webhook-secret')||req.query?.token||'');
       if(!suppliedSecret||!safeEqual(suppliedSecret,webhookSecret))return res.status(401).json({error:'Unauthorized webhook'});
       const rawBody=Buffer.isBuffer(req.body)?req.body:Buffer.from('');
       const event=JSON.parse(rawBody.toString('utf8'));
