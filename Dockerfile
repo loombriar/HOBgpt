@@ -10,7 +10,7 @@ COPY . .
 # Limit parallel backend test workers to reduce memory pressure during Railway builds.
 # Run focused payout guards during image build; full backend suite must run separately in CI.
 # The full suite currently stalls during Railway image builds and exceeds the build limit.
-RUN node --test tests/payout-safety-regression.test.js
+RUN node --test --test-concurrency=1 tests/payout-safety-regression.test.js tests/payout-transfer-integration.test.js
 RUN npm --prefix apps/default test
 RUN npm --prefix apps/default run build
 RUN npm prune --omit=dev
