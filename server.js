@@ -1308,6 +1308,46 @@ function createApp(options = {}) {
     }
   });
 
+  // Shippo sends track_updated events. Treat the payload as a hint only:
+  // independently retrieve tracking status from Shippo before updating any order.
+  app.post('/api/shippo/webhook', express.raw({type:'application/json',limit:'64kb'}), async (req,res) => {
+    try {
+      const key=process.env.SHIPPO_API_KEY||process.env.Shippo_Test;
+      if(!key)return res.status(503).json({error:'Shippo is not configured'});
+      // Fail closed until a dedicated webhook secret is configured. Never accept anonymous updates.
+      const webhookSecret=process.env.SHIPPO_WEBHOOK_SECRET||process.env.SHIPPO_WEBHOOK;
+      if(!webhookSecret)return res.status(503).json({error:'Shippo webhook authentication is not configured'});
+      const suppliedSecret=String(req.get('x-shippo-webhook-secret')||req.query?.token||'');
+      if(!suppliedSecret||!safeEqual(suppliedSecret,webhookSecret))return res.status(401).json({error:'Unauthorized webhook'});
+      const rawBody=Buffer.isBuffer(req.body)?req.body:Buffer.from('');
+      const event=JSON.parse(rawBody.toString('utf8'));
+      if(event?.event!=='track_updated')return res.json({received:true,ignored:true});
+      const payload=event.data||{};
+      const number=String(payload.tracking_number||'');
+      const carrier=String(payload.carrier||'').toLowerCase();
+      if(!number||!carrier)return res.json({received:true,ignored:true});
+      const matches=db.prepare('SELECT * FROM designer_transfers WHERE tracking_number=?').all(number)
+        .filter(t=>String(t.tracking_carrier||'').toLowerCase()===carrier||key.startsWith('shippo_test_'));
+      if(!matches.length)return res.json({received:true,ignored:true});
+      const response=await fetch('https://api.goshippo.com/tracks/'+encodeURIComponent(key.startsWith('shippo_test_')?'shippo':carrier)+'/'+encodeURIComponent(number),{
+        headers:{Authorization:'ShippoToken '+key,Accept:'application/json'}
+      });
+      if(!response.ok)return res.status(502).json({error:'Shippo status lookup failed'});
+      const current=await response.json();
+      if(String(current.tracking_number||'')!==number)return res.status(502).json({error:'Tracking mismatch'});
+      const status=String(current.tracking_status?.status||'UNKNOWN').toLowerCase();
+      const simulated=key.startsWith('shippo_test_')||current.test===true;
+      for(const transfer of matches){
+        db.prepare('UPDATE designer_transfers SET tracking_status=? WHERE id=?').run(simulated?'test_'+status:status,transfer.id);
+      }
+      // No payouts from webhook notifications. Live payout verification must be separately validated.
+      return res.json({received:true,updated:matches.length,simulated});
+    }catch(error){
+      log('error','shippo_webhook_failed',{message:String(error?.message||error).slice(0,200)});
+      return res.status(400).json({error:'Invalid tracking update'});
+    }
+  });
+
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(Boolean);
@@ -1571,8 +1611,16 @@ function createApp(options = {}) {
       }
     }
     if(!accountId){
-      const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
-      const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}-v2`});
+      const accountBody=JSON.stringify({
+          contact_email:designer.email,
+          identity:{country:process.env.STRIPE_CONNECTED_ACCOUNT_COUNTRY||'US'},
+          display_name:designer.brand_name||designer.display_name||designer.email,
+          dashboard:'express',
+          configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
+          defaults:{responsibilities:{fees_collector:'application',losses_collector:'application'}},
+          metadata:{designer_id:designer.id}
+        });
+      const account=await stripeApi('v2/core/accounts',{method:'POST',body:accountBody,idempotencyKey:`hob-connect-account-${designer.id}-accounts-v2`});
       accountId=account.id;
       if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
@@ -1733,8 +1781,16 @@ function createApp(options = {}) {
       if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
       let accountId=designer.stripe_account_id;
       if(!accountId){
-        const accountBody=new URLSearchParams({type:'express',email:designer.email,'capabilities[transfers][requested]':'true','metadata[designer_id]':designer.id});
-        const account=await stripeApi('accounts',{method:'POST',body:accountBody.toString(),idempotencyKey:`hob-connect-account-${designer.id}`});
+        const accountBody=JSON.stringify({
+          contact_email:designer.email,
+          identity:{country:process.env.STRIPE_CONNECTED_ACCOUNT_COUNTRY||'US'},
+          display_name:designer.brand_name||designer.display_name||designer.email,
+          dashboard:'express',
+          configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
+          defaults:{responsibilities:{fees_collector:'application',losses_collector:'application'}},
+          metadata:{designer_id:designer.id}
+        });
+        const account=await stripeApi('v2/core/accounts',{method:'POST',body:accountBody,idempotencyKey:`hob-connect-account-${designer.id}-accounts-v2-admin`});
         accountId=account.id;
         if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
         db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
@@ -1872,11 +1928,12 @@ function createApp(options = {}) {
     if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
-    const response = await fetch(`https://api.stripe.com/v1/${pathname}`, {
+    const response = await fetch(`https://api.stripe.com/${pathname.startsWith('v2/')?'':'v1/'}${pathname}`, {
       method: requestOptions.method || 'GET',
       headers: {
         Authorization: `Bearer ${secret}`,
-        ...(requestOptions.body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        ...(requestOptions.body ? { 'Content-Type': pathname.startsWith('v2/')?'application/json':'application/x-www-form-urlencoded' } : {}),
+        ...(pathname.startsWith('v2/') ? { 'Stripe-Version': '2026-09-30.endive' } : {}),
         ...(requestOptions.idempotencyKey ? { 'Idempotency-Key': requestOptions.idempotencyKey } : {})
       },
       body: requestOptions.body
@@ -1951,8 +2008,31 @@ function createApp(options = {}) {
 
   async function verifyShipmentTracking(trackingNumber, carrier) {
     if (typeof options.verifyShipmentTracking === 'function') return options.verifyShipmentTracking(trackingNumber, carrier);
+    const shippoKey = process.env.SHIPPO_API_KEY || process.env.Shippo_Test;
+    if (shippoKey) {
+      const testMode = shippoKey.startsWith('shippo_test_');
+      const response = await fetch('https://api.goshippo.com/tracks/', {
+        method: 'POST',
+        headers: {
+          Authorization: `ShippoToken ${shippoKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({tracking_number:trackingNumber,carrier:testMode?'shippo':carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
+      });
+      const tracker = await response.json().catch(()=>({}));
+      if(!response.ok){
+        log('error','shippo_tracking_api_failed',{status:response.status,providerMessage:String(tracker?.detail||tracker?.message||'').slice(0,300)});
+        throw Object.assign(new Error('Shippo could not accept this carrier and tracking number. Check the carrier name and tracking number.'),{statusCode:422,code:'tracking_verification_failed'});
+      }
+      const status=String(tracker.tracking_status?.status||'UNKNOWN').toLowerCase();
+      const acceptedStatuses=new Set(['transit','out_for_delivery','delivered','available_for_pickup']);
+      const hasCarrierEvent=Array.isArray(tracker.tracking_history)&&tracker.tracking_history.some(event=>Boolean(event?.status_date));
+      // Shippo test tracking is simulated. Never release real payouts from simulated events.
+      const verified=!testMode&&acceptedStatuses.has(status)&&hasCarrierEvent;
+      return {verified,id:tracker.object_id||'',carrier:tracker.carrier||carrier,status:testMode?`test_${status}`:status};
+    }
     const apiKey = process.env.EASYPOST_API_KEY;
-    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured.'), { statusCode: 503 });
+    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in the testing environment.'), { statusCode: 503 });
     const response = await fetch('https://api.easypost.com/v2/trackers', {
       method: 'POST',
       headers: {
@@ -1987,7 +2067,7 @@ function createApp(options = {}) {
       if (existing?.payout_in_flight) { results.push({designer_id:group.designer_id,status:'pending',reason:'transfer_processing'}); continue; }
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
-      if (releaseReason === 'tracking_verified' && (!existing.tracking_number || !existing.tracking_verified_at)) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'tracking_required' }); continue; }
+      if (!existing.tracking_number || !existing.tracking_verified_at || !new Set(['transit','in_transit','out_for_delivery','delivered','available_for_pickup']).has(String(existing.tracking_status||'').toLowerCase()) || /^SHIPPO_(TRANSIT|DELIVERED|FAILURE|UNKNOWN|PRE_TRANSIT|OUT_FOR_DELIVERY)$/i.test(existing.tracking_number) || String(existing.tracking_status||'').startsWith('test_')) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'carrier_verification_required' }); continue; }
       const accountId = designerStripeAccount(group.designer_id);
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });

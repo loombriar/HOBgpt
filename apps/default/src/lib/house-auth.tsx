@@ -1,3 +1,4 @@
+import { clearHouseCartOnSignOut } from './cart-signout';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {AuthContext,type AuthContextProps} from 'react-oidc-context';
 import {User,UserManager} from 'oidc-client-ts';
@@ -31,7 +32,7 @@ export function HouseAuth({children}:{children:ReactNode}){
  const version=useRef(0);
  const [manager]=useState(()=>new UserManager({authority:window.location.origin,client_id:'house',redirect_uri:window.location.origin+'/designers/room',automaticSilentRenew:false}));
  useEffect(()=>{let active=true;async function refresh(){const attempt=++version.current;setUser(null);setLoading(true);const token=localStorage.getItem('briarDesignerToken')||sessionStorage.getItem('briarDesignerToken')||'';try{const next=await validateHouseSession(token);if(next){localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');}if(active&&attempt===version.current)setUser(next);}catch{if(active&&attempt===version.current)setUser(null);}finally{if(active&&attempt===version.current)setLoading(false);}}void refresh();window.addEventListener('storage',refresh);return()=>{active=false;version.current++;window.removeEventListener('storage',refresh);};},[]);
- async function removeUser(){version.current++;await revokeHouseSessions();localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');setUser(null);setLoading(false);}
+ async function removeUser(){version.current++;await revokeHouseSessions();localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');clearHouseCartOnSignOut();setUser(null);setLoading(false);}
  async function signinRedirect(){window.location.assign('/designers/room');}
  async function signoutRedirect(){await removeUser();window.location.assign('/');}
  const unsupported=async()=>{throw Error('Use your existing House Designer’s Room to sign in.');};

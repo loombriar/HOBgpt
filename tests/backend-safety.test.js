@@ -13,10 +13,10 @@ async function fixture(run){
     ctx.db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run('acct_'+id,id);
     ctx.db.prepare('INSERT INTO designer_terms_acceptances(designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run(id,SELLER_TERMS_VERSION,now,'test');
   }
-  ctx.db.prepare("INSERT INTO orders(id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,stripe_payment_intent_id) VALUES ('order','paid','usd',8000,800,7200,?,'pi_test')").run(now);
+  ctx.db.prepare("INSERT INTO orders(id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,stripe_payment_intent_id,payment_provider) VALUES ('order','paid','usd',8000,800,7200,?,'pi_test','stripe')").run(now);
   for(const id of ['maker','other']){
     ctx.db.prepare("INSERT INTO order_items(id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES (?,'order',?,?,'Piece',4000,1,4000,400,3600)").run('item_'+id,'piece_'+id,id);
-    ctx.db.prepare("INSERT INTO designer_transfers(id,order_id,designer_id,stripe_account_id,amount_cents,status,created_at) VALUES (?,'order',?,?,3600,'pending',?)").run('transfer_'+id,id,'acct_'+id,now);
+    ctx.db.prepare("INSERT INTO designer_transfers(id,order_id,designer_id,stripe_account_id,amount_cents,status,created_at,tracking_number,tracking_status,tracking_verified_at) VALUES (?,'order',?,?,3600,'pending',?,?, 'in_transit', ?)").run('transfer_'+id,id,'acct_'+id,now,'1Z999AA10123456784',now);
   }
   const srv=ctx.app.listen(0,'127.0.0.1');await once(srv,'listening');const origin='http://127.0.0.1:'+srv.address().port;
   const call=async(route,token='admin',body,method='POST')=>{const res=await fetch(origin+route,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});return {status:res.status,body:await res.json().catch(()=>({}))};};

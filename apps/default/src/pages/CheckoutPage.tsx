@@ -57,7 +57,7 @@ export default function CheckoutPage() {
     setLoading(true);
     setLoadError('');
     void getCatalogProducts(auth.isAuthenticated)
-      .then((rows) => { if (active) setProducts(rows); })
+      .then((rows) => { if (!active) return; setProducts(rows); if (returnState === 'success') return; const soldIds = new Set(rows.filter(item => getFieldValue(item, '@statx', 'Status') === 'Sold Out').map(item => item.id)); if (!soldIds.size) return; const current = readCartIds(); const remaining = current.filter(id => !soldIds.has(id)); if (remaining.length !== current.length) { window.localStorage.setItem(CART_KEY, JSON.stringify(remaining)); setCartIds(remaining); window.dispatchEvent(new Event('house-of-briar-cart')); setLoadError('A sold piece was removed from your cart. Review your remaining pieces before checkout.'); } })
       .catch((error) => { if (active) setLoadError(error instanceof Error ? error.message : 'The collection could not load.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
