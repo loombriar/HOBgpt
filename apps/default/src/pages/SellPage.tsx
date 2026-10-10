@@ -77,7 +77,9 @@ export default function SellPage() {
         <h2 className="font-serif text-3xl">Welcome to House of Briar.</h2>
         <p role="status" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
         <p className="mt-4 text-xs text-muted-foreground">Designer sign-up reference: {signupId}</p>
-        <Link to="/account" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold hover:border-primary hover:text-primary">Go to your account</Link>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">You do not need to upload a piece or a portfolio to get started. Sign in with the email you registered to complete Stripe payout setup; you can create your first listing later.</p>
+        <Link to="/account#payout-setup" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground hover:opacity-90">Continue to Stripe payment setup →</Link>
+        <p className="mt-3 text-xs text-muted-foreground">For security, Stripe setup opens from your signed-in Designer Studio. If you are not signed in, use your registered email to sign in first.</p>
       </section> : <form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="text-sm font-medium">Your name
