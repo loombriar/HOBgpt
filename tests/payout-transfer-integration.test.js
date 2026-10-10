@@ -14,7 +14,7 @@ test('admin payout release uses real payout gate and never calls Stripe for simu
  await once(server,'listening');
  const url='http://127.0.0.1:'+server.address().port+'/api/admin/orders/payout-order/designers/maker/release';
  try{
-  db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,stripe_account_id,status,created_at) VALUES ('maker','maker@example.invalid','Maker','Maker','acct_mock_seller','active',?)").run(now);
+  db.prepare("UPDATE designer_profiles SET stripe_account_id='acct_mock_seller',status='active' WHERE id='maker'").run();
   db.prepare("INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES ('maker','2026-10-06',?,'test')").run(now);
   db.prepare("INSERT INTO orders (id,stripe_session_id,status,payment_provider,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at) VALUES ('payout-order','cs_mock_order','paid','stripe','usd',5000,500,4500,?,?)").run(now,now);
   db.prepare("INSERT INTO order_items (id,order_id,listing_id,designer_id,title,unit_amount_cents,quantity,line_total_cents,platform_fee_cents,designer_amount_cents) VALUES ('payout-line','payout-order','payout-piece','maker','Piece',5000,1,5000,500,4500)").run();
