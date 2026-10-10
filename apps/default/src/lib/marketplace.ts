@@ -15,7 +15,7 @@ type GalleryItem = {
   images?: Array<{ url: string }>;
   seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
   giftNoteAvailable?:boolean; shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
-  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number;
+  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; availableQuantity?: number|null; soldQuantity?: number; reservedQuantity?: number;
 };
 
 function galleryItemToGenesis(item: GalleryItem): GenesisNode {
@@ -33,7 +33,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',
       '/attributes/@descr': item.description || 'A one-of-a-kind piece made with intention.',
-      '/attributes/@statx': item.status === 'published' || !item.status ? 'Available' : item.status,
+      '/attributes/@statx': item.productionType !== 'Made to Order' && item.availableQuantity === 0 ? (Number(item.soldQuantity ?? 0) > 0 ? 'Sold Out' : 'Temporarily Unavailable') : item.status === 'published' || !item.status ? 'Available' : item.status,
       '/attributes/@image': images[0] || '',
       '/attributes/@gally': images.join('\n'),
       '/attributes/@seotl': item.seoTitle || '',
@@ -47,7 +47,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@handx': item.handlingDaysMax == null ? '' : String(item.handlingDaysMax),
       '/attributes/@intl': item.internationalShipping ? 'yes' : 'no',
       '/attributes/@ptype': item.productionType || 'One of a Kind',
-      '/attributes/@stock': String(item.stockQuantity ?? (item.productionType === 'Made to Order' ? 0 : 1)),
+      '/attributes/@stock': String(item.availableQuantity ?? item.stockQuantity ?? (item.productionType === 'Made to Order' ? 0 : 1)),
     },
   };
 }
