@@ -3786,6 +3786,34 @@ function createApp(options = {}) {
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
+  // Creative House: designer-owned collaboration board. No public applicant contact details.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_opportunities (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('model','photographer','both')),
+    location TEXT NOT NULL, compensation TEXT NOT NULL CHECK(compensation IN ('paid','unpaid','negotiable')),
+    description TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed'))
+  )`);
+  app.get('/api/creative-house/opportunities',(_req,res)=>{
+    const rows=db.prepare("SELECT o.id,o.title,o.role,o.location,o.compensation,o.description,o.created_at,p.brand_name FROM creative_opportunities o JOIN designer_profiles p ON p.id=o.designer_id WHERE o.status='open' AND p.status='active' ORDER BY o.created_at DESC LIMIT 60").all();
+    res.json({opportunities:rows});
+  });
+  app.post('/api/creative-house/opportunities',authDesigner,(req,res)=>{
+    const values=req.body||{};
+    const clean=(key,max)=>typeof values[key]==='string'?values[key].trim().slice(0,max):'';
+    const title=clean('title',100),role=clean('role',20),location=clean('location',100),compensation=clean('compensation',20),description=clean('description',1000);
+    if(!title||!location||description.length<20||!['model','photographer','both'].includes(role)||!['paid','unpaid','negotiable'].includes(compensation))return res.status(400).json({error:'Please complete every field and provide at least 20 characters of detail.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_opportunities WHERE designer_id=? AND status='open'").get(req.designerId).n;
+    if(count>=5)return res.status(429).json({error:'You may have up to five open opportunities.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_opportunities(id,designer_id,title,role,location,compensation,description) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,title,role,location,compensation,description);
+    res.status(201).json({id});
+  });
+  app.post('/api/creative-house/opportunities/:id/close',authDesigner,(req,res)=>{
+    const result=db.prepare("UPDATE creative_opportunities SET status='closed' WHERE id=? AND designer_id=?").run(req.params.id,req.designerId);
+    if(!result.changes)return res.status(404).json({error:'Opportunity not found.'});
+    res.json({ok:true});
+  });
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
   app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
