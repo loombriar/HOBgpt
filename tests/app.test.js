@@ -287,7 +287,8 @@ test('editorial storefront retains accessible native category filters and their 
   assert.match(html, /class="shop-drop-window menswear-window"/);
   assert.doesNotMatch(html, /class="fashion-category-links"/);
   assert.match(html, /href="\/shop\?category=menswear"/);
-  assert.match(html, /id="designers-wanted-title">Designers wanted/);
+  assert.match(html, /id="designers-wanted-title">Made by someone,/);
+  assert.match(html, /Independent by design/);
   assert.doesNotMatch(html, /class="sewing-hero-art"/);
 });
 
