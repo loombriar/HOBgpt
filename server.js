@@ -3838,6 +3838,40 @@ function createApp(options = {}) {
     db.prepare('INSERT INTO creative_project_requests(id,kind,contact_name,contact_email,title,description,budget,location,timeline) VALUES(?,?,?,?,?,?,?,?,?)').run(id,kind,contactName,contactEmail,title,description,budget,location,timeline);
     res.status(201).json({received:true,message:'Your request has been received for review. This is not a confirmed booking.'});
   });
+  // DJ and venue profiles are opt-in and only readable by active House designers.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_event_profiles (
+    owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL CHECK(role IN ('dj','venue')),
+    display_name TEXT NOT NULL, location TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '', specialties TEXT NOT NULL DEFAULT '',
+    pricing TEXT NOT NULL DEFAULT '', capacity TEXT NOT NULL DEFAULT '',
+    amenities TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.get('/api/creative-house/event-profiles',authDesigner,(_req,res)=>{
+    const profiles=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
+    res.json({profiles});
+  });
+  app.get('/api/creative-house/event-profiles/:slug',authDesigner,(req,res)=>{
+    const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 AND slug=?').get(req.params.slug);
+    if(!profile)return res.status(404).json({error:'Profile not found.'});
+    res.json({profile});
+  });
+  app.get('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
+    const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published FROM creative_event_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    res.json({profile:profile||null});
+  });
+  app.put('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
+    const v=req.body||{},clean=(k,n)=>typeof v[k]==='string'?v[k].trim().slice(0,n):'';
+    const role=clean('role',20),name=clean('display_name',80),location=clean('location',100),description=clean('description',1000),specialties=clean('specialties',250),pricing=clean('pricing',100),capacity=clean('capacity',60),amenities=clean('amenities',350);
+    if(!['dj','venue'].includes(role)||!name||!location||description.length<20||typeof v.published!=='boolean')return res.status(400).json({error:'Provide a role, name, region, description (20+ characters), and visibility preference.'});
+    const old=db.prepare('SELECT slug FROM creative_event_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const slug=old?.slug||(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55)||'creative')+'-'+crypto.randomBytes(4).toString('hex');
+    db.prepare(`INSERT INTO creative_event_profiles(owner_subject,slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(owner_subject) DO UPDATE SET role=excluded.role,display_name=excluded.display_name,location=excluded.location,description=excluded.description,specialties=excluded.specialties,pricing=excluded.pricing,capacity=excluded.capacity,amenities=excluded.amenities,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,role,name,location,description,specialties,pricing,capacity,amenities,v.published?1:0);
+    res.json({profile:{slug,role,display_name:name,location,description,specialties,pricing,capacity,amenities,published:v.published}});
+  });
   // Fashion event briefs: only active designers may publish or close events.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_events (
     id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
