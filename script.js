@@ -538,7 +538,12 @@ function renderGallery() {
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
   if (!items.length) {
-    const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
+    const empty = makeElement('div', 'empty-gallery');
+    empty.appendChild(makeElement('p', '', 'Nothing in this edit just yet. Your next favorite might be hiding in another mood.'));
+    const reset = makeElement('button', 'secondary-button', 'Explore all pieces ↗');
+    reset.type = 'button';
+    reset.addEventListener('click', () => byId('shop-clear-filters')?.click());
+    empty.appendChild(reset);
     productGrid.appendChild(empty);
     return;
   }
@@ -1618,6 +1623,22 @@ byId('visitor-suite-btn')?.addEventListener('click', () => {
 byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
 byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; loadGallery(); });
 byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value || 'all'; activeFilter = 'all'; byId('shop-garment-filter').value = 'all'; byId('shop-garment-filter').dispatchEvent(new Event('shop-caption')); loadGallery(); });
+function syncShopMoodButtons() {
+  document.querySelectorAll('[data-shop-mood]').forEach(button => {
+    const selected = button.dataset.shopMood === activeAesthetic;
+    button.setAttribute('aria-pressed', String(selected));
+    button.classList.toggle('is-selected', selected);
+  });
+  const hint = byId('shop-mood-hint');
+  if (hint) hint.textContent = activeAesthetic === 'all' ? 'Choose a mood to filter pieces, or explore everything below.' : 'Showing the ' + ({ Gothic: 'Dramatic', Minimalist: 'Everyday unusual' }[activeAesthetic] || activeAesthetic) + ' edit. Tap again to see everything.';
+}
+document.querySelectorAll('[data-shop-mood]').forEach(button => button.addEventListener('click', () => {
+  activeAesthetic = activeAesthetic === button.dataset.shopMood ? 'all' : button.dataset.shopMood;
+  const select = byId('shop-aesthetic-filter');
+  if (select) { select.value = activeAesthetic; select.dispatchEvent(new Event('shop-caption')); }
+  syncShopMoodButtons();
+  loadGallery();
+}));
 byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim(); clearTimeout(searchTimer); searchTimer = setTimeout(loadGallery, 200); });
 
 byId('shop-designer-filter')?.addEventListener('change', event => { activeDesigner = event.target.value || 'all'; loadGallery(); });
