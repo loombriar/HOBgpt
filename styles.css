@@ -1854,3 +1854,11 @@ body.designer-room-open .designer-room-header{padding-right:clamp(9rem,28vw,13re
 .fitting-figure::after{content:'';position:absolute;top:8px;left:50%;width:32px;height:40px;margin-left:-16px;border-radius:50%;background:linear-gradient(90deg,#77736e,#c5c0b9,#67635e);transform:rotateY(90deg)}
 @media(max-width:650px){.measurement-avatar-intro .fitting-studio{flex:auto}#measurement-avatar-preview{min-height:370px}.fitting-scene{height:370px}.fitting-figure{scale:1.18}}
 @media(prefers-reduced-motion:reduce){.fitting-figure{transition:none}}
+
+/* Homepage editorial hero: ensure readable contrast regardless of inherited dark hero theme. */
+.hero.sewing-hero{background:#f6eee3!important;color:#342c27!important;opacity:1!important}
+.hero.sewing-hero .sewing-hero-content,.hero.sewing-hero .sewing-hero-content *{opacity:1!important;filter:none!important;mix-blend-mode:normal!important}
+.hero.sewing-hero .sewing-hero-content h1,.hero.sewing-hero .sewing-hero-content h1 em{color:#342c27!important;text-shadow:none!important}
+.hero.sewing-hero .sewing-hero-content .eyebrow{color:#665042!important}
+.hero.sewing-hero .sewing-hero-content>p:not(.eyebrow){color:#51443a!important}
+.hero.sewing-hero .sewing-hero-actions .secondary-button{color:#342c27!important;border-color:#665042!important;background:#fff8ee!important}
