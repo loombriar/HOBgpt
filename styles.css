@@ -1812,3 +1812,26 @@ body{background-color:#faf5ef!important;color:#493b4b}
 body.designer-room-open .designer-room-header #modal-close{position:fixed;top:max(0.75rem,env(safe-area-inset-top));right:max(0.75rem,env(safe-area-inset-right));z-index:1000;box-shadow:0 3px 14px rgba(0,0,0,.18)}
 body.designer-room-open .designer-room-header{padding-right:clamp(9rem,28vw,13rem)}
 @media(max-width:600px){body.designer-room-open .designer-room-header{min-height:4.25rem;padding-right:9rem}body.designer-room-open .designer-room-header #modal-close{font-size:.85rem;padding:.65rem .8rem}}
+
+/* Non-destructive fitting-studio preview; saved profiles and the small legacy thumbnails remain unchanged. */
+.measurement-avatar-intro .fitting-studio{flex:0 0 min(100%,260px);min-width:0}
+#measurement-avatar-preview{display:grid;place-items:center;min-height:320px}
+.fitting-scene{width:230px;height:310px;display:grid;place-items:center;perspective:650px;background:radial-gradient(ellipse at 50% 78%,#d9d4d0 0,transparent 60%),linear-gradient(155deg,#f7f6f4,#e9e7e4);border:1px solid #d7d4cf;border-radius:8px;overflow:hidden}
+.fitting-figure{position:relative;width:120px;height:280px;transform-style:preserve-3d;transition:transform .5s ease;transform-origin:50% 48%;filter:drop-shadow(7px 8px 7px #9b99956b)}
+.fitting-part{position:absolute;left:50%;transform-style:preserve-3d;background:linear-gradient(90deg,#888785 0%,#d5d3d0 24%,#eeeae4 45%,#b8b5b0 78%,#858380 100%);border:1px solid #a8a49e;box-shadow:inset -7px 0 12px #716e6955;border-radius:48%}
+.fitting-head{top:2px;width:36px;height:45px;margin-left:-18px;border-radius:48% 48% 44% 44%;transform:translateZ(1px)}
+.fitting-neck{top:42px;width:16px;height:18px;margin-left:-8px;border-radius:5px}
+.fitting-chest{top:57px;width:calc(69px * var(--avatar-bust));height:72px;margin-left:calc(-34.5px * var(--avatar-bust));border-radius:37% 37% 30% 30%;transform:scaleY(var(--avatar-height))}
+.fitting-waist{top:119px;width:calc(52px * var(--avatar-waist));height:49px;margin-left:calc(-26px * var(--avatar-waist));border-radius:26% 26% 38% 38%}
+.fitting-pelvis{top:158px;width:calc(73px * var(--avatar-hips));height:48px;margin-left:calc(-36.5px * var(--avatar-hips));border-radius:37% 37% 45% 45%}
+.fitting-arm{top:65px;width:16px;height:117px;border-radius:40%;transform-origin:top center}
+.fitting-arm-left{margin-left:calc(-39px * var(--avatar-bust));transform:rotateZ(9deg) translateZ(-4px)}
+.fitting-arm-right{margin-left:calc(23px * var(--avatar-bust));transform:rotateZ(-9deg) translateZ(-4px)}
+.fitting-leg{top:193px;width:25px;height:calc(80px * var(--avatar-inseam));border-radius:24% 24% 33% 33%}
+.fitting-leg-left{margin-left:-29px;transform:rotateZ(2deg)}
+.fitting-leg-right{margin-left:4px;transform:rotateZ(-2deg)}
+.fitting-stand{top:271px;width:86px;height:5px;margin-left:-43px;border-radius:50%;background:#77716b}
+.fitting-studio-controls{display:flex;gap:6px;margin-top:10px;justify-content:center}
+.fitting-studio-controls button{font:600 12px Inter,sans-serif;padding:8px 12px;background:#f4f1ee;border:1px solid #bcb5ad;border-radius:4px;color:#292725;cursor:pointer}
+.fitting-studio-controls button[aria-pressed="true"]{background:#292725;color:white}
+@media(max-width:650px){.measurement-avatar-intro{flex-direction:column;align-items:stretch}.measurement-avatar-intro .fitting-studio{flex:auto}#measurement-avatar-preview{min-height:310px}}
