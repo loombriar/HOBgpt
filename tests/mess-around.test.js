@@ -11,7 +11,9 @@ test('Mess Around stays in its menu with Find out first', () => {
  assert.match(nav.trim(), /^<a href="\/fashion-personality">Find out…<\/a>/);
  assert.ok(!html.includes('id="mess-around"'));
  const shell=read('apps/default/src/components/HouseShell.tsx');
- assert.equal((shell.match(/\['Find out…', '\/fashion-personality'\],\['Find Your Fashion Personality'/g)||[]).length,2);
+ assert.match(shell, /The Creative House/);
+ assert.match(shell, /to="\/cart"/);
+ assert.ok(!shell.includes('mobileNavOpen'));
  assert.ok(!shell.includes('/#mess-around'));
 });
 

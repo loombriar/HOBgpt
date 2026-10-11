@@ -17,11 +17,21 @@
     link.className = 'hob-global-cart-link';
     link.href = '/?openCart=1';
     link.setAttribute('aria-label', 'Open shopping cart');
-    link.textContent = 'Cart';
+    link.innerHTML = '<img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span>';
     slot.replaceWith(link);
   }
   header.classList.add('hob-original-header');
   header.insertAdjacentElement('beforebegin', nav);
+
+  // A fixed bar must reserve its own vertical space; measure wrapped mobile rows too.
+  const setOffset = () => {
+    const height = Math.ceil(nav.getBoundingClientRect().height);
+    document.body.style.paddingTop = height + 'px';
+    document.documentElement.style.scrollPaddingTop = height + 12 + 'px';
+  };
+  setOffset();
+  window.addEventListener('resize', setOffset);
+  if (window.ResizeObserver) new ResizeObserver(setOffset).observe(nav);
   if (onHome && new URLSearchParams(location.search).get('openCart') === '1') {
     window.addEventListener('load', () => {
       const button = document.getElementById('cart-btn');
