@@ -699,7 +699,7 @@ function updateMeasurementAvatarPreview() {
   const host = byId('measurement-avatar-preview'); if (!host) return;
   const profile = { label: byId('measurement-profile-name')?.value || 'New profile' };
   for (const key of ['bust','waist','hips','height']) profile[key] = byId(`measurement-profile-${key}`)?.value || '';
-  host.replaceChildren(fittingMannequin3D(profile));
+  host.replaceChildren(window.createBriarWebGLAvatar?.(profile, fittingAvatarAngle) || fittingMannequin3D(profile));
 }
 let fittingAvatarAngle = 0;
 function fittingMannequin3D(profile = {}) {
