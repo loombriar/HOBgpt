@@ -1835,3 +1835,6 @@ body.designer-room-open .designer-room-header{padding-right:clamp(9rem,28vw,13re
 .fitting-studio-controls button{font:600 12px Inter,sans-serif;padding:8px 12px;background:#f4f1ee;border:1px solid #bcb5ad;border-radius:4px;color:#292725;cursor:pointer}
 .fitting-studio-controls button[aria-pressed="true"]{background:#292725;color:white}
 @media(max-width:650px){.measurement-avatar-intro{flex-direction:column;align-items:stretch}.measurement-avatar-intro .fitting-studio{flex:auto}#measurement-avatar-preview{min-height:310px}}
+
+.fitting-webgl-canvas{display:block;width:min(100%,330px);height:410px;touch-action:pan-y;cursor:grab;background:radial-gradient(ellipse at 50% 85%,#d4cec8,#f6f4f1 75%);border:1px solid #d7d1c9;border-radius:3px}
+@media(max-width:650px){.fitting-webgl-canvas{height:370px}}
