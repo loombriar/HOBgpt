@@ -1989,3 +1989,20 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 @media(max-width:740px){#product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#product-grid>.product-card,#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 1}#product-grid>.product-card:nth-child(5n + 1){grid-column:span 2}#product-grid>.product-card .product-body{backdrop-filter:none;-webkit-backdrop-filter:none}#product-grid>.product-card:hover{transform:none}#product-grid>.product-card .product-image img{transition:none}#product-grid>.product-card:hover .product-image img{transform:none}}
 @media(max-width:390px){#product-grid{grid-template-columns:1fr}#product-grid>.product-card,#product-grid>.product-card:nth-child(5n + 1){grid-column:span 1}}
 @media(prefers-reduced-motion:reduce){#product-grid>.product-card,#product-grid>.product-card .product-image img{transition:none!important}#product-grid>.product-card:hover,#product-grid>.product-card:hover .product-image img{transform:none!important}}
+
+/* Persistent compact House menu. The full homepage nav stays available above. */
+.house-compact-bar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:11px clamp(16px,3vw,46px);background:rgba(251,248,244,.95);border-bottom:1px solid rgba(76,58,47,.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:20}
+.house-compact-logo{font:normal 22px/1.2 Georgia,serif;letter-spacing:.09em;color:#242321;text-decoration:none;white-space:nowrap}
+.house-compact-logo i{font-size:.65em}
+.house-compact-bar nav{display:flex;align-items:center;justify-content:flex-end;gap:clamp(10px,2vw,28px);flex-wrap:wrap}
+.house-compact-bar nav>a,.house-compact-bar nav>details>summary,.house-compact-bar nav>button{font:normal 13px/1.3 Arial,sans-serif;color:#242321;background:transparent;border:0;padding:10px 3px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.house-compact-bar nav>details{position:relative}
+.house-compact-bar nav>details>summary{list-style:none}
+.house-compact-bar nav>details>summary::-webkit-details-marker{display:none}
+.house-compact-menu{position:absolute;top:100%;right:0;width:min(290px,85vw);display:grid;padding:10px;background:#fbf8f4;border:1px solid #d8c9bb;box-shadow:0 12px 28px rgba(45,32,27,.17);z-index:100}
+.house-compact-menu a{padding:11px 12px;color:#242321;font:normal 13px Arial,sans-serif;text-decoration:none}
+.house-compact-menu a:hover,.house-compact-menu a:focus-visible{background:#eee4d9}
+.house-compact-bar a:focus-visible,.house-compact-bar summary:focus-visible,.house-compact-bar button:focus-visible{outline:2px solid #8b624e;outline-offset:3px}
+.site-header.sewing-header{position:sticky!important;top:0!important;z-index:1000!important}
+@media(max-width:750px){.house-compact-bar{align-items:flex-start;flex-direction:column;gap:6px;padding:10px 14px}.house-compact-logo{font-size:20px}.house-compact-bar nav{justify-content:flex-start;gap:12px;width:100%}.house-compact-bar nav>a,.house-compact-bar nav>details>summary,.house-compact-bar nav>button{font-size:12px;padding:9px 0}.site-header.sewing-header{max-height:100dvh;overflow-y:auto}}
+@media(prefers-reduced-motion:reduce){.house-compact-bar{scroll-behavior:auto}}
