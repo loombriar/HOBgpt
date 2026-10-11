@@ -1915,3 +1915,40 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 .hob-two-doors-note a{color:#6c443b;text-decoration:underline;text-underline-offset:4px}
 @media(max-width:720px){.hob-two-doors-grid{grid-template-columns:1fr}.hob-door{min-height:470px}.hob-door-art{font-size:clamp(4rem,16vw,7rem)}}
 @media(prefers-reduced-motion:reduce){.hob-door{transition:none}}
+
+/* Cohesive editorial homepage rhythm; no duplicated photography. */
+.hob-two-doors,.product-section,.designer-callout-section,.story-section{scroll-margin-top:100px}
+.hob-two-doors-heading{max-width:780px;margin-inline:auto}
+.hob-two-doors-heading>p:last-child{font-size:clamp(15px,1.5vw,19px);line-height:1.55}
+.hob-door-content{min-height:215px;justify-content:flex-end}
+.hob-door-content>span{max-width:34ch}
+.shop-editorial-lead{max-width:45ch;line-height:1.6;color:#67564b;margin-top:12px}
+.shop-discovery-links{display:flex;flex-wrap:wrap;gap:10px 18px;line-height:1.5}
+.shop-discovery-links a{font-size:13px;text-underline-offset:4px}
+.designer-creative-note{max-width:58ch;line-height:1.6}
+.designer-creative-note a{color:inherit;text-decoration:underline;text-underline-offset:4px}
+.designer-fee-note{max-width:30ch;line-height:1.55}
+.story-copy p{line-height:1.75}
+.story-actions{gap:12px}
+.story-actions a,.designer-callout-button{min-height:48px}
+@media(max-width:768px){
+ .hob-two-doors{padding:48px 0}
+ .hob-two-doors-heading{padding-inline:18px;margin-bottom:24px}
+ .hob-two-doors-heading h2{font-size:clamp(2.2rem,10vw,3.4rem)!important;overflow-wrap:break-word}
+ .hob-two-doors-grid{gap:16px;padding-inline:16px}
+ .hob-door{min-height:0}
+ .hob-door-number{padding:18px 20px}
+ .hob-door-art{min-height:165px;margin:0 20px;font-size:clamp(3.5rem,13vw,6rem)}
+ .hob-door-content{padding:22px 20px 26px;min-height:0;gap:10px}
+ .hob-door-content strong{font-size:clamp(2.4rem,11vw,3.6rem)}
+ .hob-two-doors-note{padding-inline:18px;line-height:1.6}
+ .story-grid,.designer-callout{gap:22px}
+ .story-actions{display:flex;flex-direction:column;align-items:stretch}
+ .story-actions a{text-align:center;justify-content:center}
+ .shop-discovery-links{gap:12px 18px}
+ .shop-search-controls,.shop-search{max-width:100%;min-width:0}
+ .shop-search input{max-width:100%;width:100%;box-sizing:border-box}
+ .designer-callout-action{width:100%}
+ .designer-callout-button{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box}
+}
+@media(max-width:420px){.hob-door-art{font-size:clamp(3rem,13vw,4.5rem)}.hob-two-doors-heading h2{font-size:2.4rem!important}.shop-discovery-links a{min-height:30px;display:inline-flex;align-items:center}}
