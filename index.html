@@ -56,7 +56,7 @@
   <body>
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">Virtual styling preview</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
     <div class="page-shell">
-      <header class="site-header sewing-header">
+      <header class="site-header sewing-header"><div class="house-compact-bar" aria-label="House of Briar quick navigation"><a class="house-compact-logo" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="Quick navigation"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><details><summary>The Creative House <span aria-hidden="true">▾</span></summary><div class="house-compact-menu"><a href="/creative-house.html">Overview</a><a href="/creative-house.html#opportunities">Models &amp; photographers</a><a href="/creative-house.html#creative-directory">Creative profiles</a><a href="/creative-house.html#event-creatives">DJs &amp; venues</a><a href="/creative-house.html#fashion-events">Events</a><a href="/creative-house.html#casting-commissioning">Commissions</a><a href="/creative-house.html#private-inquiries">Private inquiries</a></div></details><button type="button" id="house-compact-cart" aria-label="Open shopping cart">Cart</button></nav></div>
 
 
         <nav class="sewing-nav" aria-label="Main navigation">
@@ -67,7 +67,7 @@
           <a class="nav-hotspot" href="#story" aria-label="Our Story">Our Story</a>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
           <a class="nav-hotspot" href="#journal" aria-label="Journal">Journal</a>
-          <a class="nav-hotspot" href="/creative-house.html">The Creative House</a>
+          <details class="nav-dropdown creative-house-header-window"><summary class="nav-hotspot">The Creative House <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Creative House categories"><a href="/creative-house.html">Creative House home</a><a href="/creative-house.html#opportunities">Models &amp; photographers</a><a href="/creative-house.html#creative-directory">Creative profiles</a><a href="/creative-house.html#event-creatives">DJs &amp; venues</a><a href="/creative-house.html#fashion-events">Fashion events</a><a href="/creative-house.html#casting-commissioning">Commissions</a><a href="/creative-house.html#private-inquiries">Private inquiries</a><a href="/creative-house.html#profile-start">Create a profile</a><a href="/creative-house.html#project-start">Post a project</a></div></details>
           <details class="nav-dropdown"><summary class="nav-hotspot">Customers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Visitor options"><button type="button" id="visitor-suite-btn">Open customer account</button><button type="button" data-mess-around-suite="measurement-profile-name">My Measurements &amp; Avatar</button><button type="button" data-mess-around-suite="visitor-favorites-title">Saved Favorites</button><a href="/#shop">Browse the House</a></div></details>
           <details class="nav-dropdown designer-header-window"><summary class="nav-hotspot">Designers <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Designer dashboard and account"><button type="button" id="designer-login-btn">Open designer dashboard</button><a href="/designers/room#designer-signup">Become a designer</a><a href="/creative-house.html">The Creative House</a><a href="/#house-stories-title">Designer stories</a><a href="/#how-house-works">How the House works</a></div></details>
           <button class="nav-hotspot suitcase-button" type="button" id="cart-btn" aria-label="Cart, 0 items" aria-describedby="suitcase-door-info"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" /><span id="suitcase-label">Cart (0)</span><span class="door-info suitcase-info" id="suitcase-door-info" role="tooltip">Review your items, shipping costs and total before checkout.</span></button>
@@ -677,7 +677,7 @@
       <img id="photo-lightbox-image" alt="">
     </dialog>
 
-  </body>
+  <script defer src="/house-sticky-nav.js"></script></body>
 </html>
 
 
