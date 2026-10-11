@@ -3795,7 +3795,7 @@ function createApp(options = {}) {
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
-  app.get('/api/creative-house/profiles/:slug',(req,res)=>{
+  app.get('/api/creative-house/profiles/:slug',authDesigner,(req,res)=>{
     const profile=db.prepare('SELECT slug,display_name,role,location,bio,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
     if(!profile)return res.status(404).json({error:'Profile not found'});
     res.json({profile});
@@ -3816,7 +3816,7 @@ function createApp(options = {}) {
       ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,v.published?1:0);
     res.json({profile:{slug,display_name:displayName,role,location,bio,published:v.published}});
   });
-  app.get('/api/creative-house/profiles',(_req,res)=>{
+  app.get('/api/creative-house/profiles',authDesigner,(_req,res)=>{
     const profiles=db.prepare('SELECT slug,display_name,role,location,bio FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
     res.json({profiles});
   });
