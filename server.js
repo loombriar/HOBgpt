@@ -21,7 +21,7 @@ const CHECKOUT_RESERVATION_MINUTES = 31;
 // Bump this version, the signup forms, and the published terms together when terms change.
 const SELLER_TERMS_VERSION = '2026-10-08-free-delivery';
 const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
-const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
+const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece', 'menswear']);
 
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
