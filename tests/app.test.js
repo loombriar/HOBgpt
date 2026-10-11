@@ -283,7 +283,10 @@ test('editorial storefront retains accessible native category filters and their 
   }
   assert.match(html, /<option value="all">All prints<\/option>/);
   assert.match(html, /<option value="Costume">Costumes<\/option>/);
-  assert.match(html, /class="fashion-hero-side"/);
+  assert.doesNotMatch(html, /class="fashion-hero-side"/);
+  assert.match(html, /class="fashion-category-links"/);
+  assert.match(html, /href="\/shop\?category=menswear"/);
+  assert.match(html, /id="designers-wanted-title">Designers wanted/);
   assert.doesNotMatch(html, /class="sewing-hero-art"/);
 });
 
