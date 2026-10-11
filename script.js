@@ -699,7 +699,43 @@ function updateMeasurementAvatarPreview() {
   const host = byId('measurement-avatar-preview'); if (!host) return;
   const profile = { label: byId('measurement-profile-name')?.value || 'New profile' };
   for (const key of ['bust','waist','hips','height']) profile[key] = byId(`measurement-profile-${key}`)?.value || '';
-  host.replaceChildren(measurementAvatar(profile));
+  host.replaceChildren(fittingMannequin3D(profile));
+}
+let fittingAvatarAngle = 0;
+function fittingMannequin3D(profile = {}) {
+  const numeric = (key, fallback) => { const value = Number(profile[key]); return Number.isFinite(value) && value > 0 ? value : fallback; };
+  const limit = (value, min, max) => Math.max(min, Math.min(max, value));
+  const bust = limit(numeric('bust', 36) / 36, .65, 1.55);
+  const waist = limit(numeric('waist', 30) / 30, .65, 1.55);
+  const hips = limit(numeric('hips', 39) / 39, .65, 1.55);
+  const stature = limit(numeric('height', 67) / 67, .8, 1.18);
+  const inseam = limit(numeric('inseam', 30) / 30, .75, 1.25);
+  const scene = document.createElement('div');
+  scene.className = 'fitting-scene';
+  scene.setAttribute('role', 'img');
+  scene.setAttribute('aria-label', 'Rotatable 3D fitting mannequin, proportions are a visual approximation of saved measurements');
+  const figure = document.createElement('div');
+  figure.className = 'fitting-figure';
+  figure.style.setProperty('--avatar-bust', bust.toFixed(3));
+  figure.style.setProperty('--avatar-waist', waist.toFixed(3));
+  figure.style.setProperty('--avatar-hips', hips.toFixed(3));
+  figure.style.setProperty('--avatar-height', stature.toFixed(3));
+  figure.style.setProperty('--avatar-inseam', inseam.toFixed(3));
+  figure.style.transform = 'rotateY(' + fittingAvatarAngle + 'deg)';
+  for (const part of ['head','neck','chest','waist','pelvis','arm left','arm right','leg left','leg right','stand']) {
+    const node = document.createElement('div');
+    node.className = 'fitting-part fitting-' + part.replace(' ', '-');
+    figure.appendChild(node);
+  }
+  scene.appendChild(figure);
+  return scene;
+}
+for (const button of document.querySelectorAll('[data-avatar-view]')) {
+  button.addEventListener('click', () => {
+    fittingAvatarAngle = Number(button.dataset.avatarView) || 0;
+    document.querySelectorAll('[data-avatar-view]').forEach(control => control.setAttribute('aria-pressed', String(control === button)));
+    updateMeasurementAvatarPreview();
+  });
 }
 function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>{const rows=loadMeasurementProfiles().filter(item=>item.id!==p.id);saveMeasurementProfiles(rows);renderMeasurementProfiles();});row.append(measurementAvatar(p),info,remove);list.appendChild(row);});}
 byId('measurement-profile-form')?.addEventListener('submit', (event) => {
