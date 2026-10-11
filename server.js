@@ -3788,7 +3788,8 @@ function createApp(options = {}) {
   const hasReactBuild = fs.existsSync(reactIndexFile);
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
-  app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
+  app.get('/', (_req,res) => res.sendFile(hasReactBuild ? reactIndexFile : path.join(rootDir, 'index.html')));
+  app.get(['/index.html','/designers/room'],sendHouseStorefront);
   if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
 
   app.get('/api/health', (_req, res) => {
