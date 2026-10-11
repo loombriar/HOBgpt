@@ -1885,3 +1885,15 @@ body .hero.sewing-hero.fashion-cover .sewing-hero-actions .secondary-button{back
 body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 Arial,sans-serif!important;letter-spacing:.2em!important;color:#7b6b5e!important;margin-top:60px!important}
 @media(max-width:850px){body .hero.sewing-hero.fashion-cover{grid-template-columns:1fr!important;min-height:0!important}body .fashion-cover .fashion-cover-art{grid-column:1;grid-row:2;min-height:310px!important}body .fashion-cover .fashion-cover-art-inner{min-height:260px!important}body .fashion-cover .fashion-cover-art-monogram{font-size:9rem!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;padding:46px 26px!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(3.1rem,10vw,5.4rem)!important}body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{margin-top:35px!important}}
 @media(prefers-reduced-motion:reduce){body .hero.sewing-hero.fashion-cover *,body .hero.sewing-hero.fashion-cover *::before{animation:none!important;transition:none!important}}
+
+/* Sign-up era ribbon: playful, editorial, and accessible. */
+.signup-era-banner{position:relative;z-index:2;background:#eadad9;color:#352b2c;border-top:1px solid #bca6a2;border-bottom:1px solid #bca6a2}
+.signup-era-inner{width:min(1280px,calc(100% - 40px));margin:auto;display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,44px);padding:16px 10px}
+.signup-era-inner p{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px 15px;margin:0!important;text-align:center;color:#352b2c!important;line-height:1.3!important}
+.signup-era-kicker{font:700 10px/1.4 Inter,Arial,sans-serif;letter-spacing:.2em;color:#765252}
+.signup-era-inner strong{font:italic 600 clamp(1.25rem,2.3vw,2rem)/1.15 'Cormorant Garamond',Georgia,serif;letter-spacing:-.01em}
+.signup-era-description{font:400 12px/1.4 Inter,Arial,sans-serif;color:#57474a}
+.signup-era-sparkle{font-size:23px;color:#9e6570}
+.signup-era-link{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;padding:11px 16px;background:#352b2c;color:#fff7ef!important;font:600 11px/1.4 Inter,Arial,sans-serif;letter-spacing:.05em;text-decoration:none;border:1px solid #352b2c}
+.signup-era-link:hover,.signup-era-link:focus-visible{background:#fff7ef;color:#352b2c!important;outline-offset:3px}
+@media(max-width:760px){.signup-era-inner{flex-direction:column;gap:10px;padding:18px 8px}.signup-era-inner p{flex-direction:column;gap:6px}.signup-era-sparkle{display:none}.signup-era-link{width:100%;max-width:260px}}
