@@ -472,6 +472,7 @@ function formatBytes(bytes) {
 function categoryLabel(category) {
   return {
     apparel: 'Clothing',
+    menswear: 'Menswear',
     other: 'Other'
   }[category] || 'Other';
 }
