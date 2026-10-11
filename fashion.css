@@ -224,3 +224,6 @@ body.blackberry-house .sewing-hero-content>p:not(.eyebrow){max-width:670px!impor
 body.blackberry-house .sewing-hero-actions{margin-top:28px!important}
 @media(max-width:850px){body.blackberry-house .sewing-hero-content h1{font-size:clamp(48px,9vw,90px)!important;line-height:.94!important}body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:48px 24px 60px!important}}
 @media(max-width:480px){body.blackberry-house .sewing-hero-content h1{font-size:clamp(39px,9.4vw,54px)!important;line-height:1!important;letter-spacing:-.045em!important}body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:38px 18px 48px!important}}
+
+/* Compact bottom designer signup CTA; avoid stretched full-width button. */
+body.blackberry-house .designer-callout-action .designer-callout-button{display:inline-flex!important;width:auto!important;max-width:100%!important;min-height:38px!important;padding:9px 16px!important;font-size:12px!important;line-height:1.25!important;align-self:flex-start!important;flex:0 0 auto!important}
