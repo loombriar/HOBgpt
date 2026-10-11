@@ -187,11 +187,12 @@ test('founding designer badge appears on listings and public designer storefront
 });
 
 
-test('founding designer announcement advertises the badge and opens signup', async ({ page }) => {
+test('designer invitation opens signup without limited founding spots', async ({ page }) => {
   await page.goto('/');
-  const banner = page.getByRole('complementary', { name: 'Founding designers' });
-  await expect(banner).toContainText('The first 25 designers to join');
-  await expect(banner.locator('#founder-spots')).toContainText('founding spots remain');
+  const banner = page.getByRole('complementary', { name: 'Join House of Briar designers' });
+  await expect(banner).toContainText('Independent designers are invited to join House of Briar');
+  await expect(banner).not.toContainText('first 25');
+  await expect(banner).not.toContainText('founding spots remain');
   await banner.getByRole('link', { name: 'Sign up as a designer' }).click();
   await expect(page).toHaveURL(/designers\/room#designer-signup/);
   await expect(page.locator('#designer-signup-form')).toBeVisible();
