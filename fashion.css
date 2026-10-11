@@ -194,3 +194,19 @@ body.blackberry-house .designer-callout h2{font-size:clamp(42px,7vw,104px)!impor
 .fashion-category-link{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(22px,4vw,46px);background:#ede7e2;color:#292525!important;border:1px solid #d5ccc5;text-decoration:none!important;font:500 clamp(21px,3vw,36px)/1.1 Georgia,serif}
 .fashion-category-link:hover{background:#e3d9d0}
 @media(max-width:650px){.fashion-category-links{grid-template-columns:1fr}body.blackberry-house .house-stories .container,body.blackberry-house .house-styling .container{padding-inline:0!important}}
+
+/* Keep menswear discovery inside the native storefront filter row. */
+body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(6,minmax(0,1fr))!important;align-items:stretch}
+body.blackberry-house .shop-drop-windows>.shop-drop-window{min-width:0}
+body.blackberry-house .menswear-window{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-decoration:none!important;text-align:center;color:#5e455e!important;background:#f0ebe9;border:1px solid #d6c8d3;border-radius:16px;min-height:132px;padding:18px 10px;box-shadow:0 5px 13px #3d283d16}
+.menswear-window-icon{font-size:27px;line-height:1}
+.menswear-window-title{font-weight:700;font-size:15px}
+.menswear-window-subtitle{font-size:12px}
+body.blackberry-house .menswear-window:hover{background:#e7dfe5}
+@media(max-width:1050px){body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:620px){body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+/* Fill the actual content area; wrapping text alone does not fix narrow inherited grids. */
+body.blackberry-house .house-stories,body.blackberry-house .house-styling,body.blackberry-house .designer-callout-section{width:100%;max-width:none;min-width:0}
+body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{display:block!important;width:calc(100% - 48px)!important;max-width:1320px!important;margin-inline:auto!important;box-sizing:border-box}
+body.blackberry-house .house-stories :is(h2,p),body.blackberry-house .house-styling :is(h2,p){max-width:min(100%,1100px)}
+@media(max-width:620px){body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{width:calc(100% - 32px)!important}}
