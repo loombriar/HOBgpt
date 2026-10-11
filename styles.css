@@ -1885,3 +1885,7 @@ body .hero.sewing-hero.fashion-cover .sewing-hero-actions .secondary-button{back
 body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 Arial,sans-serif!important;letter-spacing:.2em!important;color:#7b6b5e!important;margin-top:60px!important}
 @media(max-width:850px){body .hero.sewing-hero.fashion-cover{grid-template-columns:1fr!important;min-height:0!important}body .fashion-cover .fashion-cover-art{grid-column:1;grid-row:2;min-height:310px!important}body .fashion-cover .fashion-cover-art-inner{min-height:260px!important}body .fashion-cover .fashion-cover-art-monogram{font-size:9rem!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;padding:46px 26px!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(3.1rem,10vw,5.4rem)!important}body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{margin-top:35px!important}}
 @media(prefers-reduced-motion:reduce){body .hero.sewing-hero.fashion-cover *,body .hero.sewing-hero.fashion-cover *::before{animation:none!important;transition:none!important}}
+
+/* Our Story: paired shopper and designer invitations. */
+.story-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.story-actions .secondary-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px}
