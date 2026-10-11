@@ -94,3 +94,20 @@ body.blackberry-house :is(a,button,summary,input,select,textarea):focus-visible{
  body.blackberry-house .hob-door{min-height:420px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body.blackberry-house *{scroll-snap-type:none!important}}
+
+
+/* Homepage Creative House invitation: editorial tiles without another long explanation. */
+.hob-creator-spotlight{padding-top:clamp(24px,4vw,52px);padding-bottom:clamp(32px,5vw,68px)}
+.hob-creator-spotlight-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.hob-creator-spotlight-heading p{margin:0}
+.hob-creator-spotlight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.hob-creator-spotlight-grid>a{display:flex;flex-direction:column;align-items:flex-start;gap:14px;min-height:220px;padding:clamp(18px,2.6vw,30px);border:1px solid currentColor;color:inherit;text-decoration:none;background:rgba(255,255,255,.055);transition:background .2s ease,transform .2s ease}
+.hob-creator-spotlight-grid>a:hover{background:rgba(255,255,255,.12);transform:translateY(-2px)}
+.hob-creator-spotlight-grid>a>span:first-child{font-size:11px;letter-spacing:.13em;text-transform:uppercase}
+.hob-creator-spotlight-grid strong{font-family:Georgia,serif;font-size:clamp(21px,2.5vw,30px);font-weight:normal;line-height:1.15}
+.hob-creator-spotlight-grid>a>b{margin-top:auto;font-size:13px}
+.hob-creator-spotlight-action{display:flex;flex-wrap:wrap;align-items:center;gap:20px;margin-top:24px}
+.hob-creator-spotlight-action>a:not(.primary-button){color:inherit;text-underline-offset:4px}
+.hob-creator-spotlight :is(a):focus-visible{outline:2px solid currentColor;outline-offset:4px}
+@media(max-width:720px){.hob-creator-spotlight-grid{grid-template-columns:1fr}.hob-creator-spotlight-grid>a{min-height:unset;gap:10px}.hob-creator-spotlight-action{align-items:stretch;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.hob-creator-spotlight-grid>a{transition:none}.hob-creator-spotlight-grid>a:hover{transform:none}}
