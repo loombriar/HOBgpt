@@ -3820,6 +3820,24 @@ function createApp(options = {}) {
     const profiles=db.prepare('SELECT slug,display_name,role,location,bio FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
     res.json({profiles});
   });
+  // Public project-intake forms do not expose talent portfolios or contact details.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_project_requests (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('hire-talent','commission-designer')),
+    contact_name TEXT NOT NULL, contact_email TEXT NOT NULL, title TEXT NOT NULL,
+    description TEXT NOT NULL, budget TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '',
+    timeline TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed','closed'))
+  )`);
+  app.post('/api/creative-house/project-requests', (req,res)=>{
+    const v=req.body||{};
+    const field=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
+    const kind=field('kind',30),contactName=field('contact_name',100),contactEmail=field('contact_email',200).toLowerCase(),title=field('title',120),description=field('description',2500);
+    const budget=field('budget',80),location=field('location',100),timeline=field('timeline',100);
+    if(!['hire-talent','commission-designer'].includes(kind)||!contactName||!/^\S+@\S+\.\S+$/.test(contactEmail)||title.length<5||description.length<30)return res.status(400).json({error:'Please provide a valid name, email, project title, and description of at least 30 characters.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_project_requests(id,kind,contact_name,contact_email,title,description,budget,location,timeline) VALUES(?,?,?,?,?,?,?,?,?)').run(id,kind,contactName,contactEmail,title,description,budget,location,timeline);
+    res.status(201).json({received:true,message:'Your request has been received for review. This is not a confirmed booking.'});
+  });
   // Creative House: designer-owned collaboration board. No public applicant contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_opportunities (
     id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
