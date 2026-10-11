@@ -1889,3 +1889,29 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 /* Our Story: paired shopper and designer invitations. */
 .story-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
 .story-actions .secondary-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+
+/* Original typographic editorial art; no photographs or repeated product imagery. */
+.hob-two-doors{background:#f7f2eb;padding:clamp(48px,7vw,96px) 0;color:#29231f}
+.hob-two-doors-heading{text-align:center;margin-bottom:35px}
+.hob-two-doors-heading .eyebrow{font:700 10px Inter,Arial,sans-serif;letter-spacing:.24em;color:#76544a}
+.hob-two-doors-heading h2{font:400 clamp(2.4rem,5vw,4.8rem)/1.05 'Cormorant Garamond',Georgia,serif!important;color:#29231f!important;margin:14px 0!important}
+.hob-two-doors-heading>p:last-child{color:#5c514b}
+.hob-two-doors-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.hob-door{position:relative;display:flex;flex-direction:column;min-height:560px;overflow:hidden;color:#2c2421!important;text-decoration:none!important;border:1px solid #c8b9a9;background:#e5d5c8;transition:transform .2s,border-color .2s}
+.hob-door:hover{transform:translateY(-5px);border-color:#6d453e}
+.hob-door:focus-visible{outline:3px solid #6d453e;outline-offset:4px}
+.hob-door-create{background:#2b2928;color:#f6eee4!important;border-color:#2b2928}
+.hob-door-number{position:relative;z-index:1;padding:22px 25px;font:700 10px Inter,Arial,sans-serif;letter-spacing:.19em}
+.hob-door-art{position:relative;display:grid;place-items:center;flex:1;min-height:230px;margin:0 26px;border:1px solid rgba(64,45,39,.3);font:italic 400 clamp(4rem,9vw,9rem)/1 'Cormorant Garamond',Georgia,serif;letter-spacing:-.06em;color:#78574e;transform:rotate(-3deg);text-align:center}
+.hob-door-create .hob-door-art{color:#d9c0ad;border-color:rgba(246,238,228,.4);transform:rotate(3deg)}
+.hob-door-art::before{content:"";position:absolute;inset:14px;border:1px solid currentColor;opacity:.2}
+.hob-door-content{display:flex;flex-direction:column;gap:12px;padding:30px 28px 35px;background:rgba(255,251,245,.5)}
+.hob-door-create .hob-door-content{background:rgba(255,255,255,.04)}
+.hob-door-content small{font:700 10px Inter,Arial,sans-serif;letter-spacing:.16em}
+.hob-door-content strong{font:400 clamp(2.3rem,4vw,4rem)/1 'Cormorant Garamond',Georgia,serif}
+.hob-door-content>span{font:400 14px/1.5 Inter,Arial,sans-serif}
+.hob-door-content b{font:700 12px Inter,Arial,sans-serif;letter-spacing:.04em;text-decoration:underline;text-underline-offset:5px;margin-top:10px}
+.hob-two-doors-note{text-align:center;margin:26px 20px 0;color:#584b43}
+.hob-two-doors-note a{color:#6c443b;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:720px){.hob-two-doors-grid{grid-template-columns:1fr}.hob-door{min-height:470px}.hob-door-art{font-size:clamp(4rem,16vw,7rem)}}
+@media(prefers-reduced-motion:reduce){.hob-door{transition:none}}
