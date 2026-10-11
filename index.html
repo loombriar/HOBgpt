@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="/styles.css?v=header-4" />
     <script src="/script.js?v=audit-20261008" defer></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
-    <link rel="stylesheet" href="/fashion.css?v=mess-around-1" />
+    <link rel="stylesheet" href="/fashion.css?v=editorial-fix-20261011" />
     <link rel="stylesheet" href="/rooms.css?v=rooms-20261008" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
     <style>
@@ -53,7 +53,7 @@
     </style>
   </head>
   <body>
-    <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">A little wardrobe daydream</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
+    <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">Virtual styling preview</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
     <div class="page-shell">
       <header class="site-header sewing-header">
 
@@ -78,7 +78,7 @@
       <main id="top">
 
         <section class="hero sewing-hero" aria-label="House of Briar — The next generation of fashion starts here.">
-          <div class="fashion-hero-side" aria-hidden="true"><span>THE INDEPENDENT EDIT</span><p>Personal style.<br /><i>Singular vision.</i></p><span>HOUSE OF BRIAR — EST. 2026</span></div>
+          
           <div class="container sewing-hero-content">
             <p class="eyebrow">Independent labels / New perspectives</p>
             <h1>The next<br />generation<br /><em>of <span class="fashion-keyword">fashion</span></em><br />starts here.</h1>
@@ -240,11 +240,11 @@
           </div>
         </section>
         <section class="house-collections" aria-labelledby="house-collections-title">
-          <div class="container"><div class="atelier-heading"><div><p class="eyebrow">Find your kind of different</p><h2 id="house-collections-title">A mood. An occasion. A little magic.</h2></div><p>Thoughtful edits from the House. Choose a chapter and see where it takes you.</p></div><div class="atelier-collection-grid" id="house-collection-grid"></div></div>
+          <div class="container"><div class="atelier-heading"><div><p class="eyebrow">Find your kind of different</p><h2 id="house-collections-title">A mood. An occasion. A little magic.</h2></div><p>Thoughtful edits from the House. Choose a chapter and see where it takes you.</p></div><nav class="fashion-category-links" aria-label="Shop by collection"><a class="fashion-category-link" href="/shop">Women’s collection <span aria-hidden="true">↗</span></a><a class="fashion-category-link" href="/shop?category=menswear">Menswear collection <span aria-hidden="true">↗</span></a></nav><div class="atelier-collection-grid" id="house-collection-grid"></div></div>
         </section>
 
-        <section class="house-stories" aria-labelledby="house-stories-title"><div class="container"><p class="eyebrow">Designer spotlight stories</p><h2 id="house-stories-title">Meet the hands behind the magic.</h2><p>A peek into the process, the personality, and the occasional creative chaos.</p><div id="house-spotlights" class="atelier-spotlights"></div></div></section>
-        <section class="house-styling" aria-labelledby="house-styling-title"><div class="container"><p class="eyebrow">Your Briar styling companion</p><h2 id="house-styling-title">Main-character energy. Wardrobe assistance.</h2><p>Find ideas from pieces actually in the House. Sign in to your Customer account or Designer dashboard to use AI styling and try-on.</p><form id="house-styling-form" class="stack-form"><label for="house-styling-prompt">What are you dressing for?</label><input id="house-styling-prompt" maxlength="500" required placeholder="An autumn wedding, romantic but a little dramatic…" /><p class="small-print">Your request and public listing details are sent to OpenAI to create suggestions. Suggestions do not confirm fit or availability.</p><button class="primary-button" type="submit">Ask the Briar stylist</button><p id="house-styling-status" role="status"></p></form><div id="house-styling-results"></div></div></section>
+        <section class="house-stories" aria-labelledby="house-stories-title"><div class="container"><p class="eyebrow">Designer spotlight stories</p><h2 id="house-stories-title">Meet the designers shaping what comes next.</h2><p>Discover the people, craft, and perspectives behind independent labels.</p><div id="house-spotlights" class="atelier-spotlights"></div></div></section>
+        <section class="house-styling" aria-labelledby="house-styling-title"><div class="container"><p class="eyebrow">Your Briar styling companion</p><h2 id="house-styling-title">Personal styling. Independent fashion.</h2><p>Find ideas from pieces actually in the House. Sign in to your Customer account or Designer dashboard to use AI styling and try-on.</p><form id="house-styling-form" class="stack-form"><label for="house-styling-prompt">What are you dressing for?</label><input id="house-styling-prompt" maxlength="500" required placeholder="An autumn wedding, romantic but a little dramatic…" /><p class="small-print">Your request and public listing details are sent to OpenAI to create suggestions. Suggestions do not confirm fit or availability.</p><button class="primary-button" type="submit">Ask the Briar stylist</button><p id="house-styling-status" role="status"></p></form><div id="house-styling-results"></div></div></section>
         <aside class="founder-announcement" aria-label="Founding designers">
           <div class="container founder-announcement-inner">
             <img src="/founding-designer-berry-v1.webp" alt="Founding Designer badge with the House gold briar border" width="80" height="80" />
@@ -256,9 +256,9 @@
           <div class="container designer-callout">
             <div class="designer-callout-copy">
               <p class="eyebrow">Designers wanted</p>
-              <h2 id="designers-wanted-title">The House is growing.<br />Bring what you make.</h2>
+              <h2 id="designers-wanted-title">Designers wanted.<br />Make your mark.</h2>
               <p>We’re looking for independent designers to fill the halls of House of Briar. We’re beginning with clothing and accessories—including belts, purses, hats, and other wearable pieces made with creativity and care.</p>
-              <p class="designer-callout-line">No application. No gatekeeping. Just bring what you make.</p>
+              <p class="designer-callout-line">Independent vision belongs here.</p>
             </div>
             <a class="primary-button designer-callout-button" href="#designer-signup" id="designer-signup-link">Join the House →</a>
           </div>
