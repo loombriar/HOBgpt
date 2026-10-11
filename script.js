@@ -1654,6 +1654,7 @@ byId('shop-clear-filters')?.addEventListener('click', () => {
   for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-designer-filter']) {
     const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
   }
+  syncShopMoodButtons();
   loadGallery();
 });
 
