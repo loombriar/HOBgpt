@@ -1,0 +1,96 @@
+/* House of Briar / The Modern Atelier — 2026 visual refinement.
+   Presentation-only overrides. No product imagery, commerce logic or account flows are changed. */
+:root{
+ --hob-ink:#22241f;--hob-forest:#24352d;--hob-forest-deep:#17271f;
+ --hob-cream:#f8f6f0;--hob-paper:#fffdf8;--hob-mist:#eeeee5;
+ --hob-copper:#9a7056;--hob-line:#d7d4c9;--hob-text-muted:#63665d;
+}
+html{scroll-behavior:smooth}
+body.blackberry-house{background:var(--hob-cream)!important;color:var(--hob-ink)!important}
+body.blackberry-house :is(.eyebrow,.fashion-cover-footnote,.fashion-brand-caption){letter-spacing:.18em!important}
+body.blackberry-house :is(.section-heading h2,.hob-two-doors-heading h2,.hob-creative-statement h2,.hob-customer-access h2){text-wrap:balance}
+body.blackberry-house .site-header.sewing-header{
+ background:rgba(248,246,240,.97)!important;border-color:var(--hob-line)!important;
+ box-shadow:0 5px 28px rgba(23,39,31,.045)!important;
+}
+body.blackberry-house .sewing-header .briar-wordmark>.fashion-wordmark{color:var(--hob-forest-deep)!important;letter-spacing:.09em!important}
+body.blackberry-house .fashion-brand-caption{color:var(--hob-copper)!important}
+body.blackberry-house .sewing-header .sewing-nav{border-color:var(--hob-line)!important;gap:3px clamp(5px,1.3vw,20px)!important}
+body.blackberry-house .sewing-header .sewing-nav :is(.nav-hotspot,.room-button){
+ color:var(--hob-forest-deep)!important;font-size:clamp(10px,.86vw,12px)!important;
+ transition:color .18s ease,background-color .18s ease!important;
+}
+body.blackberry-house .sewing-header .sewing-nav :is(.nav-hotspot,.room-button):hover{color:var(--hob-copper)!important}
+body.blackberry-house .sewing-nav .nav-dropdown-menu{
+ background:var(--hob-paper)!important;border-color:var(--hob-line)!important;border-radius:0!important;
+ box-shadow:0 25px 60px rgba(20,34,26,.13)!important;
+}
+body.blackberry-house .sewing-nav .nav-dropdown-menu :is(a,button):hover{background:var(--hob-mist)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover{
+ background:var(--hob-cream)!important;color:var(--hob-ink)!important;
+ border-bottom:1px solid var(--hob-line)!important;
+}
+body.blackberry-house .fashion-cover .fashion-cover-art{
+ background:
+  radial-gradient(ellipse at 65% 30%,rgba(171,150,112,.20),transparent 48%),
+  linear-gradient(150deg,#36483b 0%,#25372f 46%,#13231b 100%)!important;
+}
+body.blackberry-house .fashion-cover .fashion-cover-art::before{border-color:rgba(241,226,189,.34)}
+body.blackberry-house .fashion-cover .fashion-cover-art::after{border-color:rgba(241,226,189,.21)}
+body.blackberry-house .fashion-cover .fashion-cover-art-monogram{color:#f2e6ca!important;text-shadow:0 14px 55px rgba(0,0,0,.22)}
+body.blackberry-house .fashion-cover .fashion-cover-art-number,
+body.blackberry-house .fashion-cover .fashion-cover-art-caption{color:#e7d6b8!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy .eyebrow{color:var(--hob-copper)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{color:var(--hob-forest-deep)!important;text-wrap:balance}
+body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1 em{color:var(--hob-copper)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy>p:not(.eyebrow):not(.fashion-cover-footnote){color:var(--hob-text-muted)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button,
+body.blackberry-house :is(.primary-button,.sewing-hero-actions .primary-button){
+ background:var(--hob-forest-deep)!important;border-color:var(--hob-forest-deep)!important;color:#fffdf7!important;
+}
+body.blackberry-house :is(.primary-button,.secondary-button){transition:background .2s,color .2s,border-color .2s,transform .2s!important}
+body.blackberry-house .primary-button:hover{background:var(--hob-forest)!important;border-color:var(--hob-forest)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .secondary-button{
+ background:transparent!important;border-color:var(--hob-forest)!important;color:var(--hob-forest)!important;
+}
+body.blackberry-house .secondary-button:hover{background:var(--hob-mist)!important}
+body.blackberry-house .hob-two-doors{background:var(--hob-paper)!important}
+body.blackberry-house .hob-two-doors-heading h2{color:var(--hob-forest-deep)!important}
+body.blackberry-house .hob-door-shop{background:#e8e4d7!important;border-color:#d3cebd!important}
+body.blackberry-house .hob-door-shop .hob-door-art{color:#6e7768!important}
+body.blackberry-house .hob-door-create{background:var(--hob-forest-deep)!important;border-color:var(--hob-forest-deep)!important}
+body.blackberry-house .hob-door-create .hob-door-art{color:#e4d0a8!important}
+body.blackberry-house .hob-door{transition:transform .2s ease,box-shadow .2s ease!important}
+body.blackberry-house .hob-door:hover{box-shadow:0 18px 36px rgba(23,39,31,.12)!important}
+body.blackberry-house :is(.hob-creative-statement,.hob-customer-access){background:var(--hob-mist)!important}
+body.blackberry-house .hob-creative-statement h2{color:var(--hob-forest-deep)!important}
+body.blackberry-house :is(.product-section,.story-section,.curation-section,.house-collections,.house-stories,.house-styling,.newsletter-section){background:var(--hob-cream)!important}
+body.blackberry-house .product-section .shop-drop-window{box-shadow:none!important;border-color:var(--hob-line)!important;background:var(--hob-paper)!important}
+body.blackberry-house .product-section .shop-drop-window:hover,
+body.blackberry-house .product-section .shop-drop-window:focus-within{border-color:var(--hob-copper)!important}
+body.blackberry-house .product-card .product-image{background:var(--hob-mist)!important}
+body.blackberry-house .product-card .product-image img{object-fit:contain!important}
+body.blackberry-house .product-card .product-body{color:var(--hob-ink)!important}
+body.blackberry-house #journal.newsletter-section{background:var(--hob-forest-deep)!important;border-color:var(--hob-forest-deep)!important}
+body.blackberry-house #journal :is(.newsletter-heading h2,.newsletter-heading h2 em){color:var(--hob-paper)!important}
+body.blackberry-house #journal :is(.newsletter-heading>p:last-child,.eyebrow,.newsletter-form>label.small-print){color:#eee8db!important}
+body.blackberry-house #journal .newsletter-form>button[type=submit]{background:#e0c9a1!important;border-color:#e0c9a1!important;color:var(--hob-forest-deep)!important}
+body.blackberry-house #journal .newsletter-form>#email{background:var(--hob-paper)!important}
+body.blackberry-house :is(a,button,summary,input,select,textarea):focus-visible{outline:3px solid var(--hob-copper)!important;outline-offset:3px!important}
+@media(max-width:850px){
+ body.blackberry-house .fashion-cover .fashion-cover-art{min-height:310px!important}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{padding:clamp(32px,7vw,64px)!important}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(3rem,10vw,5rem)!important}
+}
+@media(max-width:600px){
+ body.blackberry-house .site-header.sewing-header{padding:12px 12px 0!important}
+ body.blackberry-house .sewing-header .sewing-nav{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important;max-width:100%;scrollbar-width:thin;scroll-snap-type:x proximity;padding:8px 0!important}
+ body.blackberry-house .sewing-header .sewing-nav>*{flex-shrink:0!important;scroll-snap-align:start}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{padding:35px 22px 42px!important}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(2.65rem,10vw,4.2rem)!important}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions{display:flex;flex-wrap:wrap}
+ body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions a{width:100%;max-width:100%;justify-content:center}
+ body.blackberry-house .fashion-cover .fashion-cover-art{min-height:260px!important}
+ body.blackberry-house .hob-door{min-height:420px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body.blackberry-house *{scroll-snap-type:none!important}}
