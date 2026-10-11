@@ -1952,3 +1952,27 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
  .designer-callout-button{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box}
 }
 @media(max-width:420px){.hob-door-art{font-size:clamp(3rem,13vw,4.5rem)}.hob-two-doors-heading h2{font-size:2.4rem!important}.shop-discovery-links a{min-height:30px;display:inline-flex;align-items:center}}
+
+/* Shop by mood: original CSS/typographic artwork, never duplicated product photos. */
+.shop-mood-guide{grid-column:1/-1;margin:26px 0 28px}
+.shop-mood-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.shop-mood-heading .eyebrow{font-size:11px;letter-spacing:.17em}
+.shop-mood-heading p{font-size:14px;color:#65544b}
+.shop-mood-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.shop-mood-option{min-width:0;min-height:160px;padding:20px 17px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;border:1px solid #c8b9aa;background:#f4ece4;color:#392c29;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.shop-mood-option:nth-child(2){background:#342a30;color:#f9efe8;border-color:#342a30}
+.shop-mood-option:nth-child(3){background:#e8e0d0}
+.shop-mood-option:nth-child(4){background:#e3ded7}
+.shop-mood-option span{font:700 10px/1.4 Inter,Arial,sans-serif;letter-spacing:.12em}
+.shop-mood-option strong{font:italic 400 clamp(26px,2.8vw,43px)/1 'Cormorant Garamond',Georgia,serif}
+.shop-mood-option small{font:400 12px/1.5 Inter,Arial,sans-serif}
+.shop-mood-option:hover{transform:translateY(-3px)}
+.shop-mood-option.is-selected{outline:3px solid #9b6a4e;outline-offset:2px}
+.shop-mood-option:focus-visible{outline:3px solid #9b6a4e;outline-offset:3px}
+.shop-mood-hint{font-size:13px;color:#6d5b50;margin-top:14px}
+.empty-gallery{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:45px 20px;grid-column:1/-1}
+.empty-gallery button{cursor:pointer;min-height:44px}
+.designer-card-link{font-weight:600;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:850px){.shop-mood-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.shop-mood-options{gap:9px}.shop-mood-option{padding:16px 12px;min-height:152px}.shop-mood-option strong{font-size:clamp(24px,7vw,34px)}.shop-mood-option small{font-size:11px}.shop-mood-heading{gap:6px}}
+@media(prefers-reduced-motion:reduce){.shop-mood-option{transition:none}}
