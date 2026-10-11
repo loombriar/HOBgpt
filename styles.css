@@ -1971,3 +1971,21 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 .hob-door:hover .hob-door-content b{transform:translateX(5px)}
 @media(max-width:720px){.hob-door-art{min-height:220px;padding:19px 12px}.hob-door-art-title{font-size:clamp(3.3rem,12vw,5.5rem)}.hob-door{box-shadow:0 5px 18px rgba(44,30,24,.09)}.hob-door:hover{transform:none}.hob-door-content{backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media(prefers-reduced-motion:reduce){.hob-door,.hob-door-art,.hob-door-content b{transition:none!important}.hob-door:hover,.hob-door:hover .hob-door-art,.hob-door:hover .hob-door-content b{transform:none!important}}
+
+/* House of Briar product editorial: glass depth and bento rhythm, using existing images once. */
+#product-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:clamp(12px,1.7vw,22px);align-items:stretch}
+#product-grid>.product-card{grid-column:span 3;min-width:0;position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.84),rgba(249,241,232,.69));border:1px solid rgba(255,255,255,.75);box-shadow:0 5px 20px rgba(52,35,30,.075),inset 0 1px rgba(255,255,255,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .4s cubic-bezier(.22,.8,.25,1),box-shadow .4s cubic-bezier(.22,.8,.25,1),border-color .3s ease;will-change:auto}
+#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 6}
+#product-grid>.product-card:hover{transform:translateY(-4px);box-shadow:0 17px 34px rgba(52,35,30,.15),inset 0 1px rgba(255,255,255,.9);border-color:rgba(181,144,124,.6)}
+#product-grid>.product-card:focus-visible{outline:3px solid #86604c;outline-offset:3px}
+#product-grid>.product-card .product-image{overflow:hidden;background:#eee4db}
+#product-grid>.product-card .product-image img{transition:transform .55s cubic-bezier(.22,.8,.25,1)}
+#product-grid>.product-card:hover .product-image img{transform:scale(1.025)}
+#product-grid>.product-card .product-body{position:relative;background:rgba(255,251,247,.52);border-top:1px solid rgba(255,255,255,.72);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+#product-grid>.product-card .designer-card-link{display:inline-flex;align-items:center;gap:6px;min-height:36px;text-underline-offset:4px}
+#product-grid>.product-card .favorite-button{min-width:44px;min-height:44px;touch-action:manipulation}
+#product-grid>.empty-gallery{grid-column:1/-1}
+@media(max-width:1100px){#product-grid>.product-card{grid-column:span 4}#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 8}}
+@media(max-width:740px){#product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#product-grid>.product-card,#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 1}#product-grid>.product-card:nth-child(5n + 1){grid-column:span 2}#product-grid>.product-card .product-body{backdrop-filter:none;-webkit-backdrop-filter:none}#product-grid>.product-card:hover{transform:none}#product-grid>.product-card .product-image img{transition:none}#product-grid>.product-card:hover .product-image img{transform:none}}
+@media(max-width:390px){#product-grid{grid-template-columns:1fr}#product-grid>.product-card,#product-grid>.product-card:nth-child(5n + 1){grid-column:span 1}}
+@media(prefers-reduced-motion:reduce){#product-grid>.product-card,#product-grid>.product-card .product-image img{transition:none!important}#product-grid>.product-card:hover,#product-grid>.product-card:hover .product-image img{transform:none!important}}
