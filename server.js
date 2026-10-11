@@ -3838,6 +3838,36 @@ function createApp(options = {}) {
     db.prepare('INSERT INTO creative_project_requests(id,kind,contact_name,contact_email,title,description,budget,location,timeline) VALUES(?,?,?,?,?,?,?,?,?)').run(id,kind,contactName,contactEmail,title,description,budget,location,timeline);
     res.status(201).json({received:true,message:'Your request has been received for review. This is not a confirmed booking.'});
   });
+  // Fashion event briefs: only active designers may publish or close events.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_events (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK(event_type IN ('fashion-show','pop-up','collection-launch','editorial-event')),
+    location TEXT NOT NULL, event_date TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL, roles TEXT NOT NULL, compensation TEXT NOT NULL CHECK(compensation IN ('paid','unpaid','negotiable')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.get('/api/creative-house/events',(_req,res)=>{
+    const events=db.prepare("SELECT e.id,e.title,e.event_type,e.location,e.event_date,e.description,e.roles,e.compensation,e.created_at,p.brand_name FROM creative_events e JOIN designer_profiles p ON p.id=e.designer_id WHERE e.status='open' AND p.status='active' ORDER BY e.created_at DESC LIMIT 60").all();
+    res.json({events:events.map(e=>({...e,roles:JSON.parse(e.roles)}))});
+  });
+  app.post('/api/creative-house/events',authDesigner,(req,res)=>{
+    const v=req.body||{},clean=(k,n)=>typeof v[k]==='string'?v[k].trim().slice(0,n):'';
+    const title=clean('title',120),eventType=clean('event_type',30),location=clean('location',120),eventDate=clean('event_date',20),description=clean('description',1500),compensation=clean('compensation',20);
+    const allowed=['model','photographer','dj','venue','makeup-artist','hairstylist','stylist','lighting','producer'];
+    const roles=Array.isArray(v.roles)?[...new Set(v.roles.filter(x=>typeof x==='string'&&allowed.includes(x)))]:[];
+    if(title.length<5||!['fashion-show','pop-up','collection-launch','editorial-event'].includes(eventType)||!location||description.length<30||!roles.length||!['paid','unpaid','negotiable'].includes(compensation)||eventDate&&!/^\d{4}-\d{2}-\d{2}$/.test(eventDate))return res.status(400).json({error:'Complete the event details, at least one role, and compensation.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_events WHERE designer_id=? AND status='open'").get(req.designerId).n;
+    if(count>=5)return res.status(429).json({error:'You can have up to five open event briefs.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_events(id,designer_id,title,event_type,location,event_date,description,roles,compensation) VALUES(?,?,?,?,?,?,?,?,?)').run(id,req.designerId,title,eventType,location,eventDate,description,JSON.stringify(roles),compensation);
+    res.status(201).json({id,created:true});
+  });
+  app.post('/api/creative-house/events/:id/close',authDesigner,(req,res)=>{
+    const result=db.prepare("UPDATE creative_events SET status='closed' WHERE id=? AND designer_id=? AND status='open'").run(req.params.id,req.designerId);
+    if(!result.changes)return res.status(404).json({error:'Open event not found.'});
+    res.json({closed:true});
+  });
   // Creative House: designer-owned collaboration board. No public applicant contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_opportunities (
     id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
