@@ -210,3 +210,8 @@ body.blackberry-house .house-stories,body.blackberry-house .house-styling,body.b
 body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{display:block!important;width:calc(100% - 48px)!important;max-width:1320px!important;margin-inline:auto!important;box-sizing:border-box}
 body.blackberry-house .house-stories :is(h2,p),body.blackberry-house .house-styling :is(h2,p){max-width:min(100%,1100px)}
 @media(max-width:620px){body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{width:calc(100% - 32px)!important}}
+
+/* Quiet seller benefit, subordinate to the signup action. */
+.designer-callout-action{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.designer-callout-action .designer-callout-button{margin:0}
+.designer-fee-note{margin:0;font:400 13px/1.5 Inter,Arial,sans-serif;letter-spacing:.01em;color:#716b67;max-width:260px}
