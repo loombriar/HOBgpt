@@ -179,3 +179,18 @@ body.blackberry-house .sewing-hero-content h1 em{color:#252323!important}
 body.blackberry-house .sewing-hero-content h1 .fashion-keyword{color:#6d5b48!important}
 .sewing-hero-content h1{overflow-wrap:normal!important;word-break:normal!important}
 @media(max-width:650px){.sewing-hero-content h1{font-size:clamp(42px,10vw,60px)!important;letter-spacing:-.045em!important}}
+
+/* Editorial layout repair: constrain sections on narrow screens and elevate recruitment. */
+html,body{max-width:100%;overflow-x:clip}
+body.blackberry-house .hero.sewing-hero{display:block!important}
+body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{width:min(100% - 32px,1200px)!important;max-width:1200px!important;margin-inline:auto!important}
+body.blackberry-house .house-stories .container,body.blackberry-house .house-styling .container,body.blackberry-house .designer-callout-section .container{width:min(100% - 32px,1200px);max-width:1200px;margin-inline:auto;min-width:0}
+body.blackberry-house .house-stories *,body.blackberry-house .house-styling *,body.blackberry-house .designer-callout-section *{min-width:0;overflow-wrap:break-word}
+body.blackberry-house .house-stories h2,body.blackberry-house .house-styling h2{font-size:clamp(32px,5vw,72px);line-height:1.06;max-width:100%}
+body.blackberry-house .designer-callout-section{padding-block:clamp(96px,12vw,180px)!important}
+body.blackberry-house .designer-callout{max-width:1240px!important;gap:36px!important}
+body.blackberry-house .designer-callout h2{font-size:clamp(42px,7vw,104px)!important;line-height:1.02!important;max-width:100%!important}
+.fashion-category-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:28px 0 36px}
+.fashion-category-link{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(22px,4vw,46px);background:#ede7e2;color:#292525!important;border:1px solid #d5ccc5;text-decoration:none!important;font:500 clamp(21px,3vw,36px)/1.1 Georgia,serif}
+.fashion-category-link:hover{background:#e3d9d0}
+@media(max-width:650px){.fashion-category-links{grid-template-columns:1fr}body.blackberry-house .house-stories .container,body.blackberry-house .house-styling .container{padding-inline:0!important}}
