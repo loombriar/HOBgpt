@@ -1603,6 +1603,7 @@ byId('shop-garment-filter')?.addEventListener('change', (event) => {
 });
 byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   activeAesthetic = event.target.value || 'all';
+  syncShopMoodButtons();
   loadGallery();
 });
 
