@@ -2319,7 +2319,7 @@ function createApp(options = {}) {
       }
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
-      const platformFeeCents = Math.round(lineTotalCents * 0.10);
+      const platformFeeCents = Math.round(lineTotalCents * 0.09);
       rows.push({ giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
@@ -3871,6 +3871,40 @@ function createApp(options = {}) {
     VALUES(?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(owner_subject) DO UPDATE SET role=excluded.role,display_name=excluded.display_name,location=excluded.location,description=excluded.description,specialties=excluded.specialties,pricing=excluded.pricing,capacity=excluded.capacity,amenities=excluded.amenities,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,role,name,location,description,specialties,pricing,capacity,amenities,v.published?1:0);
     res.json({profile:{slug,role,display_name:name,location,description,specialties,pricing,capacity,amenities,published:v.published}});
+  });
+  // Private inquiries: authenticated designer to opt-in creative, visible only to the sender and recipient.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_inquiries (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, recipient_subject TEXT NOT NULL,
+    recipient_kind TEXT NOT NULL CHECK(recipient_kind IN ('talent','event-partner')),
+    recipient_slug TEXT NOT NULL, subject TEXT NOT NULL, message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
+    const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
+    if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
+    const table=kind==='talent'?'creative_profiles':'creative_event_profiles';
+    const target=db.prepare('SELECT owner_subject FROM '+table+' WHERE slug=? AND published=1').get(slug);
+    if(!target)return res.status(404).json({error:'Creative profile not found.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_inquiries WHERE designer_id=? AND created_at>datetime('now','-1 day')").get(req.designerId).n;
+    if(count>=15)return res.status(429).json({error:'Daily inquiry limit reached.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_inquiries(id,designer_id,recipient_subject,recipient_kind,recipient_slug,subject,message) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,target.owner_subject,kind,slug,subject,message);
+    res.status(201).json({sent:true,message:'Private inquiry sent. The creative can review it in their House account.'});
+  });
+  app.get('/api/creative-house/my-inquiries',authBuyer,(req,res)=>{
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE recipient_subject=? ORDER BY created_at DESC LIMIT 100').all(req.buyerSubject);
+    res.json({inquiries});
+  });
+  app.post('/api/creative-house/my-inquiries/:id/respond',authBuyer,(req,res)=>{
+    if(!['accepted','declined'].includes(req.body?.status))return res.status(400).json({error:'Choose accepted or declined.'});
+    const result=db.prepare("UPDATE creative_inquiries SET status=? WHERE id=? AND recipient_subject=? AND status='pending'").run(req.body.status,req.params.id,req.buyerSubject);
+    if(!result.changes)return res.status(404).json({error:'Pending inquiry not found.'});
+    res.json({updated:true});
+  });
+  app.get('/api/creative-house/sent-inquiries',authDesigner,(req,res)=>{
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
+    res.json({inquiries});
   });
   // Fashion event briefs: only active designers may publish or close events.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_events (
