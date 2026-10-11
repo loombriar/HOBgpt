@@ -1952,3 +1952,22 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
  .designer-callout-button{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box}
 }
 @media(max-width:420px){.hob-door-art{font-size:clamp(3rem,13vw,4.5rem)}.hob-two-doors-heading h2{font-size:2.4rem!important}.shop-discovery-links a{min-height:30px;display:inline-flex;align-items:center}}
+
+/* Living editorial: depth and restrained motion without imagery duplication. */
+.hob-two-doors{background:linear-gradient(155deg,#f8f2eb 0%,#eee3d9 58%,#f8f2eb 100%)}
+.hob-door{isolation:isolate;box-shadow:0 8px 22px rgba(44,30,24,.08),0 2px 4px rgba(44,30,24,.05);transform:translateZ(0);transition:transform .42s cubic-bezier(.2,.75,.2,1),box-shadow .42s cubic-bezier(.2,.75,.2,1),border-color .25s ease}
+.hob-door::after{content:"";pointer-events:none;position:absolute;inset:0;background:linear-gradient(125deg,rgba(255,255,255,.14),transparent 40%,rgba(255,255,255,.06) 70%);z-index:0}
+.hob-door:hover{transform:translateY(-7px);box-shadow:0 22px 40px rgba(44,30,24,.17),0 5px 12px rgba(44,30,24,.07)}
+.hob-door-art{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:10px;padding:25px 18px;box-sizing:border-box;transform:rotate(-2deg);background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.02));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);box-shadow:0 9px 24px rgba(58,39,30,.09);transition:transform .55s cubic-bezier(.2,.75,.2,1)}
+.hob-door-create .hob-door-art{transform:rotate(2deg)}
+.hob-door:hover .hob-door-art{transform:rotate(0deg) translateY(-3px)}
+.hob-door-art-overline,.hob-door-art-subline{position:relative;z-index:1;font:700 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.14em;text-align:center}
+.hob-door-art-title{position:relative;z-index:1;font:italic 400 clamp(3rem,5.5vw,6.5rem)/.92 'Cormorant Garamond',Georgia,serif;letter-spacing:-.05em;text-align:center}
+.hob-door-art-subline{font-size:9px}
+.hob-door-content{position:relative;z-index:1;background:rgba(255,250,244,.7);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border-top:1px solid rgba(104,79,66,.16)}
+.hob-door-create .hob-door-content{background:rgba(45,40,40,.72);border-color:rgba(255,255,255,.14)}
+.hob-door-content strong{font-size:clamp(2rem,3.3vw,3.3rem)}
+.hob-door-content b{display:inline-block;transition:transform .25s ease}
+.hob-door:hover .hob-door-content b{transform:translateX(5px)}
+@media(max-width:720px){.hob-door-art{min-height:220px;padding:19px 12px}.hob-door-art-title{font-size:clamp(3.3rem,12vw,5.5rem)}.hob-door{box-shadow:0 5px 18px rgba(44,30,24,.09)}.hob-door:hover{transform:none}.hob-door-content{backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(prefers-reduced-motion:reduce){.hob-door,.hob-door-art,.hob-door-content b{transition:none!important}.hob-door:hover,.hob-door:hover .hob-door-art,.hob-door:hover .hob-door-content b{transform:none!important}}
