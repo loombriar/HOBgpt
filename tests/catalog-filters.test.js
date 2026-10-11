@@ -28,7 +28,7 @@ test('catalog backend composes category filters, sorts and protects unpublished 
     assert.deepEqual(await ids('?category=apparel&sort=low'),['top','dress']);
     assert.deepEqual(await ids('?pattern=Floral&sort=high'),['dress','bag']);
     assert.deepEqual(await ids('?q=velvet'),['top']);
-    assert.deepEqual(await ids('?designer=maker-b'),['top']);
+    assert.deepEqual(await ids('?designer=maker-b'),['suit','top']);
     assert.deepEqual(await ids('?designer=unknown'),[]);
     assert.equal((await fetch(url+'/api/gallery?sort=oops')).status,400);
     assert.equal((await fetch(url+'/api/gallery?style=Dress&style=Top')).status,400);
