@@ -1909,16 +1909,7 @@ function openAdminReview() {
 }
 
 byId('founder-signup-link')?.addEventListener('click', event => { event.preventDefault(); openDesignerRoom('#designer-signup'); });
-async function loadFounderSpots() {
-  try {
-    const data = await apiRequest('/api/founding-designers');
-    const remaining = Number(data.remaining);
-    if (!Number.isInteger(remaining) || remaining < 0 || remaining > 25) return;
-    if (byId('founder-spots')) byId('founder-spots').textContent = remaining ? `${remaining} of 25 founding spots remain. All designers are welcome.` : 'Our founding 25 are here. The House is still open to every independent designer.';
-    if (!remaining && byId('founder-signup-link')) byId('founder-signup-link').textContent = 'Join the House →';
-  } catch {}
-}
-loadFounderSpots();
+
 
 adminReviewBtn?.addEventListener('click', openAdminReview);
 if (window.location.hash === '#admin-review') openAdminReview();
