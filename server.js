@@ -3786,6 +3786,40 @@ function createApp(options = {}) {
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
+  // Creative portfolio profiles reuse verified House customer or designer identities.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_profiles (
+    owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('model','photographer','designer')),
+    location TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '',
+    published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
+  app.get('/api/creative-house/profiles/:slug',authDesigner,(req,res)=>{
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
+    if(!profile)return res.status(404).json({error:'Profile not found'});
+    res.json({profile});
+  });
+  app.get('/api/creative-house/my-profile',authBuyer,(req,res)=>{
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,published,updated_at FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    res.json({profile:profile||null});
+  });
+  app.put('/api/creative-house/my-profile',authBuyer,(req,res)=>{
+    const v=req.body||{};
+    const clean=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
+    const displayName=clean('display_name',80),role=clean('role',20),location=clean('location',100),bio=clean('bio',800);
+    if(!displayName||!['model','photographer','designer'].includes(role))return res.status(400).json({error:'A display name and valid role are required.'});
+    if(v.published!==true&&v.published!==false)return res.status(400).json({error:'Choose whether to publish your profile.'});
+    const previous=db.prepare('SELECT slug FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const slug=previous?.slug||portfolioSlug(displayName)+'-'+crypto.randomBytes(4).toString('hex');
+    db.prepare(`INSERT INTO creative_profiles(owner_subject,slug,display_name,role,location,bio,published) VALUES(?,?,?,?,?,?,?)
+      ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,v.published?1:0);
+    res.json({profile:{slug,display_name:displayName,role,location,bio,published:v.published}});
+  });
+  app.get('/api/creative-house/profiles',authDesigner,(_req,res)=>{
+    const profiles=db.prepare('SELECT slug,display_name,role,location,bio FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
+    res.json({profiles});
+  });
   // Creative House: designer-owned collaboration board. No public applicant contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_opportunities (
     id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
