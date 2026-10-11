@@ -2006,3 +2006,8 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 .site-header.sewing-header{position:sticky!important;top:0!important;z-index:1000!important}
 @media(max-width:750px){.house-compact-bar{align-items:flex-start;flex-direction:column;gap:6px;padding:10px 14px}.house-compact-logo{font-size:20px}.house-compact-bar nav{justify-content:flex-start;gap:12px;width:100%}.house-compact-bar nav>a,.house-compact-bar nav>details>summary,.house-compact-bar nav>button{font-size:12px;padding:9px 0}.site-header.sewing-header{max-height:100dvh;overflow-y:auto}}
 @media(prefers-reduced-motion:reduce){.house-compact-bar{scroll-behavior:auto}}
+
+/* After scrolling, retain only the compact navigation to avoid obscuring content. */
+body.house-header-scrolled .site-header.sewing-header>.sewing-nav,body.house-header-scrolled .site-header.sewing-header>.sewing-brand{display:none!important}
+body.house-header-scrolled .site-header.sewing-header{max-height:none!important;overflow:visible!important}
+@media(max-width:750px){body.house-header-scrolled .site-header.sewing-header{overflow:visible!important}}
