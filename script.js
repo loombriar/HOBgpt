@@ -172,6 +172,22 @@ function setGiftWrapIds(ids){localStorage.setItem(GIFT_WRAP_KEY,JSON.stringify([
 function setCartIds(ids) {
   localStorage.setItem(CART_KEY, JSON.stringify([...new Set(ids)]));
   updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
+}
+
+function clearCustomerCart() {
+  localStorage.removeItem(CART_KEY);
+  localStorage.removeItem(GIFT_WRAP_KEY);
+  localStorage.removeItem('house-of-briar:checkout-pending');
+  for (const id of Object.keys(cartGiftNotes)) delete cartGiftNotes[id];
+  cartShippingQuote = null;
+  cartShippingKey = '';
+  ++cartShippingSequence;
+  if (checkoutButton) checkoutButton.disabled = true;
+  cartItems?.replaceChildren();
+  cartDialog?.close();
+  updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
 }
 
 function updateCartButton() {
@@ -374,12 +390,11 @@ function openCart() {
   } else {
     if (checkoutButton) checkoutButton.disabled = true;
     ids.forEach((id) => {
-      const item = galleryItems.find((entry) => entry.id === id);
-      if (!item) return;
+      const item = galleryItems.find((entry) => entry.id === id) || { id, title: 'Saved piece outside the current collection' };
       const row = makeElement('div', 'designer-product');
       const copy = makeElement('div');
       copy.appendChild(makeElement('strong', '', item.title));
-      copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
+      if (item.price != null) copy.appendChild(makeElement('p', 'price', `${Number(item.price).toFixed(2)}`));
       if(item.giftNoteAvailable){const label=makeElement('label','','Free gift note');const input=document.createElement('textarea');input.maxLength=500;input.value=cartGiftNotes[item.id]||'';input.placeholder='Optional message for the gift recipient';input.addEventListener('input',()=>{cartGiftNotes[item.id]=input.value;});label.append(input);copy.append(label);}
       if (item.giftWrapAvailable) {
         const wrapLabel=makeElement('label','cart-gift-wrap');
@@ -388,7 +403,7 @@ function openCart() {
         wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);openCart();});
         wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
       }
-      const remove = makeElement('button', 'text-button', 'Remove from Cart');
+      const remove = makeElement('button', 'text-button cart-remove-button', 'Remove from Cart');
       remove.type = 'button';
       remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
       row.append(copy, remove);
@@ -2288,6 +2303,7 @@ byId('customer-delete-account')?.addEventListener('click',async()=>{
   const button=byId('customer-delete-account');button.disabled=true;
   try{
     await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
+    clearCustomerCart();
     customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();
     byId('customer-signup-status').textContent='Your customer account has been deleted.';
   }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}

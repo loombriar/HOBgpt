@@ -111,3 +111,8 @@ html[data-hob-theme=dark] body.blackberry-house .app-dialog :is(.cart-badge-rewa
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-help-links :is(a,.support-link-button){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .cart-badge-reward :is(p,strong,a){color:var(--briar-ink)!important}
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .suitcase-info-links a{background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+
+/* Keep cart removal visible and easy to tap on narrow screens. */
+#cart-items .designer-product{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+#cart-items .designer-product>div{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+#cart-items .cart-remove-button{min-height:48px;min-width:48px;padding:12px 16px;border:1px solid currentColor;border-radius:12px;touch-action:manipulation;flex-shrink:0}
