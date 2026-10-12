@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 test('homepage profiles persist in the account, appear on the account page, and disappear from filters after deletion',async({page,request,browser})=>{
-  const email='measurement-ui@example.test';
+  const email=`measurement-ui-${test.info().retry}@example.test`;
   await page.goto('/?visitors=signup');
   await page.locator('#customer-signup-email').fill(email);
   await page.locator('#customer-rules-consent').check();
@@ -20,7 +20,6 @@ test('homepage profiles persist in the account, appear on the account page, and 
   expect(profiles).toEqual([expect.objectContaining({label:'Account fit',bust:'35',inseam:'30.5'})]);
   expect(await page.evaluate(()=>localStorage.getItem('house-of-briar:measurement-profiles'))).toBeNull();
   await page.reload();
-  await page.locator('#header-customer-auth-btn').click();
   await expect(page.locator('#measurement-profile-list')).toContainText('Account fit');
   const origin=new URL(page.url()).origin;
   const other=await browser.newContext({baseURL:origin});
