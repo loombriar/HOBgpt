@@ -515,7 +515,7 @@ function createApp(options = {}) {
   ensureColumn('analytics_events', 'device_category', 'TEXT');
   for(const column of ['country','region','city'])ensureColumn('analytics_events',column,'TEXT');
   const customerRouter=express.Router();
-  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession});
+  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir});
   recordMigration(4, 'first_party_commerce_analytics');
   ensureColumn('listings', 'seo_title', 'TEXT');
   ensureColumn('listings', 'seo_description', 'TEXT');
@@ -1364,6 +1364,7 @@ function createApp(options = {}) {
       const event = JSON.parse(req.body.toString('utf8'));
       if (!event?.id || typeof event.id !== 'string' || !event.id.startsWith('evt_') || typeof event.type !== 'string') return res.status(400).send('Invalid Stripe event.');
       if (event.type !== 'account.updated' && db.prepare('SELECT 1 FROM stripe_webhook_events WHERE event_id=?').get(event.id)) return res.json({ received: true, duplicate: true });
+      await portfolioSubscriptions.handleEvent(event);
       if (event.type === 'account.updated') {
         const accountId = event.data?.object?.id;
         if (!event.id || typeof accountId !== 'string' || !accountId.startsWith('acct_')) return res.status(400).send('Invalid Connect account event.');
@@ -1485,6 +1486,8 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(customerRouter);
+  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,stripeApi,trustedAppOrigin,imagesDir,options});
+
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
 
   app.post('/api/listings/:listingId/inquiries', authBuyer, reportLimiter, (req,res)=>{
