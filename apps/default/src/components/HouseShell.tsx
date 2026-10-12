@@ -77,7 +77,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="fashion-app min-h-screen bg-background text-foreground">
 
-      <header className="sticky top-0 z-[9999] border-b border-border/70 bg-background">
+      <header className="fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
           <Link to="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</Link>
           <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
@@ -100,7 +100,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </nav>
         </div>
       </header>
-      <main>{children}</main>
+      <main className="pt-28 sm:pt-16">{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
           <div>
