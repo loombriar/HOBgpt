@@ -41,3 +41,28 @@ for (const width of [390, 1280]) {
     await expect(page.locator('#profile-form')).not.toBeVisible();
   });
 }
+
+for (const width of [390,1280]) {
+  test(`rooms keep the storefront position and designer content precedes the footer at ${width}px`,async({page})=>{
+    await page.setViewportSize({width,height:844});
+    await page.goto('/');
+    const nav=page.locator('#hob-global-nav');
+    await nav.getByRole('link',{name:'Shop',exact:true}).click();
+    await expect(page).toHaveURL(/#shop$/);
+    await page.waitForTimeout(800);
+    const before=await page.evaluate(()=>window.scrollY);
+    await nav.locator('#header-customer-auth-btn').click();
+    await expect(page.locator('#visitor-suite-modal')).toBeVisible();
+    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(before);
+    await page.locator('#visitor-suite-close').click();
+    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(before);
+    await page.goto('/designers/room');
+    await expect(page.locator('#designer-modal')).toBeVisible();
+    expect(await page.evaluate(()=>Boolean(document.querySelector('#designer-modal').compareDocumentPosition(document.querySelector('.site-footer')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    await page.goto('/shop');
+    await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
+    await page.getByRole('link',{name:/Cart/}).first().click();
+    await expect(page).toHaveURL(/\/cart$/);
+    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+  });
+}

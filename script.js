@@ -1612,11 +1612,22 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   loadGallery();
 });
 
+// Scroll within open rooms without dragging the storefront behind them to the footer.
+function scrollRoomTarget(target, options = {}) {
+  if (!target) return;
+  const dialog = target.closest('dialog[open]');
+  if (!dialog) { target.scrollIntoView(options); return; }
+  const header = dialog.querySelector('.dialog-header');
+  const inset = header ? header.getBoundingClientRect().height : 0;
+  const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
+  dialog.scrollTo({top:Math.max(0,top),behavior:options.behavior || 'instant'});
+}
+
 byId('header-customer-auth-btn')?.addEventListener('click', () => {
   byId('visitor-suite-btn')?.click();
   requestAnimationFrame(() => {
     const target = customerSignedIn ? byId('customer-signed-in') : byId('customer-signup-email');
-    target?.scrollIntoView({block:'nearest'});
+    scrollRoomTarget(target,{block:'nearest'});
     if (!customerSignedIn) target?.focus({preventScroll:true});
   });
 });
@@ -2321,7 +2332,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
-    target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+    scrollRoomTarget(target,{ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
     target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
   });
@@ -2344,7 +2355,7 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
     const target = byId(button.dataset.customerSection);
     if (!target) return;
     if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
-    target.scrollIntoView({ block: 'center' });
+    scrollRoomTarget(target,{ block: 'center' });
     target.focus({ preventScroll: true });
   });
 });
