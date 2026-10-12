@@ -70,3 +70,49 @@ html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.secondary-b
 /* The legacy atelier sets these on body, which otherwise masks root theme values. */
 html[data-hob-theme=dark] body.blackberry-house{--briar-mint:#364b44;--briar-gold:#ddbd7d}
 body.creative-makeover .creative-path :is(span,strong,small,b){color:var(--briar-ink)}
+
+/* Dark rooms must switch their surfaces with their text, including legacy forms. */
+html[data-hob-theme=dark] body.blackberry-house{
+ --room-paper:var(--briar-card);--room-ink:var(--briar-ink);--room-muted:var(--briar-muted);--room-border:#93828e;--room-accent:#e8b1a4;
+ --bg-card:var(--briar-card);--bg-secondary:var(--briar-paper);--text-dark:var(--briar-ink);--text-muted:var(--briar-muted);--border:#93828e;--border-strong:#c4b7c2;
+}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog>.dialog-header{
+ background:var(--briar-card)!important;color:var(--briar-ink)!important;box-shadow:0 1px 0 var(--room-border);
+}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .dialog-header .icon-button{
+ background:var(--briar-paper)!important;color:var(--briar-ink)!important;border:1px solid var(--room-border)!important;
+}
+html[data-hob-theme=dark] body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button,
+html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.sewing-hero-actions .primary-button){
+ background:var(--briar-ink)!important;color:var(--briar-paper)!important;border-color:var(--briar-ink)!important;
+}
+html[data-hob-theme=dark] body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button:hover,
+html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.sewing-hero-actions .primary-button):hover{
+ background:#e8b1a4!important;color:var(--briar-paper)!important;border-color:#e8b1a4!important;
+}
+html[data-hob-theme=dark] body.blackberry-house :is(input,select,textarea){
+ background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important;caret-color:var(--briar-ink);
+}
+html[data-hob-theme=dark] body.blackberry-house input:-webkit-autofill{
+ -webkit-text-fill-color:var(--briar-ink);box-shadow:0 0 0 1000px var(--briar-paper) inset!important;
+}
+html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) :is(label>span,label small,.small-print){color:var(--briar-muted)!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.status-badge,.production-badge){background:var(--briar-coral)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+html[data-hob-theme=dark] body.blackberry-house .form-message[data-kind=error],
+html[data-hob-theme=dark] body.blackberry-house .notice[data-kind=error]{color:#ffb6b0!important}
+html[data-hob-theme=dark] body.blackberry-house .form-message[data-kind=success],
+html[data-hob-theme=dark] body.blackberry-house .notice[data-kind=success]{color:#c2ecd8!important}
+html[data-hob-theme=dark] body.blackberry-house :is(button,a,input,select,textarea):focus-visible{outline:3px solid #e8b1a4!important;outline-offset:3px}
+html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) :is(.text-button,.ghost-button,.product-seller-name){background:transparent!important;color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) a:not(.primary-button):not(.secondary-button){color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .room-navigation{background:var(--briar-paper)!important;border-color:var(--room-border)!important;color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-seller-block,
+html[data-hob-theme=dark] body.blackberry-house .app-dialog :is(.cart-badge-reward,.suitcase-badge,.designer-product){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-help-links :is(a,.support-link-button){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .cart-badge-reward :is(p,strong,a){color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .suitcase-info-links a{background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+
+/* Keep cart removal visible and easy to tap on narrow screens. */
+#cart-items .designer-product{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+#cart-items .designer-product>div{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+#cart-items .cart-remove-button{min-height:48px;min-width:48px;padding:12px 16px;border:1px solid currentColor;border-radius:12px;touch-action:manipulation;flex-shrink:0}
