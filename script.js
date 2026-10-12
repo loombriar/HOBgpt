@@ -940,7 +940,7 @@ function openProductDetails(item) {
   if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
   addButton.addEventListener('click', () => addToCart(item));
   copy.appendChild(addButton);
-  if (typeof houseTryOnButton === 'function') copy.appendChild(houseTryOnButton(item));
+  // Photo try-on is temporarily hidden while its visual quality is improved.
   if (images.length > 1) copy.appendChild(makeElement('p', 'small-print', `${images.length} photos · first image is the cover`));
 
   productDetailContent.append(imageGrid, copy);
