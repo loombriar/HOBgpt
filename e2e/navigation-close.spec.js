@@ -49,8 +49,9 @@ for (const width of [390,1280]) {
     const nav=page.locator('#hob-global-nav');
     await nav.getByRole('link',{name:'Shop',exact:true}).click();
     await expect(page).toHaveURL(/#shop$/);
-    await page.waitForTimeout(800);
-    const before=await page.evaluate(()=>window.scrollY);
+    await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
+    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(1200);
+    const before=1200;
     await nav.locator('#header-customer-auth-btn').click();
     await expect(page.locator('#visitor-suite-modal')).toBeVisible();
     await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(before);
