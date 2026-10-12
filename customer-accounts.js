@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const {dailyTraffic}=require('./lib/daily-traffic');
+const {isTrustedRequestOrigin}=require('./lib/request-origin');
 const COOKIE='hob_customer_session';
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir}){
@@ -71,7 +72,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
  });
  function cookie(req){const part=String(req.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(COOKIE+'='));return part?part.slice(COOKIE.length+1):'';}
  function authenticate(req){const token=cookie(req);if(!token)return null;const row=db.prepare('SELECT a.*,s.expires_at FROM customer_sessions s JOIN customer_accounts a ON a.id=s.customer_id WHERE s.session_hash=?').get(hash(token));return row&&row.expires_at>new Date().toISOString()?{sub:'customer:'+row.id,email:row.email,name:row.display_name,customerId:row.id,email_verified:true}:null;}
- function origin(req,res,next){if(req.get('origin')!==trustedAppOrigin(req))return fail(res,403,'invalid_origin','This request did not come from House of Briar.');return next();}
+ function origin(req,res,next){if(!isTrustedRequestOrigin(req,trustedAppOrigin(req)))return fail(res,403,'invalid_origin','This request did not come from House of Briar.');return next();}
  function clearSession(req,res){const token=cookie(req);if(!token)return;db.prepare('DELETE FROM customer_sessions WHERE session_hash=?').run(hash(token));res.cookie(COOKIE,'',{httpOnly:true,sameSite:'lax',secure:trustedAppOrigin(req).startsWith('https:'),path:'/',maxAge:0});}
  const consume=db.transaction((key,max)=>{const now=Date.now(),row=db.prepare('SELECT hits,reset_at FROM customer_auth_limits WHERE key=?').get(key);if(!row||row.reset_at<=now){db.prepare('INSERT INTO customer_auth_limits VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET hits=1,reset_at=excluded.reset_at').run(key,now+3600000);return true;}if(row.hits>=max)return false;db.prepare('UPDATE customer_auth_limits SET hits=hits+1 WHERE key=?').run(key);return true;});
  app.post('/api/customer/signin-code',origin,async(req,res,next)=>{
