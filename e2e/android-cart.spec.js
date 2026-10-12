@@ -41,6 +41,6 @@ test('successful account deletion clears the Android cart and gift choices',asyn
   await expect(page.locator('#customer-signup-status')).toHaveText('Your customer account has been deleted.');
   expect(await cart(page)).toEqual([]);
   expect(await page.evaluate(()=>localStorage.getItem('house-of-briar:gift-wrap'))).toBeNull();
-  await page.reload();await page.locator('#cart-btn').tap();
+  await page.goto('/');await page.locator('#cart-btn').tap();
   await expect(page.locator('#cart-items')).toContainText('Your Cart is empty.');
 });
