@@ -41,7 +41,8 @@
 .designer-room-page .form-row > div > input { margin-top:8px; }
 .designer-room-page .form-row > label:has(input[type=checkbox]) { display:flex; gap:10px; align-items:flex-start; }
 .designer-room-page :is(#designer-brand-form,#product-form,#designer-products,#designer-settings,#seller-readiness-title) { scroll-margin-top:32px; }
-.designer-products:empty::before { content:"Your pieces will appear here. Create your first listing when you’re ready."; color:var(--room-muted); }
+#designer-products:empty::before { content:"Your pieces will appear here. Create your first listing when you’re ready."; color:var(--room-muted); }
+#measurement-profile-list:empty::before { content:"No saved measurements yet. Add a profile above to keep your fit details handy."; color:var(--room-muted); }
 .designer-product-item { background:#fff; border-color:var(--room-border); padding:16px; gap:16px; }
 .designer-product-item img { object-fit:contain; width:80px; height:96px; background:#f5f0f4; }
 .designer-product-item { grid-template-columns:80px minmax(0,1fr) auto; }

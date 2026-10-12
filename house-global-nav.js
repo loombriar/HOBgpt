@@ -11,6 +11,37 @@
     document.body.prepend(nav);
   }
   const links = nav.querySelector('nav');
+  const creativeLink = links.querySelector('a[href="/creative-house.html"]');
+  if (creativeLink && !links.querySelector('.hob-creative-menu')) {
+    const menu = document.createElement('details');
+    menu.className = 'hob-creative-menu';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Creative categories';
+    menu.appendChild(summary);
+    const panel = document.createElement('div');
+    panel.className = 'hob-creative-menu-panel';
+    for (const [section, label] of [
+      ['opportunities', 'Open calls'], ['creative-directory', 'Models & photographers'],
+      ['your-profile', 'My creative profile'], ['fashion-events', 'Fashion events'],
+      ['event-creatives', 'DJs & venues'], ['event-profile-editor', 'My event profile'],
+      ['private-inquiries', 'Private inquiries'], ['casting-commissioning', 'Project requests'],
+      ['post', 'Post a call'], ['post-event', 'Post an event'],
+    ]) {
+      const link = document.createElement('a');
+      link.href = (location.pathname === '/creative-house.html' ? '' : '/creative-house.html') + '#' + section;
+      link.textContent = label;
+      link.addEventListener('click', () => { menu.open = false; });
+      panel.appendChild(link);
+    }
+    menu.appendChild(panel);
+    creativeLink.after(menu);
+    document.addEventListener('click', event => {
+      if (!menu.contains(event.target)) menu.open = false;
+    });
+    menu.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { menu.open = false; summary.focus(); }
+    });
+  }
   const account = document.getElementById('header-customer-auth-btn');
   if (account) {
     account.classList.remove('nav-hotspot');
