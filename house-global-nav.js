@@ -21,7 +21,8 @@
     slot.replaceWith(link);
   }
   header.classList.add('hob-original-header');
-  header.insertAdjacentElement('beforebegin', nav);
+  // Attach the bar directly to body so page-shell overflow and sticky headers cannot clip it.
+  document.body.insertBefore(nav, document.body.firstChild);
 
   // A fixed bar must reserve its own vertical space; measure wrapped mobile rows too.
   const setOffset = () => {
