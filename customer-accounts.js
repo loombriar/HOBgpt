@@ -16,6 +16,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customer_accounts(id),
   encrypted_payload TEXT NOT NULL, created_at TEXT NOT NULL
  ); CREATE INDEX IF NOT EXISTS customer_measurement_owner ON customer_measurement_profiles(customer_id);`);
+ if(process.env.NODE_ENV==='production'&&!measurementKey)throw new Error('MEASUREMENT_ENCRYPTION_KEY must be configured as 64 hex characters in production.');
  function encryptProfile(value){
   const iv=crypto.randomBytes(12);
   const cipher=crypto.createCipheriv('aes-256-gcm',measurementKey,iv);
