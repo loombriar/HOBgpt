@@ -1,6 +1,6 @@
 (() => {
   const header = document.querySelector('header.site-header, body > header');
-  if (!header || document.getElementById('hob-global-nav')) return;
+  if (document.getElementById('hob-global-nav')) return;
   const onHome = location.pathname === '/' || location.pathname === '/index.html';
   const nav = document.createElement('div');
   nav.id = 'hob-global-nav';
@@ -20,7 +20,7 @@
     link.innerHTML = '<img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span>';
     slot.replaceWith(link);
   }
-  header.classList.add('hob-original-header');
+  if (header) header.classList.add('hob-original-header');
   // Attach the bar directly to body so page-shell overflow and sticky headers cannot clip it.
   document.body.insertBefore(nav, document.body.firstChild);
 
