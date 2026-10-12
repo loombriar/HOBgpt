@@ -1,6 +1,11 @@
 (() => {
   const header = document.querySelector('header.site-header, body > header');
-  if (document.getElementById('hob-global-nav')) return;
+  if (document.getElementById('hob-global-nav')) {
+    if (location.pathname === '/' && new URLSearchParams(location.search).get('openCart') === '1') {
+      window.addEventListener('load', () => { document.getElementById('cart-btn')?.click(); history.replaceState(null, '', location.pathname + location.hash); }, { once: true });
+    }
+    return;
+  }
   const onHome = location.pathname === '/' || location.pathname === '/index.html';
   const nav = document.createElement('div');
   nav.id = 'hob-global-nav';
