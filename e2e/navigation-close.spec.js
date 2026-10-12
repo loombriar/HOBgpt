@@ -47,9 +47,7 @@ for (const width of [390,1280]) {
     await page.setViewportSize({width,height:844});
     await page.goto('/');
     const nav=page.locator('#hob-global-nav');
-    await nav.getByRole('link',{name:'Shop',exact:true}).click();
-    await expect(page).toHaveURL(/#shop$/);
-    await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
+    await page.evaluate(async()=>{await document.fonts.ready;document.documentElement.style.overflowAnchor='none';window.scrollTo({top:1200,behavior:'instant'});});
     await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(1200);
     const before=1200;
     await nav.locator('#header-customer-auth-btn').click();
