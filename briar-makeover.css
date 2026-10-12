@@ -48,3 +48,22 @@ body.creative-makeover section[id]{scroll-margin-top:calc(var(--hob-bar-height,1
 #hob-global-nav #hob-theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:40px;min-height:40px;padding:0;border:1px solid var(--briar-line);border-radius:50%;background:transparent;color:inherit;font-size:23px;cursor:pointer}
 
 #hob-global-nav #header-customer-auth-btn{display:inline-flex;align-items:center;min-height:40px;background:transparent;border:0;padding:4px 0;font:normal 13px Arial,sans-serif;cursor:pointer;color:inherit} #hob-global-nav .hob-global-cart-button{border-radius:999px!important;border-color:var(--briar-line)!important;background:transparent!important;color:inherit!important}
+
+/* Keep text and its surface paired when switching themes. */
+html[data-hob-theme=dark]{color-scheme:dark}
+html[data-hob-theme=light]{color-scheme:light}
+body.creative-makeover .creative-category-heading>p:last-child,
+body.creative-makeover #creative-workflow-help{color:var(--briar-muted)}
+body.creative-makeover .creative-workflow-options button{background:var(--briar-card);color:var(--briar-ink);border-color:var(--briar-line)}
+body.creative-makeover .creative-workflow-options button[aria-pressed=true]{background:var(--briar-ink);color:var(--briar-paper)}
+body.creative-makeover .creative-paths{background:var(--briar-card);color:var(--briar-ink);border-block:1px solid var(--briar-line)}
+body.creative-makeover .creative-path{background:var(--briar-paper);border-color:var(--briar-line)}
+body.creative-makeover .creative-path:hover{background:var(--briar-mint)}
+body.creative-makeover :is(.tag,fieldset,footer){border-color:var(--briar-line)}
+body.creative-makeover :is(input,textarea)::placeholder{color:var(--briar-muted);opacity:1}
+body.creative-makeover button:not([aria-pressed]):not(#hob-theme-toggle){background:var(--briar-ink);color:var(--briar-paper)}
+html[data-hob-theme=dark] body.creative-makeover :is(.creative-category-tile,.opportunity,.plan,.creative-access) :is(h2,h3,p,span,strong,b,a,small){color:var(--briar-ink)}
+html[data-hob-theme=dark] body.blackberry-house :is(h1,h2,h3,h4,p,li,label,small,.eyebrow,.product-title,.product-description,.product-price,.product-designer,.hob-door-label,.hob-door-art-title,.hob-door-art-kicker,.hob-door-art-note){color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.hob-door-copy,.hob-account-invitation,.house-fee-note,.atelier-spotlight,.room-card,.customer-welcome,.visitor-suite,.donation-card,.badge-card,.newsletter-section,.designer-product-item){background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html[data-hob-theme=dark] body.blackberry-house :is(input,textarea)::placeholder{color:var(--briar-muted)!important;opacity:1}
+html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.secondary-button) :is(span,small){color:inherit!important}
