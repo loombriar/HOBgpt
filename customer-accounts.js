@@ -8,6 +8,67 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
  CREATE TABLE IF NOT EXISTS customer_sessions(session_hash TEXT PRIMARY KEY,customer_id TEXT NOT NULL REFERENCES customer_accounts(id),created_at TEXT NOT NULL,expires_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_auth_limits(key TEXT PRIMARY KEY,hits INTEGER NOT NULL,reset_at INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS customer_accounts_created ON customer_accounts(created_at);`);
+
+ // Encryption key must be a stable 32-byte hex secret, distinct from session keys.
+ const measurementKeyHex=process.env.MEASUREMENT_ENCRYPTION_KEY||'';
+ const measurementKey=/^[0-9a-fA-F]{64}$/.test(measurementKeyHex)?Buffer.from(measurementKeyHex,'hex'):null;
+ db.exec(`CREATE TABLE IF NOT EXISTS customer_measurement_profiles (
+  id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customer_accounts(id),
+  encrypted_payload TEXT NOT NULL, created_at TEXT NOT NULL
+ ); CREATE INDEX IF NOT EXISTS customer_measurement_owner ON customer_measurement_profiles(customer_id);`);
+ if(process.env.NODE_ENV==='production'&&!measurementKey)throw new Error('MEASUREMENT_ENCRYPTION_KEY must be configured as 64 hex characters in production.');
+ function encryptProfile(value){
+  const iv=crypto.randomBytes(12);
+  const cipher=crypto.createCipheriv('aes-256-gcm',measurementKey,iv);
+  const data=Buffer.concat([cipher.update(JSON.stringify(value),'utf8'),cipher.final()]);
+  return Buffer.concat([iv,cipher.getAuthTag(),data]).toString('base64');
+ }
+ function decryptProfile(encoded){
+  const raw=Buffer.from(encoded,'base64'),iv=raw.subarray(0,12),tag=raw.subarray(12,28);
+  const decipher=crypto.createDecipheriv('aes-256-gcm',measurementKey,iv);
+  decipher.setAuthTag(tag);
+  return JSON.parse(Buffer.concat([decipher.update(raw.subarray(28)),decipher.final()]).toString('utf8'));
+ }
+ function validateProfile(body){
+  if(!body||typeof body!=='object'||Array.isArray(body))return null;
+  const label=typeof body.label==='string'?body.label.trim():'';
+  if(!label||label.length>80)return null;
+  const profile={label};
+  for(const key of ['bust','waist','hips','height']){
+   const raw=body[key]==null?'':String(body[key]).trim();
+   if(raw&&(!/^\d+(?:\.\d{1,2})?$/.test(raw)||Number(raw)<=0||Number(raw)>150))return null;
+   profile[key]=raw;
+  }
+  if(typeof body.notes!=='string'&&body.notes!=null)return null;
+  profile.notes=(body.notes||'').trim();
+  if(profile.notes.length>500)return null;
+  return profile;
+ }
+ function measurementAccess(req,res){
+  const identity=authenticate(req);
+  if(!identity){fail(res,401,'unauthorized','Sign in to manage saved measurements.');return null;}
+  if(!measurementKey){fail(res,503,'measurements_unavailable','Secure measurement storage is not configured.');return null;}
+  return identity;
+ }
+ app.get('/api/customer/measurements',(req,res)=>{
+  const identity=measurementAccess(req,res);if(!identity)return;
+  const rows=db.prepare('SELECT id,encrypted_payload FROM customer_measurement_profiles WHERE customer_id=? ORDER BY created_at,id').all(identity.customerId);
+  return res.set('Cache-Control','no-store').json({profiles:rows.map(row=>({id:row.id,...decryptProfile(row.encrypted_payload)}))});
+ });
+ app.post('/api/customer/measurements',origin,(req,res)=>{
+  const identity=measurementAccess(req,res);if(!identity)return;
+  const profile=validateProfile(req.body);if(!profile)return fail(res,422,'invalid_measurements','Enter a profile name and valid measurements.');
+  if(db.prepare('SELECT COUNT(*) AS n FROM customer_measurement_profiles WHERE customer_id=?').get(identity.customerId).n>=20)return fail(res,422,'profile_limit','A maximum of 20 profiles is allowed.');
+  const id=crypto.randomUUID();
+  db.prepare('INSERT INTO customer_measurement_profiles(id,customer_id,encrypted_payload,created_at) VALUES(?,?,?,?)').run(id,identity.customerId,encryptProfile(profile),new Date().toISOString());
+  return res.set('Cache-Control','no-store').status(201).json({profile:{id,...profile}});
+ });
+ app.delete('/api/customer/measurements/:id',origin,(req,res)=>{
+  const identity=measurementAccess(req,res);if(!identity)return;
+  const result=db.prepare('DELETE FROM customer_measurement_profiles WHERE id=? AND customer_id=?').run(req.params.id,identity.customerId);
+  if(!result.changes)return fail(res,404,'profile_not_found','Measurement profile not found.');
+  return res.set('Cache-Control','no-store').json({ok:true});
+ });
  function cookie(req){const part=String(req.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(COOKIE+'='));return part?part.slice(COOKIE.length+1):'';}
  function authenticate(req){const token=cookie(req);if(!token)return null;const row=db.prepare('SELECT a.*,s.expires_at FROM customer_sessions s JOIN customer_accounts a ON a.id=s.customer_id WHERE s.session_hash=?').get(hash(token));return row&&row.expires_at>new Date().toISOString()?{sub:'customer:'+row.id,email:row.email,name:row.display_name,customerId:row.id,email_verified:true}:null;}
  function origin(req,res,next){if(req.get('origin')!==trustedAppOrigin(req))return fail(res,403,'invalid_origin','This request did not come from House of Briar.');return next();}
@@ -76,6 +137,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
     db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_event_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
+    db.prepare('DELETE FROM customer_measurement_profiles WHERE customer_id=?').run(identity.customerId);
     db.prepare('DELETE FROM user_badges WHERE buyer_subject=?').run(subject);
     db.prepare('DELETE FROM customer_sessions WHERE customer_id=?').run(identity.customerId);
     db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);

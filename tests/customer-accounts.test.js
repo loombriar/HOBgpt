@@ -93,3 +93,33 @@ test('customer deletion requires a recent verified sign-in',async()=>{
   assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,1);
  }finally{await f.close();}
 });
+
+test('saved measurement profiles are encrypted and isolated between customers',async()=>{
+ const old=process.env.MEASUREMENT_ENCRYPTION_KEY;
+ process.env.MEASUREMENT_ENCRYPTION_KEY=require('node:crypto').randomBytes(32).toString('hex');
+ let f;
+ try{
+  f=await setup();
+  const a=await f.verify('measure-a@example.test'),b=await f.verify('measure-b@example.test');
+  const input={label:'My fit',bust:'35',waist:'27',hips:'38',height:'64',notes:'custom fit'};
+  const created=await f.post('/api/customer/measurements',input,a.cookie);
+  assert.equal(created.status,201);
+  const {profile}=await created.json();
+  const stored=f.ctx.db.prepare('SELECT encrypted_payload FROM customer_measurement_profiles WHERE id=?').get(profile.id);
+  assert.ok(stored.encrypted_payload);
+  assert.ok(!stored.encrypted_payload.includes('custom fit'));
+  const get=async cookie=>fetch(f.url+'/api/customer/measurements',{headers:{Cookie:cookie}});
+  assert.deepEqual((await (await get(a.cookie)).json()).profiles,[{id:profile.id,...input}]);
+  assert.deepEqual((await (await get(b.cookie)).json()).profiles,[]);
+  assert.equal((await fetch(f.url+'/api/customer/measurements/'+profile.id,{method:'DELETE',headers:{Cookie:b.cookie,Origin:f.url}})).status,404);
+  assert.equal((await f.post('/api/customer/measurements',{...input,bust:'999'},a.cookie)).status,422);
+  assert.equal((await f.post('/api/customer/measurements',input,a.cookie,'https://invalid.example')).status,403);
+  const deletion=await fetch(f.url+'/api/customer/account',{method:'DELETE',headers:{Cookie:a.cookie,Origin:f.url,'Content-Type':'application/json'},body:JSON.stringify({confirmation:'DELETE'})});
+  assert.equal(deletion.status,200);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_measurement_profiles WHERE customer_id=?').get(a.data.customer.id).n,0);
+ }finally{
+  if(f)await f.close();
+  if(old===undefined)delete process.env.MEASUREMENT_ENCRYPTION_KEY;
+  else process.env.MEASUREMENT_ENCRYPTION_KEY=old;
+ }
+});
