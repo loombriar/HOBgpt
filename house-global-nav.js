@@ -25,6 +25,27 @@
     link.innerHTML = '<img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span>';
     slot.replaceWith(link);
   }
+  const themeButton = document.createElement('button');
+  themeButton.type = 'button';
+  themeButton.id = 'hob-theme-toggle';
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'light'; } catch {}
+  document.documentElement.dataset.hobTheme = savedTheme === 'dark' ? 'dark' : 'light';
+  const syncTheme = () => {
+    const dark = document.documentElement.dataset.hobTheme === 'dark';
+    themeButton.textContent = dark ? '☀' : '☾';
+    themeButton.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeButton.setAttribute('aria-pressed', String(dark));
+  };
+  themeButton.addEventListener('click', () => {
+    const theme = document.documentElement.dataset.hobTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.hobTheme = theme;
+    try { localStorage.setItem('house-of-briar-theme', theme); localStorage.setItem('theme', theme); } catch {}
+    syncTheme();
+  });
+  syncTheme();
+  nav.querySelector('nav').appendChild(themeButton);
+  nav.querySelectorAll('a').forEach(link => { if (link.pathname === location.pathname && link.pathname !== '/') link.setAttribute('aria-current', 'page'); });
   if (header) header.classList.add('hob-original-header');
   // Attach the bar directly to body so page-shell overflow and sticky headers cannot clip it.
   document.body.insertBefore(nav, document.body.firstChild);
@@ -33,6 +54,8 @@
   const setOffset = () => {
     const height = Math.ceil(nav.getBoundingClientRect().height);
     document.body.style.paddingTop = height + 'px';
+    document.documentElement.style.setProperty('--hob-creative-nav-height', height + 'px');
+    document.documentElement.style.setProperty('--hob-bar-height', height + 'px');
     document.documentElement.style.scrollPaddingTop = height + 12 + 'px';
   };
   setOffset();
