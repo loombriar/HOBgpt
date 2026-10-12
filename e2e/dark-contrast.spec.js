@@ -56,6 +56,7 @@ for(const width of [390,1280]) {
     await page.goto('/');
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
+    await expectReadable(page.locator('.sewing-hero-actions .primary-button,.hob-customer-access button'));
     await page.locator('#header-customer-auth-btn').click();
     await expectReadable(page.locator('#visitor-suite-modal .dialog-header h2,#visitor-suite-modal .dialog-header p,#visitor-suite-close,#customer-signup-form label,#customer-signup-form .primary-button,#customer-signup-email'));
     await page.locator('#visitor-suite-close').click();

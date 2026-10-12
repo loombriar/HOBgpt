@@ -82,9 +82,11 @@ html[data-hob-theme=dark] body.blackberry-house .app-dialog>.dialog-header{
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .dialog-header .icon-button{
  background:var(--briar-paper)!important;color:var(--briar-ink)!important;border:1px solid var(--room-border)!important;
 }
+html[data-hob-theme=dark] body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button,
 html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.sewing-hero-actions .primary-button){
  background:var(--briar-ink)!important;color:var(--briar-paper)!important;border-color:var(--briar-ink)!important;
 }
+html[data-hob-theme=dark] body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button:hover,
 html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.sewing-hero-actions .primary-button):hover{
  background:#e8b1a4!important;color:var(--briar-paper)!important;border-color:#e8b1a4!important;
 }
