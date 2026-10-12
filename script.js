@@ -732,59 +732,7 @@ async function removeMeasurementProfile(profile, button) {
   finally { button.disabled = false; }
 }
 
-function measurementAvatar(profile = {}) {
-  const number = (key, fallback) => { const raw = String(profile[key] || '').trim(); const value = /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) : NaN; return value > 0 && Number.isFinite(value) ? value : fallback; };
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const height = number('height', 67), scale = clamp(67 / height, .7, 1.35);
-  const b = clamp(number('bust', 36) * scale, 22, 55), w = clamp(number('waist', 30) * scale, 18, 53), h = clamp(number('hips', 39) * scale, 23, 59);
-  const path = `M72 48 L88 48 Q92 55 ${80+b*.85} 61 Q${80+b+4} 75 ${80+b} 87 C${80+b} 98 ${80+w} 107 ${80+w} 119 C${80+w} 132 ${80+h} 138 ${80+h} 154 Q${80+h} 176 80 180 Q${80-h} 176 ${80-h} 154 C${80-h} 138 ${80-w} 132 ${80-w} 119 C${80-w} 107 ${80-b} 98 ${80-b} 87 Q${80-b-4} 75 ${80-b*.85} 61 Q68 55 72 48 Z`;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 160 250'); svg.classList.add('measurement-avatar'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `Stylized measurement mannequin for ${profile.label || 'your profile'}`);
-  svg.innerHTML = `<ellipse cx="80" cy="235" rx="54" ry="9" fill="#e7eee0"/><path d="M80 177v47m-24 10h48m-24-10-16 10m16-10 16 10" stroke="#b29453" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="80" cy="28" r="14" fill="#f7e7d0" stroke="#a4864d" stroke-width="2"/><path d="M75 41v7h10v-7" fill="#f7e7d0" stroke="#a4864d" stroke-width="2"/><path d="${path}" fill="#bad5c0" stroke="#a4864d" stroke-width="2"/><path d="M80 52v123" stroke="#f7f2df" stroke-width="1.5" stroke-dasharray="3 4"/><path d="M${80-w} 117Q80 125 ${80+w} 117" fill="none" stroke="#e6a099" stroke-width="8"/><path d="M${80-w} 117Q80 125 ${80+w} 117" fill="none" stroke="#a4864d" stroke-width="1" stroke-dasharray="1 7"/><path d="M76 73q4-7 8 0 8-3 5 4l-9 8-9-8q-3-7 5-4" fill="#e6a099"/>`;
-  return svg;
-}
-function updateMeasurementAvatarPreview() {
-  const host = byId('measurement-avatar-preview'); if (!host) return;
-  const profile = { label: byId('measurement-profile-name')?.value || 'New profile' };
-  for (const key of ['bust','waist','hips','height']) profile[key] = byId(`measurement-profile-${key}`)?.value || '';
-  host.replaceChildren(fittingMannequin3D(profile));
-}
-let fittingAvatarAngle = 0;
-function fittingMannequin3D(profile = {}) {
-  const numeric = (key, fallback) => { const value = Number(profile[key]); return Number.isFinite(value) && value > 0 ? value : fallback; };
-  const limit = (value, min, max) => Math.max(min, Math.min(max, value));
-  const bust = limit(numeric('bust', 36) / 36, .65, 1.55);
-  const waist = limit(numeric('waist', 30) / 30, .65, 1.55);
-  const hips = limit(numeric('hips', 39) / 39, .65, 1.55);
-  const stature = limit(numeric('height', 67) / 67, .8, 1.18);
-  const inseam = limit(numeric('inseam', 30) / 30, .75, 1.25);
-  const scene = document.createElement('div');
-  scene.className = 'fitting-scene';
-  scene.setAttribute('role', 'img');
-  scene.setAttribute('aria-label', 'Rotatable 3D fitting mannequin, proportions are a visual approximation of saved measurements');
-  const figure = document.createElement('div');
-  figure.className = 'fitting-figure';
-  figure.style.setProperty('--avatar-bust', bust.toFixed(3));
-  figure.style.setProperty('--avatar-waist', waist.toFixed(3));
-  figure.style.setProperty('--avatar-hips', hips.toFixed(3));
-  figure.style.setProperty('--avatar-height', stature.toFixed(3));
-  figure.style.setProperty('--avatar-inseam', inseam.toFixed(3));
-  figure.style.transform = 'rotateY(' + fittingAvatarAngle + 'deg)';
-  for (const part of ['head','neck','chest','waist','pelvis','arm left','arm right','leg left','leg right','stand']) {
-    const node = document.createElement('div');
-    node.className = 'fitting-part fitting-' + part.replace(' ', '-');
-    figure.appendChild(node);
-  }
-  scene.appendChild(figure);
-  return scene;
-}
-for (const button of document.querySelectorAll('[data-avatar-view]')) {
-  button.addEventListener('click', () => {
-    fittingAvatarAngle = Number(button.dataset.avatarView) || 0;
-    document.querySelectorAll('[data-avatar-view]').forEach(control => control.setAttribute('aria-pressed', String(control === button)));
-    updateMeasurementAvatarPreview();
-  });
-}
-function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>void removeMeasurementProfile(p, remove));row.append(measurementAvatar(p),info,remove);list.appendChild(row);});}
+function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>void removeMeasurementProfile(p, remove));row.append(info,remove);list.appendChild(row);});}
 byId('measurement-profile-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -802,7 +750,6 @@ byId('measurement-profile-form')?.addEventListener('submit', async (event) => {
     if (version !== measurementRefreshVersion) return;
     updateMeasurementProfiles([...accountMeasurementProfiles, data.profile]);
     form.reset();
-    updateMeasurementAvatarPreview();
     setMessage(byId('measurement-profile-message'), 'Measurement profile saved securely in your account.', 'success');
   } catch (error) {
     if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
@@ -2277,8 +2224,6 @@ document.addEventListener('keydown', event => {
   if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) unrollDropdownTape(event.target);
 });
 
-byId('measurement-profile-form')?.addEventListener('input', updateMeasurementAvatarPreview);
-updateMeasurementAvatarPreview();
 
 
 function refreshShopFitProfiles() {
