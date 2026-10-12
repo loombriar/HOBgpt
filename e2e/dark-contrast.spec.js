@@ -40,7 +40,7 @@ for (const theme of ['light','dark']) {
 }
 
 async function expectReadable(locator) {
-  await expect.poll(async()=>locator.evaluateAll(elements=>{
+  try { await expect.poll(async()=>locator.evaluateAll(elements=>{
     const rgb=v=>(v.match(/[\d.]+/g)||[]).map(Number);
     const lum=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
     const ratios=elements.filter(e=>e.getClientRects().length).map(e=>{
@@ -49,6 +49,10 @@ async function expectReadable(locator) {
     });
     return ratios.length?Math.min(...ratios):0;
   }),{message:'Visible room text and button labels need 4.5:1 contrast'}).toBeGreaterThanOrEqual(4.5);
+  } catch(error) {
+    console.log('Room contrast diagnostics:',await locator.evaluateAll(elements=>elements.filter(e=>e.getClientRects().length).map(e=>({id:e.id,className:e.className,text:e.textContent.trim().slice(0,80),color:getComputedStyle(e).color,background:getComputedStyle(e).backgroundColor,parentBackground:e.parentElement?getComputedStyle(e.parentElement).backgroundColor:null}))));
+    throw error;
+  }
 }
 for(const width of [390,1280]) {
   test(`dark customer, product and cart headers and controls are readable at ${width}px`,async({page})=>{

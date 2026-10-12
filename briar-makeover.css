@@ -110,3 +110,4 @@ html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-seller-bloc
 html[data-hob-theme=dark] body.blackberry-house .app-dialog :is(.cart-badge-reward,.suitcase-badge,.designer-product){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-help-links :is(a,.support-link-button){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
 html[data-hob-theme=dark] body.blackberry-house .app-dialog .cart-badge-reward :is(p,strong,a){color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .suitcase-info-links a{background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
