@@ -1,9 +1,9 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {once}=require('node:events');const {createApp}=require('../server');
-async function setup(){
+async function setup(options={}){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-customers-')),mail=[];let sequence=0;
- const ctx=createApp({dataDir:dir,seedProducts:[{id:'piece',designerId:'maker',title:'Piece',price:20}],adminToken:'admin-test',designerTokens:{seller:'maker'},stripeApi:async()=>({id:'cs_customer_'+(++sequence),url:'https://checkout.stripe.test/fixture'}),sendEmail:async message=>{mail.push(message);return true;}});
+ const ctx=createApp({...options,dataDir:dir,seedProducts:[{id:'piece',designerId:'maker',title:'Piece',price:20}],adminToken:'admin-test',designerTokens:{seller:'maker'},stripeApi:async()=>({id:'cs_customer_'+(++sequence),url:'https://checkout.stripe.test/fixture'}),sendEmail:async message=>{mail.push(message);return true;}});
  const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const url='http://127.0.0.1:'+server.address().port;
  const post=(route,body,cookie='',origin=url)=>fetch(url+route,{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
  const signup=async(email='guest@example.test')=>{const request=await post('/api/customer/signin-code',{email,name:'Guest',acceptedRules:true});assert.equal(request.status,202);const {requestId}=await request.json();const code=mail.at(-1).text.match(/\b(\d{6})\b/)[1];return{requestId,code};};
@@ -123,4 +123,18 @@ test('saved measurement profiles are encrypted and isolated between customers',a
   if(old===undefined)delete process.env.MEASUREMENT_ENCRYPTION_KEY;
   else process.env.MEASUREMENT_ENCRYPTION_KEY=old;
  }
+});
+
+
+test('customer signup, verification and logout work on the serving domain when APP_ORIGIN names another domain',async()=>{
+ const f=await setup({appOrigin:'http://configured-house.example'});
+ try{
+  const buyer=await f.verify('custom-domain@example.test');
+  assert.equal(buyer.data.customer.email,'custom-domain@example.test');
+  const rejected=await f.post('/api/customer/signin-code',{email:'blocked@example.test',acceptedRules:true},'','http://outside.example');
+  assert.equal(rejected.status,403);
+  const out=await fetch(f.url+'/api/customer/session',{method:'DELETE',headers:{Origin:f.url,Cookie:buyer.cookie}});
+  assert.equal(out.status,200);
+  assert.equal((await fetch(f.url+'/api/my/favorites',{headers:{Cookie:buyer.cookie}})).status,401);
+ }finally{await f.close();}
 });
