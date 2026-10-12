@@ -57,16 +57,18 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   if(req.body?.confirmation!=='DELETE')return fail(res,422,'confirmation_required','Type DELETE to confirm account deletion.');
   const subject='customer:'+identity.customerId;
   // Financial and correspondence records must be reviewed rather than silently orphaned.
-  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers'];
+  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries'];
   for(const table of protectedTables){
     const columns=db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name);
     const conditions=[];const values=[];
-    for(const col of ['buyer_subject','sender_subject'])if(columns.includes(col)){conditions.push(col+'=?');values.push(subject);}
+    for(const col of ['buyer_subject','sender_subject','recipient_subject'])if(columns.includes(col)){conditions.push(col+'=?');values.push(subject);}
     for(const col of ['buyer_email'])if(columns.includes(col)){conditions.push(col+'=?');values.push(identity.email);}
     if(conditions.length&&db.prepare('SELECT 1 FROM '+table+' WHERE '+conditions.join(' OR ')+' LIMIT 1').get(...values))
       return fail(res,409,'account_records_require_review','Your account has orders, donations, or messages that need a privacy review before deletion. Contact House of Briar support.');
   }
   db.transaction(()=>{
+    db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM creative_event_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
     db.prepare('DELETE FROM user_badges WHERE buyer_subject=?').run(subject);
     db.prepare('DELETE FROM customer_sessions WHERE customer_id=?').run(identity.customerId);

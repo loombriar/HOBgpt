@@ -46,3 +46,5 @@ body.creative-makeover section[id]{scroll-margin-top:calc(var(--hob-bar-height,1
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}.product-card:hover{transform:none!important}}
 
 #hob-global-nav #hob-theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:40px;min-height:40px;padding:0;border:1px solid var(--briar-line);border-radius:50%;background:transparent;color:inherit;font-size:23px;cursor:pointer}
+
+#hob-global-nav #header-customer-auth-btn{display:inline-flex;align-items:center;min-height:40px;background:transparent;border:0;padding:4px 0;font:normal 13px Arial,sans-serif;cursor:pointer;color:inherit} #hob-global-nav .hob-global-cart-button{border-radius:999px!important;border-color:var(--briar-line)!important;background:transparent!important;color:inherit!important}

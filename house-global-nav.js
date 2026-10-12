@@ -1,6 +1,12 @@
 (() => {
   const header = document.querySelector('header.site-header, body > header');
   if (document.getElementById('hob-global-nav')) {
+    const compact = document.querySelector('#hob-global-nav nav');
+    const account = document.getElementById('header-customer-auth-btn');
+    if (account && compact) compact.insertBefore(account, compact.querySelector('#hob-theme-toggle'));
+    const cart = document.getElementById('cart-btn');
+    const placeholder = compact?.querySelector('.hob-global-cart-link');
+    if (cart && placeholder) { cart.classList.add('hob-global-cart-button'); cart.removeAttribute('aria-describedby'); placeholder.replaceWith(cart); }
     if (location.pathname === '/' && new URLSearchParams(location.search).get('openCart') === '1') {
       window.addEventListener('load', () => { document.getElementById('cart-btn')?.click(); history.replaceState(null, '', location.pathname + location.hash); }, { once: true });
     }
