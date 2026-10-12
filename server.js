@@ -3649,17 +3649,10 @@ function createApp(options = {}) {
     const rows=db.prepare(`SELECT so.*,COALESCE(dp.brand_name,dp.display_name,so.designer_id) designer_name FROM special_order_offers so LEFT JOIN designer_profiles dp ON dp.id=so.designer_id WHERE so.buyer_subject=? ORDER BY so.created_at DESC`).all(req.buyerSubject);
     res.json({offers:rows.map(o=>({id:o.id,title:o.title,designerId:o.designer_id,designerName:o.designer_name,totalCents:o.total_cents,depositCents:o.deposit_cents,leadDaysMin:o.lead_days_min,leadDaysMax:o.lead_days_max,revisionsIncluded:o.revisions_included,terms:o.terms,status:o.status,depositPaidAt:o.deposit_paid_at||null}))});
   });
-  app.post('/api/my/special-offers/:id/deposit', authBuyer, checkoutLimiter, async (req,res,next)=>{
-    try{
-      const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND buyer_subject=?").get(req.params.id,req.buyerSubject);
-      if(!offer)return fail(res,404,'offer_not_found','Special-order offer not found.');
-      if(offer.status!=='offered')return fail(res,409,'offer_unavailable','This offer is no longer awaiting a deposit.');
-      requireSellerTerms(offer.designer_id);
-      const origin=trustedAppOrigin(req),body=new URLSearchParams({mode:'payment',success_url:`${origin}/account?special_order=deposit_paid`,cancel_url:`${origin}/account?special_order=deposit_canceled`,'metadata[special_offer_id]':offer.id,'payment_intent_data[metadata][special_offer_id]':offer.id});
-      body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]',`Deposit: ${offer.title}`);body.set('line_items[0][price_data][unit_amount]',String(offer.deposit_cents));body.set('line_items[0][quantity]','1');
-      const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-special-deposit-${offer.id}`});
-      db.prepare('UPDATE special_order_offers SET stripe_session_id=? WHERE id=?').run(session.id,offer.id);res.status(201).json({url:session.url});
-    }catch(error){return next(error);}
+  // Payment collection stays closed until deposits have a verified payment,
+  // refund and payout lifecycle. Existing offers remain readable.
+  app.post('/api/my/special-offers/:id/deposit', authBuyer, checkoutLimiter, (_req,res)=>{
+    return fail(res,503,'special_deposits_unavailable','Special-order deposit payments are temporarily unavailable. No new payment was initiated.');
   });
   app.post('/api/my/special-offers/:id/refund-deposit', authDesigner, async (req,res,next)=>{
     try{
