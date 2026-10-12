@@ -101,7 +101,7 @@ test('saved measurement profiles are encrypted and isolated between customers',a
  try{
   f=await setup();
   const a=await f.verify('measure-a@example.test'),b=await f.verify('measure-b@example.test');
-  const input={label:'My fit',bust:'35',waist:'27',hips:'38',height:'64',notes:'custom fit'};
+  const input={label:'My fit',bust:'35',waist:'27',hips:'38',height:'64',inseam:'30.5',notes:'custom fit'};
   const created=await f.post('/api/customer/measurements',input,a.cookie);
   assert.equal(created.status,201);
   const {profile}=await created.json();
@@ -113,6 +113,7 @@ test('saved measurement profiles are encrypted and isolated between customers',a
   assert.deepEqual((await (await get(b.cookie)).json()).profiles,[]);
   assert.equal((await fetch(f.url+'/api/customer/measurements/'+profile.id,{method:'DELETE',headers:{Cookie:b.cookie,Origin:f.url}})).status,404);
   assert.equal((await f.post('/api/customer/measurements',{...input,bust:'999'},a.cookie)).status,422);
+  assert.equal((await f.post('/api/customer/measurements',{...input,inseam:'-1'},a.cookie)).status,422);
   assert.equal((await f.post('/api/customer/measurements',input,a.cookie,'https://invalid.example')).status,403);
   const deletion=await fetch(f.url+'/api/customer/account',{method:'DELETE',headers:{Cookie:a.cookie,Origin:f.url,'Content-Type':'application/json'},body:JSON.stringify({confirmation:'DELETE'})});
   assert.equal(deletion.status,200);
