@@ -69,3 +69,4 @@ html[data-hob-theme=dark] body.blackberry-house :is(input,textarea)::placeholder
 html[data-hob-theme=dark] body.blackberry-house :is(.primary-button,.secondary-button) :is(span,small){color:inherit!important}
 /* The legacy atelier sets these on body, which otherwise masks root theme values. */
 html[data-hob-theme=dark] body.blackberry-house{--briar-mint:#364b44;--briar-gold:#ddbd7d}
+body.creative-makeover .creative-path :is(span,strong,small,b){color:var(--briar-ink)}

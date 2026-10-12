@@ -6,7 +6,7 @@ for (const width of [390, 1280]) {
     await page.goto('/creative-house.html');
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
-    const contrast = await page.locator('.creative-category-heading>p:last-child, #creative-workflow-help, .creative-workflow-options button, .creative-path small').evaluateAll(elements => {
+    const contrast = () => page.locator('.creative-category-heading>p:last-child, #creative-workflow-help, .creative-workflow-options button, .creative-path small').evaluateAll(elements => {
       const rgb = value => (value.match(/[\d.]+/g) || []).map(Number);
       const luminance = c => c.slice(0,3).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((sum,v,i) => sum + v * [.2126,.7152,.0722][i], 0);
       return elements.map(element => {
@@ -20,6 +20,6 @@ for (const width of [390, 1280]) {
         return { text: element.textContent.trim(), ratio: (Math.max(foreground,surface) + .05) / (Math.min(foreground,surface) + .05) };
       });
     });
-    for (const result of contrast) expect(result.ratio, result.text).toBeGreaterThanOrEqual(4.5);
+    await expect.poll(async () => Math.min(...(await contrast()).map(result => result.ratio)), { message: 'Text must reach 4.5:1 contrast after the theme transition' }).toBeGreaterThanOrEqual(4.5);
   });
 }
