@@ -15,7 +15,7 @@ export default function InquiryForm({ productName, productId = '', designerName 
   const [height, setHeight] = useState('');
   const [request, setRequest] = useState('');
   const [profiles,setProfiles]=useState<MeasurementProfile[]>([]);
-  useEffect(()=>{const refresh=()=>setProfiles(loadMeasurementProfiles());refresh();window.addEventListener('house-of-briar-measurements',refresh);return()=>window.removeEventListener('house-of-briar-measurements',refresh);},[]);
+  useEffect(()=>{let active=true;const refresh=()=>setProfiles(loadMeasurementProfiles());refresh();window.addEventListener('house-of-briar-measurements',refresh);fetch('/api/customer/measurements',{credentials:'same-origin',cache:'no-store'}).then(async response=>{if(!response.ok)return;const data=await response.json();if(active&&Array.isArray(data.profiles))setProfiles(data.profiles);}).catch(()=>{});return()=>{active=false;window.removeEventListener('house-of-briar-measurements',refresh);};},[]);
   const applyProfile=(id:string)=>{const p=profiles.find(row=>row.id===id);if(!p)return;setBust(p.bust);setWaist(p.waist);setHips(p.hips);setHeight(p.height);if(p.notes&&!request)setRequest(p.notes);};
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
