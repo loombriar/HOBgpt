@@ -2,7 +2,7 @@ const crypto=require('node:crypto');
 const {dailyTraffic}=require('./lib/daily-traffic');
 const COOKIE='hob_customer_session';
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
-function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession}){
+function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir}){
  db.exec(`CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,created_at TEXT NOT NULL,rules_accepted_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_login_challenges(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,code_hash TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,expires_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(session_hash TEXT PRIMARY KEY,customer_id TEXT NOT NULL REFERENCES customer_accounts(id),created_at TEXT NOT NULL,expires_at TEXT NOT NULL);
@@ -56,6 +56,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   if(!session||Date.now()-Date.parse(session.created_at)>15*60*1000)return fail(res,403,'recent_signin_required','For security, sign out and sign in again before deleting your account.');
   if(req.body?.confirmation!=='DELETE')return fail(res,422,'confirmation_required','Type DELETE to confirm account deletion.');
   const subject='customer:'+identity.customerId;
+  if(db.prepare("SELECT 1 FROM portfolio_billing WHERE owner_subject=? AND (subscription_id IS NOT NULL OR checkout_id IS NOT NULL)").get(subject))return fail(res,409,'subscription_requires_review','Cancel your subscription and contact House support to close billing records before deleting your account.');
   // Financial and correspondence records must be reviewed rather than silently orphaned.
   const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries'];
   for(const table of protectedTables){
@@ -66,7 +67,12 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
     if(conditions.length&&db.prepare('SELECT 1 FROM '+table+' WHERE '+conditions.join(' OR ')+' LIMIT 1').get(...values))
       return fail(res,409,'account_records_require_review','Your account has orders, donations, or messages that need a privacy review before deletion. Contact House of Briar support.');
   }
+  const portfolioFiles=db.prepare('SELECT storage_key FROM portfolio_images WHERE owner_subject=?').all(subject);
   db.transaction(()=>{
+    db.prepare('DELETE FROM portfolio_images WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM portfolio_settings WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM portfolio_views WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM portfolio_billing WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_event_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
@@ -75,6 +81,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
     db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);
     db.prepare('DELETE FROM customer_accounts WHERE id=?').run(identity.customerId);
   }).immediate();
+  for(const image of portfolioFiles)if(imagesDir)require('node:fs').unlink(require('node:path').join(imagesDir,image.storage_key),()=>{});
   res.cookie(COOKIE,'',{httpOnly:true,sameSite:'lax',secure:trustedAppOrigin(req).startsWith('https:'),path:'/',maxAge:0});
   return res.set('Cache-Control','no-store').json({ok:true});
  });
