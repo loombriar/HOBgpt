@@ -683,8 +683,55 @@ byId('photo-lightbox')?.addEventListener('click', (event) => {
 });
 
 const MEASUREMENT_PROFILES_KEY = 'house-of-briar:measurement-profiles';
-function loadMeasurementProfiles(){try{const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[];}catch{return[];}}
-function saveMeasurementProfiles(rows){localStorage.setItem(MEASUREMENT_PROFILES_KEY,JSON.stringify(rows));}
+let accountMeasurementProfiles = [];
+let measurementAccountActive = false;
+let measurementProfilesReady = false;
+let measurementRefreshVersion = 0;
+function loadMeasurementProfiles(){
+  if (measurementAccountActive) return accountMeasurementProfiles;
+  try { const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[]; } catch { return []; }
+}
+function updateMeasurementProfiles(rows) {
+  accountMeasurementProfiles = rows;
+  renderMeasurementProfiles();
+  refreshShopFitProfiles();
+}
+async function refreshMeasurementProfiles(signedIn) {
+  const version = ++measurementRefreshVersion;
+  measurementAccountActive = signedIn;
+  measurementProfilesReady = false;
+  updateMeasurementProfiles([]);
+  if (!signedIn) {
+    setMessage(byId('measurement-profile-message'), 'Sign in to save new profiles securely in your account. Older browser profiles stay on this device.', '');
+    return;
+  }
+  try {
+    const data = await apiRequest('/api/customer/measurements', {cache:'no-store'});
+    if (version !== measurementRefreshVersion) return;
+    measurementProfilesReady = true;
+    updateMeasurementProfiles(data.profiles);
+    setMessage(byId('measurement-profile-message'), '', '');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  }
+}
+async function removeMeasurementProfile(profile, button) {
+  button.disabled = true;
+  const version = measurementRefreshVersion;
+  try {
+    if (measurementAccountActive) {
+      await apiRequest('/api/customer/measurements/' + encodeURIComponent(profile.id), {method:'DELETE'});
+      if (version !== measurementRefreshVersion) return;
+      updateMeasurementProfiles(accountMeasurementProfiles.filter(item => item.id !== profile.id));
+    } else {
+      localStorage.setItem(MEASUREMENT_PROFILES_KEY, JSON.stringify(loadMeasurementProfiles().filter(item => item.id !== profile.id)));
+      renderMeasurementProfiles();
+      refreshShopFitProfiles();
+    }
+  } catch (error) { setMessage(byId('measurement-profile-message'), error.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
 function measurementAvatar(profile = {}) {
   const number = (key, fallback) => { const raw = String(profile[key] || '').trim(); const value = /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) : NaN; return value > 0 && Number.isFinite(value) ? value : fallback; };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -737,27 +784,29 @@ for (const button of document.querySelectorAll('[data-avatar-view]')) {
     updateMeasurementAvatarPreview();
   });
 }
-function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>{const rows=loadMeasurementProfiles().filter(item=>item.id!==p.id);saveMeasurementProfiles(rows);renderMeasurementProfiles();});row.append(measurementAvatar(p),info,remove);list.appendChild(row);});}
-byId('measurement-profile-form')?.addEventListener('submit', (event) => {
+function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>void removeMeasurementProfile(p, remove));row.append(measurementAvatar(p),info,remove);list.appendChild(row);});}
+byId('measurement-profile-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const label = byId('measurement-profile-name')?.value.trim();
-  if (!label) return;
-  const rows = loadMeasurementProfiles();
-  rows.push({
-    id: crypto.randomUUID(),
-    label,
-    bust: byId('measurement-profile-bust')?.value || '',
-    waist: byId('measurement-profile-waist')?.value || '',
-    hips: byId('measurement-profile-hips')?.value || '',
-    height: byId('measurement-profile-height')?.value || '',
-    inseam: byId('measurement-profile-inseam')?.value || '',
-    notes: byId('measurement-profile-notes')?.value || ''
-  });
-  saveMeasurementProfiles(rows);
-  renderMeasurementProfiles();
-  byId('measurement-profile-form')?.reset();
-  updateMeasurementAvatarPreview();
-  setMessage(byId('measurement-profile-message'), 'Measurement profile saved.', 'success');
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  if (!measurementAccountActive || !measurementProfilesReady) {
+    setMessage(byId('measurement-profile-message'), measurementAccountActive ? 'Wait for your saved profiles to load, or sign in again.' : 'Sign in to save measurements securely in your account.', 'error');
+    return;
+  }
+  const version = measurementRefreshVersion;
+  const profile = {label:byId('measurement-profile-name').value.trim(), notes:byId('measurement-profile-notes').value};
+  for (const key of ['bust','waist','hips','height','inseam']) profile[key] = byId(`measurement-profile-${key}`).value;
+  button.disabled = true;
+  try {
+    const data = await apiRequest('/api/customer/measurements', {method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
+    if (version !== measurementRefreshVersion) return;
+    updateMeasurementProfiles([...accountMeasurementProfiles, data.profile]);
+    form.reset();
+    updateMeasurementAvatarPreview();
+    setMessage(byId('measurement-profile-message'), 'Measurement profile saved securely in your account.', 'success');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  } finally { button.disabled = false; }
 });
 renderMeasurementProfiles();
 
@@ -2273,8 +2322,9 @@ async function refreshCustomerAccount() {
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn;
     byId('customer-code-form').hidden=true;
+    await refreshMeasurementProfiles(customerSignedIn);
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
-  }catch{customerSignedIn=false;if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
+  }catch{customerSignedIn=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
 void refreshCustomerAccount();
 byId('customer-signup-form')?.addEventListener('submit',async event=>{
@@ -2293,12 +2343,12 @@ byId('customer-delete-account')?.addEventListener('click',async()=>{
   const button=byId('customer-delete-account');button.disabled=true;
   try{
     await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
-    customerSignedIn=false;await refreshCustomerAccount();
+    customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();
     byId('customer-signup-status').textContent='Your customer account has been deleted.';
   }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}
   finally{button.disabled=false;}
 });
-byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
+byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
 if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
 refreshCustomerAccount();
 

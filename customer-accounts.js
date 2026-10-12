@@ -34,7 +34,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   const label=typeof body.label==='string'?body.label.trim():'';
   if(!label||label.length>80)return null;
   const profile={label};
-  for(const key of ['bust','waist','hips','height']){
+  for(const key of ['bust','waist','hips','height',...(body.inseam!==undefined?['inseam']:[])]){
    const raw=body[key]==null?'':String(body[key]).trim();
    if(raw&&(!/^\d+(?:\.\d{1,2})?$/.test(raw)||Number(raw)<=0||Number(raw)>150))return null;
    profile[key]=raw;

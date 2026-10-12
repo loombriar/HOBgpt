@@ -1,4 +1,6 @@
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+// This key is fixture-only; it encrypts disposable E2E data.
+process.env.MEASUREMENT_ENCRYPTION_KEY=require('node:crypto').randomBytes(32).toString('hex');
 const { createApp,SELLER_TERMS_VERSION }=require('../server');
 const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-e2e-'));
 const { app:houseApp,db }=createApp({

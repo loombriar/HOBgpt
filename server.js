@@ -3599,11 +3599,13 @@ function createApp(options = {}) {
         try{metadata=await sharp(photo.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();}catch{return fail(res,415,'unsupported_image','Use a valid JPEG, PNG, or WebP fabric photo.');}
         if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Fabric photo dimensions are too large.');
         if(Number(metadata.pages||1)>1)return fail(res,422,'animated_image','Animated images are not supported.');
-        validatedPhotos.push({buffer:photo.buffer,mimeType:detectedMime});
+        // Re-encode without preserving EXIF, GPS, or other uploaded metadata.
+        const buffer=await sharp(photo.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).rotate().webp().toBuffer();
+        validatedPhotos.push({buffer,mimeType:'image/webp'});
       }
       const content=[{type:'input_text',text:'Identify this fabric visually for a clothing designer. Return JSON only with keys: fabricFamily (short string), likelyFibers (array of strings, possibilities only), construction (weave or knit structure), texture, weight, drape, likelyUses (array), careConsiderations (array), confidence (low|medium|high), listingMaterialSuggestion (short string), notes (short string). Never claim exact fiber composition or percentages from a photo. State uncertainty when visual evidence is insufficient.'},
         ...validatedPhotos.map(photo=>({type:'input_image',image_url:`data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`,detail:'high'}))];
-      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
+      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',store:false,input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Fabric analysis failed.'),{statusCode:502});
       const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
