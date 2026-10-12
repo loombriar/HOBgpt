@@ -9,3 +9,9 @@ html.dark.dark{--background:260 11% 12%;--foreground:34 50% 94%;--card:263 10% 1
 .fashion-app.fashion-app article{box-shadow:0 6px 24px hsl(var(--foreground)/.04)}.fashion-app.fashion-app img{background:hsl(var(--muted));object-fit:contain}.fashion-app.fashion-app :is(input,select,textarea){border-radius:10px;min-height:44px}.fashion-app :is(a,button):focus-visible{outline:2px solid hsl(var(--ring));outline-offset:4px}
 @media(max-width:950px){.house-compact-header>div{flex-wrap:wrap!important;gap:4px!important}.house-compact-links{width:100%;overflow-x:auto;padding-bottom:3px;gap:14px!important}.house-compact-header>div>a{font-size:21px}.house-main{padding-top:124px}}
 @media(prefers-reduced-motion:reduce){.fashion-app *, .fashion-app *::before,.fashion-app *::after{transition:none!important;animation:none!important}.fashion-app article:hover{transform:none!important}}
+
+/* Keep account and checkout controls distinct from dark card surfaces. */
+html.dark.dark{--border:285 8% 48%;--input:285 8% 48%;--muted-foreground:280 10% 78%}
+.dark .fashion-app.fashion-app .house-room{--border:285 8% 48%}
+.dark .fashion-app :is(input,select,textarea){color:hsl(var(--foreground));caret-color:hsl(var(--foreground))}
+.dark .fashion-app :is(input,textarea)::placeholder{color:hsl(var(--muted-foreground));opacity:1}

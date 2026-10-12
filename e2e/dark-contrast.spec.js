@@ -38,3 +38,31 @@ for (const theme of ['light','dark']) {
     await expect.poll(async()=>Math.min(...await contrast())).toBeGreaterThanOrEqual(4.5);
   });
 }
+
+async function expectReadable(locator) {
+  await expect.poll(async()=>locator.evaluateAll(elements=>{
+    const rgb=v=>(v.match(/[\d.]+/g)||[]).map(Number);
+    const lum=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+    const ratios=elements.filter(e=>e.getClientRects().length).map(e=>{
+      let bg=[0,0,0];for(let p=e;p;p=p.parentElement){const c=rgb(getComputedStyle(p).backgroundColor);if(c.length===3||c[3]===1){bg=c;break;}}
+      const a=lum(rgb(getComputedStyle(e).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    });
+    return ratios.length?Math.min(...ratios):0;
+  }),{message:'Visible room text and button labels need 4.5:1 contrast'}).toBeGreaterThanOrEqual(4.5);
+}
+for(const width of [390,1280]) {
+  test(`dark customer, product and cart headers and controls are readable at ${width}px`,async({page})=>{
+    await page.setViewportSize({width,height:844});
+    await page.goto('/');
+    await page.locator('#hob-theme-toggle').click();
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
+    await page.locator('#header-customer-auth-btn').click();
+    await expectReadable(page.locator('#visitor-suite-modal .dialog-header h2,#visitor-suite-modal .dialog-header p,#visitor-suite-close,#customer-signup-form label,#customer-signup-form .primary-button,#customer-signup-email'));
+    await page.locator('#visitor-suite-close').click();
+    await page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true}).click();
+    await expectReadable(page.locator('#product-dialog .dialog-header h2,#product-dialog-close,#product-dialog .primary-button,#product-dialog .secondary-button'));
+    await page.locator('#product-dialog').getByRole('button',{name:'Add to Cart',exact:true}).click();
+    await page.locator('#cart-btn').click();
+    await expectReadable(page.locator('#cart-dialog .dialog-header h2,#cart-dialog-close,#cart-dialog .primary-button,#cart-dialog .notice'));
+  });
+}
