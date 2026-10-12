@@ -168,7 +168,7 @@ document.querySelectorAll('[data-mess-around-suite]').forEach(button => {
     byId('visitor-suite-btn')?.click();
     const target = byId(button.dataset.messAroundSuite);
     if (!target) return;
-    target.scrollIntoView({ block: 'nearest' });
+    scrollRoomTarget(target, { block: 'nearest' });
     if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
   });
