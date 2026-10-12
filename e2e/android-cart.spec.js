@@ -16,7 +16,10 @@ test('Android taps remove populated and unavailable pieces from both carts and s
   await page.reload();await page.locator('#cart-btn').tap();
   await page.locator('#cart-items .designer-product').filter({hasText:'outside the current collection'}).getByRole('button',{name:'Remove from Cart'}).tap();
   expect(await cart(page)).toEqual(['e2e-piece']);
+  await page.evaluate(()=>localStorage.setItem('house-of-briar:cart',JSON.stringify(['e2e-piece','unavailable-piece'])));
   await page.goto('/cart');
+  await page.getByRole('button',{name:'Remove unavailable piece 1',exact:true}).tap();
+  expect(await cart(page)).toEqual(['e2e-piece']);
   await page.getByRole('button',{name:'Remove Moonlit E2E Piece from bag'}).tap();
   await page.reload();expect(await cart(page)).toEqual([]);
   await page.evaluate(()=>localStorage.setItem('house-of-briar:cart',JSON.stringify(['unavailable-piece'])));
