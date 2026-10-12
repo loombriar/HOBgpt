@@ -103,3 +103,6 @@ html[data-hob-theme=dark] body.blackberry-house .notice[data-kind=error]{color:#
 html[data-hob-theme=dark] body.blackberry-house .form-message[data-kind=success],
 html[data-hob-theme=dark] body.blackberry-house .notice[data-kind=success]{color:#c2ecd8!important}
 html[data-hob-theme=dark] body.blackberry-house :is(button,a,input,select,textarea):focus-visible{outline:3px solid #e8b1a4!important;outline-offset:3px}
+html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) :is(.text-button,.ghost-button,.product-seller-name){background:transparent!important;color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) a:not(.primary-button):not(.secondary-button){color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .room-navigation{background:var(--briar-paper)!important;border-color:var(--room-border)!important;color:var(--briar-ink)!important}
