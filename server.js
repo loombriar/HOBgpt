@@ -3838,6 +3838,16 @@ function createApp(options = {}) {
     db.prepare('INSERT INTO creative_project_requests(id,kind,contact_name,contact_email,title,description,budget,location,timeline) VALUES(?,?,?,?,?,?,?,?,?)').run(id,kind,contactName,contactEmail,title,description,budget,location,timeline);
     res.status(201).json({received:true,message:'Your request has been received for review. This is not a confirmed booking.'});
   });
+  app.get('/api/admin/creative-project-requests',authAdmin,(_req,res)=>{
+    const requests=db.prepare('SELECT * FROM creative_project_requests ORDER BY created_at DESC LIMIT 100').all();
+    res.set('Cache-Control','no-store').json({requests});
+  });
+  app.patch('/api/admin/creative-project-requests/:id',authAdmin,(req,res)=>{
+    if(!['pending','reviewed','closed'].includes(req.body?.status))return fail(res,400,'invalid_status','Choose pending, reviewed, or closed.');
+    const result=db.prepare('UPDATE creative_project_requests SET status=? WHERE id=?').run(req.body.status,req.params.id);
+    if(!result.changes)return fail(res,404,'not_found','Project request not found.');
+    res.json({updated:true});
+  });
   // DJ and venue profiles are opt-in and only readable by active House designers.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_event_profiles (
     owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
@@ -4080,7 +4090,7 @@ function createApp(options = {}) {
   }
   for (const asset of ['creative-house.html','creative-house.css','creative-house.js']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
-  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>

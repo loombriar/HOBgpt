@@ -1,0 +1,50 @@
+/* The Briar Atelier: shared visual system for public and creative spaces. */
+:root{--briar-paper:#fbf7f2;--briar-card:#fffdf9;--briar-ink:#29252b;--briar-muted:#70656d;--briar-mint:#d9eee3;--briar-coral:#f5cec7;--briar-gold:#a27836;--briar-line:#ddd1ca;--hob-ink:var(--briar-ink);--hob-forest:var(--briar-ink);--hob-forest-deep:var(--briar-ink);--hob-cream:var(--briar-paper);--hob-paper:var(--briar-card);--hob-mist:var(--briar-mint);--hob-copper:#996155;--hob-line:var(--briar-line);--hob-text-muted:var(--briar-muted)}
+html[data-hob-theme=dark]{--briar-paper:#1d1b22;--briar-card:#28252d;--briar-ink:#f7eee5;--briar-muted:#c4b7c2;--briar-mint:#364b44;--briar-coral:#624247;--briar-gold:#ddbd7d;--briar-line:#51454f;--hob-copper:#e8b1a4}
+body.blackberry-house,body.creative-makeover{background:var(--briar-paper)!important;color:var(--briar-ink)!important;font-family:Inter,Arial,sans-serif}
+body #hob-global-nav{background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-bottom:1px solid var(--briar-line)!important;box-shadow:0 3px 20px #29252b08!important}
+#hob-global-nav :is(a,button){color:inherit!important}#hob-global-nav nav>a[aria-current=page]{text-decoration:underline;text-underline-offset:7px;text-decoration-color:var(--briar-gold)}
+body.blackberry-house :is(.primary-button,.secondary-button),body.creative-makeover button{border-radius:999px!important;min-height:44px;transition:transform .2s ease,box-shadow .2s ease}
+body.blackberry-house .primary-button{background:var(--briar-ink)!important;color:var(--briar-paper)!important;border-color:var(--briar-ink)!important}
+body.blackberry-house .secondary-button{background:transparent!important;color:var(--briar-ink)!important;border:1px solid var(--briar-line)!important}
+body.blackberry-house .hero.sewing-hero.fashion-cover{background:var(--briar-paper)!important;min-height:560px}
+body.blackberry-house .fashion-cover .fashion-cover-art{background:radial-gradient(ellipse at 25% 25%,var(--briar-mint),transparent 65%),linear-gradient(135deg,var(--briar-paper),var(--briar-coral))!important;min-height:520px!important;border-radius:180px 180px 16px 16px;margin:32px!important;overflow:hidden}
+body.blackberry-house .fashion-cover .fashion-cover-art-monogram{color:var(--briar-ink)!important;font-style:italic;text-shadow:none!important}
+body.blackberry-house .fashion-cover .fashion-cover-art-number,body.blackberry-house .fashion-cover .fashion-cover-art-caption{color:var(--briar-ink)!important}
+body.blackberry-house .fashion-cover-art::before,body.blackberry-house .fashion-cover-art::after{border-color:var(--briar-gold)!important;border-radius:inherit}
+body.blackberry-house .fashion-cover-copy h1{font-weight:400!important;letter-spacing:-.055em!important;line-height:1.04!important;text-transform:none!important}
+body.blackberry-house :is(.hob-two-doors,.story-section,.house-styling,.house-benefits){background:var(--briar-paper)!important;color:var(--briar-ink)!important}
+body.blackberry-house .hob-door{border-radius:24px!important;overflow:hidden;border:1px solid var(--briar-line)!important;background:var(--briar-card)!important;box-shadow:0 8px 30px #29252b06!important}
+body.blackberry-house .hob-door-art{min-height:200px!important;max-height:260px;border-radius:0!important;background:var(--briar-mint)!important;color:var(--briar-ink)!important}
+body.blackberry-house .hob-door-create .hob-door-art{background:var(--briar-coral)!important;color:var(--briar-ink)!important}
+body.blackberry-house .hob-door-art-title{font-size:clamp(40px,5vw,72px)!important}
+body.blackberry-house .hob-creative-statement{background:var(--briar-mint)!important;color:var(--briar-ink)!important}
+body.blackberry-house .hob-creative-statement :is(h2,p,a,strong,span,b){color:inherit!important}
+body.blackberry-house .hob-creator-spotlight-grid>a{border:1px solid var(--briar-line)!important;border-radius:18px!important;background:var(--briar-card)!important;padding:28px!important;box-shadow:none!important}
+body.blackberry-house .product-card{border-radius:20px!important;background:var(--briar-card)!important;border:1px solid var(--briar-line)!important;overflow:hidden;box-shadow:0 6px 22px #29252b06!important;transition:transform .3s ease,box-shadow .3s ease}
+body.blackberry-house .product-card:hover{transform:translateY(-4px);box-shadow:0 14px 35px #29252b12!important}
+body.blackberry-house .product-card .product-image{background:var(--briar-paper)!important}.product-image img{object-fit:contain!important}
+body.blackberry-house :is(.app-dialog,.designer-section,.designer-card){border-radius:22px!important;border-color:var(--briar-line)!important;background:var(--briar-card)!important;color:var(--briar-ink)!important}
+body.blackberry-house .app-dialog::backdrop{background:#211d2866;backdrop-filter:blur(5px)}
+body.blackberry-house :is(input,select,textarea){border-radius:10px!important;min-height:44px;border-color:var(--briar-line)!important}
+body.creative-makeover .hero{background:radial-gradient(ellipse at 85% 20%,var(--briar-coral),transparent 60%),var(--briar-paper);border-bottom:1px solid var(--briar-line);padding-block:clamp(55px,8vw,115px)}
+body.creative-makeover .hero em{color:var(--hob-copper)}
+body.creative-makeover :is(.creative-jump-panel,.creative-category-window,.creative-section-marker,.post,.portfolio-plans,.creative-workflow-picker){background:var(--briar-paper);color:var(--briar-ink);border-color:var(--briar-line)}
+body.creative-makeover .creative-jump-panel{background:var(--briar-mint)}
+body.creative-makeover :is(.creative-category-tile,.opportunity,.plan,.creative-access){background:var(--briar-card);color:var(--briar-ink);border:1px solid var(--briar-line);border-radius:20px;box-shadow:0 5px 25px #29252b06}
+body.creative-makeover .creative-category-tile{min-height:215px}
+body.creative-makeover .creative-category-dark{background:var(--briar-coral)}
+body.creative-makeover .creative-category-wide{background:var(--briar-mint)}
+body.creative-makeover .creative-paths{background:var(--briar-ink);color:var(--briar-paper)}
+body.creative-makeover .creative-path{border-radius:18px}
+body.creative-makeover :is(input,textarea,select){background:var(--briar-card);color:var(--briar-ink);border:1px solid var(--briar-line);border-radius:12px;min-height:44px}
+body.creative-makeover :is(.eyebrow,.meta,.creative-category-footnote,.plan-disclaimer,.plan-status){color:var(--briar-muted)}
+body.creative-makeover .creative-paths>.eyebrow{color:inherit}
+body.creative-makeover .creative-jump-links a{border-radius:999px;background:var(--briar-card);color:var(--briar-ink);border-color:var(--briar-line)}
+body.creative-makeover section[id]{scroll-margin-top:calc(var(--hob-bar-height,110px) + 24px)}
+@media(max-width:700px){body.blackberry-house .fashion-cover .fashion-cover-art{min-height:300px!important;margin:20px!important;border-radius:130px 130px 16px 16px}.hob-creator-spotlight-grid{grid-template-columns:1fr!important}body #hob-global-nav nav{gap:4px 14px!important}body.blackberry-house .hob-door-art{min-height:150px!important}body.creative-makeover .creative-jump-panel{padding-block:20px}body.creative-makeover .creative-jump-links{display:flex;flex-wrap:nowrap;overflow-x:auto;padding-bottom:10px}body.creative-makeover .creative-jump-links a{white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}.product-card:hover{transform:none!important}}
+
+#hob-global-nav #hob-theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:40px;min-height:40px;padding:0;border:1px solid var(--briar-line);border-radius:50%;background:transparent;color:inherit;font-size:23px;cursor:pointer}
+
+#hob-global-nav #header-customer-auth-btn{display:inline-flex;align-items:center;min-height:40px;background:transparent;border:0;padding:4px 0;font:normal 13px Arial,sans-serif;cursor:pointer;color:inherit} #hob-global-nav .hob-global-cart-button{border-radius:999px!important;border-color:var(--briar-line)!important;background:transparent!important;color:inherit!important}

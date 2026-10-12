@@ -202,11 +202,11 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
   test(`home navigation stays visible while scrolling at ${viewport.width}px`, async ({page}) => {
     await page.setViewportSize(viewport);
     await page.goto('/');
-    const header=page.locator('.site-header.sewing-header');
+    const header=page.locator('#hob-global-nav');
     await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
     await expect.poll(async()=>Math.round((await header.boundingBox()).y)).toBe(0);
     await expect(page.locator('#cart-btn')).toBeInViewport();
-    await page.locator('.sewing-nav').getByRole('link',{name:'Support and Badges',exact:true}).click();
+    await page.locator('.footer-links').getByRole('link',{name:'Support & Badges',exact:true}).click();
     await expect.poll(async()=>{
       const h=await header.boundingBox(),section=await page.locator('#support').boundingBox();
       return section.y >= h.y+h.height-2;

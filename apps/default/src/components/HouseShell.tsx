@@ -1,5 +1,5 @@
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Bell, Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
@@ -8,16 +8,16 @@ import { FloatingAgentChat } from '@/components/blocks/agent-chat/FloatingAgentC
 import { HOUSE_OF_BRIAR_AGENT_ID, HOUSE_OF_BRIAR_PUBLIC_AGENT_ID } from '@/lib/marketplace';
 
 function ThemeButton() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return <span className="min-h-11 min-w-11" aria-hidden="true" />;
-  const dark = theme === 'dark';
+  const dark = resolvedTheme === 'dark';
   return (
     <button
       type="button"
       aria-label={dark ? 'Use light theme' : 'Use dark theme'}
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
+      onClick={() => { const next = dark ? 'light' : 'dark'; setTheme(next); try { localStorage.setItem('house-of-briar-theme', next); } catch {} }}
       className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition hover:border-primary hover:text-primary"
     >
       {dark ? <Sun size={17} /> : <Moon size={17} />}
@@ -63,7 +63,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const refresh = () => {
       const stored = window.localStorage.getItem('house-of-briar:cart');
-      setCartCount(stored ? JSON.parse(stored).length : 0);
+      try { const items = stored ? JSON.parse(stored) : []; setCartCount(Array.isArray(items) ? items.length : 0); } catch { setCartCount(0); }
     };
     refresh();
     window.addEventListener('storage', refresh);
@@ -77,13 +77,15 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="fashion-app min-h-screen bg-background text-foreground">
 
-      <header className="fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
+      <a href="#house-main" className="house-skip-link">Skip to content</a>
+      <header className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
-          <Link to="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</Link>
-          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
-            <Link to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</Link>
-            <Link to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</Link>
+          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
+          <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
+            <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
+            <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
             <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
+            <ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
             <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2 hover:border-primary">
               <img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
               <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
@@ -100,7 +102,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </nav>
         </div>
       </header>
-      <main className="pt-28 sm:pt-16">{children}</main>
+      <main id="house-main" className="house-main">{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
           <div>
