@@ -61,9 +61,9 @@ for(const width of [390,1280]) {
     await expectReadable(page.locator('#visitor-suite-modal .dialog-header h2,#visitor-suite-modal .dialog-header p,#visitor-suite-close,#customer-signup-form label,#customer-signup-form .primary-button,#customer-signup-email'));
     await page.locator('#visitor-suite-close').click();
     await page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true}).click();
-    await expectReadable(page.locator('#product-dialog .dialog-header h2,#product-dialog-close,#product-dialog .primary-button,#product-dialog .secondary-button,#product-dialog .text-button,#product-dialog .product-seller-name,#product-dialog a'));
+    await expectReadable(page.locator('#product-dialog .dialog-header h2,#product-dialog-close,#product-dialog .primary-button,#product-dialog .secondary-button,#product-dialog .text-button,#product-dialog .product-seller-name,#product-dialog .support-link-button,#product-dialog a'));
     await page.locator('#product-dialog').getByRole('button',{name:'Add to Cart',exact:true}).click();
     await page.locator('#cart-btn').click();
-    await expectReadable(page.locator('#cart-dialog .dialog-header h2,#cart-dialog-close,#cart-dialog .primary-button,#cart-dialog .text-button,#cart-dialog .notice'));
+    await expectReadable(page.locator('#cart-dialog .dialog-header h2,#cart-dialog-close,#cart-dialog .primary-button,#cart-dialog .text-button,#cart-dialog .notice,#cart-dialog .cart-badge-reward p,#cart-dialog .cart-badge-reward strong,#cart-dialog .suitcase-info-links a'));
   });
 }

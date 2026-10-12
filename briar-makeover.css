@@ -106,3 +106,7 @@ html[data-hob-theme=dark] body.blackberry-house :is(button,a,input,select,textar
 html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) :is(.text-button,.ghost-button,.product-seller-name){background:transparent!important;color:var(--briar-ink)!important}
 html[data-hob-theme=dark] body.blackberry-house :is(.app-dialog,.designer-room-page) a:not(.primary-button):not(.secondary-button){color:var(--briar-ink)!important}
 html[data-hob-theme=dark] body.blackberry-house .room-navigation{background:var(--briar-paper)!important;border-color:var(--room-border)!important;color:var(--briar-ink)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-seller-block,
+html[data-hob-theme=dark] body.blackberry-house .app-dialog :is(.cart-badge-reward,.suitcase-badge,.designer-product){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .product-help-links :is(a,.support-link-button){background:var(--briar-paper)!important;color:var(--briar-ink)!important;border-color:var(--room-border)!important}
+html[data-hob-theme=dark] body.blackberry-house .app-dialog .cart-badge-reward :is(p,strong,a){color:var(--briar-ink)!important}
