@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const sharp = require('sharp');
 const idOf = value => typeof value === 'string' ? value : value?.id;
-function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,stripeApi,trustedAppOrigin,imagesDir,options}) {
+function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options}) {
   const priceId = options.portfolioPriceId || process.env.STRIPE_PORTFOLIO_PRICE_ID || '';
   db.exec(`CREATE TABLE IF NOT EXISTS portfolio_billing (
     owner_subject TEXT PRIMARY KEY, customer_id TEXT UNIQUE, subscription_id TEXT UNIQUE,
@@ -92,12 +92,11 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
   const images=subject=>db.prepare('SELECT id,caption FROM portfolio_images WHERE owner_subject=? ORDER BY created_at,id').all(subject).map(image=>({...image,url:'/api/creative-house/portfolio-images/'+image.id}));
   function portfolio(subject,privateView=false){const a=access(subject),settings=db.prepare('SELECT layout,theme,featured_project FROM portfolio_settings WHERE owner_subject=?').get(subject);return {images:images(subject).slice(0,privateView?30:a.imageLimit),settings:a.premium?settings||{layout:'grid',theme:'mint',featured_project:''}:{layout:'grid',theme:'mint',featured_project:''},...(privateView?{access:a}:{})};}
   app.get('/api/creative-house/my-portfolio',authBuyer,async(req,res,next)=>{try{await reconcile(req.buyerSubject);res.set('Cache-Control','no-store').json(portfolio(req.buyerSubject,true));}catch(e){next(e);}});
-  const portfolioImageLimiter=rateLimit({windowMs:15*60*1000,max:12,keyPrefix:'portfolio-image-processing'});
-  app.post('/api/creative-house/my-portfolio/images',authBuyer,portfolioImageLimiter,upload.single('image'),async(req,res,next)=>{
+  app.post('/api/creative-house/my-portfolio/images',authBuyer,imageWork.gate('buyer'),imageWork.parse,async(req,res,next)=>{
     let target;
     try{await reconcile(req.buyerSubject);if(!req.file)return fail(res,422,'image_required','Choose a JPEG, PNG, or WebP image.');if(!db.prepare('SELECT 1 FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject))return fail(res,409,'profile_required','Create a creative profile first.');
-      const meta=await sharp(req.file.buffer,{limitInputPixels:40000000}).metadata();if(!['jpeg','png','webp'].includes(meta.format)||meta.pages>1)return fail(res,422,'invalid_image','Choose a still JPEG, PNG, or WebP image.');
-      const id=crypto.randomUUID(),key='portfolio-'+id+'.webp';target=path.join(imagesDir,key);await sharp(req.file.buffer,{limitInputPixels:40000000}).rotate().resize(2000,2000,{fit:'inside',withoutEnlargement:true}).webp({quality:85}).toFile(target);
+      const meta=await imageWork.run(()=>sharp(req.file.path,{limitInputPixels:40000000}).metadata());if(!['jpeg','png','webp'].includes(meta.format)||meta.pages>1)return fail(res,422,'invalid_image','Choose a still JPEG, PNG, or WebP image.');
+      const id=crypto.randomUUID(),key='portfolio-'+id+'.webp';target=path.join(imagesDir,key);await imageWork.run(()=>sharp(req.file.path,{limitInputPixels:40000000}).rotate().resize(2000,2000,{fit:'inside',withoutEnlargement:true}).webp({quality:85}).toFile(target));
       const inserted=db.transaction(()=>{if(db.prepare('SELECT COUNT(*) n FROM portfolio_images WHERE owner_subject=?').get(req.buyerSubject).n>=access(req.buyerSubject).imageLimit)return false;db.prepare('INSERT INTO portfolio_images(id,owner_subject,storage_key,caption) VALUES (?,?,?,?)').run(id,req.buyerSubject,key,String(req.body?.caption||'').trim().slice(0,200));return true;}).immediate();
       if(!inserted){await fs.promises.unlink(target);return fail(res,409,'image_limit','Your portfolio has reached its image limit.');}res.status(201).json(portfolio(req.buyerSubject,true));
     }catch(e){if(target)await fs.promises.unlink(target).catch(()=>{});next(e);}
