@@ -4,7 +4,7 @@ const {isTrustedRequestOrigin}=require('./lib/request-origin');
 const {clientAddress}=require('./lib/client-address');
 const COOKIE='hob_customer_session';
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
-function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir}){
+function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOrigin,clearDesignerSession,imagesDir}){
  db.exec(`CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,created_at TEXT NOT NULL,rules_accepted_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_login_challenges(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,code_hash TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,expires_at TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(session_hash TEXT PRIMARY KEY,customer_id TEXT NOT NULL REFERENCES customer_accounts(id),created_at TEXT NOT NULL,expires_at TEXT NOT NULL);
@@ -86,7 +86,14 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   if(previous&&Date.now()-Date.parse(previous.created_at)<60000){res.set('Retry-After','60');return fail(res,429,'rate_limited','Wait a minute before requesting another code.');}
   const id=crypto.randomUUID(),code=crypto.randomInt(0,1000000).toString().padStart(6,'0'),now=new Date().toISOString();
   db.prepare('INSERT INTO customer_login_challenges (id,email,display_name,code_hash,created_at,expires_at) VALUES (?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET id=excluded.id,display_name=excluded.display_name,code_hash=excluded.code_hash,attempts=0,created_at=excluded.created_at,expires_at=excluded.expires_at').run(id,email,name||'House guest',hash(id+':'+code),now,new Date(Date.now()+15*60000).toISOString());
-  try{await sendEmail({to:email,subject:'Your House of Briar sign-in code',text:`Your code is ${code}. It expires in 15 minutes. Use it to sign in or finish creating your optional customer account. If you did not request this, ignore this email.`,eventKey:'customer-signin:'+id});return res.set('Cache-Control','no-store').status(202).json({requestId:id,message:'Check your email for a six-digit code. Delivery may take a few minutes.'});}catch(error){db.prepare('DELETE FROM customer_login_challenges WHERE id=?').run(id);return next(error);}
+  try{
+   const delivered=await deliverEmail({to:email,subject:'Your House of Briar sign-in code',text:`Your code is ${code}. It expires in 15 minutes. Use it to sign in or finish creating your optional customer account. If you did not request this, ignore this email.`,idempotencyKey:'customer-signin:'+id});
+   if(!delivered)throw new Error('Delivery unavailable');
+   return res.set('Cache-Control','no-store').status(202).json({requestId:id,message:'Check your email for a six-digit code. Delivery may take a few minutes.'});
+  }catch{
+   db.prepare('DELETE FROM customer_login_challenges WHERE id=?').run(id);
+   return fail(res,503,'verification_email_unavailable','The verification email could not be sent. Please try again later.');
+  }
  });
  app.post('/api/customer/verify-code',origin,(req,res)=>{
   if(!consume.immediate(hash('verify-ip:'+clientAddress(req)),100))return fail(res,429,'rate_limited','Too many attempts. Try again later.');
