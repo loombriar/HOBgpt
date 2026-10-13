@@ -3,7 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const sharp = require('sharp');
 
-function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,customerListingVisible,options}) {
+function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,imageWork,moderateDesignerImage,serializeListing,customerListingVisible,options}) {
   db.exec(`CREATE TABLE IF NOT EXISTS designer_stories (designer_id TEXT PRIMARY KEY, story TEXT NOT NULL DEFAULT '', photo_key TEXT);
     CREATE TABLE IF NOT EXISTS house_ai_usage (day TEXT, subject TEXT, kind TEXT, count INTEGER NOT NULL, PRIMARY KEY(day,subject,kind));`);
   const apiKey = () => options.houseAiKey || process.env.OPENAI_API_KEY;
@@ -29,13 +29,15 @@ function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,uploa
     if(typeof req.body?.story!=='string'||req.body.story.length>2000)return fail(res,422,'invalid_story','Keep your studio story under 2,000 characters.');
     db.prepare('INSERT INTO designer_stories(designer_id,story) VALUES(?,?) ON CONFLICT(designer_id) DO UPDATE SET story=excluded.story').run(req.designerId,req.body.story.trim());res.json({ok:true});
   });
-  const studioPhotoLimiter=rateLimit({windowMs:15*60*1000,max:12,keyPrefix:'studio-photo-processing'});
-  app.post('/api/my/studio-photo',authDesigner,studioPhotoLimiter,upload.single('image'),async(req,res,next)=>{
+  app.post('/api/my/studio-photo',authDesigner,imageWork.gate('designer'),imageWork.parse,async(req,res,next)=>{
     let newKey;
     try{
       if(!req.file)return fail(res,400,'missing_image','Choose a studio photo.');
-      const image=await sharp(req.file.buffer,{limitInputPixels:40_000_000}).rotate().resize(1400,1400,{fit:'inside',withoutEnlargement:true}).webp({quality:85}).toBuffer();
-      const safety=await moderateDesignerImage(image,'image/webp','behind-the-scenes studio photo');
+      const {image,safety}=await imageWork.run(async()=>{
+        const image=await sharp(req.file.path,{limitInputPixels:40_000_000}).rotate().resize(1400,1400,{fit:'inside',withoutEnlargement:true}).webp({quality:85}).toBuffer();
+        const safety=await moderateDesignerImage(image,'image/webp','behind-the-scenes studio photo');
+        return {image,safety};
+      });
       if(!safety.allow||safety.needsHumanReview)return fail(res,422,'image_requires_review','This studio photo needs review before it can be shown.');
       const old=db.prepare('SELECT photo_key FROM designer_stories WHERE designer_id=?').get(req.designerId)?.photo_key;
       newKey='studio-'+crypto.randomUUID()+'.webp';await fs.writeFile(path.join(imagesDir,newKey),image);
