@@ -28,5 +28,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1"
+  },
+  "overrides": {
+    "geoip-lite": {
+      "ip-address": "10.7.4"
+    }
   }
 }
