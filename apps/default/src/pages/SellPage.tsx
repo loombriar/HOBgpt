@@ -7,7 +7,8 @@ import { MARKET_CATEGORIES } from '@/lib/marketplace';
 export default function SellPage() {
   const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[],sellerTermsAccepted:false,sellerTermsVersion:'2026-10-08-free-delivery'});
   const [message,setMessage]=useState('');
-  const [signupId,setSignupId]=useState('');
+  const [requestId,setRequestId]=useState('');
+  const [code,setCode]=useState('');
   const [loading,setLoading]=useState(false);
 
   const submit=async(event:FormEvent)=>{
@@ -22,13 +23,22 @@ export default function SellPage() {
       });
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data?.error?.message||'Your designer sign up could not be completed.');
-      setSignupId(data.signup.id);
-      setMessage('Designer sign up complete. Sign in with this email to open your Designer Studio and set up payouts.');
+      setRequestId(data.requestId);
+      setMessage(data.message);
     }catch(error){
       setMessage(error instanceof Error?error.message:'Your designer sign up could not be completed.');
     }finally{
       setLoading(false);
     }
+  };
+
+  const verify=async(event:FormEvent)=>{
+    event.preventDefault();setLoading(true);setMessage('');
+    try{
+      const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId,code})});
+      const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.error?.message||'Email verification failed.');
+      window.location.assign('/designers/room');
+    }catch(error){setMessage(error instanceof Error?error.message:'Email verification failed.');}finally{setLoading(false);}
   };
 
   const field='mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
@@ -71,16 +81,13 @@ export default function SellPage() {
 
       <section id="designer-signup" className="mx-auto mt-14 max-w-3xl scroll-mt-24" aria-labelledby="designer-signup-heading">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Your invitation starts here</p>
-        <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Ready to join the House?</h2>
+        <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Designer sign up</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">There is no application or approval process. Create your designer profile below, then sign in to your studio when you are ready.</p>
-      {signupId ? <section className="mt-10 rounded-3xl border border-primary/20 bg-primary/5 p-7">
-        <h2 className="font-serif text-3xl">Welcome to House of Briar.</h2>
-        <p role="status" className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
-        <p className="mt-4 text-xs text-muted-foreground">Designer sign-up reference: {signupId}</p>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">You do not need to upload a piece or a portfolio to get started. Sign in with the email you registered to complete Stripe payout setup; you can create your first listing later.</p>
-        <Link to="/account#payout-setup" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground hover:opacity-90">Continue to Stripe payment setup →</Link>
-        <p className="mt-3 text-xs text-muted-foreground">For security, Stripe setup opens from your signed-in Designer Studio. If you are not signed in, use your registered email to sign in first.</p>
-      </section> : <form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      {requestId ? <form onSubmit={e=>void verify(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6">
+        <p role="status">{message}</p><label className="block text-sm font-medium">Six-digit code from your email<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} className={field}/></label>
+        <button disabled={loading} className="min-h-12 rounded-full bg-primary px-6 text-primary-foreground">Verify email and open my room</button>
+        <button type="button" disabled={loading} onClick={()=>{setRequestId('');setCode('');setMessage('');}} className="block text-sm underline">Use another email or request a new code</button>
+      </form> : <form onSubmit={(e)=>void submit(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="text-sm font-medium">Your name
             <input required maxLength={100} autoComplete="name" value={form.displayName} onChange={e=>setForm({...form,displayName:e.target.value})} className={field}/>
@@ -104,8 +111,8 @@ export default function SellPage() {
         </fieldset>
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>, including paying postage and offering free US delivery (version {form.sellerTermsVersion}).</span></label>
         {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
-        <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Join the Designer List'}</button>
-        <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created when you sign up.</p>
+        <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Email me a verification code'}</button>
+        <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created after you verify your email.</p>
       </form>}
       </section>
     </main>

@@ -1,14 +1,14 @@
 {
   "name": "House of Briar",
   "short_name": "Briar",
-  "description": "Discover one-of-a-kind clothing from independent designers. Made by someone, not everyone.",
+  "description": "Independent clothing, creative portfolios, and collaboration opportunities. Made by someone, not everyone.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f8f1ea",
-  "theme_color": "#c9ae72",
+  "background_color": "#fbf7f2",
+  "theme_color": "#fbf7f2",
   "icons": [
     {
       "src": "/icons/house-of-briar-192.png",
@@ -21,6 +21,25 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "lang": "en-US",
+  "categories": [
+    "shopping",
+    "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop the Briar",
+      "short_name": "Shop",
+      "description": "Browse clothing from independent designers",
+      "url": "/#shop"
+    },
+    {
+      "name": "The Creative House",
+      "short_name": "Creative House",
+      "description": "Explore creative profiles and collaboration opportunities",
+      "url": "/creative-house.html"
     }
   ]
 }

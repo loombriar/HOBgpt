@@ -123,7 +123,7 @@ byId('house-tryon-form')?.addEventListener('submit',async event=>{
 byId('house-styling-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter,status=byId('house-styling-status'),results=byId('house-styling-results');button.disabled=true;results.replaceChildren();setMessage(status,'Finding your kind of different…','');
   try{const payload=await apiRequest('/api/house/styling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:byId('house-styling-prompt').value})});
-    for(const {item,idea} of payload.suggestions||[]){const card=makeElement('article','house-styling-card');const image=document.createElement('img');image.src=getProductImages(item)[0]?.url||'';image.alt=item.title;image.loading='lazy';const copy=makeElement('div');copy.append(makeElement('h3','',item.title),makeElement('p','',idea));const visit=makeElement('button','primary-button','View piece');visit.type='button';visit.addEventListener('click',()=>openProductDetails(item));copy.append(visit,houseTryOnButton(item));card.append(image,copy);results.append(card);}setMessage(status,payload.note||'Your styling ideas are ready.','success');
+    for(const {item,idea} of payload.suggestions||[]){const card=makeElement('article','house-styling-card');const image=document.createElement('img');image.src=getProductImages(item)[0]?.url||'';image.alt=item.title;image.loading='lazy';const copy=makeElement('div');copy.append(makeElement('h3','',item.title),makeElement('p','',idea));const visit=makeElement('button','primary-button','View piece');visit.type='button';visit.addEventListener('click',()=>openProductDetails(item));copy.append(visit);card.append(image,copy);results.append(card);}setMessage(status,payload.note||'Your styling ideas are ready.','success');
   }catch(error){setMessage(status,error.status===401?'Sign in through Visitor’s Suite or Designer’s Room to ask the stylist.':error.message,'error');}finally{button.disabled=false;}
 });
 
@@ -168,7 +168,7 @@ document.querySelectorAll('[data-mess-around-suite]').forEach(button => {
     byId('visitor-suite-btn')?.click();
     const target = byId(button.dataset.messAroundSuite);
     if (!target) return;
-    target.scrollIntoView({ block: 'nearest' });
+    scrollRoomTarget(target, { block: 'nearest' });
     if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
   });

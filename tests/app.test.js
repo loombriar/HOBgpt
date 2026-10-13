@@ -283,7 +283,12 @@ test('editorial storefront retains accessible native category filters and their 
   }
   assert.match(html, /<option value="all">All prints<\/option>/);
   assert.match(html, /<option value="Costume">Costumes<\/option>/);
-  assert.match(html, /class="fashion-hero-side"/);
+  assert.doesNotMatch(html, /class="fashion-hero-side"/);
+  assert.match(html, /class="shop-drop-window menswear-window"/);
+  assert.doesNotMatch(html, /class="fashion-category-links"/);
+  assert.match(html, /href="\/shop\?category=menswear"/);
+  assert.match(html, /id="designers-wanted-title">Made by someone,/);
+  assert.match(html, /Independent by design/);
   assert.doesNotMatch(html, /class="sewing-hero-art"/);
 });
 
@@ -420,13 +425,13 @@ test('stores listing SEO and shipping metadata and supports guarded bulk catalog
 test('accepts allowlisted commerce analytics and exposes the admin funnel', async () => {
   const event = await getJson('/api/analytics/events', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { Origin:baseUrl, 'Content-Type': 'application/json' },
     body: JSON.stringify({ event: 'begin_checkout', sessionId: 'test-session', value: 100, currency: 'USD', itemCount: 1 })
   });
   assert.equal(event.response.status, 202);
 
   const rejected = await getJson('/api/analytics/events', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'arbitrary_event' })
+    method: 'POST', headers: { Origin:baseUrl, 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'arbitrary_event' })
   });
   assert.equal(rejected.response.status, 400);
 
@@ -437,12 +442,12 @@ test('accepts allowlisted commerce analytics and exposes the admin funnel', asyn
 
 test('records anonymous site visits and exposes traffic summaries without IP storage', async () => {
   const first = await getJson('/api/analytics/events', {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST', headers:{Origin:baseUrl,'Content-Type':'application/json'},
     body:JSON.stringify({event:'page_view',sessionId:'visit-one',path:'/',referrer:'https://search.example/private/path?secret=value',deviceCategory:'mobile',city:'Forged city',region:'XX',country:'ZZ'})
   });
   assert.equal(first.response.status,202);
   const second = await getJson('/api/analytics/events', {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST', headers:{Origin:baseUrl,'Content-Type':'application/json'},
     body:JSON.stringify({event:'view_designer',sessionId:'visit-one',path:'/designers/maker',designerId:'maker',deviceCategory:'mobile'})
   });
   assert.equal(second.response.status,202);

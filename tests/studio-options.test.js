@@ -5,7 +5,7 @@ for(const id of ['a','b','c'])ctx.db.prepare('UPDATE designer_profiles SET email
 ctx.db.prepare('INSERT INTO designer_identities(subject,designer_id,email,linked_at) VALUES (?,?,?,?)').run('b-sub','b','b@example.test',new Date().toISOString());
 for(const id of ['a','b'])ctx.db.prepare('INSERT INTO designer_terms_acceptances(designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run(id,SELLER_TERMS_VERSION,new Date().toISOString(),'test');
 const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const url='http://127.0.0.1:'+server.address().port;
-const call=async(route,method='GET',body,token='tokenA')=>{const response=await fetch(url+route,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body===undefined?undefined:JSON.stringify(body)});return{status:response.status,body:await response.json()};};
+const call=async(route,method='GET',body,token='tokenA')=>{const response=await fetch(url+route,{method,headers:{...(route==='/api/analytics/events'?{Origin:url}:{}),'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body===undefined?undefined:JSON.stringify(body)});return{status:response.status,body:await response.json()};};
 try{await run({ctx,call,getCalls:()=>calls});}finally{await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}}
 
 test('listing categories are exclusive and reserved stock is not sold out',()=>{

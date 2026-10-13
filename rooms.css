@@ -41,7 +41,8 @@
 .designer-room-page .form-row > div > input { margin-top:8px; }
 .designer-room-page .form-row > label:has(input[type=checkbox]) { display:flex; gap:10px; align-items:flex-start; }
 .designer-room-page :is(#designer-brand-form,#product-form,#designer-products,#designer-settings,#seller-readiness-title) { scroll-margin-top:32px; }
-.designer-products:empty::before { content:"Your pieces will appear here. Create your first listing when you’re ready."; color:var(--room-muted); }
+#designer-products:empty::before { content:"Your pieces will appear here. Create your first listing when you’re ready."; color:var(--room-muted); }
+#measurement-profile-list:empty::before { content:"No saved measurements yet. Add a profile above to keep your fit details handy."; color:var(--room-muted); }
 .designer-product-item { background:#fff; border-color:var(--room-border); padding:16px; gap:16px; }
 .designer-product-item img { object-fit:contain; width:80px; height:96px; background:#f5f0f4; }
 .designer-product-item { grid-template-columns:80px minmax(0,1fr) auto; }
@@ -109,3 +110,6 @@ body.blackberry-house .product-section .shop-drop-window .category-window-title 
 .designer-image-placeholder { display:grid; place-items:center; width:80px; height:96px; padding:8px; border:1px dashed var(--room-border); border-radius:10px; background:#f5f0f4; color:var(--room-muted); font-size:.75rem; text-align:center; }
 .designer-product-info > label { display:flex; align-items:center; gap:8px; margin:10px 0; font-size:.85rem; }
 @media(max-width:700px) { .designer-image-placeholder { width:64px; height:80px; } }
+
+/* Email authentication shows one step at a time. */
+:is(#designer-code-form,#designer-email-login-form,#designer-signup-form)[hidden] { display:none!important; }

@@ -1,5 +1,5 @@
 import { lazy, useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics';
 import { GenesisSection } from '@/lib/genesis';
 import { GenesisAuth } from '@/lib/genesis-auth';
@@ -23,6 +23,10 @@ function Section({ name, children }: { name: string; children: ReactNode }) {
 
 function TrafficTracker() {
   const location = useLocation();
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== 'POP' && !location.hash) window.scrollTo({top:0,behavior:'instant'});
+  }, [location.pathname, navigationType]);
   useEffect(() => { trackPageView(location.pathname); }, [location.pathname]);
   return null;
 }

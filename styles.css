@@ -1812,3 +1812,180 @@ body{background-color:#faf5ef!important;color:#493b4b}
 body.designer-room-open .designer-room-header #modal-close{position:fixed;top:max(0.75rem,env(safe-area-inset-top));right:max(0.75rem,env(safe-area-inset-right));z-index:1000;box-shadow:0 3px 14px rgba(0,0,0,.18)}
 body.designer-room-open .designer-room-header{padding-right:clamp(9rem,28vw,13rem)}
 @media(max-width:600px){body.designer-room-open .designer-room-header{min-height:4.25rem;padding-right:9rem}body.designer-room-open .designer-room-header #modal-close{font-size:.85rem;padding:.65rem .8rem}}
+
+/* Non-destructive fitting-studio preview; saved profiles and the small legacy thumbnails remain unchanged. */
+.measurement-avatar-intro .fitting-studio{flex:0 0 min(100%,260px);min-width:0}
+#measurement-avatar-preview{display:grid;place-items:center;min-height:320px}
+.fitting-scene{width:230px;height:310px;display:grid;place-items:center;perspective:650px;background:radial-gradient(ellipse at 50% 78%,#d9d4d0 0,transparent 60%),linear-gradient(155deg,#f7f6f4,#e9e7e4);border:1px solid #d7d4cf;border-radius:8px;overflow:hidden}
+.fitting-figure{position:relative;width:120px;height:280px;transform-style:preserve-3d;transition:transform .5s ease;transform-origin:50% 48%;filter:drop-shadow(7px 8px 7px #9b99956b)}
+.fitting-part{position:absolute;left:50%;transform-style:preserve-3d;background:linear-gradient(90deg,#888785 0%,#d5d3d0 24%,#eeeae4 45%,#b8b5b0 78%,#858380 100%);border:1px solid #a8a49e;box-shadow:inset -7px 0 12px #716e6955;border-radius:48%}
+.fitting-head{top:2px;width:36px;height:45px;margin-left:-18px;border-radius:48% 48% 44% 44%;transform:translateZ(1px)}
+.fitting-neck{top:42px;width:16px;height:18px;margin-left:-8px;border-radius:5px}
+.fitting-chest{top:57px;width:calc(69px * var(--avatar-bust));height:72px;margin-left:calc(-34.5px * var(--avatar-bust));border-radius:37% 37% 30% 30%;transform:scaleY(var(--avatar-height))}
+.fitting-waist{top:119px;width:calc(52px * var(--avatar-waist));height:49px;margin-left:calc(-26px * var(--avatar-waist));border-radius:26% 26% 38% 38%}
+.fitting-pelvis{top:158px;width:calc(73px * var(--avatar-hips));height:48px;margin-left:calc(-36.5px * var(--avatar-hips));border-radius:37% 37% 45% 45%}
+.fitting-arm{top:65px;width:16px;height:117px;border-radius:40%;transform-origin:top center}
+.fitting-arm-left{margin-left:calc(-39px * var(--avatar-bust));transform:rotateZ(9deg) translateZ(-4px)}
+.fitting-arm-right{margin-left:calc(23px * var(--avatar-bust));transform:rotateZ(-9deg) translateZ(-4px)}
+.fitting-leg{top:193px;width:25px;height:calc(80px * var(--avatar-inseam));border-radius:24% 24% 33% 33%}
+.fitting-leg-left{margin-left:-29px;transform:rotateZ(2deg)}
+.fitting-leg-right{margin-left:4px;transform:rotateZ(-2deg)}
+.fitting-stand{top:271px;width:86px;height:5px;margin-left:-43px;border-radius:50%;background:#77716b}
+.fitting-studio-controls{display:flex;gap:6px;margin-top:10px;justify-content:center}
+.fitting-studio-controls button{font:600 12px Inter,sans-serif;padding:8px 12px;background:#f4f1ee;border:1px solid #bcb5ad;border-radius:4px;color:#292725;cursor:pointer}
+.fitting-studio-controls button[aria-pressed="true"]{background:#292725;color:white}
+@media(max-width:650px){.measurement-avatar-intro{flex-direction:column;align-items:stretch}.measurement-avatar-intro .fitting-studio{flex:auto}#measurement-avatar-preview{min-height:310px}}
+
+/* Studio mannequin v2: sculptural volume and depth, retaining measurement inputs and controls. */
+.measurement-avatar-intro .fitting-studio{flex:0 0 min(100%,340px);max-width:100%}
+#measurement-avatar-preview{min-height:420px}
+.fitting-scene{width:min(100%,330px);height:410px;perspective:950px;border-radius:3px;background:radial-gradient(ellipse at 50% 90%,#a7a29b55 0%,transparent 46%),linear-gradient(120deg,#f8f7f4 0%,#e8e5df 100%);border:1px solid #d2cdc6}
+.fitting-figure{transform-origin:50% 47%;filter:drop-shadow(12px 16px 12px #5f5a5260);scale:1.34;transition:transform .65s cubic-bezier(.2,.7,.2,1)}
+.fitting-part:not(.fitting-stand){background:linear-gradient(90deg,#6f6e6c 0%,#b1ada8 12%,#f1efeb 35%,#dedad4 53%,#aaa6a0 82%,#676663 100%);border:1px solid #b3ada5;box-shadow:inset -10px 0 13px #57555044,inset 5px 0 9px #ffffff55,3px 1px 6px #6b686329}
+.fitting-head{border-radius:45% 45% 46% 46%;box-shadow:inset -9px 0 10px #4e4c4938,0 2px 3px #4443!important}
+.fitting-chest{border-radius:40% 40% 28% 28%;transform:translateZ(10px) scaleY(var(--avatar-height))}
+.fitting-waist{border-radius:29% 29% 37% 37%;transform:translateZ(7px)}
+.fitting-pelvis{border-radius:34% 34% 44% 44%;transform:translateZ(9px)}
+.fitting-arm-left{transform:rotateZ(9deg) translateZ(-7px)}
+.fitting-arm-right{transform:rotateZ(-9deg) translateZ(-7px)}
+.fitting-leg-left{transform:rotateZ(2deg) translateZ(4px)}
+.fitting-leg-right{transform:rotateZ(-2deg) translateZ(4px)}
+.fitting-figure::before{content:'';position:absolute;top:50px;left:50%;width:calc(67px * var(--avatar-bust));height:150px;margin-left:calc(-33.5px * var(--avatar-bust));border-radius:48% 48% 36% 36%;background:linear-gradient(90deg,#716e6a,#d3cec6 30%,#8d8983 80%,#55534f);transform:rotateY(90deg) translateZ(0);opacity:.9}
+.fitting-figure::after{content:'';position:absolute;top:8px;left:50%;width:32px;height:40px;margin-left:-16px;border-radius:50%;background:linear-gradient(90deg,#77736e,#c5c0b9,#67635e);transform:rotateY(90deg)}
+@media(max-width:650px){.measurement-avatar-intro .fitting-studio{flex:auto}#measurement-avatar-preview{min-height:370px}.fitting-scene{height:370px}.fitting-figure{scale:1.18}}
+@media(prefers-reduced-motion:reduce){.fitting-figure{transition:none}}
+
+/* Homepage editorial hero: ensure readable contrast regardless of inherited dark hero theme. */
+.hero.sewing-hero{background:#f6eee3!important;color:#342c27!important;opacity:1!important}
+.hero.sewing-hero .sewing-hero-content,.hero.sewing-hero .sewing-hero-content *{opacity:1!important;filter:none!important;mix-blend-mode:normal!important}
+.hero.sewing-hero .sewing-hero-content h1,.hero.sewing-hero .sewing-hero-content h1 em{color:#342c27!important;text-shadow:none!important}
+.hero.sewing-hero .sewing-hero-content .eyebrow{color:#665042!important}
+.hero.sewing-hero .sewing-hero-content>p:not(.eyebrow){color:#51443a!important}
+.hero.sewing-hero .sewing-hero-actions .secondary-button{color:#342c27!important;border-color:#665042!important;background:#fff8ee!important}
+
+/* 2026 fashion editorial cover: intentional typography, no faded dark-on-dark text. */
+body .hero.sewing-hero.fashion-cover{position:relative!important;isolation:isolate!important;display:grid!important;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;align-items:stretch!important;min-height:min(720px,84vh)!important;padding:0!important;background:#f5f0e8!important;color:#201c19!important;overflow:hidden!important}
+body .hero.sewing-hero.fashion-cover::before,body .hero.sewing-hero.fashion-cover::after{content:none!important;display:none!important}
+body .fashion-cover .fashion-cover-art{position:relative!important;grid-column:2;grid-row:1;min-height:580px;background:linear-gradient(145deg,#54473f 0%,#292522 44%,#171716 100%)!important;display:grid;place-items:center;overflow:hidden}
+body .fashion-cover .fashion-cover-art::before{content:"";position:absolute;width:75%;aspect-ratio:3/4;border:1px solid rgba(237,222,201,.3);transform:rotate(-9deg);box-shadow:25px 25px 0 -1px rgba(237,222,201,.045)}
+body .fashion-cover .fashion-cover-art::after{content:"";position:absolute;width:57%;aspect-ratio:3/4;border:1px solid rgba(237,222,201,.22);transform:rotate(8deg)}
+body .fashion-cover .fashion-cover-art-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:390px;width:100%;padding:25px;text-align:center;color:#f6eee3}
+body .fashion-cover .fashion-cover-art-number,body .fashion-cover .fashion-cover-art-caption{font:600 10px/1.5 Arial,sans-serif!important;letter-spacing:.3em!important;color:#e9d8c4!important}
+body .fashion-cover .fashion-cover-art-monogram{font:400 clamp(7rem,17vw,16rem)/1 'Cormorant Garamond',Georgia,serif!important;letter-spacing:-.1em!important;color:#f2e8d9!important}
+body .fashion-cover .fashion-cover-art-monogram span{font-style:italic;font-size:.48em;vertical-align:middle;letter-spacing:-.15em}
+body .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;align-self:center;position:relative!important;z-index:2!important;width:100%;max-width:none!important;margin:0!important;padding:clamp(36px,6vw,100px)!important;background:transparent!important;color:#201c19!important;opacity:1!important;visibility:visible!important;transform:none!important;filter:none!important}
+body .hero.sewing-hero.fashion-cover .fashion-cover-copy .eyebrow{font:600 11px/1.6 Arial,sans-serif!important;letter-spacing:.22em!important;color:#715443!important;margin:0 0 30px!important}
+body .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-family:'Cormorant Garamond',Georgia,serif!important;font-size:clamp(3.7rem,6.4vw,7.2rem)!important;line-height:.95!important;font-weight:400!important;letter-spacing:-.045em!important;color:#211d19!important;max-width:800px!important;margin:0 0 32px!important;opacity:1!important;text-shadow:none!important}
+body .hero.sewing-hero.fashion-cover .fashion-cover-copy h1 em{font-family:inherit!important;color:#6c443b!important;font-weight:400!important}
+body .hero.sewing-hero.fashion-cover .fashion-cover-copy>p:not(.eyebrow):not(.fashion-cover-footnote){font:400 clamp(1rem,1.4vw,1.2rem)/1.65 Arial,sans-serif!important;max-width:490px!important;color:#4b423c!important;opacity:1!important}
+body .hero.sewing-hero.fashion-cover .sewing-hero-actions{margin-top:34px!important;gap:12px!important}
+body .hero.sewing-hero.fashion-cover .sewing-hero-actions a{border-radius:0!important;min-height:52px!important;padding:15px 20px!important;font:600 12px/1.4 Arial,sans-serif!important;letter-spacing:.06em!important;opacity:1!important}
+body .hero.sewing-hero.fashion-cover .sewing-hero-actions .primary-button{background:#211d19!important;border:1px solid #211d19!important;color:#fff9ef!important}
+body .hero.sewing-hero.fashion-cover .sewing-hero-actions .secondary-button{background:transparent!important;border:1px solid #4c4039!important;color:#211d19!important}
+body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 Arial,sans-serif!important;letter-spacing:.2em!important;color:#7b6b5e!important;margin-top:60px!important}
+@media(max-width:850px){body .hero.sewing-hero.fashion-cover{grid-template-columns:1fr!important;min-height:0!important}body .fashion-cover .fashion-cover-art{grid-column:1;grid-row:2;min-height:310px!important}body .fashion-cover .fashion-cover-art-inner{min-height:260px!important}body .fashion-cover .fashion-cover-art-monogram{font-size:9rem!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;padding:46px 26px!important}body .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(3.1rem,10vw,5.4rem)!important}body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{margin-top:35px!important}}
+@media(prefers-reduced-motion:reduce){body .hero.sewing-hero.fashion-cover *,body .hero.sewing-hero.fashion-cover *::before{animation:none!important;transition:none!important}}
+
+/* Our Story: paired shopper and designer invitations. */
+.story-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.story-actions .secondary-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+
+/* Original typographic editorial art; no photographs or repeated product imagery. */
+.hob-two-doors{background:#f7f2eb;padding:clamp(48px,7vw,96px) 0;color:#29231f}
+.hob-two-doors-heading{text-align:center;margin-bottom:35px}
+.hob-two-doors-heading .eyebrow{font:700 10px Inter,Arial,sans-serif;letter-spacing:.24em;color:#76544a}
+.hob-two-doors-heading h2{font:400 clamp(2.4rem,5vw,4.8rem)/1.05 'Cormorant Garamond',Georgia,serif!important;color:#29231f!important;margin:14px 0!important}
+.hob-two-doors-heading>p:last-child{color:#5c514b}
+.hob-two-doors-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.hob-door{position:relative;display:flex;flex-direction:column;min-height:560px;overflow:hidden;color:#2c2421!important;text-decoration:none!important;border:1px solid #c8b9a9;background:#e5d5c8;transition:transform .2s,border-color .2s}
+.hob-door:hover{transform:translateY(-5px);border-color:#6d453e}
+.hob-door:focus-visible{outline:3px solid #6d453e;outline-offset:4px}
+.hob-door-create{background:#2b2928;color:#f6eee4!important;border-color:#2b2928}
+.hob-door-number{position:relative;z-index:1;padding:22px 25px;font:700 10px Inter,Arial,sans-serif;letter-spacing:.19em}
+.hob-door-art{position:relative;display:grid;place-items:center;flex:1;min-height:230px;margin:0 26px;border:1px solid rgba(64,45,39,.3);font:italic 400 clamp(4rem,9vw,9rem)/1 'Cormorant Garamond',Georgia,serif;letter-spacing:-.06em;color:#78574e;transform:rotate(-3deg);text-align:center}
+.hob-door-create .hob-door-art{color:#d9c0ad;border-color:rgba(246,238,228,.4);transform:rotate(3deg)}
+.hob-door-art::before{content:"";position:absolute;inset:14px;border:1px solid currentColor;opacity:.2}
+.hob-door-content{display:flex;flex-direction:column;gap:12px;padding:30px 28px 35px;background:rgba(255,251,245,.5)}
+.hob-door-create .hob-door-content{background:rgba(255,255,255,.04)}
+.hob-door-content small{font:700 10px Inter,Arial,sans-serif;letter-spacing:.16em}
+.hob-door-content strong{font:400 clamp(2.3rem,4vw,4rem)/1 'Cormorant Garamond',Georgia,serif}
+.hob-door-content>span{font:400 14px/1.5 Inter,Arial,sans-serif}
+.hob-door-content b{font:700 12px Inter,Arial,sans-serif;letter-spacing:.04em;text-decoration:underline;text-underline-offset:5px;margin-top:10px}
+.hob-two-doors-note{text-align:center;margin:26px 20px 0;color:#584b43}
+.hob-two-doors-note a{color:#6c443b;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:720px){.hob-two-doors-grid{grid-template-columns:1fr}.hob-door{min-height:470px}.hob-door-art{font-size:clamp(4rem,16vw,7rem)}}
+@media(prefers-reduced-motion:reduce){.hob-door{transition:none}}
+
+/* Cohesive editorial homepage rhythm; no duplicated photography. */
+.hob-two-doors,.product-section,.designer-callout-section,.story-section{scroll-margin-top:100px}
+.hob-two-doors-heading{max-width:780px;margin-inline:auto}
+.hob-two-doors-heading>p:last-child{font-size:clamp(15px,1.5vw,19px);line-height:1.55}
+.hob-door-content{min-height:215px;justify-content:flex-end}
+.hob-door-content>span{max-width:34ch}
+.shop-editorial-lead{max-width:45ch;line-height:1.6;color:#67564b;margin-top:12px}
+.shop-discovery-links{display:flex;flex-wrap:wrap;gap:10px 18px;line-height:1.5}
+.shop-discovery-links a{font-size:13px;text-underline-offset:4px}
+.designer-creative-note{max-width:58ch;line-height:1.6}
+.designer-creative-note a{color:inherit;text-decoration:underline;text-underline-offset:4px}
+.designer-fee-note{max-width:30ch;line-height:1.55}
+.story-copy p{line-height:1.75}
+.story-actions{gap:12px}
+.story-actions a,.designer-callout-button{min-height:48px}
+@media(max-width:768px){
+ .hob-two-doors{padding:48px 0}
+ .hob-two-doors-heading{padding-inline:18px;margin-bottom:24px}
+ .hob-two-doors-heading h2{font-size:clamp(2.2rem,10vw,3.4rem)!important;overflow-wrap:break-word}
+ .hob-two-doors-grid{gap:16px;padding-inline:16px}
+ .hob-door{min-height:0}
+ .hob-door-number{padding:18px 20px}
+ .hob-door-art{min-height:165px;margin:0 20px;font-size:clamp(3.5rem,13vw,6rem)}
+ .hob-door-content{padding:22px 20px 26px;min-height:0;gap:10px}
+ .hob-door-content strong{font-size:clamp(2.4rem,11vw,3.6rem)}
+ .hob-two-doors-note{padding-inline:18px;line-height:1.6}
+ .story-grid,.designer-callout{gap:22px}
+ .story-actions{display:flex;flex-direction:column;align-items:stretch}
+ .story-actions a{text-align:center;justify-content:center}
+ .shop-discovery-links{gap:12px 18px}
+ .shop-search-controls,.shop-search{max-width:100%;min-width:0}
+ .shop-search input{max-width:100%;width:100%;box-sizing:border-box}
+ .designer-callout-action{width:100%}
+ .designer-callout-button{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box}
+}
+@media(max-width:420px){.hob-door-art{font-size:clamp(3rem,13vw,4.5rem)}.hob-two-doors-heading h2{font-size:2.4rem!important}.shop-discovery-links a{min-height:30px;display:inline-flex;align-items:center}}
+
+/* Living editorial: depth and restrained motion without imagery duplication. */
+.hob-two-doors{background:linear-gradient(155deg,#f8f2eb 0%,#eee3d9 58%,#f8f2eb 100%)}
+.hob-door{isolation:isolate;box-shadow:0 8px 22px rgba(44,30,24,.08),0 2px 4px rgba(44,30,24,.05);transform:translateZ(0);transition:transform .42s cubic-bezier(.2,.75,.2,1),box-shadow .42s cubic-bezier(.2,.75,.2,1),border-color .25s ease}
+.hob-door::after{content:"";pointer-events:none;position:absolute;inset:0;background:linear-gradient(125deg,rgba(255,255,255,.14),transparent 40%,rgba(255,255,255,.06) 70%);z-index:0}
+.hob-door:hover{transform:translateY(-7px);box-shadow:0 22px 40px rgba(44,30,24,.17),0 5px 12px rgba(44,30,24,.07)}
+.hob-door-art{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:10px;padding:25px 18px;box-sizing:border-box;transform:rotate(-2deg);background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.02));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);box-shadow:0 9px 24px rgba(58,39,30,.09);transition:transform .55s cubic-bezier(.2,.75,.2,1)}
+.hob-door-create .hob-door-art{transform:rotate(2deg)}
+.hob-door:hover .hob-door-art{transform:rotate(0deg) translateY(-3px)}
+.hob-door-art-overline,.hob-door-art-subline{position:relative;z-index:1;font:700 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.14em;text-align:center}
+.hob-door-art-title{position:relative;z-index:1;font:italic 400 clamp(3rem,5.5vw,6.5rem)/.92 'Cormorant Garamond',Georgia,serif;letter-spacing:-.05em;text-align:center}
+.hob-door-art-subline{font-size:9px}
+.hob-door-content{position:relative;z-index:1;background:rgba(255,250,244,.7);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border-top:1px solid rgba(104,79,66,.16)}
+.hob-door-create .hob-door-content{background:rgba(45,40,40,.72);border-color:rgba(255,255,255,.14)}
+.hob-door-content strong{font-size:clamp(2rem,3.3vw,3.3rem)}
+.hob-door-content b{display:inline-block;transition:transform .25s ease}
+.hob-door:hover .hob-door-content b{transform:translateX(5px)}
+@media(max-width:720px){.hob-door-art{min-height:220px;padding:19px 12px}.hob-door-art-title{font-size:clamp(3.3rem,12vw,5.5rem)}.hob-door{box-shadow:0 5px 18px rgba(44,30,24,.09)}.hob-door:hover{transform:none}.hob-door-content{backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(prefers-reduced-motion:reduce){.hob-door,.hob-door-art,.hob-door-content b{transition:none!important}.hob-door:hover,.hob-door:hover .hob-door-art,.hob-door:hover .hob-door-content b{transform:none!important}}
+
+/* House of Briar product editorial: glass depth and bento rhythm, using existing images once. */
+#product-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:clamp(12px,1.7vw,22px);align-items:stretch}
+#product-grid>.product-card{grid-column:span 3;min-width:0;position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.84),rgba(249,241,232,.69));border:1px solid rgba(255,255,255,.75);box-shadow:0 5px 20px rgba(52,35,30,.075),inset 0 1px rgba(255,255,255,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .4s cubic-bezier(.22,.8,.25,1),box-shadow .4s cubic-bezier(.22,.8,.25,1),border-color .3s ease;will-change:auto}
+#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 6}
+#product-grid>.product-card:hover{transform:translateY(-4px);box-shadow:0 17px 34px rgba(52,35,30,.15),inset 0 1px rgba(255,255,255,.9);border-color:rgba(181,144,124,.6)}
+#product-grid>.product-card:focus-visible{outline:3px solid #86604c;outline-offset:3px}
+#product-grid>.product-card .product-image{overflow:hidden;background:#eee4db}
+#product-grid>.product-card .product-image img{transition:transform .55s cubic-bezier(.22,.8,.25,1)}
+#product-grid>.product-card:hover .product-image img{transform:scale(1.025)}
+#product-grid>.product-card .product-body{position:relative;background:rgba(255,251,247,.52);border-top:1px solid rgba(255,255,255,.72);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+#product-grid>.product-card .designer-card-link{display:inline-flex;align-items:center;gap:6px;min-height:36px;text-underline-offset:4px}
+#product-grid>.product-card .favorite-button{min-width:44px;min-height:44px;touch-action:manipulation}
+#product-grid>.empty-gallery{grid-column:1/-1}
+@media(max-width:1100px){#product-grid>.product-card{grid-column:span 4}#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 8}}
+@media(max-width:740px){#product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#product-grid>.product-card,#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 1}#product-grid>.product-card:nth-child(5n + 1){grid-column:span 2}#product-grid>.product-card .product-body{backdrop-filter:none;-webkit-backdrop-filter:none}#product-grid>.product-card:hover{transform:none}#product-grid>.product-card .product-image img{transition:none}#product-grid>.product-card:hover .product-image img{transform:none}}
+@media(max-width:390px){#product-grid{grid-template-columns:1fr}#product-grid>.product-card,#product-grid>.product-card:nth-child(5n + 1){grid-column:span 1}}
+@media(prefers-reduced-motion:reduce){#product-grid>.product-card,#product-grid>.product-card .product-image img{transition:none!important}#product-grid>.product-card:hover,#product-grid>.product-card:hover .product-image img{transform:none!important}}

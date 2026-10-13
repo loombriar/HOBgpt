@@ -1,3 +1,4 @@
+@import "./briar-makeover.css";
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap");
 /* Mossy moonlight: warm cream, deep forest, soft clay, and a single brass accent for a handmade marketplace. */
 @tailwind base;

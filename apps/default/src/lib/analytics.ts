@@ -72,14 +72,15 @@ function attribution() {
  */
 export function trackCommerceEvent(event: CommerceEvent) {
   if (typeof window === 'undefined') return;
-  const payload = JSON.stringify({
+  if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+  try {
+    const payload = JSON.stringify({
     ...event,
     sessionId: sessionId(),
     path: window.location.pathname,
     deviceCategory: event.deviceCategory || deviceCategory(),
     ...attribution(),
-  });
-  try {
+    });
     if (navigator.sendBeacon) {
       navigator.sendBeacon('/api/analytics/events', new Blob([payload], { type: 'application/json' }));
       return;

@@ -4,7 +4,7 @@ for (const width of [390, 1280]) {
   test(`first-time shopper can enter their account from the welcome guide at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
-    expect(await page.locator('#shop').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.house-editorial')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    expect(await page.locator('#shop').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.house-collections')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
     await page.locator('[data-customer-welcome]').click();
     await expect(page.locator('#visitor-suite-modal')).toBeVisible();
     await expect(page.locator('#customer-signup-email')).toBeFocused();

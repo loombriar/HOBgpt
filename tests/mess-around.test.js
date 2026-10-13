@@ -11,7 +11,9 @@ test('Mess Around stays in its menu with Find out first', () => {
  assert.match(nav.trim(), /^<a href="\/fashion-personality">Find out…<\/a>/);
  assert.ok(!html.includes('id="mess-around"'));
  const shell=read('apps/default/src/components/HouseShell.tsx');
- assert.equal((shell.match(/\['Find out…', '\/fashion-personality'\],\['Find Your Fashion Personality'/g)||[]).length,2);
+ assert.match(shell, /The Creative House/);
+ assert.match(shell, /to="\/cart"/);
+ assert.ok(!shell.includes('mobileNavOpen'));
  assert.ok(!shell.includes('/#mess-around'));
 });
 
@@ -21,10 +23,12 @@ test('Suite shortcuts reuse the existing entry point and focus the requested fea
   const targets = new Map();
   let opened = 0;
   const buttons = ['measurement-profile-name', 'visitor-favorites-title'].map(id => {
-    targets.set(id, { matches: () => id === 'measurement-profile-name', scrollIntoView(options) { this.scrolled = options.block; }, setAttribute(key, value) { this[key] = value; }, focus(options) { this.focused = options.preventScroll; } });
+    targets.set(id, { closest: () => null, matches: () => id === 'measurement-profile-name', scrollIntoView(options) { this.scrolled = options.block; }, setAttribute(key, value) { this[key] = value; }, focus(options) { this.focused = options.preventScroll; } });
     return { dataset: { messAroundSuite: id }, addEventListener(event, handler) { assert.equal(event, 'click'); handlers.push(handler); } };
   });
   const context = vm.createContext({ document: { querySelectorAll: () => buttons }, byId: id => id === 'visitor-suite-btn' ? { click() { opened++; } } : targets.get(id) });
+  const storefront = read('script.js');
+  vm.runInContext(storefront.slice(storefront.indexOf('function scrollRoomTarget('), storefront.indexOf("byId('header-customer-auth-btn')?.addEventListener")), context);
   vm.runInContext(source.slice(source.indexOf('// Reuse the Suite entry point')), context);
   handlers.forEach(handler => handler());
   assert.equal(opened, 2);

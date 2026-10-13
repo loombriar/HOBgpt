@@ -1,11 +1,14 @@
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+// This key is fixture-only; it encrypts disposable E2E data.
+process.env.MEASUREMENT_ENCRYPTION_KEY=require('node:crypto').randomBytes(32).toString('hex');
 const { createApp,SELLER_TERMS_VERSION }=require('../server');
 const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-e2e-'));
+const designerCodes=new Map();
 const { app:houseApp,db }=createApp({
   dataDir,
   designerTokens:{'e2e-designer-token':'maker'},
   adminToken:'e2e-admin-token',
-  sendEmail:async()=>true,
+  sendEmail:async message=>{if(message.subject==='Your House of Briar designer code')designerCodes.set(message.to,message.text.match(/\b\d{6}\b/)[0]);return true;},
   connectAccounts:{maker:'acct_e2e_maker'},
   seedProducts:[{id:'e2e-piece',designerId:'maker',title:'Moonlit E2E Piece',price:89.99,category:'fashion',shippingCostCents:0}],
   stripeApi:async(endpoint)=>{
@@ -21,6 +24,7 @@ app.get('/__test/customer-code', (req,res)=>{
   const row=db.prepare("SELECT body_text FROM email_outbox WHERE event_key LIKE 'customer-signin:%' AND recipient=? ORDER BY created_at DESC,rowid DESC LIMIT 1").get(String(req.query.email||''));
   const code=row?.body_text.match(/\b(\d{6})\b/)?.[1];if(!code)return res.status(404).json({});return res.json({code});
 });
+app.get('/__test/designer-code',(req,res)=>{const code=designerCodes.get(String(req.query.email||''));return code?res.json({code}):res.status(404).json({});});
 app.use(houseApp);
 const port=Number(process.env.PORT||4173);
 const server=app.listen(port,'127.0.0.1',()=>console.log('E2E server listening on '+port));
