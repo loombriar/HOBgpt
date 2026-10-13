@@ -42,7 +42,7 @@ async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={})
 function listContents(xml) {
  const decode=value=>value.replace(/&#(x[0-9a-f]+|[0-9]+);|&(?:amp|lt|gt|quot|apos);/gi,(entity,numeric)=>{
   if(numeric){const n=numeric[0].toLowerCase()==='x'?parseInt(numeric.slice(1),16):parseInt(numeric,10);return n<=0x10ffff?String.fromCodePoint(n):entity;}
-  return ({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'})[entity]||entity;
+  return ({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"})[entity]||entity;
  });
  const value=(fragment,name)=>{const match=fragment.match(new RegExp('<(?:[\\w.-]+:)?'+name+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?'+name+'>'));return match?decode(match[1]):null;};
  const objects=[];
