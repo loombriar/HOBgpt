@@ -4,6 +4,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
+const http = require('node:http');
+// Send an explicit Host even on Node versions whose fetch ignores Host overrides.
+function localFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const request = http.get(url, { headers: options.headers }, response => {
+      let body = ''; response.on('data', chunk => { body += chunk; });
+      response.on('end', () => resolve({status:response.statusCode, json:async()=>JSON.parse(body)}));
+    }); request.on('error', reject);
+  });
+}
 const { createApp } = require('../server');
 
 async function withApp(options, callback) {
@@ -26,7 +36,7 @@ test('OIDC never performs discovery from an attacker-controlled Host when APP_OR
   global.fetch = async (url) => { requests.push(url); throw new Error('Unexpected outbound discovery'); };
   try {
     await withApp({ appOrigin: '' }, async base => {
-      const response = await originalFetch(base + '/api/my/designer-profile', {
+      const response = await localFetch(base + '/api/my/designer-profile', {
         headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 400);
@@ -44,7 +54,7 @@ test('configured OIDC discovery uses the trusted origin and refuses discovery re
   };
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
-      const response = await originalFetch(base + '/api/my/designer-profile', {
+      const response = await localFetch(base + '/api/my/designer-profile', {
         headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
@@ -67,7 +77,7 @@ test('OIDC userinfo must match configured origin and cannot follow redirects', a
   };
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
-      const response = await originalFetch(base + '/api/my/designer-profile', {
+      const response = await localFetch(base + '/api/my/designer-profile', {
         headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
@@ -88,11 +98,33 @@ test('OIDC rejects an off-origin userinfo endpoint before requesting it', async 
   };
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
-      const response = await originalFetch(base + '/api/my/designer-profile', {
+      const response = await localFetch(base + '/api/my/designer-profile', {
         headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
     });
     assert.equal(requests.length, 1);
   } finally { global.fetch = originalFetch; }
+});
+
+test('Host admission allows configured domains and rejects untrusted forwarding headers', async () => {
+  await withApp({appOrigin:'https://trusted.example',allowedHosts:['custom.example']},async base=>{
+    for(const host of ['trusted.example','TRUSTED.EXAMPLE','custom.example']) {
+      assert.equal((await localFetch(base+'/api/health',{headers:{Host:host}})).status,200);
+    }
+    for(const host of ['attacker.example','trusted.example.evil','trusted.example:444','trusted.example@evil.example']) {
+      assert.equal((await localFetch(base+'/api/health',{headers:{Host:host,'X-Forwarded-Host':'trusted.example'}})).status,400);
+    }
+  });
+  await withApp({appOrigin:''},async base=>{
+    assert.equal((await localFetch(base+'/api/health')).status,200);
+  });
+});
+
+test('Railway healthcheck Host is accepted only for GET /api/health',async()=>{
+  const previous=process.env.RAILWAY_PROJECT_ID;process.env.RAILWAY_PROJECT_ID='local-test';
+  try{await withApp({appOrigin:'https://trusted.example'},async base=>{
+    assert.equal((await localFetch(base+'/api/health',{headers:{Host:'healthcheck.railway.app'}})).status,200);
+    assert.equal((await localFetch(base+'/api/gallery',{headers:{Host:'healthcheck.railway.app'}})).status,400);
+  });}finally{if(previous===undefined)delete process.env.RAILWAY_PROJECT_ID;else process.env.RAILWAY_PROJECT_ID=previous;}
 });

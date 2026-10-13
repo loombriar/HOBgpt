@@ -1279,13 +1279,17 @@ function createApp(options = {}) {
   // Reject untrusted Host values before any route constructs links or handles auth.
   // Unconfigured local development is restricted to loopback hostnames.
   const allowedHost = configuredAppOrigin ? new URL(configuredAppOrigin).host.toLowerCase() : null;
+  const allowedHosts = new Set([allowedHost, ...(options.allowedHosts || String(process.env.ALLOWED_HOSTS || '').split(','))].filter(Boolean).map(host => host.trim().toLowerCase()));
   app.use((req, res, next) => {
     const host = req.headers.host;
-    if (typeof host !== 'string' || !host || host.includes(',') || host.includes('@') || host.includes('/') || /[\\s\\\\]/.test(host)) {
+    if (typeof host !== 'string' || !host || host.includes(',') || host.includes('@') || host.includes('/') || /[\s\\]/.test(host)) {
       return res.status(400).json({ error: 'invalid_host' });
     }
     const normalized = host.toLowerCase();
-    if (allowedHost ? normalized !== allowedHost : !/^(localhost|127\\.0\\.0\\.1|\\[::1\\])(?::[0-9]{1,5})?$/.test(normalized)) {
+    // Railway's healthcheck hostname is accepted only for its read-only probe.
+    if (process.env.RAILWAY_PROJECT_ID && normalized === 'healthcheck.railway.app' && req.method === 'GET' && req.path === '/api/health') return next();
+    const localHost = process.env.NODE_ENV !== 'production' && /^(localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?$/.test(normalized);
+    if (!allowedHosts.has(normalized) && !localHost) {
       return res.status(400).json({ error: 'invalid_host' });
     }
     next();
@@ -1536,6 +1540,29 @@ function createApp(options = {}) {
   app.get('/api/admin/special-deposits',authAdmin,(_req,res)=>res.json({offers:specialDepositReview.report()}));
   app.post('/api/admin/special-deposits/reconcile',authAdmin,rateLimit({windowMs:60000,max:2,keyPrefix:'special-deposit-review'}),async(_req,res,next)=>{
     try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
+  });
+
+  // Recovery is an explicit admin action, never an automatic payment-state transition.
+  // Re-fetch Stripe evidence at the moment of approval rather than trusting a stale report.
+  app.post('/api/admin/special-deposits/:offerId/confirm-paid',authAdmin,rateLimit({windowMs:60000,max:5,keyPrefix:'special-deposit-confirm'}),async(req,res,next)=>{
+    try{
+      const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(req.params.offerId);
+      if(!offer||!offer.stripe_session_id)return fail(res,404,'offer_not_found','Deposit session not found.');
+      if(offer.status==='deposit_refunded'||offer.stripe_refund_id)return fail(res,409,'already_refunded','A refunded deposit cannot be marked paid.');
+      if(offer.status==='deposit_paid')return res.json({ok:true,status:'deposit_paid'});
+      const session=await stripeApi(`checkout/sessions/${encodeURIComponent(offer.stripe_session_id)}`);
+      const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id;
+      if(session.id!==offer.stripe_session_id||session.metadata?.special_offer_id!==offer.id||
+         String(session.currency).toLowerCase()!=='usd'||session.amount_total!==offer.deposit_cents||
+         session.status!=='complete'||session.payment_status!=='paid'||typeof intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(intent)){
+        return fail(res,409,'unverified_deposit','Stripe has not confirmed a matching paid deposit.');
+      }
+      const changed=db.prepare(`UPDATE special_order_offers SET status='deposit_paid',stripe_payment_intent_id=?,deposit_paid_at=COALESCE(deposit_paid_at,?)
+        WHERE id=? AND stripe_session_id=? AND status NOT IN ('deposit_paid','deposit_refunded') AND stripe_refund_id IS NULL`)
+        .run(intent,new Date().toISOString(),offer.id,offer.stripe_session_id);
+      if(changed.changes!==1)return fail(res,409,'deposit_state_changed','Deposit state changed; review it again.');
+      return res.json({ok:true,status:'deposit_paid'});
+    }catch(error){return next(error);}
   });
 
   const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options});
