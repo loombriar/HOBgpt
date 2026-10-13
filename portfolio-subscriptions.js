@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const sharp = require('sharp');
 const idOf = value => typeof value === 'string' ? value : value?.id;
-function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,stripeApi,trustedAppOrigin,imagesDir,options}) {
+function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,stripeApi,trustedAppOrigin,imagesDir,options}) {
   const priceId = options.portfolioPriceId || process.env.STRIPE_PORTFOLIO_PRICE_ID || '';
   db.exec(`CREATE TABLE IF NOT EXISTS portfolio_billing (
     owner_subject TEXT PRIMARY KEY, customer_id TEXT UNIQUE, subscription_id TEXT UNIQUE,
@@ -92,7 +92,8 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
   const images=subject=>db.prepare('SELECT id,caption FROM portfolio_images WHERE owner_subject=? ORDER BY created_at,id').all(subject).map(image=>({...image,url:'/api/creative-house/portfolio-images/'+image.id}));
   function portfolio(subject,privateView=false){const a=access(subject),settings=db.prepare('SELECT layout,theme,featured_project FROM portfolio_settings WHERE owner_subject=?').get(subject);return {images:images(subject).slice(0,privateView?30:a.imageLimit),settings:a.premium?settings||{layout:'grid',theme:'mint',featured_project:''}:{layout:'grid',theme:'mint',featured_project:''},...(privateView?{access:a}:{})};}
   app.get('/api/creative-house/my-portfolio',authBuyer,async(req,res,next)=>{try{await reconcile(req.buyerSubject);res.set('Cache-Control','no-store').json(portfolio(req.buyerSubject,true));}catch(e){next(e);}});
-  app.post('/api/creative-house/my-portfolio/images',authBuyer,upload.single('image'),async(req,res,next)=>{
+  const portfolioImageLimiter=rateLimit({windowMs:15*60*1000,max:12,keyPrefix:'portfolio-image-processing'});
+  app.post('/api/creative-house/my-portfolio/images',authBuyer,portfolioImageLimiter,upload.single('image'),async(req,res,next)=>{
     let target;
     try{await reconcile(req.buyerSubject);if(!req.file)return fail(res,422,'image_required','Choose a JPEG, PNG, or WebP image.');if(!db.prepare('SELECT 1 FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject))return fail(res,409,'profile_required','Create a creative profile first.');
       const meta=await sharp(req.file.buffer,{limitInputPixels:40000000}).metadata();if(!['jpeg','png','webp'].includes(meta.format)||meta.pages>1)return fail(res,422,'invalid_image','Choose a still JPEG, PNG, or WebP image.');
