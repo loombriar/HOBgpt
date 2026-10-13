@@ -16,10 +16,13 @@ RUN npm --prefix apps/default run build
 RUN npm prune --omit=dev
 
 FROM public.ecr.aws/docker/library/node:20-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 # Run the HTTP process without root privileges. Persistent data must be writable by UID 1000.
-USER node
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 3000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["npm","start"]
