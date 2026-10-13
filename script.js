@@ -2017,7 +2017,7 @@ async function renderAdminOverview() {
           card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label));
           stats.append(card);
         }
-        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Product views appear separately in each designer’s studio.'));
+        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Duplicate events are excluded, and traffic may be sampled during busy periods. Product views appear separately in each designer’s studio.'));
         if (Array.isArray(data.traffic.daily)) {
           section.append(makeElement('h4', '', 'Daily counts'));
           const table = makeElement('table', 'admin-traffic-table'); table.id = 'admin-daily-traffic';

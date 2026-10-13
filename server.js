@@ -1267,6 +1267,9 @@ function createApp(options = {}) {
   let app;
   app = express();
   app.disable('x-powered-by');
+  const {createAnalyticsIngest,validateEvent:validateAnalyticsEvent}=require('./lib/analytics-ingest');
+  const analyticsIngest=createAnalyticsIngest({db,dataDir,trustedAppOrigin,options:options.analyticsIngest||{}});
+  app.use('/api/analytics/events',analyticsIngest.gate);
 
   app.post('/api/easypost/webhook', express.raw({ type: 'application/json', limit: '64kb' }), async (req, res) => {
     try {
@@ -2508,23 +2511,25 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
-  app.post('/api/analytics/events', (req, res) => {
-    const allowed = new Set(['page_view','view_designer','view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const eventName = String(body.event || '');
-    if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
+  app.post('/api/analytics/events', async (req, res) => {
+    const validated=validateAnalyticsEvent(req.body);
+    if(validated.error)return fail(res,400,'invalid_event',validated.error);
+    const body=validated.value,eventName=body.event;
     if(eventName==='purchase'){
-      const order=db.prepare("SELECT id FROM orders WHERE status='paid' AND (id=? OR stripe_session_id=?)").get(String(body.orderId||''),String(body.orderId||''));
+      const order=db.prepare("SELECT id FROM orders WHERE status='paid' AND (id=? OR stripe_session_id=?)").get(body.orderId,body.orderId);
       if(!order)return fail(res,409,'unverified_purchase','A verified paid order is required.');
-      recordPurchaseAnalytics(order.id);
-      const short=value=>typeof value==='string'?value.slice(0,200):null;
-      db.prepare("UPDATE analytics_events SET session_id=COALESCE(session_id,?),utm_source=COALESCE(utm_source,?),utm_medium=COALESCE(utm_medium,?),utm_campaign=COALESCE(utm_campaign,?) WHERE event_name='purchase' AND order_id=?").run(short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign),order.id);
-      return res.status(202).json({accepted:true});
+      const accepted=await analyticsIngest.enqueue({browser:req.analyticsBrowser,event:body,purchase:true,write:()=>{
+        recordPurchaseAnalytics(order.id);
+        const short=value=>typeof value==='string'?value.slice(0,200):null;
+        db.prepare("UPDATE analytics_events SET session_id=COALESCE(session_id,?),utm_source=COALESCE(utm_source,?),utm_medium=COALESCE(utm_medium,?),utm_campaign=COALESCE(utm_campaign,?) WHERE event_name='purchase' AND order_id=? AND ((session_id IS NULL AND ? IS NOT NULL) OR (utm_source IS NULL AND ? IS NOT NULL) OR (utm_medium IS NULL AND ? IS NOT NULL) OR (utm_campaign IS NULL AND ? IS NOT NULL))").run(short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign),order.id,short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign));
+      }});
+      return res.status(202).json({accepted});
     }
     const location=['page_view','view_designer'].includes(eventName)?trafficLocation(req):{};
     const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
-    const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
-    db.prepare(`INSERT INTO analytics_events (
+    const number = value => typeof value==='number' && Number.isFinite(value) ? value : null;
+    const accepted=await analyticsIngest.enqueue({browser:req.analyticsBrowser,event:body,write:()=>{
+      db.prepare(`INSERT INTO analytics_events (
       id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,designer_id,device_category,country,region,city,created_at
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
@@ -2533,7 +2538,8 @@ function createApp(options = {}) {
       text(body.path, 500), analyticsReferrerOrigin(body.referrer), text(body.utmSource, 200), text(body.utmMedium, 200),
       text(body.utmCampaign, 300), text(body.designerId,100), ['mobile','tablet','desktop'].includes(String(body.deviceCategory)) ? String(body.deviceCategory) : null,location.country||null,location.region||null,location.city||null, new Date().toISOString()
     );
-    res.status(202).json({ accepted: true });
+    }});
+    return res.status(202).json({accepted});
   });
 
   app.post('/api/admin/badges/reconcile', authAdmin, async (_req,res)=>{
@@ -2543,6 +2549,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/admin/analytics', authAdmin, (_req, res) => {
+    analyticsIngest.flush();
     res.set('Cache-Control','no-store');
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const events = db.prepare(`SELECT event_name, COUNT(*) count FROM analytics_events WHERE created_at >= ? GROUP BY event_name ORDER BY count DESC`).all(since);
@@ -4202,11 +4209,11 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
+  return { app, db, dataDir, imagesDir, analyticsIngest, reviewRequired, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
+  const { app, db, analyticsIngest, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
@@ -4243,7 +4250,7 @@ if (require.main === module) {
   const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
   if (backupTimer) backupTimer.unref();
 
-  const shutdown = () => { clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
+  const shutdown = () => { analyticsIngest.close(); clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
