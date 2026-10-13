@@ -1284,7 +1284,8 @@ function createApp(options = {}) {
   app = express();
   // Validate the authority before routing or handling credentials; never trust forwarding headers.
   app.use((req,res,next)=>{
-    if (!configuredAppOrigin) return next(); // local isolated tests only
+    if (process.env.NODE_ENV !== 'production' && options.enforceTrustedHost !== true) return next(); // isolated local development/tests only
+    if (!configuredAppOrigin) return fail(res,500,'missing_trusted_host','APP_ORIGIN is required when Host validation is enabled.');
     const host=req.get('host');
     if (!host || [...host].some(ch => ch === '/' || ch === '@' || ch === ',' || ch === ' ' || ch === '\\t' || ch === '\\n')) return fail(res,400,'invalid_host','Unexpected request host.');
     let actual;
