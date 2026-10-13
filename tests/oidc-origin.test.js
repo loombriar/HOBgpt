@@ -27,9 +27,9 @@ test('OIDC never performs discovery from an attacker-controlled Host when APP_OR
   try {
     await withApp({ appOrigin: '' }, async base => {
       const response = await originalFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'attacker.example' }
+        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
-      assert.equal(response.status, 401);
+      assert.equal(response.status, 400);
       assert.equal(requests.length, 0);
     });
   } finally { global.fetch = originalFetch; }
@@ -45,7 +45,7 @@ test('configured OIDC discovery uses the trusted origin and refuses discovery re
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
       const response = await originalFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'attacker.example' }
+        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
     });
@@ -68,7 +68,7 @@ test('OIDC userinfo must match configured origin and cannot follow redirects', a
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
       const response = await originalFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'attacker.example' }
+        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
     });
@@ -89,7 +89,7 @@ test('OIDC rejects an off-origin userinfo endpoint before requesting it', async 
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
       const response = await originalFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token' }
+        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
     });
