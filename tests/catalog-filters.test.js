@@ -37,3 +37,13 @@ test('catalog backend composes category filters, sorts and protects unpublished 
     assert.deepEqual(await ids('?designer=maker-a'),[]);
   } finally {await new Promise(resolve=>server.close(resolve));context.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
 });
+
+test('every public collection accepts designer listings',async()=>{
+ const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-category-create-'));
+ const ctx=createApp({dataDir,seedProducts:[],designerTokens:{seller:'maker'}});
+ const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
+ try{for(const category of ['menswear','womenswear','unisex']){
+  const response=await fetch(`http://127.0.0.1:${server.address().port}/api/listings`,{method:'POST',headers:{Authorization:'Bearer seller','Content-Type':'application/json'},body:JSON.stringify({title:'Tailored piece',price:100,category})});
+  const body=await response.json();assert.equal(response.status,201,JSON.stringify(body));assert.equal(body.item.category,category);
+ }}finally{await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
+});

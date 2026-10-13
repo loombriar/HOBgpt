@@ -78,6 +78,9 @@ export const MARKET_CATEGORIES = [
   'Limited edition',
   'Statement piece',
   'Costumes',
+  'Menswear',
+  'Womenswear',
+  'Unisex',
 ] as const;
 
 export const money = new Intl.NumberFormat('en-US', {
