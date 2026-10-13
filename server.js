@@ -4280,7 +4280,11 @@ function createApp(options = {}) {
 if (require.main === module) {
   const { app, db, analyticsIngest, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
-  const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
+  const bindHost = process.env.HOB_LOOPBACK_BACKEND === 'true' ? '127.0.0.1' : '0.0.0.0';
+  const server = app.listen(port, bindHost, () => {
+    console.log(`House of Briar listening on ${bindHost}:${server.address().port}`);
+    if (process.send) process.send({type:'backend-ready',port:server.address().port});
+  });
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
   const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
   reconciliationTimer.unref();
