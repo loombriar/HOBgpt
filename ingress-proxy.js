@@ -9,9 +9,10 @@ function createIngressProxy({upstream,secret,now=()=>Date.now(),nonce=()=>crypto
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('INGRESS_HMAC_SECRET must be at least 32 characters');
   const target=new URL(upstream);
   return http.createServer((req,res)=>{
-    // Only the Railway public edge should be able to supply X-Real-IP.
-    // Do not expose this proxy to untrusted callers on the private network.
-    const ip=String(req.headers['x-real-ip']||'').trim().replace(/^::ffff:/,'');
+    // Authenticate the actual connection peer, never a caller-supplied header.
+    // Railway edge requests may share this identity. Keep conservative shared
+    // throttling until an authenticated edge can supply individual client IPs.
+    const ip=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');
     if (!isIP(ip)) {res.writeHead(403);res.end('Unverified ingress');return;}
     const timestamp=String(now());
     const id=nonce();
