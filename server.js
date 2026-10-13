@@ -1896,8 +1896,12 @@ function createApp(options = {}) {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
     if (!apiKey || !from || !to) return false;
+    const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+    // Direct sign-in emails have no retry key. Do not stringify undefined into
+    // a shared key that makes unrelated verification messages conflict.
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+      method: 'POST', headers,
       signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({ from, to: [to], subject, text })
     });
