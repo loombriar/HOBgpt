@@ -15,3 +15,11 @@ test('unknown or failed lookup leaves activity recording usable',()=>{
  assert.deepEqual(trafficLocation(request('8.8.8.8'),{railway:false,lookup:()=>null}),{});
  assert.deepEqual(trafficLocation(request('8.8.8.8'),{railway:false,lookup:()=>{throw Error('unavailable');}}),{});
 });
+
+test('installed geolocation database supports public IPv4 and IPv6 with the audited parser',()=>{
+ const lookup=require('geoip-lite').lookup;
+ for(const ip of ['8.8.8.8','2001:4860:4860::8888']){
+  assert.equal(lookup(ip).country,'US');
+  assert.equal(trafficLocation(request(ip),{railway:false}).country,'US');
+ }
+});

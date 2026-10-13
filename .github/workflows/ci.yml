@@ -20,6 +20,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Audit production dependencies (moderate or higher)
+        run: npm audit --omit=dev --audit-level=moderate
       - run: npm test
       - name: Install marketplace dependencies from committed lockfile
         working-directory: apps/default
