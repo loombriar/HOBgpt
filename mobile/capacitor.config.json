@@ -9,5 +9,11 @@
     "url": "https://houseofbriar.shop",
     "cleartext": false,
     "androidScheme": "https"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "contain"
+    }
   }
 }

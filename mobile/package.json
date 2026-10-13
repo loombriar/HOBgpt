@@ -6,9 +6,10 @@
   "scripts": {
     "sync": "npm run build:web && cap sync android",
     "build:web": "npm --prefix ../apps/default run build && node scripts/copy-web.mjs",
-    "android:init": "npm run build:web && cap add android",
+    "android:init": "npm run build:web && cap add android && npm run android:configure",
     "android:open": "cap open android",
-    "android:verify": "node scripts/verify.mjs"
+    "android:verify": "node scripts/verify.mjs",
+    "android:configure": "node scripts/configure-android.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.0.0",

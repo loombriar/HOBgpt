@@ -2,6 +2,9 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const sharp = require('sharp');
+// The Android app consumes existing entitlements; new digital purchases stay disabled
+// until Play Billing (or an enrolled alternative billing program) is implemented.
+const androidWebView = req => /Android/i.test(req.get('User-Agent') || '') && /;\s*wv\)/i.test(req.get('User-Agent') || '');
 const idOf = value => typeof value === 'string' ? value : value?.id;
 function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options}) {
   const priceId = options.portfolioPriceId || process.env.STRIPE_PORTFOLIO_PRICE_ID || '';
@@ -66,9 +69,10 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
     if(session.status==='complete' && idOf(session.subscription))return sync(subject,idOf(session.subscription));
     return access(subject);
   }
-  app.get('/api/creative-house/subscription/plans',(_req,res)=>res.set('Cache-Control','no-store').json({plans:[{id:'free',amountCents:0,imageLimit:5},{id:'premium',amountCents:499,currency:'usd',interval:'month',imageLimit:30}],checkoutConfigured:Boolean(priceId)}));
+  app.get('/api/creative-house/subscription/plans',(req,res)=>res.set('Cache-Control','no-store').json({plans:[{id:'free',amountCents:0,imageLimit:5},{id:'premium',amountCents:499,currency:'usd',interval:'month',imageLimit:30}],checkoutConfigured:Boolean(priceId) && !androidWebView(req)}));
   app.get('/api/creative-house/subscription',authBuyer,async(req,res,next)=>{try{await reconcile(req.buyerSubject);res.set('Cache-Control','no-store').json({access:access(req.buyerSubject)});}catch(e){next(e);}});
   app.post('/api/creative-house/subscription/checkout',authBuyer,async(req,res,next)=>{
+    if(androidWebView(req))return fail(res,403,'purchase_unavailable','Portfolio upgrades are unavailable in this app.');
     try{const result=await locked(req.buyerSubject,async()=>{
       await validatePrice();
       if(!db.prepare('SELECT 1 FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject))return {error:'Create your free creative profile before upgrading.',code:409};
@@ -85,7 +89,7 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
       db.prepare('UPDATE portfolio_billing SET checkout_id=?,checkout_claim=NULL,subscription_id=NULL,status=\'pending\',paid_until=0 WHERE owner_subject=?').run(session.id,req.buyerSubject);return {url:session.url};
     });if(result.error)return fail(res,result.code,'subscription_exists',result.error);res.status(201).json(result);}catch(e){next(e);}
   });
-  app.post('/api/creative-house/subscription/portal',authBuyer,async(req,res,next)=>{try{const row=rowFor(req.buyerSubject);if(!row?.subscription_id)return fail(res,409,'no_subscription','No subscription to manage.');const session=await stripeApi('billing_portal/sessions',{method:'POST',body:new URLSearchParams({customer:row.customer_id,return_url:trustedAppOrigin(req)+'/creative-house.html#portfolios'}).toString()});res.json({url:session.url});}catch(e){next(e);}});
+  app.post('/api/creative-house/subscription/portal',authBuyer,async(req,res,next)=>{if(androidWebView(req))return fail(res,403,'purchase_unavailable','Billing portal is unavailable in this app.');try{const row=rowFor(req.buyerSubject);if(!row?.subscription_id)return fail(res,409,'no_subscription','No subscription to manage.');const session=await stripeApi('billing_portal/sessions',{method:'POST',body:new URLSearchParams({customer:row.customer_id,return_url:trustedAppOrigin(req)+'/creative-house.html#portfolios'}).toString()});res.json({url:session.url});}catch(e){next(e);}});
   app.post('/api/creative-house/subscription/cancel',authBuyer,async(req,res,next)=>{try{const row=rowFor(req.buyerSubject);if(!row?.subscription_id)return fail(res,409,'no_subscription','No subscription to cancel.');await stripeApi('subscriptions/'+encodeURIComponent(row.subscription_id),{method:'POST',body:'cancel_at_period_end=true'});await sync(req.buyerSubject,row.subscription_id);res.json({access:access(req.buyerSubject)});}catch(e){next(e);}});
   app.get('/api/admin/portfolio-subscriptions',authAdmin,(_req,res)=>res.set('Cache-Control','no-store').json({subscriptions:db.prepare('SELECT owner_subject,status,paid_until,cancel_at_period_end,updated_at FROM portfolio_billing ORDER BY updated_at DESC LIMIT 100').all()}));
   async function premium(req,res,next){try{await reconcile(req.buyerSubject);if(!access(req.buyerSubject).premium)return fail(res,403,'premium_required','An active paid Premium Portfolio is required.');next();}catch(e){next(e);}}
