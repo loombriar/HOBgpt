@@ -34,10 +34,33 @@ async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={})
  if(!response.ok)throw new Error(`${method} ${key||bucket} failed: ${response.status} ${(await response.text()).slice(0,500)}`);
  return response;
 }
+// Parse one <Contents> block at a time to keep object keys and dates paired.
+function listContents(xml) {
+ const decode=value=>value.replace(/&#(x[0-9a-f]+|[0-9]+);|&(?:amp|lt|gt|quot|apos);/gi,(entity,numeric)=>{
+  if(numeric){const n=numeric[0].toLowerCase()==='x'?parseInt(numeric.slice(1),16):parseInt(numeric,10);return n<=0x10ffff?String.fromCodePoint(n):entity;}
+  return ({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'})[entity]||entity;
+ });
+ const value=(fragment,name)=>{const match=fragment.match(new RegExp('<(?:[\\w.-]+:)?'+name+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?'+name+'>'));return match?decode(match[1]):null;};
+ const objects=[];
+ for(const match of xml.matchAll(/<(?:[\w.-]+:)?Contents(?:\s[^>]*)?>([\s\S]*?)<\/(?:[\w.-]+:)?Contents>/g)){
+  const key=value(match[1],'Key'),timestamp=value(match[1],'LastModified');
+  if(!key||!timestamp)continue;
+  const modified=new Date(timestamp);
+  if(Number.isFinite(modified.getTime()))objects.push({key,modified});
+ }
+ return {objects,truncated:value(xml,'IsTruncated')==='true',nextToken:value(xml,'NextContinuationToken')};
+}
 async function list(){
- const q='list-type=2&prefix='+enc('house-of-briar/');
- const text=await (await request('GET','',{query:q})).text();
- return [...text.matchAll(/<Key>([^<]+)<\/Key>[\s\S]*?<LastModified>([^<]+)<\/LastModified>/g)].map(m=>({key:m[1].replaceAll('&amp;','&'),modified:new Date(m[2])}));
+ const objects=[];let token=null;
+ do {
+  const q='list-type=2&prefix='+enc('house-of-briar/')+(token?'&continuation-token='+enc(token):'');
+  const response=await request('GET','',{query:q});
+  const page=listContents(await response.text());
+  objects.push(...page.objects);
+  if(page.truncated&&!page.nextToken)throw new Error('S3 listing was truncated without a continuation token');
+  token=page.truncated?page.nextToken:null;
+ }while(token);
+ return objects;
 }
 async function main(){
  fs.rmSync(root,{recursive:true,force:true});fs.mkdirSync(root,{recursive:true});
