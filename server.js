@@ -1515,7 +1515,7 @@ function createApp(options = {}) {
     try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
   });
 
-  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,stripeApi,trustedAppOrigin,imagesDir,options});
+  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,stripeApi,trustedAppOrigin,imagesDir,options});
 
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
 
