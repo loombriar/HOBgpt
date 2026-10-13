@@ -917,7 +917,7 @@ function createApp(options = {}) {
   app.use((req,res,next)=>{
     if (!configuredAppOrigin) return next(); // local isolated tests only
     const host=req.get('host');
-    if (!host || (/\\s|,|@|\\//.test(host))) return fail(res,400,'invalid_host','Unexpected request host.');
+    if (!host || [...host].some(ch => ch === '/' || ch === '@' || ch === ',' || ch === ' ' || ch === '\\t' || ch === '\\n')) return fail(res,400,'invalid_host','Unexpected request host.');
     let actual;
     try { actual=new URL('http://'+host).host; } catch { return fail(res,400,'invalid_host','Unexpected request host.'); }
     if (actual!==new URL(configuredAppOrigin).host) return fail(res,400,'invalid_host','Unexpected request host.');
