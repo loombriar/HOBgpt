@@ -10,11 +10,12 @@ const { createApp, SELLER_TERMS_VERSION } = require('../server');
 async function fixture() {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-operational-events-'));
   let ctx, trackingCalls=0, immediatelyVerified=false;
-  const emails=[];
+  const emails=[],stripeCalls=[];
   ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{seller:'designer-a'},adminToken:'admin',connectAccounts:{'designer-a':'acct_test'},
     sendEmail:async message=>{emails.push(message);return true;},
     verifyShipmentTracking:async(number,carrier)=>({id:`trk_${++trackingCalls}`,verified:immediatelyVerified,carrier,status:immediatelyVerified?'in_transit':'pre_transit'}),
     stripeApi:async endpoint=>{
+      stripeCalls.push(endpoint);
       if(endpoint==='transfers')return {id:'tr_test'};
       const order=ctx.db.prepare('SELECT * FROM orders WHERE stripe_session_id=?').get(endpoint.split('/').at(-1));
       if(order)return {id:order.stripe_session_id,status:'complete',payment_status:'paid',currency:'usd',amount_total:order.subtotal_cents,metadata:{order_id:order.id}};
@@ -45,7 +46,7 @@ async function fixture() {
     const signature=crypto.createHmac('sha256',process.env.EASYPOST_WEBHOOK_SECRET).update(t+'POST'+signedPath+raw).digest('hex');
     return fetch(origin+signedPath,{method:'POST',headers:{'Content-Type':'application/json','x-timestamp':t,'x-path':signedPath,'x-hmac-signature-v2':signature},body:raw});
   };
-  return {ctx,call,seed,stripeWebhook,trackingWebhook,emails,get trackingCalls(){return trackingCalls;},setVerified(value){immediatelyVerified=value;},
+  return {ctx,call,seed,stripeWebhook,trackingWebhook,emails,stripeCalls,get trackingCalls(){return trackingCalls;},setVerified(value){immediatelyVerified=value;},
     async close(){await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
@@ -114,5 +115,35 @@ test('tracking retries and carrier webhooks share one verified event and cannot 
       assert.equal(notices.filter(x=>x.type==='tracking_submitted').length,immediate?0:1);
       assert.ok(f.ctx.db.prepare('SELECT tracking_verified_at FROM designer_transfers WHERE id=?').get(transfer.id).tracking_verified_at);
     }
+  } finally {await f.close();restore();}
+});
+
+test('signed delivery updates continue after payout without repeating transfers or notifications',async()=>{
+  const restore=envSecrets(),f=await fixture();
+  try {
+    f.seed('delivered_after_payout');
+    await f.call('/api/checkout/session/cs_delivered_after_payout');
+    f.setVerified(true);
+    assert.equal((await f.call('/api/orders/delivered_after_payout/tracking','seller','POST',{carrier:'USPS',trackingNumber:'1234567890'})).status,200);
+    // Model a shipment whose payout was already completed by the payout worker.
+    f.ctx.db.prepare("UPDATE designer_transfers SET status='paid',paid_at=?,stripe_transfer_id='tr_completed' WHERE order_id=?").run(new Date().toISOString(),'delivered_after_payout');
+    const before=f.ctx.db.prepare('SELECT * FROM designer_transfers WHERE order_id=?').get('delivered_after_payout');
+    assert.equal(before.status,'paid');
+    const transfers=f.stripeCalls.filter(endpoint=>endpoint==='transfers').length;
+    const notices=f.ctx.db.prepare('SELECT COUNT(*) n FROM designer_notifications').get().n;
+    for(const status of ['out_for_delivery','delivered','delivered']) {
+      const response=await f.trackingWebhook({id:before.tracking_provider_id,status,tracking_details:[{status}]});
+      assert.equal(response.status,200);
+      assert.deepEqual(await response.json(),{received:true});
+      const after=f.ctx.db.prepare('SELECT * FROM designer_transfers WHERE id=?').get(before.id);
+      assert.equal(after.tracking_status,status);
+      assert.equal(after.status,'paid');
+      assert.equal(after.tracking_verified_at,before.tracking_verified_at);
+      assert.equal(after.paid_at,before.paid_at);
+      assert.equal(after.stripe_transfer_id,before.stripe_transfer_id);
+    }
+    assert.equal(f.stripeCalls.filter(endpoint=>endpoint==='transfers').length,transfers);
+    assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM designer_notifications').get().n,notices);
+    assert.equal((await f.call('/api/my/orders')).body.orders[0].trackingStatus,'delivered');
   } finally {await f.close();restore();}
 });
