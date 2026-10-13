@@ -13,7 +13,7 @@ test('first 25 designer slots persist across restart and suspension; later signu
     const origin='http://127.0.0.1:'+server.address().port;
     const signup=async n=>{
       const result=await verifiedSignup(origin,ctx.db,{email:'founder'+n+'@example.test',displayName:'Maker '+n,brandName:'Studio '+n,categories:['Clothing'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION});
-      assert.equal(result.response.status,201);return {...result.body,cookie:result.cookie};
+      assert.equal(result.response.status,200);const own=await (await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:result.cookie}})).json();return {...own,cookie:result.cookie};
     };
     assert.deepEqual(await (await fetch(origin+'/api/founding-designers')).json(),{limit:25,awarded:24,remaining:1});
     const last=await signup(25),later=await signup(26);

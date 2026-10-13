@@ -123,7 +123,7 @@ test('public designer signup and verification never reveal account existence, st
     return body.requestId;
   }
   async function verify(id){
-    const code=emails.at(-1).text.match(/Your designer code is (\\d{6})/)[1];
+    const code=emails.at(-1).text.match(/Your designer code is (\d{6})/)[1];
     const response=await fetch(origin+'/api/designer/verify-code',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({requestId:id,code})});
     const body=await response.json();
     assert.equal(response.status,200);
@@ -141,7 +141,7 @@ test('public designer signup and verification never reveal account existence, st
 test('verified signup records presented terms and opens the room with a cookie',async()=>fixture(async({ctx,call,origin})=>{
   const body={email:'signup@example.test',displayName:'Signup Maker',brandName:'Signup Atelier',categories:['Art'],sellerTermsAccepted:true};
   assert.equal((await call('/api/designer-applications',body,'')).status,422);
-  const signup=await call('/api/designer-applications',{...body,sellerTermsVersion:SELLER_TERMS_VERSION},'');assert.equal(signup.status,201);
-  const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:signup.cookie}});assert.equal(profile.status,200);assert.equal((await profile.json()).designer.sellerTermsAccepted,true);assert.equal(signup.body.accessToken,undefined);
-  const record=ctx.db.prepare('SELECT * FROM designer_terms_acceptances WHERE designer_id=?').get(signup.body.designer.id);assert.equal(record.acceptance_source,'signup');assert.equal(record.terms_version,SELLER_TERMS_VERSION);assert.ok(record.accepted_at);
+  const signup=await call('/api/designer-applications',{...body,sellerTermsVersion:SELLER_TERMS_VERSION},'');assert.equal(signup.status,200);
+  const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:signup.cookie}});assert.equal(profile.status,200);const designer=(await profile.json()).designer;assert.equal(designer.sellerTermsAccepted,true);assert.equal(signup.body.accessToken,undefined);
+  const record=ctx.db.prepare('SELECT * FROM designer_terms_acceptances WHERE designer_id=?').get(designer.id);assert.equal(record.acceptance_source,'signup');assert.equal(record.terms_version,SELLER_TERMS_VERSION);assert.ok(record.accepted_at);
 }));

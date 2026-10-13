@@ -899,6 +899,8 @@ function createApp(options = {}) {
   const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
   function trustedAppOrigin(req) {
+    // Local previews may use ephemeral ports for page links and CSRF checks.
+    // Never use this request-derived value for server-side OIDC requests.
     return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
   }
 
@@ -908,13 +910,19 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    const origin = trustedAppOrigin(req);
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
-    if (!discovery.ok) return null;
+    // OIDC discovery is a privileged outbound request: its target must be
+    // configured, never derived from an untrusted HTTP Host header.
+    const origin = configuredAppOrigin;
+    if (!origin) return null;
+    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`, { redirect: 'manual' });
+    if (!discovery.ok || (discovery.status >= 300 && discovery.status < 400)) return null;
     const metadata = await discovery.json();
     if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
-    if (!userInfo.ok) return null;
+    const userInfo = await fetch(metadata.userinfo_endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'manual'
+    });
+    if (!userInfo.ok || (userInfo.status >= 300 && userInfo.status < 400)) return null;
     return userInfo.json();
   }
 
@@ -1514,6 +1522,29 @@ function createApp(options = {}) {
   app.get('/api/admin/special-deposits',authAdmin,(_req,res)=>res.json({offers:specialDepositReview.report()}));
   app.post('/api/admin/special-deposits/reconcile',authAdmin,rateLimit({windowMs:60000,max:2,keyPrefix:'special-deposit-review'}),async(_req,res,next)=>{
     try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
+  });
+
+  // Recovery is an explicit admin action, never an automatic payment-state transition.
+  // Re-fetch Stripe evidence at the moment of approval rather than trusting a stale report.
+  app.post('/api/admin/special-deposits/:offerId/confirm-paid',authAdmin,rateLimit({windowMs:60000,max:5,keyPrefix:'special-deposit-confirm'}),async(req,res,next)=>{
+    try{
+      const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(req.params.offerId);
+      if(!offer||!offer.stripe_session_id)return fail(res,404,'offer_not_found','Deposit session not found.');
+      if(offer.status==='deposit_refunded'||offer.stripe_refund_id)return fail(res,409,'already_refunded','A refunded deposit cannot be marked paid.');
+      if(offer.status==='deposit_paid')return res.json({ok:true,status:'deposit_paid'});
+      const session=await stripeApi(`checkout/sessions/${encodeURIComponent(offer.stripe_session_id)}`);
+      const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id;
+      if(session.id!==offer.stripe_session_id||session.metadata?.special_offer_id!==offer.id||
+         String(session.currency).toLowerCase()!=='usd'||session.amount_total!==offer.deposit_cents||
+         session.status!=='complete'||session.payment_status!=='paid'||typeof intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(intent)){
+        return fail(res,409,'unverified_deposit','Stripe has not confirmed a matching paid deposit.');
+      }
+      const changed=db.prepare(`UPDATE special_order_offers SET status='deposit_paid',stripe_payment_intent_id=?,deposit_paid_at=COALESCE(deposit_paid_at,?)
+        WHERE id=? AND stripe_session_id=? AND status NOT IN ('deposit_paid','deposit_refunded') AND stripe_refund_id IS NULL`)
+        .run(intent,new Date().toISOString(),offer.id,offer.stripe_session_id);
+      if(changed.changes!==1)return fail(res,409,'deposit_state_changed','Deposit state changed; review it again.');
+      return res.json({ok:true,status:'deposit_paid'});
+    }catch(error){return next(error);}
   });
 
   const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options});

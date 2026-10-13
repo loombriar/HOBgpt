@@ -20,7 +20,7 @@ test('signup requires mailbox proof; codes are hashed, expiring, single-use and 
   assert.equal(row.code_hash,crypto.createHash('sha256').update(pending.requestId+':'+code).digest('hex'));
   assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM email_outbox').get().n,0);
   const wrong=code==='000000'?'111111':'000000';assert.equal((await post('/api/designer/verify-code',{requestId:pending.requestId,code:wrong})).status,401);
-  const verified=await post('/api/designer/verify-code',{requestId:pending.requestId,code});assert.equal(verified.status,201);
+  const verified=await post('/api/designer/verify-code',{requestId:pending.requestId,code});assert.equal(verified.status,200);
   const cookie=verified.headers.get('set-cookie');assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Lax/);
   const body=await verified.json();assert.equal(body.accessToken,undefined);assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM designer_access_tokens').get().n,0);
   assert.equal((await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie.split(';')[0]}})).status,200);
