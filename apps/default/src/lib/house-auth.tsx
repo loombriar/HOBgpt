@@ -10,11 +10,7 @@ export async function revokeHouseSessions(request:typeof fetch=fetch):Promise<vo
  }
 }
 
-export async function validateHouseSession(token='',request:typeof fetch=fetch):Promise<User|null>{
- if(token){
-  const exchange=await request('/api/session',{method:'POST',headers:{Authorization:`Bearer ${token}`},cache:'no-store',credentials:'same-origin'});
-  if(!exchange.ok)return null;
- }
+export async function validateHouseSession(request:typeof fetch=fetch):Promise<User|null>{
  const response=await request('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
  if(!response.ok){
   if(![401,403,404].includes(response.status))return null;
@@ -25,13 +21,13 @@ export async function validateHouseSession(token='',request:typeof fetch=fetch):
  const {designer}=await response.json();if(!designer?.id||designer.status!=='active')return null;
  return new User({access_token:'',token_type:'Bearer',profile:{sub:designer.id,email:designer.email||'',name:designer.displayName||designer.brandName||designer.id,iss:window.location.origin,aud:'house',exp:0,iat:0}});
 }
-// House authentication uses a server-managed HttpOnly cookie. A legacy bearer
-// credential is accepted only long enough to exchange it for that cookie.
+// House authentication uses a server-managed HttpOnly cookie.
+// Never read or exchange designer bearer credentials from browser storage.
 export function HouseAuth({children}:{children:ReactNode}){
  const [user,setUser]=useState<User|null>(null),[loading,setLoading]=useState(true);
  const version=useRef(0);
  const [manager]=useState(()=>new UserManager({authority:window.location.origin,client_id:'house',redirect_uri:window.location.origin+'/designers/room',automaticSilentRenew:false}));
- useEffect(()=>{let active=true;async function refresh(){const attempt=++version.current;setUser(null);setLoading(true);const token=localStorage.getItem('briarDesignerToken')||sessionStorage.getItem('briarDesignerToken')||'';try{const next=await validateHouseSession(token);if(next){localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');}if(active&&attempt===version.current)setUser(next);}catch{if(active&&attempt===version.current)setUser(null);}finally{if(active&&attempt===version.current)setLoading(false);}}void refresh();window.addEventListener('storage',refresh);return()=>{active=false;version.current++;window.removeEventListener('storage',refresh);};},[]);
+ useEffect(()=>{let active=true;async function refresh(){const attempt=++version.current;setUser(null);setLoading(true);try{const next=await validateHouseSession();if(active&&attempt===version.current)setUser(next);}catch{if(active&&attempt===version.current)setUser(null);}finally{if(active&&attempt===version.current)setLoading(false);}}void refresh();window.addEventListener('storage',refresh);return()=>{active=false;version.current++;window.removeEventListener('storage',refresh);};},[]);
  async function removeUser(){version.current++;await revokeHouseSessions();localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');clearHouseCartOnSignOut();setUser(null);setLoading(false);}
  async function signinRedirect(){window.location.assign('/designers/room');}
  async function signoutRedirect(){await removeUser();window.location.assign('/');}
