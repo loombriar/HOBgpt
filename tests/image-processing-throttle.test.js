@@ -20,10 +20,10 @@ test('portfolio and studio photo uploads are rate-limited before Multer and Shar
     // been established, over-limit requests are rejected without image decoding.
     const portfolio=require('node:fs').readFileSync(path.join(__dirname,'../portfolio-subscriptions.js'),'utf8');
     const studio=require('node:fs').readFileSync(path.join(__dirname,'../house-experiences.js'),'utf8');
-    assert.match(portfolio,/authBuyer,portfolioImageLimiter,upload\.single\('image'\)/);
-    assert.match(studio,/authDesigner,studioPhotoLimiter,upload\.single\('image'\)/);
+    assert.match(portfolio,/authBuyer,imageWork\.gate\('buyer'\),imageWork\.parse/);
+    assert.match(studio,/authDesigner,imageWork\.gate\('designer'\),imageWork\.parse/);
     const controls=fs.readFileSync(path.join(__dirname,'../lib/image-work-controls.js'),'utf8');
-    assert.match(controls,/multer\\.diskStorage/);
+    assert.match(controls,/multer\.diskStorage/);
     assert.match(controls,/maxActive/);
     assert.match(controls,/maxGlobal/);
     assert.match(controls,/maxPerAccount/);
