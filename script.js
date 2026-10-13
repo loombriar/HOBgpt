@@ -335,6 +335,10 @@ function renderItemBadges(target, item) {
 }
 
 function addToCart(item) {
+  if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
+    setMessage(shopStatus, Number(item.soldQuantity) > 0 ? 'This piece has sold.' : 'This piece is currently unavailable.', 'error');
+    return;
+  }
   const ids = getCartIds();
   if (!ids.includes(item.id)) ids.push(item.id);
   setCartIds(ids);
@@ -608,6 +612,9 @@ function renderGallery() {
     meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
     if (item.aesthetic) meta.appendChild(makeElement('span', 'badge', item.aesthetic));
     meta.appendChild(makeElement('span', 'price', `$${Number(item.price || 0).toFixed(2)}`));
+    if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
+      meta.appendChild(makeElement('span', 'badge', Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable'));
+    }
     const maker = makeElement('a', 'designer-card-link', item.designerName || 'Independent designer');
     maker.href = `/designers/${encodeURIComponent(item.designerId)}`;
     if (item.designerLogoUrl) { const logo = document.createElement('img'); logo.src = item.designerLogoUrl; logo.alt = ''; logo.loading = 'lazy'; maker.prepend(logo); }
@@ -953,6 +960,10 @@ function openProductDetails(item) {
   addButton.type = 'button';
   addButton.disabled = getCartIds().includes(item.id) || item.shippingCostCents == null;
   if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
+  if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
+    addButton.disabled = true;
+    addButton.textContent = Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable';
+  }
   addButton.addEventListener('click', () => addToCart(item));
   copy.appendChild(addButton);
   // Photo try-on is temporarily hidden while its visual quality is improved.
