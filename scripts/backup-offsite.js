@@ -80,4 +80,5 @@ async function main(){
  console.log(`Verified off-site backup uploaded to s3://${bucket}/${prefix} with ${upload.length} objects; retention ${keepDays} days`);
  fs.rmSync(root,{recursive:true,force:true});
 }
-main().catch(e=>{console.error(e);process.exitCode=1;});
+if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports={listContents,list};
