@@ -15,7 +15,7 @@ test('collection URLs have distinct share metadata and reject unknown names',asy
     for(const [slug,title] of [['autumn-atelier','The Autumn Atelier'],['winter-briar','Winter Briar'],['garden-party','The Garden Party'],['independent-by-design','Independent by Design']]){
       const response=await fetch(origin+'/collections/'+slug);assert.equal(response.status,200);
       const html=await response.text();assert.ok(html.includes(`<title>${title} | House of Briar</title>`));
-      assert.ok(html.includes(`href="https://houseofbriar.shop/collections/${slug}"`));assert.ok(html.includes('id="house-editorial-pieces"'));
+      assert.ok(html.includes(`href="https://houseofbriar.shop/collections/${slug}"`));assert.ok(html.includes('id="house-collection-grid"'));assert.ok(!html.includes('id="house-editorial-pieces"'));
       assert.match(html, /<script src="\/atelier\.js\?v=[^"]+" defer><\/script>/);
     }
     assert.equal((await fetch(origin+'/collections/unknown')).status,404);

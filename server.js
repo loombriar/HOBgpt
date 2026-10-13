@@ -1,4 +1,5 @@
 const {trafficLocation}=require('./lib/traffic-location');
+const {clientAddress}=require('./lib/client-address');
 const { dailyTraffic: summarizeDailyTraffic } = require('./lib/daily-traffic');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -21,7 +22,7 @@ const CHECKOUT_RESERVATION_MINUTES = 31;
 // Bump this version, the signup forms, and the published terms together when terms change.
 const SELLER_TERMS_VERSION = '2026-10-08-free-delivery';
 const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
-const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece', 'menswear']);
+const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'menswear', 'womenswear', 'unisex', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -411,9 +412,18 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL, accepted_at TEXT, FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
   )`);
   recordMigration(7, 'seller_commerce_controls');
+  db.exec(`CREATE TABLE IF NOT EXISTS promo_code_reservations (
+    promo_code_id TEXT NOT NULL REFERENCES designer_promo_codes(id),
+    order_id TEXT NOT NULL REFERENCES orders(id),
+    status TEXT NOT NULL CHECK(status IN ('reserved','redeemed','released')),
+    created_at TEXT NOT NULL, UNIQUE(promo_code_id,order_id)
+  ); CREATE INDEX IF NOT EXISTS promo_reservation_capacity ON promo_code_reservations(promo_code_id,status)`);
   ensureColumn('orders','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','promo_code_id','TEXT');
+  db.prepare(`INSERT OR IGNORE INTO promo_code_reservations(promo_code_id,order_id,status,created_at)
+    SELECT DISTINCT oi.promo_code_id,o.id,'reserved',o.created_at FROM order_items oi JOIN orders o ON o.id=oi.order_id
+    JOIN designer_promo_codes p ON p.id=oi.promo_code_id WHERE o.status='pending'`).run();
   ensureColumn('order_items','gift_wrap_selected','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','gift_wrap_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_transfers','refunded_cents','INTEGER NOT NULL DEFAULT 0');
@@ -432,6 +442,11 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_access_tokens_designer ON designer_access_tokens(designer_id)');
+  ensureColumn('designer_access_tokens','expires_at','TEXT');
+  ensureColumn('designer_access_tokens','revoked_at','TEXT');
+  ensureColumn('designer_profiles','email_verified_at','TEXT');
+  ensureColumn('designer_profiles','bearer_disabled_at','TEXT');
+  db.prepare("UPDATE designer_access_tokens SET expires_at=strftime('%Y-%m-%dT%H:%M:%fZ',created_at,'+30 days') WHERE expires_at IS NULL").run();
   db.exec(`CREATE TABLE IF NOT EXISTS designer_sessions (
     session_hash TEXT PRIMARY KEY,
     designer_id TEXT NOT NULL,
@@ -515,7 +530,7 @@ function createApp(options = {}) {
   ensureColumn('analytics_events', 'device_category', 'TEXT');
   for(const column of ['country','region','city'])ensureColumn('analytics_events',column,'TEXT');
   const customerRouter=express.Router();
-  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession});
+  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir});
   recordMigration(4, 'first_party_commerce_analytics');
   ensureColumn('listings', 'seo_title', 'TEXT');
   ensureColumn('listings', 'seo_description', 'TEXT');
@@ -863,7 +878,7 @@ function createApp(options = {}) {
   function rateLimit({ windowMs, max, keyPrefix }) {
     return (req, res, next) => {
       const now = Date.now();
-      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${clientAddress(req)}`;
       const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
       const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
       if (entry.count > max) {
@@ -884,6 +899,8 @@ function createApp(options = {}) {
   const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
   function trustedAppOrigin(req) {
+    // Local previews may use ephemeral ports for page links and CSRF checks.
+    // Never use this request-derived value for server-side OIDC requests.
     return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
   }
 
@@ -893,13 +910,19 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    const origin = trustedAppOrigin(req);
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
-    if (!discovery.ok) return null;
+    // OIDC discovery is a privileged outbound request: its target must be
+    // configured, never derived from an untrusted HTTP Host header.
+    const origin = configuredAppOrigin;
+    if (!origin) return null;
+    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`, { redirect: 'manual' });
+    if (!discovery.ok || (discovery.status >= 300 && discovery.status < 400)) return null;
     const metadata = await discovery.json();
     if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
-    if (!userInfo.ok) return null;
+    const userInfo = await fetch(metadata.userinfo_endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'manual'
+    });
+    if (!userInfo.ok || (userInfo.status >= 300 && userInfo.status < 400)) return null;
     return userInfo.json();
   }
 
@@ -916,13 +939,14 @@ function createApp(options = {}) {
       return session?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
     }
     const hash=crypto.createHash('sha256').update(token).digest('hex');
-    const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'").get(hash);
+    const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL AND p.status='active'").get(hash,new Date().toISOString());
     const configured=Object.entries(designerTokens).find(([key])=>safeEqual(token,key))?.[1];
     const id=access?.designer_id||configured;
     if(id){
-      const designer=db.prepare("SELECT id,email FROM designer_profiles WHERE id=? AND status='active'").get(id);
+      const designer=db.prepare("SELECT id,email FROM designer_profiles WHERE id=? AND status='active' AND bearer_disabled_at IS NULL").get(id);
       return designer ? {sub:designerBadgeSubject(id),email:designer.email,designerId:id} : null;
     }
+    if(db.prepare('SELECT 1 FROM designer_access_tokens WHERE token_hash=?').get(hash))return null;
     return resolveDesignerIdentity(req,token);
   }
 
@@ -1000,17 +1024,20 @@ function createApp(options = {}) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
     const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
-    const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=?").get(tokenHash);
+    const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL").get(tokenHash,new Date().toISOString());
     if(issued){
       if(issued.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
       req.designerId=issued.designer_id;
       return next();
     }
 
+    if(db.prepare('SELECT 1 FROM designer_access_tokens WHERE token_hash=?').get(tokenHash))return fail(res,401,'unauthorized','Verify your email to sign in.');
+
     for (const [configuredToken, designerId] of Object.entries(designerTokens)) {
       if (safeEqual(token, configuredToken) && typeof designerId === 'string' && designerId.trim()) {
         const legacyDesignerId = designerId.trim();
-        const profile = db.prepare('SELECT status FROM designer_profiles WHERE id = ?').get(legacyDesignerId);
+        const profile = db.prepare('SELECT status,bearer_disabled_at FROM designer_profiles WHERE id = ?').get(legacyDesignerId);
+        if (!profile || profile.bearer_disabled_at) return fail(res,401,'unauthorized','Verify your email to sign in.');
         if (profile && profile.status !== 'active') return fail(res, 403, 'designer_inactive', 'This designer profile is not active.');
         req.designerId = legacyDesignerId;
         return next();
@@ -1223,6 +1250,7 @@ function createApp(options = {}) {
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
   });
+  const imageWork=require('./lib/image-work-controls').createImageWorkControls({db,imagesDir,fail,options:options.imageWork||{}});
   const fabricFinderUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_IMAGE_BYTES, files: 3 }
@@ -1249,6 +1277,9 @@ function createApp(options = {}) {
   let app;
   app = express();
   app.disable('x-powered-by');
+  const {createAnalyticsIngest,validateEvent:validateAnalyticsEvent}=require('./lib/analytics-ingest');
+  const analyticsIngest=createAnalyticsIngest({db,dataDir,trustedAppOrigin,options:options.analyticsIngest||{}});
+  app.use('/api/analytics/events',analyticsIngest.gate);
 
   app.post('/api/easypost/webhook', express.raw({ type: 'application/json', limit: '64kb' }), async (req, res) => {
     try {
@@ -1364,6 +1395,7 @@ function createApp(options = {}) {
       const event = JSON.parse(req.body.toString('utf8'));
       if (!event?.id || typeof event.id !== 'string' || !event.id.startsWith('evt_') || typeof event.type !== 'string') return res.status(400).send('Invalid Stripe event.');
       if (event.type !== 'account.updated' && db.prepare('SELECT 1 FROM stripe_webhook_events WHERE event_id=?').get(event.id)) return res.json({ received: true, duplicate: true });
+      await portfolioSubscriptions.handleEvent(event);
       if (event.type === 'account.updated') {
         const accountId = event.data?.object?.id;
         if (!event.id || typeof accountId !== 'string' || !accountId.startsWith('acct_')) return res.status(400).send('Invalid Connect account event.');
@@ -1405,7 +1437,7 @@ function createApp(options = {}) {
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
         const orderId = session?.metadata?.order_id;
-        if (orderId) releaseOrderInventory(orderId);
+        if (orderId && db.prepare('SELECT 1 FROM orders WHERE id=? AND stripe_session_id=?').get(orderId,session.id)) releaseOrderInventory(orderId);
       }
       if (event.type === 'checkout.session.async_payment_failed') {
         const session = event.data?.object;
@@ -1485,6 +1517,38 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(customerRouter);
+  const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
+  const reconcileSpecialDeposits=()=>specialDepositReview.reconcile();
+  app.get('/api/admin/special-deposits',authAdmin,(_req,res)=>res.json({offers:specialDepositReview.report()}));
+  app.post('/api/admin/special-deposits/reconcile',authAdmin,rateLimit({windowMs:60000,max:2,keyPrefix:'special-deposit-review'}),async(_req,res,next)=>{
+    try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
+  });
+
+  // Recovery is an explicit admin action, never an automatic payment-state transition.
+  // Re-fetch Stripe evidence at the moment of approval rather than trusting a stale report.
+  app.post('/api/admin/special-deposits/:offerId/confirm-paid',authAdmin,rateLimit({windowMs:60000,max:5,keyPrefix:'special-deposit-confirm'}),async(req,res,next)=>{
+    try{
+      const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(req.params.offerId);
+      if(!offer||!offer.stripe_session_id)return fail(res,404,'offer_not_found','Deposit session not found.');
+      if(offer.status==='deposit_refunded'||offer.stripe_refund_id)return fail(res,409,'already_refunded','A refunded deposit cannot be marked paid.');
+      if(offer.status==='deposit_paid')return res.json({ok:true,status:'deposit_paid'});
+      const session=await stripeApi(`checkout/sessions/${encodeURIComponent(offer.stripe_session_id)}`);
+      const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id;
+      if(session.id!==offer.stripe_session_id||session.metadata?.special_offer_id!==offer.id||
+         String(session.currency).toLowerCase()!=='usd'||session.amount_total!==offer.deposit_cents||
+         session.status!=='complete'||session.payment_status!=='paid'||typeof intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(intent)){
+        return fail(res,409,'unverified_deposit','Stripe has not confirmed a matching paid deposit.');
+      }
+      const changed=db.prepare(`UPDATE special_order_offers SET status='deposit_paid',stripe_payment_intent_id=?,deposit_paid_at=COALESCE(deposit_paid_at,?)
+        WHERE id=? AND stripe_session_id=? AND status NOT IN ('deposit_paid','deposit_refunded') AND stripe_refund_id IS NULL`)
+        .run(intent,new Date().toISOString(),offer.id,offer.stripe_session_id);
+      if(changed.changes!==1)return fail(res,409,'deposit_state_changed','Deposit state changed; review it again.');
+      return res.json({ok:true,status:'deposit_paid'});
+    }catch(error){return next(error);}
+  });
+
+  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options});
+
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
 
   app.post('/api/listings/:listingId/inquiries', authBuyer, reportLimiter, (req,res)=>{
@@ -1551,31 +1615,11 @@ function createApp(options = {}) {
     return res.json({inquiry:{id:inquiry.id,availabilityStatus:status,respondedAt:now}});
   });
 
-  app.post('/api/designer-applications', signupLimiter, (req, res) => {
-    const email=String(req.body?.email||'').trim().toLowerCase();
-    const displayName=String(req.body?.displayName||'').trim();
-    const brandName=String(req.body?.brandName||'').trim();
-    const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(value=>String(value).trim()).filter(Boolean))]:[];
-    const sellerTermsAccepted=req.body?.sellerTermsAccepted===true;
-
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)){
-      return fail(res,422,'validation_error','Add your name, designer or brand name, email, and what you create.');
-    }
-    if(!sellerTermsAccepted || req.body?.sellerTermsVersion!==SELLER_TERMS_VERSION)return fail(res,422,'seller_terms_required','Read and agree to the current House of Briar Seller Terms before joining.');
-
-    const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE lower(email)=?").get(email);
-    if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
-
-    const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
-    if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
-
+  function completeDesignerSignup({email,displayName,brandName,categories}) {
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
-    const accessToken='hob_'+crypto.randomBytes(32).toString('base64url');
-    const accessTokenHash=crypto.createHash('sha256').update(accessToken).digest('hex');
     db.transaction(()=>{
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,NULL,'','approved',?,?,?,NULL,NULL,?,NULL,NULL,1,1)").run(id,email,displayName,brandName,designerId,now,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,NULL,NULL,NULL,?,NULL,NULL)").run(designerId,email,displayName,brandName,id,now,JSON.stringify(categories));
-      db.prepare("INSERT INTO designer_access_tokens (token_hash,designer_id,created_at) VALUES (?,?,?)").run(accessTokenHash,designerId,now);
       recordSellerTerms(designerId,'signup');
       reconcileFoundingDesigners();
     })();
@@ -1589,8 +1633,9 @@ function createApp(options = {}) {
         eventKey:`designer-signup:${id}`
       });
     }
-    return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false},accessToken});
-  });
+    return db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(designerId);
+  }
+  require('./designer-auth').registerDesignerAuth({app,db,fail,rateLimit,trustedAppOrigin,deliverEmail,completeSignup:completeDesignerSignup,issueSession:issueDesignerSession,termsVersion:SELLER_TERMS_VERSION});
 
   app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
     const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
@@ -1739,13 +1784,16 @@ function createApp(options = {}) {
           WHERE ec.designer_id=? AND ec.token_hash=? AND ec.expires_at>? AND p.status='active' AND p.email=ec.current_email`).get(req.designerId,hash,new Date().toISOString());
         if(!pending)return {error:'invalid_verification'};
         if(db.prepare('SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>?').get(pending.pending_email,req.designerId))return {error:'email_in_use'};
-        db.prepare('UPDATE designer_profiles SET email=? WHERE id=?').run(pending.pending_email,req.designerId);
+        db.prepare('UPDATE designer_profiles SET email=?,email_verified_at=?,bearer_disabled_at=? WHERE id=?').run(pending.pending_email,new Date().toISOString(),new Date().toISOString(),req.designerId);
+        db.prepare('UPDATE designer_access_tokens SET revoked_at=? WHERE designer_id=?').run(new Date().toISOString(),req.designerId);
+        db.prepare('DELETE FROM designer_sessions WHERE designer_id=?').run(req.designerId);
         db.prepare('UPDATE listings SET designer_email=? WHERE designer_id=?').run(pending.pending_email,req.designerId);
         // Subject mappings and their provider email remain sign-in evidence, not contact settings.
         db.prepare('DELETE FROM designer_email_changes WHERE designer_id=?').run(req.designerId);
         return {email:pending.pending_email};
       }).immediate();
       if(verified.error)return fail(res,verified.error==='email_in_use'?409:422,verified.error,verified.error==='email_in_use'?'That email is already used by another designer.':'This code is invalid, expired, or already used. Request a new email change.');
+      issueDesignerSession(req,res,req.designerId);
       return res.json({ok:true,email:verified.email});
     } catch(error){return next(error);}
   });
@@ -1927,7 +1975,7 @@ function createApp(options = {}) {
   async function stripeApi(pathname, requestOptions = {}) {
     if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
+    if (!secret) throw Object.assign(new Error('STRIPE_SECRET_KEY is not configured.'),{checkoutNotCreated:true});
     const response = await fetch(`https://api.stripe.com/${pathname.startsWith('v2/')?'':'v1/'}${pathname}`, {
       method: requestOptions.method || 'GET',
       headers: {
@@ -1941,7 +1989,7 @@ function createApp(options = {}) {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       log('error','stripe_api_failed',{pathname,status:response.status,providerCode:String(payload?.error?.code||'').slice(0,80),providerMessage:String(payload?.error?.message||'').slice(0,300)});
-      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerCode:String(payload?.error?.code||'').slice(0,80)});
+      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerStatus:response.status,providerCode:String(payload?.error?.code||'').slice(0,80)});
     }
     return payload;
   }
@@ -2108,6 +2156,15 @@ function createApp(options = {}) {
         AND order_id IN (SELECT id FROM orders WHERE status IN ('canceled','failed'))`).run();
   }
 
+  function reservePromotions(orderId,items,now) {
+    for(const id of new Set(items.map(item=>item.promoCodeId).filter(Boolean))){
+      const promo=db.prepare('SELECT * FROM designer_promo_codes WHERE id=?').get(id);
+      const held=db.prepare("SELECT COUNT(*) n FROM promo_code_reservations WHERE promo_code_id=? AND status='reserved'").get(id).n;
+      if(!promo||!promo.active||(promo.starts_at&&promo.starts_at>now)||(promo.ends_at&&promo.ends_at<now)||(promo.max_uses!==null&&promo.use_count+held>=promo.max_uses))throw Object.assign(new Error('This promotion is no longer available. Review your cart and try again.'),{statusCode:409});
+      db.prepare("INSERT INTO promo_code_reservations VALUES (?,?,'reserved',?)").run(id,orderId,now);
+    }
+  }
+
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
@@ -2145,7 +2202,8 @@ function createApp(options = {}) {
     }
   }
   db.prepare("DELETE FROM analytics_events WHERE event_name='purchase' AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.status='paid' AND (o.id=analytics_events.order_id OR o.stripe_session_id=analytics_events.order_id))").run();
-  for(const order of db.prepare("SELECT id FROM orders WHERE status='paid'").all())recordPurchaseAnalytics(order.id);
+  // Finish any payment accounting interrupted between paid state and the ledger transaction.
+  for(const order of db.prepare("SELECT id FROM orders WHERE status='paid'").all())markOrderInventorySold(order.id);
 
   function markOrderInventorySold(orderId) {
     db.transaction(() => {
@@ -2159,6 +2217,7 @@ function createApp(options = {}) {
         const stats=db.prepare(`SELECT promo_code_id,SUM(discount_cents) discount_cents,SUM(line_total_cents) revenue_cents FROM order_items WHERE order_id=? AND promo_code_id IS NOT NULL GROUP BY promo_code_id`).all(orderId);
         for(const stat of stats)db.prepare('UPDATE designer_promo_codes SET use_count=use_count+1,revenue_cents=revenue_cents+?,discount_cents=discount_cents+? WHERE id=?').run(stat.revenue_cents,stat.discount_cents,stat.promo_code_id);
       }
+      db.prepare("UPDATE promo_code_reservations SET status='redeemed' WHERE order_id=? AND status='reserved'").run(orderId);
       recordPurchaseAnalytics(orderId);
       const sold=db.prepare(`SELECT l.* FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id
         WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
@@ -2170,11 +2229,12 @@ function createApp(options = {}) {
     }).immediate();
   }
 
-  function releaseOrderInventory(orderId) {
+  function releaseOrderInventory(orderId, releasePromo=true) {
     const order = db.prepare('SELECT status FROM orders WHERE id = ?').get(orderId);
     if (!order || order.status === 'paid') return false;
     db.transaction(() => {
       db.prepare("UPDATE inventory_reservations SET status = 'released' WHERE order_id = ? AND status = 'reserved'").run(orderId);
+      if(releasePromo)db.prepare("UPDATE promo_code_reservations SET status='released' WHERE order_id=? AND status='reserved'").run(orderId);
       db.prepare("UPDATE orders SET status = 'canceled' WHERE id = ? AND status = 'pending'").run(orderId);
     })();
     return true;
@@ -2312,14 +2372,14 @@ function createApp(options = {}) {
       for(const code of requestedCodes){
         const promo=db.prepare(`SELECT * FROM designer_promo_codes WHERE designer_id=? AND code=? AND active=1
           AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?)
-          AND (max_uses IS NULL OR use_count<max_uses)`).get(listing.designer_id,code,new Date().toISOString(),new Date().toISOString());
+          AND (max_uses IS NULL OR use_count+(SELECT COUNT(*) FROM promo_code_reservations r WHERE r.promo_code_id=designer_promo_codes.id AND r.status='reserved')<max_uses)`).get(listing.designer_id,code,new Date().toISOString(),new Date().toISOString());
         if(!promo)continue;
         const amount=promo.discount_type==='percent'?Math.floor(grossCents*promo.discount_value/100):Math.min(grossCents,promo.discount_value);
         if(amount>discountCents){discountCents=amount;promoCodeId=promo.id;promoCode=promo.code;}
       }
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
-      const platformFeeCents = Math.round(lineTotalCents * 0.10);
+      const platformFeeCents = Math.round(lineTotalCents * 0.09);
       rows.push({ giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
@@ -2441,12 +2501,13 @@ function createApp(options = {}) {
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
         db.prepare('UPDATE orders SET shipping_cents=?,shipping_required=1 WHERE id=?').run(quote.shippingCents,orderId);
+        reservePromotions(orderId, quote.items, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
         for(const item of quote.items)db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents,orderId,item.id);
         for(const item of quote.items)db.prepare('UPDATE order_items SET gift_note=? WHERE order_id=? AND listing_id=?').run(item.giftNote,orderId,item.id);
-      })();
+      }).immediate();
 
       let session;
       try {
@@ -2454,7 +2515,10 @@ function createApp(options = {}) {
         db.prepare('UPDATE orders SET stripe_session_id = ? WHERE id = ?').run(session.id, orderId);
       } catch (error) {
         // Never strand a one-of-a-kind reservation when Stripe cannot create checkout.
-        releaseOrderInventory(orderId);
+        // A lost provider response might still have created a payable session.
+        // Retain promotion capacity for review until Stripe confirms its outcome.
+        const creationRejected=error.checkoutNotCreated===true||[400,401,403,404].includes(error.providerStatus);
+        releaseOrderInventory(orderId,creationRejected);
         throw error;
       }
       return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
@@ -2480,23 +2544,25 @@ function createApp(options = {}) {
     } catch (error) { return next(error); }
   });
 
-  app.post('/api/analytics/events', (req, res) => {
-    const allowed = new Set(['page_view','view_designer','view_product','search','add_to_wishlist','remove_from_wishlist','add_to_cart','remove_from_cart','view_cart','begin_checkout','checkout_abandoned','purchase']);
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const eventName = String(body.event || '');
-    if (!allowed.has(eventName)) return fail(res, 400, 'invalid_event', 'Unknown commerce event.');
+  app.post('/api/analytics/events', async (req, res) => {
+    const validated=validateAnalyticsEvent(req.body);
+    if(validated.error)return fail(res,400,'invalid_event',validated.error);
+    const body=validated.value,eventName=body.event;
     if(eventName==='purchase'){
-      const order=db.prepare("SELECT id FROM orders WHERE status='paid' AND (id=? OR stripe_session_id=?)").get(String(body.orderId||''),String(body.orderId||''));
+      const order=db.prepare("SELECT id FROM orders WHERE status='paid' AND (id=? OR stripe_session_id=?)").get(body.orderId,body.orderId);
       if(!order)return fail(res,409,'unverified_purchase','A verified paid order is required.');
-      recordPurchaseAnalytics(order.id);
-      const short=value=>typeof value==='string'?value.slice(0,200):null;
-      db.prepare("UPDATE analytics_events SET session_id=COALESCE(session_id,?),utm_source=COALESCE(utm_source,?),utm_medium=COALESCE(utm_medium,?),utm_campaign=COALESCE(utm_campaign,?) WHERE event_name='purchase' AND order_id=?").run(short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign),order.id);
-      return res.status(202).json({accepted:true});
+      const accepted=await analyticsIngest.enqueue({browser:req.analyticsBrowser,event:body,purchase:true,write:()=>{
+        recordPurchaseAnalytics(order.id);
+        const short=value=>typeof value==='string'?value.slice(0,200):null;
+        db.prepare("UPDATE analytics_events SET session_id=COALESCE(session_id,?),utm_source=COALESCE(utm_source,?),utm_medium=COALESCE(utm_medium,?),utm_campaign=COALESCE(utm_campaign,?) WHERE event_name='purchase' AND order_id=? AND ((session_id IS NULL AND ? IS NOT NULL) OR (utm_source IS NULL AND ? IS NOT NULL) OR (utm_medium IS NULL AND ? IS NOT NULL) OR (utm_campaign IS NULL AND ? IS NOT NULL))").run(short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign),order.id,short(body.sessionId),short(body.utmSource),short(body.utmMedium),short(body.utmCampaign));
+      }});
+      return res.status(202).json({accepted});
     }
     const location=['page_view','view_designer'].includes(eventName)?trafficLocation(req):{};
     const text = (value, max = 300) => typeof value === 'string' ? value.slice(0, max) : null;
-    const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
-    db.prepare(`INSERT INTO analytics_events (
+    const number = value => typeof value==='number' && Number.isFinite(value) ? value : null;
+    const accepted=await analyticsIngest.enqueue({browser:req.analyticsBrowser,event:body,write:()=>{
+      db.prepare(`INSERT INTO analytics_events (
       id,event_name,session_id,listing_id,listing_name,designer,value,currency,search_query,result_count,item_count,order_id,source,path,referrer,utm_source,utm_medium,utm_campaign,designer_id,device_category,country,region,city,created_at
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       crypto.randomUUID(), eventName, text(body.sessionId, 100), text(body.listingId, 100), text(body.listingName),
@@ -2505,7 +2571,8 @@ function createApp(options = {}) {
       text(body.path, 500), analyticsReferrerOrigin(body.referrer), text(body.utmSource, 200), text(body.utmMedium, 200),
       text(body.utmCampaign, 300), text(body.designerId,100), ['mobile','tablet','desktop'].includes(String(body.deviceCategory)) ? String(body.deviceCategory) : null,location.country||null,location.region||null,location.city||null, new Date().toISOString()
     );
-    res.status(202).json({ accepted: true });
+    }});
+    return res.status(202).json({accepted});
   });
 
   app.post('/api/admin/badges/reconcile', authAdmin, async (_req,res)=>{
@@ -2515,6 +2582,7 @@ function createApp(options = {}) {
   });
 
   app.get('/api/admin/analytics', authAdmin, (_req, res) => {
+    analyticsIngest.flush();
     res.set('Cache-Control','no-store');
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const events = db.prepare(`SELECT event_name, COUNT(*) count FROM analytics_events WHERE created_at >= ? GROUP BY event_name ORDER BY count DESC`).all(since);
@@ -2632,7 +2700,7 @@ function createApp(options = {}) {
   require('./support-agent').registerSupportAgent({app,db,authBuyer,fail,rateLimit,options});
   require('./seller-tools').registerSellerTools({app,db,authDesigner,upload,fail,rateLimit,options});
   require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
-  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,customerListingVisible,options});
+  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,imageWork,moderateDesignerImage,serializeListing,customerListingVisible,options});
 
   app.get('/api/founding-designers', (_req,res) => {
     const awarded=Number(db.prepare('SELECT COUNT(*) count FROM founding_designers').get().count);
@@ -3596,11 +3664,13 @@ function createApp(options = {}) {
         try{metadata=await sharp(photo.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).metadata();}catch{return fail(res,415,'unsupported_image','Use a valid JPEG, PNG, or WebP fabric photo.');}
         if(!metadata.width||!metadata.height||metadata.width>MAX_IMAGE_DIMENSION||metadata.height>MAX_IMAGE_DIMENSION)return fail(res,422,'invalid_dimensions','Fabric photo dimensions are too large.');
         if(Number(metadata.pages||1)>1)return fail(res,422,'animated_image','Animated images are not supported.');
-        validatedPhotos.push({buffer:photo.buffer,mimeType:detectedMime});
+        // Re-encode without preserving EXIF, GPS, or other uploaded metadata.
+        const buffer=await sharp(photo.buffer,{failOn:'error',limitInputPixels:MAX_IMAGE_PIXELS}).rotate().webp().toBuffer();
+        validatedPhotos.push({buffer,mimeType:'image/webp'});
       }
       const content=[{type:'input_text',text:'Identify this fabric visually for a clothing designer. Return JSON only with keys: fabricFamily (short string), likelyFibers (array of strings, possibilities only), construction (weave or knit structure), texture, weight, drape, likelyUses (array), careConsiderations (array), confidence (low|medium|high), listingMaterialSuggestion (short string), notes (short string). Never claim exact fiber composition or percentages from a photo. State uncertainty when visual evidence is insufficient.'},
         ...validatedPhotos.map(photo=>({type:'input_image',image_url:`data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`,detail:'high'}))];
-      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
+      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.FABRIC_FINDER_MODEL||'gpt-6-luna',store:false,input:[{role:'user',content}],text:{format:{type:'json_object'}},max_output_tokens:700})});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Fabric analysis failed.'),{statusCode:502});
       const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
@@ -3644,17 +3714,10 @@ function createApp(options = {}) {
     const rows=db.prepare(`SELECT so.*,COALESCE(dp.brand_name,dp.display_name,so.designer_id) designer_name FROM special_order_offers so LEFT JOIN designer_profiles dp ON dp.id=so.designer_id WHERE so.buyer_subject=? ORDER BY so.created_at DESC`).all(req.buyerSubject);
     res.json({offers:rows.map(o=>({id:o.id,title:o.title,designerId:o.designer_id,designerName:o.designer_name,totalCents:o.total_cents,depositCents:o.deposit_cents,leadDaysMin:o.lead_days_min,leadDaysMax:o.lead_days_max,revisionsIncluded:o.revisions_included,terms:o.terms,status:o.status,depositPaidAt:o.deposit_paid_at||null}))});
   });
-  app.post('/api/my/special-offers/:id/deposit', authBuyer, checkoutLimiter, async (req,res,next)=>{
-    try{
-      const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND buyer_subject=?").get(req.params.id,req.buyerSubject);
-      if(!offer)return fail(res,404,'offer_not_found','Special-order offer not found.');
-      if(offer.status!=='offered')return fail(res,409,'offer_unavailable','This offer is no longer awaiting a deposit.');
-      requireSellerTerms(offer.designer_id);
-      const origin=trustedAppOrigin(req),body=new URLSearchParams({mode:'payment',success_url:`${origin}/account?special_order=deposit_paid`,cancel_url:`${origin}/account?special_order=deposit_canceled`,'metadata[special_offer_id]':offer.id,'payment_intent_data[metadata][special_offer_id]':offer.id});
-      body.set('line_items[0][price_data][currency]','usd');body.set('line_items[0][price_data][product_data][name]',`Deposit: ${offer.title}`);body.set('line_items[0][price_data][unit_amount]',String(offer.deposit_cents));body.set('line_items[0][quantity]','1');
-      const session=await stripeApi('checkout/sessions',{method:'POST',body:body.toString(),idempotencyKey:`hob-special-deposit-${offer.id}`});
-      db.prepare('UPDATE special_order_offers SET stripe_session_id=? WHERE id=?').run(session.id,offer.id);res.status(201).json({url:session.url});
-    }catch(error){return next(error);}
+  // Payment collection stays closed until deposits have a verified payment,
+  // refund and payout lifecycle. Existing offers remain readable.
+  app.post('/api/my/special-offers/:id/deposit', authBuyer, checkoutLimiter, (_req,res)=>{
+    return fail(res,503,'special_deposits_unavailable','Special-order deposit payments are temporarily unavailable. No new payment was initiated.');
   });
   app.post('/api/my/special-offers/:id/refund-deposit', authDesigner, async (req,res,next)=>{
     try{
@@ -3786,6 +3849,194 @@ function createApp(options = {}) {
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
+  // Creative portfolio profiles reuse verified House customer or designer identities.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_profiles (
+    owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('model','photographer','designer')),
+    location TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '',
+    published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
+  app.get('/api/creative-house/profiles/:slug',authDesigner,(req,res)=>{
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
+    if(!profile)return res.status(404).json({error:'Profile not found'});
+    res.json({profile});
+  });
+  app.get('/api/creative-house/my-profile',authBuyer,(req,res)=>{
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,published,updated_at FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    res.json({profile:profile||null});
+  });
+  app.put('/api/creative-house/my-profile',authBuyer,(req,res)=>{
+    const v=req.body||{};
+    const clean=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
+    const displayName=clean('display_name',80),role=clean('role',20),location=clean('location',100),bio=clean('bio',800);
+    if(!displayName||!['model','photographer','designer'].includes(role))return res.status(400).json({error:'A display name and valid role are required.'});
+    if(v.published!==true&&v.published!==false)return res.status(400).json({error:'Choose whether to publish your profile.'});
+    const previous=db.prepare('SELECT slug FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const slug=previous?.slug||portfolioSlug(displayName)+'-'+crypto.randomBytes(4).toString('hex');
+    db.prepare(`INSERT INTO creative_profiles(owner_subject,slug,display_name,role,location,bio,published) VALUES(?,?,?,?,?,?,?)
+      ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,v.published?1:0);
+    res.json({profile:{slug,display_name:displayName,role,location,bio,published:v.published}});
+  });
+  app.get('/api/creative-house/profiles',authDesigner,(_req,res)=>{
+    const profiles=db.prepare('SELECT slug,display_name,role,location,bio FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
+    res.json({profiles});
+  });
+  // Public project-intake forms do not expose talent portfolios or contact details.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_project_requests (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('hire-talent','commission-designer')),
+    contact_name TEXT NOT NULL, contact_email TEXT NOT NULL, title TEXT NOT NULL,
+    description TEXT NOT NULL, budget TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '',
+    timeline TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed','closed'))
+  )`);
+  app.post('/api/creative-house/project-requests', (req,res)=>{
+    const v=req.body||{};
+    const field=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
+    const kind=field('kind',30),contactName=field('contact_name',100),contactEmail=field('contact_email',200).toLowerCase(),title=field('title',120),description=field('description',2500);
+    const budget=field('budget',80),location=field('location',100),timeline=field('timeline',100);
+    if(!['hire-talent','commission-designer'].includes(kind)||!contactName||!/^\S+@\S+\.\S+$/.test(contactEmail)||title.length<5||description.length<30)return res.status(400).json({error:'Please provide a valid name, email, project title, and description of at least 30 characters.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_project_requests(id,kind,contact_name,contact_email,title,description,budget,location,timeline) VALUES(?,?,?,?,?,?,?,?,?)').run(id,kind,contactName,contactEmail,title,description,budget,location,timeline);
+    res.status(201).json({received:true,message:'Your request has been received for review. This is not a confirmed booking.'});
+  });
+  app.get('/api/admin/creative-project-requests',authAdmin,(_req,res)=>{
+    const requests=db.prepare('SELECT * FROM creative_project_requests ORDER BY created_at DESC LIMIT 100').all();
+    res.set('Cache-Control','no-store').json({requests});
+  });
+  app.patch('/api/admin/creative-project-requests/:id',authAdmin,(req,res)=>{
+    if(!['pending','reviewed','closed'].includes(req.body?.status))return fail(res,400,'invalid_status','Choose pending, reviewed, or closed.');
+    const result=db.prepare('UPDATE creative_project_requests SET status=? WHERE id=?').run(req.body.status,req.params.id);
+    if(!result.changes)return fail(res,404,'not_found','Project request not found.');
+    res.json({updated:true});
+  });
+  // DJ and venue profiles are opt-in and only readable by active House designers.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_event_profiles (
+    owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL CHECK(role IN ('dj','venue')),
+    display_name TEXT NOT NULL, location TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '', specialties TEXT NOT NULL DEFAULT '',
+    pricing TEXT NOT NULL DEFAULT '', capacity TEXT NOT NULL DEFAULT '',
+    amenities TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.get('/api/creative-house/event-profiles',authDesigner,(_req,res)=>{
+    const profiles=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
+    res.json({profiles});
+  });
+  app.get('/api/creative-house/event-profiles/:slug',authDesigner,(req,res)=>{
+    const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 AND slug=?').get(req.params.slug);
+    if(!profile)return res.status(404).json({error:'Profile not found.'});
+    res.json({profile});
+  });
+  app.get('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
+    const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published FROM creative_event_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    res.json({profile:profile||null});
+  });
+  app.put('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
+    const v=req.body||{},clean=(k,n)=>typeof v[k]==='string'?v[k].trim().slice(0,n):'';
+    const role=clean('role',20),name=clean('display_name',80),location=clean('location',100),description=clean('description',1000),specialties=clean('specialties',250),pricing=clean('pricing',100),capacity=clean('capacity',60),amenities=clean('amenities',350);
+    if(!['dj','venue'].includes(role)||!name||!location||description.length<20||typeof v.published!=='boolean')return res.status(400).json({error:'Provide a role, name, region, description (20+ characters), and visibility preference.'});
+    const old=db.prepare('SELECT slug FROM creative_event_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const slug=old?.slug||(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55)||'creative')+'-'+crypto.randomBytes(4).toString('hex');
+    db.prepare(`INSERT INTO creative_event_profiles(owner_subject,slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(owner_subject) DO UPDATE SET role=excluded.role,display_name=excluded.display_name,location=excluded.location,description=excluded.description,specialties=excluded.specialties,pricing=excluded.pricing,capacity=excluded.capacity,amenities=excluded.amenities,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,role,name,location,description,specialties,pricing,capacity,amenities,v.published?1:0);
+    res.json({profile:{slug,role,display_name:name,location,description,specialties,pricing,capacity,amenities,published:v.published}});
+  });
+  // Private inquiries: authenticated designer to opt-in creative, visible only to the sender and recipient.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_inquiries (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, recipient_subject TEXT NOT NULL,
+    recipient_kind TEXT NOT NULL CHECK(recipient_kind IN ('talent','event-partner')),
+    recipient_slug TEXT NOT NULL, subject TEXT NOT NULL, message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
+    const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
+    if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
+    const table=kind==='talent'?'creative_profiles':'creative_event_profiles';
+    const target=db.prepare('SELECT owner_subject FROM '+table+' WHERE slug=? AND published=1').get(slug);
+    if(!target)return res.status(404).json({error:'Creative profile not found.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_inquiries WHERE designer_id=? AND created_at>datetime('now','-1 day')").get(req.designerId).n;
+    if(count>=15)return res.status(429).json({error:'Daily inquiry limit reached.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_inquiries(id,designer_id,recipient_subject,recipient_kind,recipient_slug,subject,message) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,target.owner_subject,kind,slug,subject,message);
+    res.status(201).json({sent:true,message:'Private inquiry sent. The creative can review it in their House account.'});
+  });
+  app.get('/api/creative-house/my-inquiries',authBuyer,(req,res)=>{
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE recipient_subject=? ORDER BY created_at DESC LIMIT 100').all(req.buyerSubject);
+    res.json({inquiries});
+  });
+  app.post('/api/creative-house/my-inquiries/:id/respond',authBuyer,(req,res)=>{
+    if(!['accepted','declined'].includes(req.body?.status))return res.status(400).json({error:'Choose accepted or declined.'});
+    const result=db.prepare("UPDATE creative_inquiries SET status=? WHERE id=? AND recipient_subject=? AND status='pending'").run(req.body.status,req.params.id,req.buyerSubject);
+    if(!result.changes)return res.status(404).json({error:'Pending inquiry not found.'});
+    res.json({updated:true});
+  });
+  app.get('/api/creative-house/sent-inquiries',authDesigner,(req,res)=>{
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
+    res.json({inquiries});
+  });
+  // Fashion event briefs: only active designers may publish or close events.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_events (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK(event_type IN ('fashion-show','pop-up','collection-launch','editorial-event')),
+    location TEXT NOT NULL, event_date TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL, roles TEXT NOT NULL, compensation TEXT NOT NULL CHECK(compensation IN ('paid','unpaid','negotiable')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  app.get('/api/creative-house/events',(_req,res)=>{
+    const events=db.prepare("SELECT e.id,e.title,e.event_type,e.location,e.event_date,e.description,e.roles,e.compensation,e.created_at,p.brand_name FROM creative_events e JOIN designer_profiles p ON p.id=e.designer_id WHERE e.status='open' AND p.status='active' ORDER BY e.created_at DESC LIMIT 60").all();
+    res.json({events:events.map(e=>({...e,roles:JSON.parse(e.roles)}))});
+  });
+  app.post('/api/creative-house/events',authDesigner,(req,res)=>{
+    const v=req.body||{},clean=(k,n)=>typeof v[k]==='string'?v[k].trim().slice(0,n):'';
+    const title=clean('title',120),eventType=clean('event_type',30),location=clean('location',120),eventDate=clean('event_date',20),description=clean('description',1500),compensation=clean('compensation',20);
+    const allowed=['model','photographer','dj','venue','makeup-artist','hairstylist','stylist','lighting','producer'];
+    const roles=Array.isArray(v.roles)?[...new Set(v.roles.filter(x=>typeof x==='string'&&allowed.includes(x)))]:[];
+    if(title.length<5||!['fashion-show','pop-up','collection-launch','editorial-event'].includes(eventType)||!location||description.length<30||!roles.length||!['paid','unpaid','negotiable'].includes(compensation)||eventDate&&!/^\d{4}-\d{2}-\d{2}$/.test(eventDate))return res.status(400).json({error:'Complete the event details, at least one role, and compensation.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_events WHERE designer_id=? AND status='open'").get(req.designerId).n;
+    if(count>=5)return res.status(429).json({error:'You can have up to five open event briefs.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_events(id,designer_id,title,event_type,location,event_date,description,roles,compensation) VALUES(?,?,?,?,?,?,?,?,?)').run(id,req.designerId,title,eventType,location,eventDate,description,JSON.stringify(roles),compensation);
+    res.status(201).json({id,created:true});
+  });
+  app.post('/api/creative-house/events/:id/close',authDesigner,(req,res)=>{
+    const result=db.prepare("UPDATE creative_events SET status='closed' WHERE id=? AND designer_id=? AND status='open'").run(req.params.id,req.designerId);
+    if(!result.changes)return res.status(404).json({error:'Open event not found.'});
+    res.json({closed:true});
+  });
+  // Creative House: designer-owned collaboration board. No public applicant contact details.
+  db.exec(`CREATE TABLE IF NOT EXISTS creative_opportunities (
+    id TEXT PRIMARY KEY, designer_id TEXT NOT NULL, title TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('model','photographer','both')),
+    location TEXT NOT NULL, compensation TEXT NOT NULL CHECK(compensation IN ('paid','unpaid','negotiable')),
+    description TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed'))
+  )`);
+  app.get('/api/creative-house/opportunities',(_req,res)=>{
+    const rows=db.prepare("SELECT o.id,o.title,o.role,o.location,o.compensation,o.description,o.created_at,p.brand_name FROM creative_opportunities o JOIN designer_profiles p ON p.id=o.designer_id WHERE o.status='open' AND p.status='active' ORDER BY o.created_at DESC LIMIT 60").all();
+    res.json({opportunities:rows});
+  });
+  app.post('/api/creative-house/opportunities',authDesigner,(req,res)=>{
+    const values=req.body||{};
+    const clean=(key,max)=>typeof values[key]==='string'?values[key].trim().slice(0,max):'';
+    const title=clean('title',100),role=clean('role',20),location=clean('location',100),compensation=clean('compensation',20),description=clean('description',1000);
+    if(!title||!location||description.length<20||!['model','photographer','both'].includes(role)||!['paid','unpaid','negotiable'].includes(compensation))return res.status(400).json({error:'Please complete every field and provide at least 20 characters of detail.'});
+    const count=db.prepare("SELECT COUNT(*) AS n FROM creative_opportunities WHERE designer_id=? AND status='open'").get(req.designerId).n;
+    if(count>=5)return res.status(429).json({error:'You may have up to five open opportunities.'});
+    const id=crypto.randomUUID();
+    db.prepare('INSERT INTO creative_opportunities(id,designer_id,title,role,location,compensation,description) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,title,role,location,compensation,description);
+    res.status(201).json({id});
+  });
+  app.post('/api/creative-house/opportunities/:id/close',authDesigner,(req,res)=>{
+    const result=db.prepare("UPDATE creative_opportunities SET status='closed' WHERE id=? AND designer_id=?").run(req.params.id,req.designerId);
+    if(!result.changes)return res.status(404).json({error:'Opportunity not found.'});
+    res.json({ok:true});
+  });
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
   app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
@@ -3900,8 +4151,9 @@ function createApp(options = {}) {
     });
     app.get(['/shop','/designers','/cart','/admin','/sell'], sendFrontend);
   }
+  for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
-  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
@@ -3990,11 +4242,11 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
+  return { app, db, dataDir, imagesDir, analyticsIngest, reviewRequired, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
+  const { app, db, analyticsIngest, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
@@ -4006,6 +4258,9 @@ if (require.main === module) {
   const emailTimer = setInterval(() => { void processEmailOutbox(); }, 60_000);
   emailTimer.unref();
   void reconcilePendingCheckouts();
+  const depositReviewTimer=setInterval(()=>{void reconcileSpecialDeposits().then(summary=>console.log('Special deposit review:',JSON.stringify(summary))).catch(error=>console.error('Special deposit review failed:',error.message));},reconciliationIntervalMs);
+  depositReviewTimer.unref();
+  void reconcileSpecialDeposits().then(summary=>console.log('Special deposit review:',JSON.stringify(summary))).catch(error=>console.error('Special deposit review failed:',error.message));
   void processEmailOutbox();
 
   const backupEnabled = process.env.OFFSITE_BACKUP_ENABLED === 'true';
@@ -4028,7 +4283,7 @@ if (require.main === module) {
   const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
   if (backupTimer) backupTimer.unref();
 
-  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
+  const shutdown = () => { analyticsIngest.close(); clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }

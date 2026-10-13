@@ -173,3 +173,103 @@ body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:c
 .customer-next-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
 .customer-next-steps :is(a,button){min-height:48px;white-space:normal;text-align:center;display:flex;align-items:center;justify-content:center;padding:12px}
 @media(max-width:600px){.customer-next-steps{grid-template-columns:1fr}}
+
+/* Editorial hero: legible mobile breaks and restrained color accent. */
+body.blackberry-house .sewing-hero-content h1 em{color:#252323!important}
+body.blackberry-house .sewing-hero-content h1 .fashion-keyword{color:#6d5b48!important}
+.sewing-hero-content h1{overflow-wrap:normal!important;word-break:normal!important}
+@media(max-width:650px){.sewing-hero-content h1{font-size:clamp(42px,10vw,60px)!important;letter-spacing:-.045em!important}}
+
+/* Editorial layout repair: constrain sections on narrow screens and elevate recruitment. */
+html,body{max-width:100%;overflow-x:clip}
+body.blackberry-house .hero.sewing-hero{display:block!important}
+body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{width:min(100% - 32px,1200px)!important;max-width:1200px!important;margin-inline:auto!important}
+body.blackberry-house .house-stories .container,body.blackberry-house .house-styling .container,body.blackberry-house .designer-callout-section .container{width:min(100% - 32px,1200px);max-width:1200px;margin-inline:auto;min-width:0}
+body.blackberry-house .house-stories *,body.blackberry-house .house-styling *,body.blackberry-house .designer-callout-section *{min-width:0;overflow-wrap:break-word}
+body.blackberry-house .house-stories h2,body.blackberry-house .house-styling h2{font-size:clamp(32px,5vw,72px);line-height:1.06;max-width:100%}
+body.blackberry-house .designer-callout-section{padding-block:clamp(96px,12vw,180px)!important}
+body.blackberry-house .designer-callout{max-width:1240px!important;gap:36px!important}
+body.blackberry-house .designer-callout h2{font-size:clamp(42px,7vw,104px)!important;line-height:1.02!important;max-width:100%!important}
+.fashion-category-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:28px 0 36px}
+.fashion-category-link{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:clamp(22px,4vw,46px);background:#ede7e2;color:#292525!important;border:1px solid #d5ccc5;text-decoration:none!important;font:500 clamp(21px,3vw,36px)/1.1 Georgia,serif}
+.fashion-category-link:hover{background:#e3d9d0}
+@media(max-width:650px){.fashion-category-links{grid-template-columns:1fr}body.blackberry-house .house-stories .container,body.blackberry-house .house-styling .container{padding-inline:0!important}}
+
+/* Keep menswear discovery inside the native storefront filter row. */
+body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(6,minmax(0,1fr))!important;align-items:stretch}
+body.blackberry-house .shop-drop-windows>.shop-drop-window{min-width:0}
+body.blackberry-house .menswear-window{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-decoration:none!important;text-align:center;color:#5e455e!important;background:#f0ebe9;border:1px solid #d6c8d3;border-radius:16px;min-height:132px;padding:18px 10px;box-shadow:0 5px 13px #3d283d16}
+.menswear-window-icon{font-size:27px;line-height:1}
+.menswear-window-title{font-weight:700;font-size:15px}
+.menswear-window-subtitle{font-size:12px}
+body.blackberry-house .menswear-window:hover{background:#e7dfe5}
+@media(max-width:1050px){body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:620px){body.blackberry-house .shop-drop-windows{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+/* Fill the actual content area; wrapping text alone does not fix narrow inherited grids. */
+body.blackberry-house .house-stories,body.blackberry-house .house-styling,body.blackberry-house .designer-callout-section{width:100%;max-width:none;min-width:0}
+body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{display:block!important;width:calc(100% - 48px)!important;max-width:1320px!important;margin-inline:auto!important;box-sizing:border-box}
+body.blackberry-house .house-stories :is(h2,p),body.blackberry-house .house-styling :is(h2,p){max-width:min(100%,1100px)}
+@media(max-width:620px){body.blackberry-house .house-stories>.container,body.blackberry-house .house-styling>.container,body.blackberry-house .designer-callout-section>.container{width:calc(100% - 32px)!important}}
+
+/* Quiet seller benefit, subordinate to the signup action. */
+.designer-callout-action{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.designer-callout-action .designer-callout-button{margin:0}
+.designer-fee-note{margin:0;font:400 13px/1.5 Inter,Arial,sans-serif;letter-spacing:.01em;color:#716b67;max-width:260px}
+
+/* Full-width editorial hero: intentional use of horizontal space, safe on mobile. */
+body.blackberry-house .hero.sewing-hero{display:block!important;min-height:0!important;overflow:hidden!important}
+body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{width:100%!important;max-width:none!important;box-sizing:border-box!important;margin:0!important;padding:clamp(42px,5vw,78px) clamp(22px,5vw,90px) clamp(48px,6vw,96px)!important}
+body.blackberry-house .sewing-hero-content h1{max-width:1500px!important;width:100%!important;font-size:clamp(64px,8.7vw,166px)!important;line-height:.86!important;letter-spacing:-.055em!important;margin:28px 0 32px!important;overflow-wrap:normal!important;word-break:normal!important}
+body.blackberry-house .sewing-hero-content>p:not(.eyebrow){max-width:670px!important;font-size:clamp(16px,1.5vw,20px)!important;line-height:1.55!important}
+body.blackberry-house .sewing-hero-actions{margin-top:28px!important}
+@media(max-width:850px){body.blackberry-house .sewing-hero-content h1{font-size:clamp(48px,9vw,90px)!important;line-height:.94!important}body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:48px 24px 60px!important}}
+@media(max-width:480px){body.blackberry-house .sewing-hero-content h1{font-size:clamp(39px,9.4vw,54px)!important;line-height:1!important;letter-spacing:-.045em!important}body.blackberry-house .hero.sewing-hero>.container.sewing-hero-content{padding:38px 18px 48px!important}}
+
+/* Compact bottom designer signup CTA; avoid stretched full-width button. */
+body.blackberry-house .designer-callout-action .designer-callout-button{display:inline-flex!important;width:auto!important;max-width:100%!important;min-height:38px!important;padding:9px 16px!important;font-size:12px!important;line-height:1.25!important;align-self:flex-start!important;flex:0 0 auto!important}
+
+/* 2026 House of Briar editorial homepage */
+body.blackberry-house .sewing-hero{min-height:min(780px,88svh);display:flex;align-items:center;background:#171817!important;color:#f5f2ed!important;position:relative;isolation:isolate}
+body.blackberry-house .sewing-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 78% 55%,rgba(130,116,101,.28),transparent 54%),linear-gradient(110deg,rgba(0,0,0,.42),transparent 80%);z-index:-1}
+body.blackberry-house .sewing-hero .sewing-hero-content{padding-top:clamp(100px,13vw,170px);padding-bottom:clamp(95px,13vw,170px);max-width:1380px}
+body.blackberry-house .sewing-hero h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(57px,8.2vw,135px);line-height:.99;letter-spacing:-.065em;max-width:1120px;margin:25px 0}
+body.blackberry-house .sewing-hero h1 em{font-weight:400}
+body.blackberry-house .sewing-hero p{max-width:520px;color:#eee9e2}
+body.blackberry-house .sewing-hero .eyebrow{letter-spacing:.17em;font-size:11px}
+body.blackberry-house .hob-editorial-intro{padding:85px 0 105px;background:#f5f3ef;color:#1c1c1b}
+body.blackberry-house .hob-editorial-heading{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:35px;font-size:11px;letter-spacing:.13em}
+body.blackberry-house .hob-editorial-heading p{font-family:Georgia,serif;font-size:clamp(18px,2vw,26px);letter-spacing:-.02em;line-height:1.25;margin:0}
+body.blackberry-house .hob-editorial-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+body.blackberry-house .hob-editorial-tile{display:flex;flex-direction:column;justify-content:space-between;min-height:480px;padding:clamp(25px,3vw,45px);text-decoration:none;color:#f7f3eb;background:#272a28;transition:transform .2s ease,filter .2s ease}
+body.blackberry-house .hob-editorial-tile:hover{transform:translateY(-5px);filter:brightness(1.1)}
+body.blackberry-house .hob-editorial-creative{background:radial-gradient(circle at 80% 20%,#667064,#283a35 60%,#1c2825)}
+body.blackberry-house .hob-editorial-design{background:radial-gradient(circle at 70% 20%,#938679,#514840 60%,#2e2925)}
+body.blackberry-house .hob-tile-index{font-size:10px;letter-spacing:.16em}
+body.blackberry-house .hob-editorial-tile h2{font-family:Georgia,serif;font-weight:400;font-size:clamp(34px,3.5vw,57px);line-height:1.05;letter-spacing:-.045em;margin:0 0 18px}
+body.blackberry-house .hob-editorial-tile p{font-size:14px;line-height:1.7;max-width:330px}
+body.blackberry-house .hob-tile-link{display:inline-block;border-bottom:1px solid currentColor;padding-bottom:6px;margin-top:23px;font-size:12px}
+body.blackberry-house .hob-creative-statement{background:#e8e5df;color:#222;padding:100px 0}
+body.blackberry-house .hob-creative-statement-inner{display:grid;grid-template-columns:1.4fr 1fr;gap:clamp(30px,7vw,130px);align-items:end}
+body.blackberry-house .hob-creative-statement h2{font:400 clamp(45px,5.5vw,85px)/1.05 Georgia,serif;letter-spacing:-.055em;margin:20px 0 0}
+body.blackberry-house .hob-creative-statement p:not(.eyebrow){font-size:16px;line-height:1.8}
+body.blackberry-house .hob-creative-statement a{display:inline-block;margin-top:25px;border-bottom:1px solid currentColor;padding-bottom:7px;color:inherit;text-decoration:none}
+@media(max-width:800px){body.blackberry-house .hob-editorial-grid{grid-template-columns:1fr}body.blackberry-house .hob-editorial-tile{min-height:350px}body.blackberry-house .hob-creative-statement-inner{grid-template-columns:1fr}body.blackberry-house .hob-editorial-heading{flex-direction:column}body.blackberry-house .sewing-hero h1{font-size:clamp(51px,11vw,84px)}}
+@media(prefers-reduced-motion:reduce){body.blackberry-house .hob-editorial-tile{transition:none}body.blackberry-house .hob-editorial-tile:hover{transform:none}}
+
+body.blackberry-house .hob-customer-access{padding:55px 0;background:#f5f3ef;color:#222}body.blackberry-house .hob-customer-access-inner{display:flex;justify-content:space-between;align-items:center;gap:30px}body.blackberry-house .hob-customer-access h2{font:400 clamp(32px,3.5vw,50px)/1.1 Georgia,serif;margin:10px 0}body.blackberry-house .hob-customer-access p:not(.eyebrow){font-size:14px}body.blackberry-house .hob-customer-access button{flex-shrink:0}@media(max-width:700px){body.blackberry-house .hob-customer-access-inner{align-items:flex-start;flex-direction:column}}
+
+/* House Notes: editorial signup with predictable field alignment */
+body.blackberry-house #journal.newsletter-section{background:#f6f2ea!important;padding:clamp(70px,9vw,125px) 0!important;border-top:1px solid #d8d1c8}
+body.blackberry-house #journal .newsletter-box{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(300px,470px)!important;align-items:center!important;gap:clamp(35px,6vw,100px)!important;text-align:left!important;max-width:1280px;margin:0 auto}
+body.blackberry-house #journal .newsletter-heading h2{font:400 clamp(45px,5.5vw,78px)/1.02 Georgia,serif!important;letter-spacing:-.055em;color:#262421!important;margin:20px 0!important}
+body.blackberry-house #journal .newsletter-heading h2 em{font-weight:400}
+body.blackberry-house #journal .newsletter-heading>p:last-child{font-size:15px;line-height:1.75;color:#645e57;max-width:450px}
+body.blackberry-house #journal .newsletter-form{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:15px 12px!important;width:100%!important;max-width:none!important;margin:0!important;align-items:center!important}
+body.blackberry-house #journal .newsletter-form>label.sr-only{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
+body.blackberry-house #journal .newsletter-form>#email{grid-column:1!important;grid-row:1!important;box-sizing:border-box!important;display:block!important;width:100%!important;min-width:0!important;height:56px!important;min-height:56px!important;padding:0 18px!important;border:1px solid #b8aea2!important;border-radius:0!important;background:#fffdfa!important;color:#262421!important;font-size:15px!important;flex:none!important}
+body.blackberry-house #journal .newsletter-form>button[type=submit]{grid-column:2!important;grid-row:1!important;box-sizing:border-box!important;min-height:56px!important;height:56px!important;padding:0 22px!important;white-space:nowrap!important;border-radius:0!important;width:auto!important;align-self:stretch!important}
+body.blackberry-house #journal .newsletter-form>label.small-print{grid-column:1/-1!important;grid-row:2!important;display:flex!important;align-items:flex-start!important;justify-content:flex-start!important;gap:10px!important;font-size:12px!important;line-height:1.5!important;text-align:left!important;margin:0!important;color:#5e5952!important}
+body.blackberry-house #journal .newsletter-form>#newsletter-message{grid-column:1/-1!important;grid-row:3!important;margin:0!important;min-height:0!important}
+body.blackberry-house #journal .newsletter-form #newsletter-consent{appearance:auto!important;display:block!important;flex:0 0 17px!important;width:17px!important;height:17px!important;min-height:17px!important;margin:0!important;padding:0!important;accent-color:#262421!important}
+@media(max-width:850px){body.blackberry-house #journal .newsletter-box{grid-template-columns:minmax(0,1fr)!important;gap:28px!important}body.blackberry-house #journal .newsletter-form{max-width:600px!important}}
+@media(max-width:440px){body.blackberry-house #journal .newsletter-form{grid-template-columns:minmax(0,1fr)!important}body.blackberry-house #journal .newsletter-form>#email{grid-column:1!important;grid-row:1!important}body.blackberry-house #journal .newsletter-form>button[type=submit]{grid-column:1!important;grid-row:2!important;width:100%!important}body.blackberry-house #journal .newsletter-form>label.small-print{grid-row:3!important}body.blackberry-house #journal .newsletter-form>#newsletter-message{grid-row:4!important}}

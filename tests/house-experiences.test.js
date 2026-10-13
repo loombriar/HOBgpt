@@ -27,7 +27,8 @@ test('studio ownership, catalog-grounded styling, try-on consent and private ima
     assert.equal((await tryon('false')).status,422);assert.equal((await tryon('true','missing')).status,404);assert.equal((await tryon('true','piece',Buffer.from('invalid'))).status,422);assert.equal(calls,1);
     for(let i=0;i<3;i++){const result=await tryon('true');assert.equal(result.status,200);assert.match((await result.json()).image,/^data:image\/webp;base64,/);}
     assert.equal(receivedImages,2);assert.equal((await tryon('true')).status,429);assert.equal(calls,4);
-    assert.deepEqual(fs.readdirSync(path.join(dir,'images')),['fixture.webp']);
+    assert.deepEqual(fs.readdirSync(path.join(dir,'images')).filter(name=>name!=='.incoming'),['fixture.webp']);
+    assert.deepEqual(fs.readdirSync(path.join(dir,'images','.incoming')),[]);
     ctx.db.prepare("UPDATE listings SET status='draft' WHERE id='piece'").run();assert.equal((await tryon('true')).status,404);
   }finally{await new Promise(r=>server.close(r));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });

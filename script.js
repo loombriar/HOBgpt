@@ -17,6 +17,7 @@ const FAVORITE_KEY = 'house-of-briar:favorites';
 const ANALYTICS_SESSION_KEY = 'house-of-briar:analytics-session';
 
 function trackStorefrontPageView() {
+  if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
   if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) return;
   let sessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
   if (!sessionId) {
@@ -172,6 +173,22 @@ function setGiftWrapIds(ids){localStorage.setItem(GIFT_WRAP_KEY,JSON.stringify([
 function setCartIds(ids) {
   localStorage.setItem(CART_KEY, JSON.stringify([...new Set(ids)]));
   updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
+}
+
+function clearCustomerCart() {
+  localStorage.removeItem(CART_KEY);
+  localStorage.removeItem(GIFT_WRAP_KEY);
+  localStorage.removeItem('house-of-briar:checkout-pending');
+  for (const id of Object.keys(cartGiftNotes)) delete cartGiftNotes[id];
+  cartShippingQuote = null;
+  cartShippingKey = '';
+  ++cartShippingSequence;
+  if (checkoutButton) checkoutButton.disabled = true;
+  cartItems?.replaceChildren();
+  cartDialog?.close();
+  updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
 }
 
 function updateCartButton() {
@@ -374,12 +391,11 @@ function openCart() {
   } else {
     if (checkoutButton) checkoutButton.disabled = true;
     ids.forEach((id) => {
-      const item = galleryItems.find((entry) => entry.id === id);
-      if (!item) return;
+      const item = galleryItems.find((entry) => entry.id === id) || { id, title: 'Saved piece outside the current collection' };
       const row = makeElement('div', 'designer-product');
       const copy = makeElement('div');
       copy.appendChild(makeElement('strong', '', item.title));
-      copy.appendChild(makeElement('p', 'price', `${Number(item.price || 0).toFixed(2)}`));
+      if (item.price != null) copy.appendChild(makeElement('p', 'price', `${Number(item.price).toFixed(2)}`));
       if(item.giftNoteAvailable){const label=makeElement('label','','Free gift note');const input=document.createElement('textarea');input.maxLength=500;input.value=cartGiftNotes[item.id]||'';input.placeholder='Optional message for the gift recipient';input.addEventListener('input',()=>{cartGiftNotes[item.id]=input.value;});label.append(input);copy.append(label);}
       if (item.giftWrapAvailable) {
         const wrapLabel=makeElement('label','cart-gift-wrap');
@@ -388,7 +404,7 @@ function openCart() {
         wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);openCart();});
         wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
       }
-      const remove = makeElement('button', 'text-button', 'Remove from Cart');
+      const remove = makeElement('button', 'text-button cart-remove-button', 'Remove from Cart');
       remove.type = 'button';
       remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
       row.append(copy, remove);
@@ -472,7 +488,9 @@ function formatBytes(bytes) {
 function categoryLabel(category) {
   return {
     apparel: 'Clothing',
-    menswear: 'Menswear',
+    menswear: 'Masculine',
+    womenswear: 'Womenswear',
+    unisex: 'Unisex',
     other: 'Other'
   }[category] || 'Other';
 }
@@ -684,45 +702,77 @@ byId('photo-lightbox')?.addEventListener('click', (event) => {
 });
 
 const MEASUREMENT_PROFILES_KEY = 'house-of-briar:measurement-profiles';
-function loadMeasurementProfiles(){try{const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[];}catch{return[];}}
-function saveMeasurementProfiles(rows){localStorage.setItem(MEASUREMENT_PROFILES_KEY,JSON.stringify(rows));}
-function measurementAvatar(profile = {}) {
-  const number = (key, fallback) => { const raw = String(profile[key] || '').trim(); const value = /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) : NaN; return value > 0 && Number.isFinite(value) ? value : fallback; };
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const height = number('height', 67), scale = clamp(67 / height, .7, 1.35);
-  const b = clamp(number('bust', 36) * scale, 22, 55), w = clamp(number('waist', 30) * scale, 18, 53), h = clamp(number('hips', 39) * scale, 23, 59);
-  const path = `M72 48 L88 48 Q92 55 ${80+b*.85} 61 Q${80+b+4} 75 ${80+b} 87 C${80+b} 98 ${80+w} 107 ${80+w} 119 C${80+w} 132 ${80+h} 138 ${80+h} 154 Q${80+h} 176 80 180 Q${80-h} 176 ${80-h} 154 C${80-h} 138 ${80-w} 132 ${80-w} 119 C${80-w} 107 ${80-b} 98 ${80-b} 87 Q${80-b-4} 75 ${80-b*.85} 61 Q68 55 72 48 Z`;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 160 250'); svg.classList.add('measurement-avatar'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `Stylized measurement mannequin for ${profile.label || 'your profile'}`);
-  svg.innerHTML = `<ellipse cx="80" cy="235" rx="54" ry="9" fill="#e7eee0"/><path d="M80 177v47m-24 10h48m-24-10-16 10m16-10 16 10" stroke="#b29453" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="80" cy="28" r="14" fill="#f7e7d0" stroke="#a4864d" stroke-width="2"/><path d="M75 41v7h10v-7" fill="#f7e7d0" stroke="#a4864d" stroke-width="2"/><path d="${path}" fill="#bad5c0" stroke="#a4864d" stroke-width="2"/><path d="M80 52v123" stroke="#f7f2df" stroke-width="1.5" stroke-dasharray="3 4"/><path d="M${80-w} 117Q80 125 ${80+w} 117" fill="none" stroke="#e6a099" stroke-width="8"/><path d="M${80-w} 117Q80 125 ${80+w} 117" fill="none" stroke="#a4864d" stroke-width="1" stroke-dasharray="1 7"/><path d="M76 73q4-7 8 0 8-3 5 4l-9 8-9-8q-3-7 5-4" fill="#e6a099"/>`;
-  return svg;
+let accountMeasurementProfiles = [];
+let measurementAccountActive = false;
+let measurementProfilesReady = false;
+let measurementRefreshVersion = 0;
+function loadMeasurementProfiles(){
+  if (measurementAccountActive) return accountMeasurementProfiles;
+  try { const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[]; } catch { return []; }
 }
-function updateMeasurementAvatarPreview() {
-  const host = byId('measurement-avatar-preview'); if (!host) return;
-  const profile = { label: byId('measurement-profile-name')?.value || 'New profile' };
-  for (const key of ['bust','waist','hips','height']) profile[key] = byId(`measurement-profile-${key}`)?.value || '';
-  host.replaceChildren(measurementAvatar(profile));
-}
-function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>{const rows=loadMeasurementProfiles().filter(item=>item.id!==p.id);saveMeasurementProfiles(rows);renderMeasurementProfiles();});row.append(measurementAvatar(p),info,remove);list.appendChild(row);});}
-byId('measurement-profile-form')?.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const label = byId('measurement-profile-name')?.value.trim();
-  if (!label) return;
-  const rows = loadMeasurementProfiles();
-  rows.push({
-    id: crypto.randomUUID(),
-    label,
-    bust: byId('measurement-profile-bust')?.value || '',
-    waist: byId('measurement-profile-waist')?.value || '',
-    hips: byId('measurement-profile-hips')?.value || '',
-    height: byId('measurement-profile-height')?.value || '',
-    inseam: byId('measurement-profile-inseam')?.value || '',
-    notes: byId('measurement-profile-notes')?.value || ''
-  });
-  saveMeasurementProfiles(rows);
+function updateMeasurementProfiles(rows) {
+  accountMeasurementProfiles = rows;
   renderMeasurementProfiles();
-  byId('measurement-profile-form')?.reset();
-  updateMeasurementAvatarPreview();
-  setMessage(byId('measurement-profile-message'), 'Measurement profile saved.', 'success');
+  refreshShopFitProfiles();
+}
+async function refreshMeasurementProfiles(signedIn) {
+  const version = ++measurementRefreshVersion;
+  measurementAccountActive = signedIn;
+  measurementProfilesReady = false;
+  updateMeasurementProfiles([]);
+  if (!signedIn) {
+    setMessage(byId('measurement-profile-message'), 'Sign in to save new profiles securely in your account. Older browser profiles stay on this device.', '');
+    return;
+  }
+  try {
+    const data = await apiRequest('/api/customer/measurements', {cache:'no-store'});
+    if (version !== measurementRefreshVersion) return;
+    measurementProfilesReady = true;
+    updateMeasurementProfiles(data.profiles);
+    setMessage(byId('measurement-profile-message'), '', '');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  }
+}
+async function removeMeasurementProfile(profile, button) {
+  button.disabled = true;
+  const version = measurementRefreshVersion;
+  try {
+    if (measurementAccountActive) {
+      await apiRequest('/api/customer/measurements/' + encodeURIComponent(profile.id), {method:'DELETE'});
+      if (version !== measurementRefreshVersion) return;
+      updateMeasurementProfiles(accountMeasurementProfiles.filter(item => item.id !== profile.id));
+    } else {
+      localStorage.setItem(MEASUREMENT_PROFILES_KEY, JSON.stringify(loadMeasurementProfiles().filter(item => item.id !== profile.id)));
+      renderMeasurementProfiles();
+      refreshShopFitProfiles();
+    }
+  } catch (error) { setMessage(byId('measurement-profile-message'), error.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
+function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>void removeMeasurementProfile(p, remove));row.append(info,remove);list.appendChild(row);});}
+byId('measurement-profile-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  if (!measurementAccountActive || !measurementProfilesReady) {
+    setMessage(byId('measurement-profile-message'), measurementAccountActive ? 'Wait for your saved profiles to load, or sign in again.' : 'Sign in to save measurements securely in your account.', 'error');
+    return;
+  }
+  const version = measurementRefreshVersion;
+  const profile = {label:byId('measurement-profile-name').value.trim(), notes:byId('measurement-profile-notes').value};
+  for (const key of ['bust','waist','hips','height','inseam']) profile[key] = byId(`measurement-profile-${key}`).value;
+  button.disabled = true;
+  try {
+    const data = await apiRequest('/api/customer/measurements', {method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
+    if (version !== measurementRefreshVersion) return;
+    updateMeasurementProfiles([...accountMeasurementProfiles, data.profile]);
+    form.reset();
+    setMessage(byId('measurement-profile-message'), 'Measurement profile saved securely in your account.', 'success');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  } finally { button.disabled = false; }
 });
 renderMeasurementProfiles();
 
@@ -905,7 +955,7 @@ function openProductDetails(item) {
   if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
   addButton.addEventListener('click', () => addToCart(item));
   copy.appendChild(addButton);
-  if (typeof houseTryOnButton === 'function') copy.appendChild(houseTryOnButton(item));
+  // Photo try-on is temporarily hidden while its visual quality is improved.
   if (images.length > 1) copy.appendChild(makeElement('p', 'small-print', `${images.length} photos · first image is the cover`));
 
   productDetailContent.append(imageGrid, copy);
@@ -1566,11 +1616,22 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
   loadGallery();
 });
 
+// Scroll within open rooms without dragging the storefront behind them to the footer.
+function scrollRoomTarget(target, options = {}) {
+  if (!target) return;
+  const dialog = target.closest('dialog[open]');
+  if (!dialog) { target.scrollIntoView(options); return; }
+  const header = dialog.querySelector('.dialog-header');
+  const inset = header ? header.getBoundingClientRect().height : 0;
+  const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
+  dialog.scrollTo({top:Math.max(0,top),behavior:options.behavior || 'instant'});
+}
+
 byId('header-customer-auth-btn')?.addEventListener('click', () => {
   byId('visitor-suite-btn')?.click();
   requestAnimationFrame(() => {
     const target = customerSignedIn ? byId('customer-signed-in') : byId('customer-signup-email');
-    target?.scrollIntoView({block:'nearest'});
+    scrollRoomTarget(target,{block:'nearest'});
     if (!customerSignedIn) target?.focus({preventScroll:true});
   });
 });
@@ -1622,38 +1683,46 @@ if (designerSignupLink) {
   });
 }
 
-if (designerSignupForm) {
-  designerSignupForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = new FormData(designerSignupForm);
-    const categories = String(form.get('categories') || '').split(',').map((value) => value.trim()).filter(Boolean);
-    if (designerSignupMessage) designerSignupMessage.textContent = 'Joining the House…';
-    try {
-      const response = await fetch('/api/designer-applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: String(form.get('displayName') || '').trim(),
-          brandName: String(form.get('brandName') || '').trim(),
-          email: String(form.get('email') || '').trim(),
-          categories,
-          sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on',
-          sellerTermsVersion: '2026-10-08-free-delivery'
-        })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Designer sign up could not be completed.');
-      designerSignupForm.reset();
-      if (!payload.accessToken) throw new Error('Your profile was created, but studio access could not be started.');
-      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Opening your Designer dashboard…';
-      await signIn(payload.accessToken);
-      byId('designer-welcome')?.classList.remove('hidden');
-      requestAnimationFrame(() => byId('designer-welcome')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-    } catch (error) {
-      if (designerSignupMessage) designerSignupMessage.textContent = error instanceof Error ? error.message : 'Designer sign up could not be completed.';
-    }
-  });
+let designerEmailRequest='';
+async function requestDesignerCode(endpoint,body) {
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error?.message||'The email code could not be sent.');
+  designerEmailRequest=payload.requestId;
+  byId('designer-code-form').hidden=false;
+  byId('designer-email-login-form').hidden=true;
+  if(designerSignupForm)designerSignupForm.hidden=true;
+  setMessage(designerAuthMessage,payload.message,'success');
+  byId('designer-signin-code').focus();
 }
+byId('designer-email-login-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{await requestDesignerCode('/api/designer/signin-code',{email:byId('designer-login-email').value});}
+  catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+byId('designer-code-back')?.addEventListener('click',()=>{
+  designerEmailRequest='';byId('designer-signin-code').value='';byId('designer-code-form').hidden=true;
+  byId('designer-email-login-form').hidden=false;if(designerSignupForm)designerSignupForm.hidden=false;
+});
+byId('designer-code-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{
+    const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:designerEmailRequest,code:byId('designer-signin-code').value})});
+    const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error?.message||'Email verification failed.');
+    byId('designer-code-form').hidden=true;designerEmailRequest='';byId('designer-signin-code').value='';
+    designerToken=COOKIE_SESSION_MARKER;await signIn(COOKIE_SESSION_MARKER);
+  }catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+if (designerSignupForm) designerSignupForm.addEventListener('submit',async event=>{
+  event.preventDefault();const form=new FormData(designerSignupForm),button=designerSignupForm.querySelector('button[type="submit"]');if(button)button.disabled=true;
+  try{
+    await requestDesignerCode('/api/designer-applications',{
+      displayName:String(form.get('displayName')||'').trim(),brandName:String(form.get('brandName')||'').trim(),email:String(form.get('email')||'').trim(),
+      categories:String(form.get('categories')||'').split(',').map(v=>v.trim()).filter(Boolean),sellerTermsAccepted:form.get('sellerTermsAccepted')==='on',sellerTermsVersion:'2026-10-08-free-delivery'
+    });
+    setMessage(designerSignupMessage,'Check your email and enter the code above to finish joining.','success');
+  }catch(error){setMessage(designerSignupMessage,error.message,'error');}finally{if(button)button.disabled=false;}
+});
 
 if (designerLoginBtn) {
   designerLoginBtn.addEventListener('click', () => {
@@ -1874,16 +1943,7 @@ function openAdminReview() {
 }
 
 byId('founder-signup-link')?.addEventListener('click', event => { event.preventDefault(); openDesignerRoom('#designer-signup'); });
-async function loadFounderSpots() {
-  try {
-    const data = await apiRequest('/api/founding-designers');
-    const remaining = Number(data.remaining);
-    if (!Number.isInteger(remaining) || remaining < 0 || remaining > 25) return;
-    if (byId('founder-spots')) byId('founder-spots').textContent = remaining ? `${remaining} of 25 founding spots remain. All designers are welcome.` : 'Our founding 25 are here. The House is still open to every independent designer.';
-    if (!remaining && byId('founder-signup-link')) byId('founder-signup-link').textContent = 'Join the House →';
-  } catch {}
-}
-loadFounderSpots();
+
 
 adminReviewBtn?.addEventListener('click', openAdminReview);
 if (window.location.hash === '#admin-review') openAdminReview();
@@ -1961,7 +2021,7 @@ async function renderAdminOverview() {
           card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label));
           stats.append(card);
         }
-        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Product views appear separately in each designer’s studio.'));
+        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Duplicate events are excluded, and traffic may be sampled during busy periods. Product views appear separately in each designer’s studio.'));
         if (Array.isArray(data.traffic.daily)) {
           section.append(makeElement('h4', '', 'Daily counts'));
           const table = makeElement('table', 'admin-traffic-table'); table.id = 'admin-daily-traffic';
@@ -2202,8 +2262,6 @@ document.addEventListener('keydown', event => {
   if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) unrollDropdownTape(event.target);
 });
 
-byId('measurement-profile-form')?.addEventListener('input', updateMeasurementAvatarPreview);
-updateMeasurementAvatarPreview();
 
 
 function refreshShopFitProfiles() {
@@ -2247,8 +2305,9 @@ async function refreshCustomerAccount() {
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn;
     byId('customer-code-form').hidden=true;
+    await refreshMeasurementProfiles(customerSignedIn);
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
-  }catch{customerSignedIn=false;if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
+  }catch{customerSignedIn=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
 void refreshCustomerAccount();
 byId('customer-signup-form')?.addEventListener('submit',async event=>{
@@ -2267,12 +2326,13 @@ byId('customer-delete-account')?.addEventListener('click',async()=>{
   const button=byId('customer-delete-account');button.disabled=true;
   try{
     await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
-    customerSignedIn=false;await refreshCustomerAccount();
+    clearCustomerCart();
+    customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();
     byId('customer-signup-status').textContent='Your customer account has been deleted.';
   }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}
   finally{button.disabled=false;}
 });
-byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
+byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
 if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
 refreshCustomerAccount();
 
@@ -2284,7 +2344,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
-    target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+    scrollRoomTarget(target,{ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
     target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
   });
@@ -2307,7 +2367,7 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
     const target = byId(button.dataset.customerSection);
     if (!target) return;
     if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
-    target.scrollIntoView({ block: 'center' });
+    scrollRoomTarget(target,{ block: 'center' });
     target.focus({ preventScroll: true });
   });
 });

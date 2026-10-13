@@ -8,7 +8,7 @@ const { createApp } = require('../server');
 
 test('catalog backend composes category filters, sorts and protects unpublished pieces', async () => {
   const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-filter-'));
-  const fixtures=[{id:'dress',designerId:'maker-a',category:'apparel',title:'Floral dress',price:300},{id:'top',designerId:'maker-b',category:'apparel',title:'Velvet top',price:100},{id:'bag',designerId:'maker-a',category:'accessories',title:'Floral bag',price:200},{id:'costume',designerId:'maker-a',category:'costumes',title:'Fairy costume',price:150},{id:'suit',designerId:'maker-b',category:'menswear',title:'Tailored three-piece suit',price:450},{id:'hidden',designerId:'maker-a',category:'apparel',title:'Private draft',price:1}];
+  const fixtures=[{id:'dress',designerId:'maker-a',category:'apparel',title:'Floral dress',price:300},{id:'top',designerId:'maker-b',category:'apparel',title:'Velvet top',price:100},{id:'bag',designerId:'maker-a',category:'accessories',title:'Floral bag',price:200},{id:'costume',designerId:'maker-a',category:'costumes',title:'Fairy costume',price:150},{id:'hidden',designerId:'maker-a',category:'apparel',title:'Private draft',price:1}];
   const context=createApp({dataDir,seedProducts:fixtures});
   require('./helpers/ready-seller')(context.db,'maker-a');
   require('./helpers/ready-seller')(context.db,'maker-b');
@@ -23,12 +23,11 @@ test('catalog backend composes category filters, sorts and protects unpublished 
   try {
     assert.deepEqual(await ids('?style=Dress&pattern=Floral&aesthetic=boho&designer=maker-a'),['dress']);
     assert.deepEqual(await ids('?category=accessories'),['bag']);
-    assert.deepEqual(await ids('?category=menswear'),['suit']);
     assert.deepEqual(await ids('?style=Costume'),['costume']);
     assert.deepEqual(await ids('?category=apparel&sort=low'),['top','dress']);
     assert.deepEqual(await ids('?pattern=Floral&sort=high'),['dress','bag']);
     assert.deepEqual(await ids('?q=velvet'),['top']);
-    assert.deepEqual(await ids('?designer=maker-b'),['suit','top']);
+    assert.deepEqual(await ids('?designer=maker-b'),['top']);
     assert.deepEqual(await ids('?designer=unknown'),[]);
     assert.equal((await fetch(url+'/api/gallery?sort=oops')).status,400);
     assert.equal((await fetch(url+'/api/gallery?style=Dress&style=Top')).status,400);
@@ -37,4 +36,14 @@ test('catalog backend composes category filters, sorts and protects unpublished 
     context.db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='maker-a'").run();
     assert.deepEqual(await ids('?designer=maker-a'),[]);
   } finally {await new Promise(resolve=>server.close(resolve));context.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
+});
+
+test('every public collection accepts designer listings',async()=>{
+ const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'briar-category-create-'));
+ const ctx=createApp({dataDir,seedProducts:[],designerTokens:{seller:'maker'}});
+ const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
+ try{for(const category of ['menswear','womenswear','unisex']){
+  const response=await fetch(`http://127.0.0.1:${server.address().port}/api/listings`,{method:'POST',headers:{Authorization:'Bearer seller','Content-Type':'application/json'},body:JSON.stringify({title:'Tailored piece',price:100,category})});
+  const body=await response.json();assert.equal(response.status,201,JSON.stringify(body));assert.equal(body.item.category,category);
+ }}finally{await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
 });
