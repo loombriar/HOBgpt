@@ -1689,7 +1689,7 @@ async function requestDesignerCode(endpoint,body) {
   byId('designer-email-login-form').hidden=true;
   if(designerSignupForm)designerSignupForm.hidden=true;
   setMessage(designerAuthMessage,payload.message,'success');
-  byId('designer-email-code').focus();
+  byId('designer-signin-code').focus();
 }
 byId('designer-email-login-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
@@ -1697,15 +1697,15 @@ byId('designer-email-login-form')?.addEventListener('submit',async event=>{
   catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
 });
 byId('designer-code-back')?.addEventListener('click',()=>{
-  designerEmailRequest='';byId('designer-email-code').value='';byId('designer-code-form').hidden=true;
+  designerEmailRequest='';byId('designer-signin-code').value='';byId('designer-code-form').hidden=true;
   byId('designer-email-login-form').hidden=false;if(designerSignupForm)designerSignupForm.hidden=false;
 });
 byId('designer-code-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
   try{
-    const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:designerEmailRequest,code:byId('designer-email-code').value})});
+    const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:designerEmailRequest,code:byId('designer-signin-code').value})});
     const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error?.message||'Email verification failed.');
-    byId('designer-code-form').hidden=true;designerEmailRequest='';byId('designer-email-code').value='';
+    byId('designer-code-form').hidden=true;designerEmailRequest='';byId('designer-signin-code').value='';
     designerToken=COOKIE_SESSION_MARKER;await signIn(COOKIE_SESSION_MARKER);
   }catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
 });

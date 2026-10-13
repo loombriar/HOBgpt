@@ -10,10 +10,10 @@ test('mobile designer signup verifies email before opening the room',async({page
   await form.getByLabel('What do you create?',{exact:true}).fill('Clothing');
   await form.locator('input[type=checkbox]').check();
   await form.locator('button[type=submit]').click();
-  await expect(page.locator('#designer-email-code')).toBeVisible();
+  await expect(page.locator('#designer-signin-code')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(401);
   const {code}=await (await request.get('/__test/designer-code?email='+encodeURIComponent(email))).json();
-  await page.locator('#designer-email-code').fill(code);
+  await page.locator('#designer-signin-code').fill(code);
   await page.locator('#designer-code-form button[type=submit]').click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
