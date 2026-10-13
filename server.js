@@ -1242,6 +1242,7 @@ function createApp(options = {}) {
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
   });
+  const imageWork=require('./lib/image-work-controls').createImageWorkControls({db,imagesDir,fail,options:options.imageWork||{}});
   const fabricFinderUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_IMAGE_BYTES, files: 3 }
@@ -1515,7 +1516,7 @@ function createApp(options = {}) {
     try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
   });
 
-  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,stripeApi,trustedAppOrigin,imagesDir,options});
+  const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options});
 
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
 
@@ -2668,7 +2669,7 @@ function createApp(options = {}) {
   require('./support-agent').registerSupportAgent({app,db,authBuyer,fail,rateLimit,options});
   require('./seller-tools').registerSellerTools({app,db,authDesigner,upload,fail,rateLimit,options});
   require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
-  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,moderateDesignerImage,serializeListing,customerListingVisible,options});
+  require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,imageWork,moderateDesignerImage,serializeListing,customerListingVisible,options});
 
   app.get('/api/founding-designers', (_req,res) => {
     const awarded=Number(db.prepare('SELECT COUNT(*) count FROM founding_designers').get().count);
