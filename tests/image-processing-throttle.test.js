@@ -22,6 +22,14 @@ test('portfolio and studio photo uploads are rate-limited before Multer and Shar
     const studio=require('node:fs').readFileSync(path.join(__dirname,'../house-experiences.js'),'utf8');
     assert.match(portfolio,/authBuyer,portfolioImageLimiter,upload\.single\('image'\)/);
     assert.match(studio,/authDesigner,studioPhotoLimiter,upload\.single\('image'\)/);
+    const controls=fs.readFileSync(path.join(__dirname,'../lib/image-work-controls.js'),'utf8');
+    assert.match(controls,/multer\\.diskStorage/);
+    assert.match(controls,/maxActive/);
+    assert.match(controls,/maxGlobal/);
+    assert.match(controls,/maxPerAccount/);
+    assert.match(controls,/maxWaiting/);
+    assert.match(controls,/parts:3/);
+    assert.match(controls,/parseTimeoutMs/);
   }finally{
     await new Promise(resolve=>server.close(resolve));
     ctx.analyticsIngest?.close?.();ctx.db.close();
