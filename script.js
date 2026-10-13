@@ -1679,38 +1679,46 @@ if (designerSignupLink) {
   });
 }
 
-if (designerSignupForm) {
-  designerSignupForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = new FormData(designerSignupForm);
-    const categories = String(form.get('categories') || '').split(',').map((value) => value.trim()).filter(Boolean);
-    if (designerSignupMessage) designerSignupMessage.textContent = 'Joining the House…';
-    try {
-      const response = await fetch('/api/designer-applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: String(form.get('displayName') || '').trim(),
-          brandName: String(form.get('brandName') || '').trim(),
-          email: String(form.get('email') || '').trim(),
-          categories,
-          sellerTermsAccepted: form.get('sellerTermsAccepted') === 'on',
-          sellerTermsVersion: '2026-10-08-free-delivery'
-        })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Designer sign up could not be completed.');
-      designerSignupForm.reset();
-      if (!payload.accessToken) throw new Error('Your profile was created, but studio access could not be started.');
-      if (designerSignupMessage) designerSignupMessage.textContent = 'Welcome to House of Briar. Opening your Designer dashboard…';
-      await signIn(payload.accessToken);
-      byId('designer-welcome')?.classList.remove('hidden');
-      requestAnimationFrame(() => byId('designer-welcome')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-    } catch (error) {
-      if (designerSignupMessage) designerSignupMessage.textContent = error instanceof Error ? error.message : 'Designer sign up could not be completed.';
-    }
-  });
+let designerEmailRequest='';
+async function requestDesignerCode(endpoint,body) {
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error?.message||'The email code could not be sent.');
+  designerEmailRequest=payload.requestId;
+  byId('designer-code-form').hidden=false;
+  byId('designer-email-login-form').hidden=true;
+  if(designerSignupForm)designerSignupForm.hidden=true;
+  setMessage(designerAuthMessage,payload.message,'success');
+  byId('designer-signin-code').focus();
 }
+byId('designer-email-login-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{await requestDesignerCode('/api/designer/signin-code',{email:byId('designer-login-email').value});}
+  catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+byId('designer-code-back')?.addEventListener('click',()=>{
+  designerEmailRequest='';byId('designer-signin-code').value='';byId('designer-code-form').hidden=true;
+  byId('designer-email-login-form').hidden=false;if(designerSignupForm)designerSignupForm.hidden=false;
+});
+byId('designer-code-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{
+    const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:designerEmailRequest,code:byId('designer-signin-code').value})});
+    const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error?.message||'Email verification failed.');
+    byId('designer-code-form').hidden=true;designerEmailRequest='';byId('designer-signin-code').value='';
+    designerToken=COOKIE_SESSION_MARKER;await signIn(COOKIE_SESSION_MARKER);
+  }catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+if (designerSignupForm) designerSignupForm.addEventListener('submit',async event=>{
+  event.preventDefault();const form=new FormData(designerSignupForm),button=designerSignupForm.querySelector('button[type="submit"]');if(button)button.disabled=true;
+  try{
+    await requestDesignerCode('/api/designer-applications',{
+      displayName:String(form.get('displayName')||'').trim(),brandName:String(form.get('brandName')||'').trim(),email:String(form.get('email')||'').trim(),
+      categories:String(form.get('categories')||'').split(',').map(v=>v.trim()).filter(Boolean),sellerTermsAccepted:form.get('sellerTermsAccepted')==='on',sellerTermsVersion:'2026-10-08-free-delivery'
+    });
+    setMessage(designerSignupMessage,'Check your email and enter the code above to finish joining.','success');
+  }catch(error){setMessage(designerSignupMessage,error.message,'error');}finally{if(button)button.disabled=false;}
+});
 
 if (designerLoginBtn) {
   designerLoginBtn.addEventListener('click', () => {

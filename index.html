@@ -394,12 +394,25 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       <section id="designer-login-panel" class="login-panel">
         <h3>Returning designer? Sign in</h3>
         <p>Enter your existing designer access token. This is <strong>not a password you create</strong> — House of Briar provides it when your designer account is created. New designer? Skip this token field and use the Create designer account form below.</p>
+        <form id="designer-email-login-form" class="stack-form">
+          <label for="designer-login-email">Designer email</label>
+          <input id="designer-login-email" type="email" autocomplete="email" required />
+          <button class="primary-button" type="submit">Email me a sign-in code</button>
+        </form>
+        <form id="designer-code-form" class="stack-form" hidden>
+          <label for="designer-signin-code">Six-digit code from your email</label>
+          <input id="designer-signin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+          <button class="primary-button" type="submit">Verify email and open my room</button>
+          <button id="designer-code-back" type="button" class="secondary-button">Use another email or request a new code</button>
+        </form>
+        <details><summary>Have an older access token?</summary>
         <form id="designer-login-form" class="stack-form">
           <label for="designer-token">Designer access token</label>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="designer-token" name="token" type="password" autocomplete="off" aria-describedby="designer-token-help" required /><button type="button" class="secondary-button" aria-controls="designer-token" aria-pressed="false">Show password</button></div>
-          <p id="designer-token-help" class="small-print">Do not enter your email or a new password here. If you have lost your token, contact House of Briar support for help accessing your account.</p>
+          <p id="designer-token-help" class="small-print">Do not enter your email or a new password here. Use email sign-in above if your token has expired or you have lost it.</p>
           <button class="primary-button" type="submit">Sign in with access token</button>
         </form>
+        </details>
         <p id="designer-auth-message" class="form-message" role="status" aria-live="polite"></p>
         <div id="designer-signup" class="designer-signup-panel">
           <p class="eyebrow">New to the House?</p>

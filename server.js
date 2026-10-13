@@ -411,9 +411,18 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL, accepted_at TEXT, FOREIGN KEY(inquiry_id) REFERENCES listing_inquiries(id)
   )`);
   recordMigration(7, 'seller_commerce_controls');
+  db.exec(`CREATE TABLE IF NOT EXISTS promo_code_reservations (
+    promo_code_id TEXT NOT NULL REFERENCES designer_promo_codes(id),
+    order_id TEXT NOT NULL REFERENCES orders(id),
+    status TEXT NOT NULL CHECK(status IN ('reserved','redeemed','released')),
+    created_at TEXT NOT NULL, UNIQUE(promo_code_id,order_id)
+  ); CREATE INDEX IF NOT EXISTS promo_reservation_capacity ON promo_code_reservations(promo_code_id,status)`);
   ensureColumn('orders','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','discount_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','promo_code_id','TEXT');
+  db.prepare(`INSERT OR IGNORE INTO promo_code_reservations(promo_code_id,order_id,status,created_at)
+    SELECT DISTINCT oi.promo_code_id,o.id,'reserved',o.created_at FROM order_items oi JOIN orders o ON o.id=oi.order_id
+    JOIN designer_promo_codes p ON p.id=oi.promo_code_id WHERE o.status='pending'`).run();
   ensureColumn('order_items','gift_wrap_selected','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('order_items','gift_wrap_cents','INTEGER NOT NULL DEFAULT 0');
   ensureColumn('designer_transfers','refunded_cents','INTEGER NOT NULL DEFAULT 0');
@@ -432,6 +441,11 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_access_tokens_designer ON designer_access_tokens(designer_id)');
+  ensureColumn('designer_access_tokens','expires_at','TEXT');
+  ensureColumn('designer_access_tokens','revoked_at','TEXT');
+  ensureColumn('designer_profiles','email_verified_at','TEXT');
+  ensureColumn('designer_profiles','bearer_disabled_at','TEXT');
+  db.prepare("UPDATE designer_access_tokens SET expires_at=strftime('%Y-%m-%dT%H:%M:%fZ',created_at,'+30 days') WHERE expires_at IS NULL").run();
   db.exec(`CREATE TABLE IF NOT EXISTS designer_sessions (
     session_hash TEXT PRIMARY KEY,
     designer_id TEXT NOT NULL,
@@ -916,13 +930,14 @@ function createApp(options = {}) {
       return session?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
     }
     const hash=crypto.createHash('sha256').update(token).digest('hex');
-    const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND p.status='active'").get(hash);
+    const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL AND p.status='active'").get(hash,new Date().toISOString());
     const configured=Object.entries(designerTokens).find(([key])=>safeEqual(token,key))?.[1];
     const id=access?.designer_id||configured;
     if(id){
-      const designer=db.prepare("SELECT id,email FROM designer_profiles WHERE id=? AND status='active'").get(id);
+      const designer=db.prepare("SELECT id,email FROM designer_profiles WHERE id=? AND status='active' AND bearer_disabled_at IS NULL").get(id);
       return designer ? {sub:designerBadgeSubject(id),email:designer.email,designerId:id} : null;
     }
+    if(db.prepare('SELECT 1 FROM designer_access_tokens WHERE token_hash=?').get(hash))return null;
     return resolveDesignerIdentity(req,token);
   }
 
@@ -1000,17 +1015,20 @@ function createApp(options = {}) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
     const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
-    const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=?").get(tokenHash);
+    const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL").get(tokenHash,new Date().toISOString());
     if(issued){
       if(issued.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
       req.designerId=issued.designer_id;
       return next();
     }
 
+    if(db.prepare('SELECT 1 FROM designer_access_tokens WHERE token_hash=?').get(tokenHash))return fail(res,401,'unauthorized','Verify your email to sign in.');
+
     for (const [configuredToken, designerId] of Object.entries(designerTokens)) {
       if (safeEqual(token, configuredToken) && typeof designerId === 'string' && designerId.trim()) {
         const legacyDesignerId = designerId.trim();
-        const profile = db.prepare('SELECT status FROM designer_profiles WHERE id = ?').get(legacyDesignerId);
+        const profile = db.prepare('SELECT status,bearer_disabled_at FROM designer_profiles WHERE id = ?').get(legacyDesignerId);
+        if (!profile || profile.bearer_disabled_at) return fail(res,401,'unauthorized','Verify your email to sign in.');
         if (profile && profile.status !== 'active') return fail(res, 403, 'designer_inactive', 'This designer profile is not active.');
         req.designerId = legacyDesignerId;
         return next();
@@ -1406,7 +1424,7 @@ function createApp(options = {}) {
       if (event.type === 'checkout.session.expired') {
         const session = event.data?.object;
         const orderId = session?.metadata?.order_id;
-        if (orderId) releaseOrderInventory(orderId);
+        if (orderId && db.prepare('SELECT 1 FROM orders WHERE id=? AND stripe_session_id=?').get(orderId,session.id)) releaseOrderInventory(orderId);
       }
       if (event.type === 'checkout.session.async_payment_failed') {
         const session = event.data?.object;
@@ -1486,6 +1504,13 @@ function createApp(options = {}) {
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(customerRouter);
+  const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
+  const reconcileSpecialDeposits=()=>specialDepositReview.reconcile();
+  app.get('/api/admin/special-deposits',authAdmin,(_req,res)=>res.json({offers:specialDepositReview.report()}));
+  app.post('/api/admin/special-deposits/reconcile',authAdmin,rateLimit({windowMs:60000,max:2,keyPrefix:'special-deposit-review'}),async(_req,res,next)=>{
+    try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
+  });
+
   const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,stripeApi,trustedAppOrigin,imagesDir,options});
 
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
@@ -1554,31 +1579,11 @@ function createApp(options = {}) {
     return res.json({inquiry:{id:inquiry.id,availabilityStatus:status,respondedAt:now}});
   });
 
-  app.post('/api/designer-applications', signupLimiter, (req, res) => {
-    const email=String(req.body?.email||'').trim().toLowerCase();
-    const displayName=String(req.body?.displayName||'').trim();
-    const brandName=String(req.body?.brandName||'').trim();
-    const categories=Array.isArray(req.body?.categories)?[...new Set(req.body.categories.map(value=>String(value).trim()).filter(Boolean))]:[];
-    const sellerTermsAccepted=req.body?.sellerTermsAccepted===true;
-
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!displayName||displayName.length>100||!brandName||brandName.length>120||categories.length<1||categories.length>12||categories.some(value=>value.length>80)){
-      return fail(res,422,'validation_error','Add your name, designer or brand name, email, and what you create.');
-    }
-    if(!sellerTermsAccepted || req.body?.sellerTermsVersion!==SELLER_TERMS_VERSION)return fail(res,422,'seller_terms_required','Read and agree to the current House of Briar Seller Terms before joining.');
-
-    const existingProfile=db.prepare("SELECT id,email,display_name,brand_name,status,logo_storage_key FROM designer_profiles WHERE lower(email)=?").get(email);
-    if(existingProfile)return res.status(409).json({error:{code:'designer_exists',message:'A designer account already exists for this email.'},designer:{id:existingProfile.id,status:existingProfile.status}});
-
-    const existing=db.prepare("SELECT id,status,designer_id FROM designer_applications WHERE email=?").get(email);
-    if(existing)return res.status(409).json({error:{code:'signup_exists',message:'Designer sign up is already complete for this email.'},signup:{id:existing.id,status:existing.status,designerId:existing.designer_id}});
-
+  function completeDesignerSignup({email,displayName,brandName,categories}) {
     const id=makeId(),designerId='designer-'+makeId(),now=new Date().toISOString();
-    const accessToken='hob_'+crypto.randomBytes(32).toString('base64url');
-    const accessTokenHash=crypto.createHash('sha256').update(accessToken).digest('hex');
     db.transaction(()=>{
       db.prepare("INSERT INTO designer_applications (id,email,display_name,brand_name,portfolio_url,statement,status,designer_id,created_at,reviewed_at,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted) VALUES (?,?,?,?,NULL,'','approved',?,?,?,NULL,NULL,?,NULL,NULL,1,1)").run(id,email,displayName,brandName,designerId,now,now,JSON.stringify(categories));
       db.prepare("INSERT INTO designer_profiles (id,email,display_name,brand_name,application_id,status,created_at,bio,location,production_method,categories,portfolio_url,social_url) VALUES (?,?,?,?,?,'active',?,NULL,NULL,NULL,?,NULL,NULL)").run(designerId,email,displayName,brandName,id,now,JSON.stringify(categories));
-      db.prepare("INSERT INTO designer_access_tokens (token_hash,designer_id,created_at) VALUES (?,?,?)").run(accessTokenHash,designerId,now);
       recordSellerTerms(designerId,'signup');
       reconcileFoundingDesigners();
     })();
@@ -1592,8 +1597,9 @@ function createApp(options = {}) {
         eventKey:`designer-signup:${id}`
       });
     }
-    return res.status(201).json({signup:{id,status:'complete'},designer:{id:designerId,email,displayName,brandName,status:'active',stripeConnected:false},accessToken});
-  });
+    return db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(designerId);
+  }
+  require('./designer-auth').registerDesignerAuth({app,db,fail,rateLimit,trustedAppOrigin,deliverEmail,completeSignup:completeDesignerSignup,issueSession:issueDesignerSession,termsVersion:SELLER_TERMS_VERSION});
 
   app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
     const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
@@ -1742,13 +1748,16 @@ function createApp(options = {}) {
           WHERE ec.designer_id=? AND ec.token_hash=? AND ec.expires_at>? AND p.status='active' AND p.email=ec.current_email`).get(req.designerId,hash,new Date().toISOString());
         if(!pending)return {error:'invalid_verification'};
         if(db.prepare('SELECT id FROM designer_profiles WHERE lower(email)=? AND id<>?').get(pending.pending_email,req.designerId))return {error:'email_in_use'};
-        db.prepare('UPDATE designer_profiles SET email=? WHERE id=?').run(pending.pending_email,req.designerId);
+        db.prepare('UPDATE designer_profiles SET email=?,email_verified_at=?,bearer_disabled_at=? WHERE id=?').run(pending.pending_email,new Date().toISOString(),new Date().toISOString(),req.designerId);
+        db.prepare('UPDATE designer_access_tokens SET revoked_at=? WHERE designer_id=?').run(new Date().toISOString(),req.designerId);
+        db.prepare('DELETE FROM designer_sessions WHERE designer_id=?').run(req.designerId);
         db.prepare('UPDATE listings SET designer_email=? WHERE designer_id=?').run(pending.pending_email,req.designerId);
         // Subject mappings and their provider email remain sign-in evidence, not contact settings.
         db.prepare('DELETE FROM designer_email_changes WHERE designer_id=?').run(req.designerId);
         return {email:pending.pending_email};
       }).immediate();
       if(verified.error)return fail(res,verified.error==='email_in_use'?409:422,verified.error,verified.error==='email_in_use'?'That email is already used by another designer.':'This code is invalid, expired, or already used. Request a new email change.');
+      issueDesignerSession(req,res,req.designerId);
       return res.json({ok:true,email:verified.email});
     } catch(error){return next(error);}
   });
@@ -1930,7 +1939,7 @@ function createApp(options = {}) {
   async function stripeApi(pathname, requestOptions = {}) {
     if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
-    if (!secret) throw new Error('STRIPE_SECRET_KEY is not configured.');
+    if (!secret) throw Object.assign(new Error('STRIPE_SECRET_KEY is not configured.'),{checkoutNotCreated:true});
     const response = await fetch(`https://api.stripe.com/${pathname.startsWith('v2/')?'':'v1/'}${pathname}`, {
       method: requestOptions.method || 'GET',
       headers: {
@@ -1944,7 +1953,7 @@ function createApp(options = {}) {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       log('error','stripe_api_failed',{pathname,status:response.status,providerCode:String(payload?.error?.code||'').slice(0,80),providerMessage:String(payload?.error?.message||'').slice(0,300)});
-      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerCode:String(payload?.error?.code||'').slice(0,80)});
+      throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerStatus:response.status,providerCode:String(payload?.error?.code||'').slice(0,80)});
     }
     return payload;
   }
@@ -2111,6 +2120,15 @@ function createApp(options = {}) {
         AND order_id IN (SELECT id FROM orders WHERE status IN ('canceled','failed'))`).run();
   }
 
+  function reservePromotions(orderId,items,now) {
+    for(const id of new Set(items.map(item=>item.promoCodeId).filter(Boolean))){
+      const promo=db.prepare('SELECT * FROM designer_promo_codes WHERE id=?').get(id);
+      const held=db.prepare("SELECT COUNT(*) n FROM promo_code_reservations WHERE promo_code_id=? AND status='reserved'").get(id).n;
+      if(!promo||!promo.active||(promo.starts_at&&promo.starts_at>now)||(promo.ends_at&&promo.ends_at<now)||(promo.max_uses!==null&&promo.use_count+held>=promo.max_uses))throw Object.assign(new Error('This promotion is no longer available. Review your cart and try again.'),{statusCode:409});
+      db.prepare("INSERT INTO promo_code_reservations VALUES (?,?,'reserved',?)").run(id,orderId,now);
+    }
+  }
+
   function reserveInventory(orderId, items, now) {
     releaseExpiredInventoryReservations();
     const expiresAt = new Date(new Date(now).getTime() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000).toISOString();
@@ -2148,7 +2166,8 @@ function createApp(options = {}) {
     }
   }
   db.prepare("DELETE FROM analytics_events WHERE event_name='purchase' AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.status='paid' AND (o.id=analytics_events.order_id OR o.stripe_session_id=analytics_events.order_id))").run();
-  for(const order of db.prepare("SELECT id FROM orders WHERE status='paid'").all())recordPurchaseAnalytics(order.id);
+  // Finish any payment accounting interrupted between paid state and the ledger transaction.
+  for(const order of db.prepare("SELECT id FROM orders WHERE status='paid'").all())markOrderInventorySold(order.id);
 
   function markOrderInventorySold(orderId) {
     db.transaction(() => {
@@ -2162,6 +2181,7 @@ function createApp(options = {}) {
         const stats=db.prepare(`SELECT promo_code_id,SUM(discount_cents) discount_cents,SUM(line_total_cents) revenue_cents FROM order_items WHERE order_id=? AND promo_code_id IS NOT NULL GROUP BY promo_code_id`).all(orderId);
         for(const stat of stats)db.prepare('UPDATE designer_promo_codes SET use_count=use_count+1,revenue_cents=revenue_cents+?,discount_cents=discount_cents+? WHERE id=?').run(stat.revenue_cents,stat.discount_cents,stat.promo_code_id);
       }
+      db.prepare("UPDATE promo_code_reservations SET status='redeemed' WHERE order_id=? AND status='reserved'").run(orderId);
       recordPurchaseAnalytics(orderId);
       const sold=db.prepare(`SELECT l.* FROM inventory_reservations r JOIN listings l ON l.id=r.listing_id
         WHERE r.order_id=? AND r.status='reserved'`).all(orderId);
@@ -2173,11 +2193,12 @@ function createApp(options = {}) {
     }).immediate();
   }
 
-  function releaseOrderInventory(orderId) {
+  function releaseOrderInventory(orderId, releasePromo=true) {
     const order = db.prepare('SELECT status FROM orders WHERE id = ?').get(orderId);
     if (!order || order.status === 'paid') return false;
     db.transaction(() => {
       db.prepare("UPDATE inventory_reservations SET status = 'released' WHERE order_id = ? AND status = 'reserved'").run(orderId);
+      if(releasePromo)db.prepare("UPDATE promo_code_reservations SET status='released' WHERE order_id=? AND status='reserved'").run(orderId);
       db.prepare("UPDATE orders SET status = 'canceled' WHERE id = ? AND status = 'pending'").run(orderId);
     })();
     return true;
@@ -2315,7 +2336,7 @@ function createApp(options = {}) {
       for(const code of requestedCodes){
         const promo=db.prepare(`SELECT * FROM designer_promo_codes WHERE designer_id=? AND code=? AND active=1
           AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?)
-          AND (max_uses IS NULL OR use_count<max_uses)`).get(listing.designer_id,code,new Date().toISOString(),new Date().toISOString());
+          AND (max_uses IS NULL OR use_count+(SELECT COUNT(*) FROM promo_code_reservations r WHERE r.promo_code_id=designer_promo_codes.id AND r.status='reserved')<max_uses)`).get(listing.designer_id,code,new Date().toISOString(),new Date().toISOString());
         if(!promo)continue;
         const amount=promo.discount_type==='percent'?Math.floor(grossCents*promo.discount_value/100):Math.min(grossCents,promo.discount_value);
         if(amount>discountCents){discountCents=amount;promoCodeId=promo.id;promoCode=promo.code;}
@@ -2444,12 +2465,13 @@ function createApp(options = {}) {
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
         db.prepare('UPDATE orders SET shipping_cents=?,shipping_required=1 WHERE id=?').run(quote.shippingCents,orderId);
+        reservePromotions(orderId, quote.items, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
         for(const item of quote.items)db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents,orderId,item.id);
         for(const item of quote.items)db.prepare('UPDATE order_items SET gift_note=? WHERE order_id=? AND listing_id=?').run(item.giftNote,orderId,item.id);
-      })();
+      }).immediate();
 
       let session;
       try {
@@ -2457,7 +2479,10 @@ function createApp(options = {}) {
         db.prepare('UPDATE orders SET stripe_session_id = ? WHERE id = ?').run(session.id, orderId);
       } catch (error) {
         // Never strand a one-of-a-kind reservation when Stripe cannot create checkout.
-        releaseOrderInventory(orderId);
+        // A lost provider response might still have created a payable session.
+        // Retain promotion capacity for review until Stripe confirms its outcome.
+        const creationRejected=error.checkoutNotCreated===true||[400,401,403,404].includes(error.providerStatus);
+        releaseOrderInventory(orderId,creationRejected);
         throw error;
       }
       return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
@@ -4177,11 +4202,11 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, reviewRequired, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
+  return { app, db, dataDir, imagesDir, reviewRequired, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
+  const { app, db, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, '0.0.0.0', () => console.log(`House of Briar listening on port ${port}`));
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
@@ -4193,6 +4218,9 @@ if (require.main === module) {
   const emailTimer = setInterval(() => { void processEmailOutbox(); }, 60_000);
   emailTimer.unref();
   void reconcilePendingCheckouts();
+  const depositReviewTimer=setInterval(()=>{void reconcileSpecialDeposits().then(summary=>console.log('Special deposit review:',JSON.stringify(summary))).catch(error=>console.error('Special deposit review failed:',error.message));},reconciliationIntervalMs);
+  depositReviewTimer.unref();
+  void reconcileSpecialDeposits().then(summary=>console.log('Special deposit review:',JSON.stringify(summary))).catch(error=>console.error('Special deposit review failed:',error.message));
   void processEmailOutbox();
 
   const backupEnabled = process.env.OFFSITE_BACKUP_ENABLED === 'true';
@@ -4215,7 +4243,7 @@ if (require.main === module) {
   const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
   if (backupTimer) backupTimer.unref();
 
-  const shutdown = () => { clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
+  const shutdown = () => { clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }

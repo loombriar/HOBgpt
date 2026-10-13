@@ -1,0 +1,38 @@
+const {test,expect}=require('@playwright/test');
+test('mobile designer signup verifies email before opening the room',async({page,request})=>{
+  await page.setViewportSize({width:390,height:844});
+  const email=`designer-mobile-${Date.now()}@example.test`;
+  await page.goto('/designers/room#designer-signup');
+  const form=page.locator('#designer-signup-form');
+  await form.getByLabel('Your name',{exact:true}).fill('Mobile Maker');
+  await form.getByLabel('Designer or brand name',{exact:true}).fill('Mobile Atelier');
+  await form.getByLabel('Email',{exact:true}).fill(email);
+  await form.getByLabel('What do you create?',{exact:true}).fill('Clothing');
+  await form.locator('input[type=checkbox]').check();
+  await form.locator('button[type=submit]').click();
+  await expect(page.locator('#designer-signin-code')).toBeVisible();
+  expect((await page.request.get('/api/my/designer-profile')).status()).toBe(401);
+  const {code}=await (await request.get('/__test/designer-code?email='+encodeURIComponent(email))).json();
+  await page.locator('#designer-signin-code').fill(code);
+  await page.locator('#designer-code-form button[type=submit]').click();
+  await expect(page.locator('#designer-workspace')).toBeVisible();
+  expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
+  const cookies=await page.context().cookies();expect(cookies.find(c=>c.name==='hob_designer_session').httpOnly).toBe(true);
+  expect(await page.evaluate(()=>localStorage.getItem('briarDesignerToken'))).toBeNull();
+});
+test('marketplace signup verifies email and returns to the signed-in designer room',async({page,request})=>{
+  const email=`designer-sell-${Date.now()}@example.test`;
+  await page.goto('/sell');
+  const form=page.locator('#designer-signup form');
+  await form.getByLabel('Your name',{exact:true}).fill('Market Maker');
+  await form.getByLabel('Designer or brand name',{exact:true}).fill('Market Atelier');
+  await form.getByLabel('Email',{exact:true}).fill(email);
+  await form.locator('fieldset input[type=checkbox]').first().check();
+  await form.locator('input[type=checkbox]').last().check();
+  await form.getByRole('button',{name:'Email me a verification code'}).click();
+  const input=page.getByLabel('Six-digit code from your email');await expect(input).toBeVisible();
+  const {code}=await (await request.get('/__test/designer-code?email='+encodeURIComponent(email))).json();
+  await input.fill(code);await page.getByRole('button',{name:'Verify email and open my room'}).click();
+  await expect(page).toHaveURL(/designers\/room/);
+  await expect(page.locator('#designer-workspace')).toBeVisible();
+});

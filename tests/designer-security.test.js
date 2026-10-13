@@ -1,3 +1,4 @@
+const {verifiedSignup}=require('./helpers/verified-designer');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -14,6 +15,7 @@ async function fixture(run,options={}){
   const srv=ctx.app.listen(0,'127.0.0.1');await once(srv,'listening');
   const origin='http://127.0.0.1:'+srv.address().port;
   const call=async(route,body,token='makerToken',method='POST')=>{
+    if(route==='/api/designer-applications'){const result=await verifiedSignup(origin,ctx.db,body);return {status:result.response.status,body:result.body,cookie:result.cookie};}
     const response=await fetch(origin+route,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
     return{status:response.status,body:await response.json()};
   };
@@ -37,7 +39,7 @@ test('House email changes require owner plus mailbox proof and preserve Stripe a
   assert.equal((await call('/api/my/designer-email/verify',{token},'otherToken')).status,422);
   assert.equal((await call('/api/my/designer-email/verify',{token},'')).status,401);
   const verified=await call('/api/my/designer-email/verify',{token});assert.equal(verified.status,200);assert.equal(verified.body.email,'new@example.test');
-  assert.equal((await call('/api/my/designer-email/verify',{token})).status,422);
+  assert.equal((await call('/api/my/designer-email/verify',{token})).status,401);
   assert.equal(ctx.db.prepare("SELECT designer_email FROM listings WHERE id='security-piece'").get().designer_email,'new@example.test');
   assert.equal(ctx.db.prepare("SELECT email FROM designer_identities WHERE subject='maker-sub'").get().email,old);
   assert.equal(ctx.db.prepare("SELECT stripe_account_id FROM designer_profiles WHERE id='maker'").get().stripe_account_id,'acct_existing');assert.equal(stripeCalls.length,0);
@@ -102,6 +104,7 @@ test('carrier updates acknowledge verified shipping while holding payouts withou
     const raw=JSON.stringify({object:'Event',description:'tracker.updated',result:{id:'trk_held',status:'in_transit',tracking_details:[{status:'in_transit'}]}});
     const timestamp=new Date().toISOString(),route='/api/easypost/webhook';
     const signature=crypto.createHmac('sha256',process.env.EASYPOST_WEBHOOK_SECRET).update(timestamp+'POST'+route+raw).digest('hex');
+    if(route==='/api/designer-applications'){const result=await verifiedSignup(origin,ctx.db,body);return {status:result.response.status,body:result.body,cookie:result.cookie};}
     const response=await fetch(origin+route,{method:'POST',headers:{'Content-Type':'application/json','x-timestamp':timestamp,'x-path':route,'x-hmac-signature-v2':signature},body:raw});
     assert.equal(response.status,200);assert.equal(stripeCalls.length,0);
     const transfer=ctx.db.prepare("SELECT * FROM designer_transfers WHERE id='carrier-transfer'").get();assert.ok(transfer.tracking_verified_at);assert.equal(transfer.status,'pending');
@@ -109,10 +112,10 @@ test('carrier updates acknowledge verified shipping while holding payouts withou
   });}finally{if(previous===undefined)delete process.env.EASYPOST_WEBHOOK_SECRET;else process.env.EASYPOST_WEBHOOK_SECRET=previous;}
 });
 
-test('signup records presented terms version and issued designer token can open the room',async()=>fixture(async({ctx,call})=>{
+test('verified signup records presented terms and opens the room with a cookie',async()=>fixture(async({ctx,call,origin})=>{
   const body={email:'signup@example.test',displayName:'Signup Maker',brandName:'Signup Atelier',categories:['Art'],sellerTermsAccepted:true};
   assert.equal((await call('/api/designer-applications',body,'')).status,422);
   const signup=await call('/api/designer-applications',{...body,sellerTermsVersion:SELLER_TERMS_VERSION},'');assert.equal(signup.status,201);
-  const profile=await call('/api/my/designer-profile',undefined,signup.body.accessToken,'GET');assert.equal(profile.status,200);assert.equal(profile.body.designer.sellerTermsAccepted,true);
+  const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:signup.cookie}});assert.equal(profile.status,200);assert.equal((await profile.json()).designer.sellerTermsAccepted,true);assert.equal(signup.body.accessToken,undefined);
   const record=ctx.db.prepare('SELECT * FROM designer_terms_acceptances WHERE designer_id=?').get(signup.body.designer.id);assert.equal(record.acceptance_source,'signup');assert.equal(record.terms_version,SELLER_TERMS_VERSION);assert.ok(record.accepted_at);
 }));
