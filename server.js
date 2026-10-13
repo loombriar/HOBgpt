@@ -1,5 +1,6 @@
 const {trafficLocation}=require('./lib/traffic-location');
 const {clientAddress}=require('./lib/client-address');
+const {createIngressGate}=require('./lib/ingress-gate');
 const { dailyTraffic: summarizeDailyTraffic } = require('./lib/daily-traffic');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -878,7 +879,7 @@ function createApp(options = {}) {
   function rateLimit({ windowMs, max, keyPrefix }) {
     return (req, res, next) => {
       const now = Date.now();
-      const actor = req.designerId ? `designer:${req.designerId}` : req.buyerSubject ? `buyer:${req.buyerSubject}` : `ip:${clientAddress(req)}`;
+      const actor = req.designerId ? `designer:${req.designerId}` : req.buyerSubject ? `buyer:${req.buyerSubject}` : `ip:${req.authenticatedIngressIp || clientAddress(req)}`;
       const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
       const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
       if (entry.count > max) {
@@ -1276,6 +1277,8 @@ function createApp(options = {}) {
 
   let app;
   app = express();
+  // Enable only behind a dedicated authenticated ingress. Direct callers are rejected.
+  if (process.env.INGRESS_HMAC_SECRET) app.use(createIngressGate({secret:process.env.INGRESS_HMAC_SECRET}));
   // Reject untrusted Host values before any route constructs links or handles auth.
   // Unconfigured local development is restricted to loopback hostnames.
   const allowedHost = configuredAppOrigin ? new URL(configuredAppOrigin).host.toLowerCase() : null;
