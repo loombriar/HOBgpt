@@ -6,6 +6,7 @@ on:
     paths:
       - Dockerfile
       - .dockerignore
+      - docker-entrypoint.sh
       - package.json
       - package-lock.json
       - apps/default/package.json
@@ -21,3 +22,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build using Amazon ECR Public Node image
         run: docker build --pull --tag house-of-briar:ci .
+      - name: Verify mounted SQLite directory is writable by non-root process
+        run: |
+          mkdir -p "${RUNNER_TEMP}/hob-volume-check"
+          chmod 755 "${RUNNER_TEMP}/hob-volume-check"
+          docker run --rm --user 0:0 -e DATA_DIR=/data \
+            -v "${RUNNER_TEMP}/hob-volume-check:/data" \
+            --entrypoint /bin/sh house-of-briar:ci -c \
+            'touch /data/owned-by-root && chmod 600 /data/owned-by-root'
+          docker run --rm -e DATA_DIR=/data \
+            -v "${RUNNER_TEMP}/hob-volume-check:/data" \
+            house-of-briar:ci node -e \
+            'const fs=require("fs");fs.appendFileSync("/data/owned-by-root","ok");fs.writeFileSync("/data/new-file","ok");if(process.getuid()!==1000)process.exit(1)'
