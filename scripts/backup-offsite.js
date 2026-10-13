@@ -3,24 +3,28 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const { spawnSync }=require('node:child_process');
 
-const required=['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'];
-for(const name of required)if(!process.env[name])throw new Error(name+' is required');
-const endpoint=new URL(process.env.BACKUP_S3_ENDPOINT);
-if(endpoint.protocol!=='https:')throw new Error('BACKUP_S3_ENDPOINT must use HTTPS');
-const bucket=process.env.BACKUP_S3_BUCKET;
-const accessKey=process.env.BACKUP_S3_ACCESS_KEY_ID;
-const secretKey=process.env.BACKUP_S3_SECRET_ACCESS_KEY;
-const region=process.env.BACKUP_S3_REGION||'auto';
-const keepDays=Math.max(1,Number(process.env.BACKUP_RETENTION_DAYS||30));
-const root=path.resolve(process.env.BACKUP_WORK_DIR||'.backups/offsite-work');
-
+const config=()=>{
+ const required=['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'];
+ for(const name of required)if(!process.env[name])throw new Error(name+' is required');
+ const endpoint=new URL(process.env.BACKUP_S3_ENDPOINT);
+ if(endpoint.protocol!=='https:')throw new Error('BACKUP_S3_ENDPOINT must use HTTPS');
+ const bucket=process.env.BACKUP_S3_BUCKET;
+ const accessKey=process.env.BACKUP_S3_ACCESS_KEY_ID;
+ const secretKey=process.env.BACKUP_S3_SECRET_ACCESS_KEY;
+ const region=process.env.BACKUP_S3_REGION||'auto';
+ const keepDays=Number(process.env.BACKUP_RETENTION_DAYS||30);
+ if(!Number.isFinite(keepDays)||keepDays<1)throw new Error('BACKUP_RETENTION_DAYS must be a positive number');
+ const root=path.resolve(process.env.BACKUP_WORK_DIR||'.backups/offsite-work');
+ return {endpoint,bucket,accessKey,secretKey,region,keepDays,root};
+};
 const hash=(key,data)=>crypto.createHmac('sha256',key).update(data).digest();
 const sha=data=>crypto.createHash('sha256').update(data).digest('hex');
 const enc=s=>encodeURIComponent(s).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
-function objectPath(key){return '/'+enc(bucket)+'/'+key.split('/').map(enc).join('/');}
+function objectPath(bucket,key){return '/'+enc(bucket)+'/'+key.split('/').map(enc).join('/');}
 async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={}){
+ const {endpoint,bucket,accessKey,secretKey,region}=config();
  const now=new Date(),amz=now.toISOString().replace(/[:-]|\.\d{3}/g,''),date=amz.slice(0,8);
- const payloadHash=sha(body),host=endpoint.host,uri=objectPath(key);
+ const payloadHash=sha(body),host=endpoint.host,uri=objectPath(bucket,key);
  const signed={'host':host,'x-amz-content-sha256':payloadHash,'x-amz-date':amz,...headers};
  const names=Object.keys(signed).map(x=>x.toLowerCase()).sort();
  const canonicalHeaders=names.map(n=>n+':'+String(signed[n]).trim()+'\n').join('');
@@ -63,6 +67,7 @@ async function list(){
  return objects;
 }
 async function main(){
+ const {root,bucket,keepDays}=config();
  fs.rmSync(root,{recursive:true,force:true});fs.mkdirSync(root,{recursive:true});
  const local=path.join(root,'snapshot');
  const backup=spawnSync(process.execPath,[path.join(__dirname,'backup-data.js'),'--output',local],{stdio:'inherit',env:process.env});
