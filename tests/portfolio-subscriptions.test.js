@@ -23,3 +23,34 @@ assert.equal((await event('evt_bad','customer.subscription.updated',{id:'sub_a',
 }finally{if(old===undefined)delete process.env.STRIPE_WEBHOOK_SECRET;else process.env.STRIPE_WEBHOOK_SECRET=old;await f.close();}});
 
 test('Android WebView cannot create a digital purchase or billing portal, while web checkout and existing access remain available',async()=>{const f=await fixture();try{const cookie=await f.customer('android@example.test');await f.call('/api/creative-house/my-profile','PUT',{display_name:'Creative',role:'model',published:true},cookie);const headers={Origin:f.origin,Cookie:cookie,'Content-Type':'application/json','User-Agent':'Mozilla/5.0 (Linux; Android 16; Pixel 9 Build/TEST; wv) AppleWebKit/537.36 Version/4.0 Chrome/140.0.0.0 Mobile Safari/537.36'};const plans=await fetch(f.origin+'/api/creative-house/subscription/plans',{headers});assert.equal((await plans.json()).checkoutConfigured,false);for(const route of ['checkout','portal']){const r=await fetch(f.origin+'/api/creative-house/subscription/'+route,{method:'POST',headers,body:'{}'});assert.equal(r.status,403);assert.equal((await r.json()).error.code,'purchase_unavailable');}assert.equal(f.state.calls.length,0);assert.equal((await f.call('/api/creative-house/subscription/checkout','POST',{},cookie)).status,201);f.state.checkout='complete';const access=await fetch(f.origin+'/api/creative-house/subscription',{headers});assert.equal((await access.json()).access.premium,true);const cancel=await fetch(f.origin+'/api/creative-house/subscription/cancel',{method:'POST',headers,body:'{}'});assert.equal(cancel.status,200);}finally{await f.close();}});
+
+test('photographer signup keeps creator permissions separate from paid portfolio and designer access',async()=>{
+ const f=await fixture();try{
+  const photographer=await f.customer('photographer-access@example.test');
+  const profile={display_name:'Test Photographer',role:'photographer',location:'Columbus, Ohio',bio:'Disposable photographer account for permission testing.',published:false};
+  let r=await f.call('/api/creative-house/my-profile','PUT',profile,photographer);assert.equal(r.status,200);assert.equal(r.body.profile.role,'photographer');const slug=r.body.profile.slug;
+  assert.equal((await f.call('/api/creative-house/profiles/'+slug,'GET',null,'seller')).status,404);
+  let a=(await f.call('/api/creative-house/subscription','GET',null,photographer)).body.access;assert.equal(a.premium,false);assert.equal(a.imageLimit,5);
+  for(let i=0;i<5;i++)assert.equal((await f.upload(photographer)).status,201);
+  assert.equal((await f.upload(photographer)).status,409);
+  assert.equal((await f.call('/api/creative-house/my-portfolio/settings','PUT',{layout:'editorial',theme:'mint'},photographer)).status,403);
+  assert.equal((await f.call('/api/creative-house/my-portfolio/analytics','GET',null,photographer)).status,403);
+  assert.equal((await f.call('/api/creative-house/my-profile','PUT',{...profile,published:true},photographer)).status,200);
+  assert.equal((await f.call('/api/creative-house/profiles/'+slug,'GET',null,'seller')).status,200);
+  await f.call('/api/creative-house/inquiries','POST',{recipient_kind:'talent',recipient_slug:slug,subject:'Test collaboration',message:'We would like to discuss a test fashion photography collaboration.'},'seller');
+  r=await f.call('/api/creative-house/my-inquiries','GET',null,photographer);assert.equal(r.status,200);assert.equal(r.body.inquiries.length,1);
+  assert.equal((await f.call('/api/creative-house/my-inquiries/'+r.body.inquiries[0].id+'/respond','POST',{status:'accepted'},photographer)).status,200);
+  assert.equal((await f.call('/api/creative-house/subscription/checkout','POST',{},photographer)).status,201);f.state.checkout='complete';
+  a=(await f.call('/api/creative-house/subscription','GET',null,photographer)).body.access;assert.equal(a.premium,true);assert.equal(a.imageLimit,30);
+  assert.equal((await f.upload(photographer)).status,201);
+  assert.equal((await f.call('/api/creative-house/my-portfolio/settings','PUT',{layout:'editorial',theme:'night',featured_project:'Test editorial'},photographer)).status,200);
+  assert.equal((await f.call('/api/creative-house/my-portfolio/analytics','GET',null,photographer)).status,200);
+  for(const route of ['/api/creative-house/profiles','/api/creative-house/event-profiles','/api/creative-house/profiles/'+slug,'/api/admin/portfolio-subscriptions'])assert.ok([401,403].includes((await f.call(route,'GET',null,photographer)).status),route);
+  for(const route of ['/api/creative-house/events','/api/creative-house/opportunities','/api/creative-house/inquiries','/api/listings'])assert.ok([401,403].includes((await f.call(route,'POST',{},photographer)).status),route);
+  assert.equal((await f.call('/api/creative-house/opportunities')).status,200);assert.equal((await f.call('/api/creative-house/events')).status,200);
+  assert.equal((await f.call('/api/creative-house/subscription/cancel','POST',{},photographer)).status,200);
+  a=(await f.call('/api/creative-house/subscription','GET',null,photographer)).body.access;assert.equal(a.premium,true);assert.equal(a.cancelAtPeriodEnd,true);
+  f.state.until=Math.floor(Date.now()/1000)-1;a=(await f.call('/api/creative-house/subscription','GET',null,photographer)).body.access;assert.equal(a.imageLimit,5);assert.equal(a.premium,false);
+  assert.equal((await f.call('/api/creative-house/my-portfolio','GET',null,photographer)).body.images.length,6);
+ }finally{await f.close();}
+});
