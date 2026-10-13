@@ -4,11 +4,12 @@ process.env.MEASUREMENT_ENCRYPTION_KEY=require('node:crypto').randomBytes(32).to
 const { createApp,SELLER_TERMS_VERSION }=require('../server');
 const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-e2e-'));
 const designerCodes=new Map();
+const customerCodes=new Map();
 const { app:houseApp,db }=createApp({
   dataDir,
   designerTokens:{'e2e-designer-token':'maker'},
   adminToken:'e2e-admin-token',
-  sendEmail:async message=>{if(message.subject==='Your House of Briar designer code')designerCodes.set(message.to,message.text.match(/\b\d{6}\b/)[0]);return true;},
+  sendEmail:async message=>{if(message.subject==='Your House of Briar designer code')designerCodes.set(message.to,message.text.match(/\b\d{6}\b/)[0]);if(message.subject==='Your House of Briar sign-in code')customerCodes.set(message.to,message.text.match(/\b\d{6}\b/)[0]);return true;},
   connectAccounts:{maker:'acct_e2e_maker'},
   seedProducts:[{id:'e2e-piece',designerId:'maker',title:'Moonlit E2E Piece',price:89.99,category:'fashion',shippingCostCents:0}],
   stripeApi:async(endpoint)=>{
@@ -21,8 +22,7 @@ db.prepare('INSERT OR IGNORE INTO designer_terms_acceptances (designer_id,terms_
 const app=require('express')();
 // This endpoint exists only in the isolated E2E fixture; never mount it in server.js.
 app.get('/__test/customer-code', (req,res)=>{
-  const row=db.prepare("SELECT body_text FROM email_outbox WHERE event_key LIKE 'customer-signin:%' AND recipient=? ORDER BY created_at DESC,rowid DESC LIMIT 1").get(String(req.query.email||''));
-  const code=row?.body_text.match(/\b(\d{6})\b/)?.[1];if(!code)return res.status(404).json({});return res.json({code});
+  const code=customerCodes.get(String(req.query.email||''));if(!code)return res.status(404).json({});return res.json({code});
 });
 app.get('/__test/designer-code',(req,res)=>{const code=designerCodes.get(String(req.query.email||''));return code?res.json({code}):res.status(404).json({});});
 app.use(houseApp);

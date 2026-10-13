@@ -530,7 +530,7 @@ function createApp(options = {}) {
   ensureColumn('analytics_events', 'device_category', 'TEXT');
   for(const column of ['country','region','city'])ensureColumn('analytics_events',column,'TEXT');
   const customerRouter=express.Router();
-  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir});
+  const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,deliverEmail,trustedAppOrigin,clearDesignerSession,imagesDir});
   recordMigration(4, 'first_party_commerce_analytics');
   ensureColumn('listings', 'seo_title', 'TEXT');
   ensureColumn('listings', 'seo_description', 'TEXT');
@@ -878,7 +878,7 @@ function createApp(options = {}) {
   function rateLimit({ windowMs, max, keyPrefix }) {
     return (req, res, next) => {
       const now = Date.now();
-      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${clientAddress(req)}`;
+      const actor = req.designerId ? `designer:${req.designerId}` : req.buyerSubject ? `buyer:${req.buyerSubject}` : `ip:${clientAddress(req)}`;
       const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
       const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
       if (entry.count > max) {
@@ -1933,6 +1933,10 @@ function createApp(options = {}) {
 
   ensureColumn('email_outbox', 'event_key', 'TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_event_key ON email_outbox(event_key) WHERE event_key IS NOT NULL');
+  // Retire queued credential emails from the old customer sign-in path. Codes
+  // now use immediate delivery, so they cannot persist or be retried after expiry.
+  db.prepare("DELETE FROM customer_login_challenges WHERE email IN (SELECT recipient FROM email_outbox WHERE event_key LIKE 'customer-signin:%' AND status!='sent')").run();
+  db.prepare("DELETE FROM email_outbox WHERE event_key LIKE 'customer-signin:%'").run();
 
   async function sendEmail({ to, subject, text, eventKey=null }) {
     if (!to) return false;
@@ -3341,7 +3345,7 @@ function createApp(options = {}) {
     return 'general';
   }
   function renderSupportTemplate(template, values) {
-    return String(template||'').replace(/\\{\\{(orderId|orderStatus|trackingLine)\\}\\}/g, (_match,key)=>String(values[key]||''));
+    return String(template||'').replace(/\{\{(orderId|orderStatus|trackingLine)\}\}/g, (_match,key)=>String(values[key]||''));
   }
   function supportOrderContext(orderId,buyerSubject) {
     if(!orderId)return null;
@@ -3352,7 +3356,7 @@ function createApp(options = {}) {
     return {orderId:order.id,orderStatus:order.status,trackingLine};
   }
 
-  app.post('/api/support/messages', authBuyer, async (req,res)=>{
+  app.post('/api/support/messages', authBuyer, rateLimit({windowMs:60*60*1000,max:10,keyPrefix:'support-message'}), async (req,res)=>{
     const message=String(req.body?.message||'').trim();
     const orderId=String(req.body?.orderId||'').trim()||null;
     if(message.length<5||message.length>1500)return fail(res,422,'validation_error','Write a support message between 5 and 1,500 characters.');
@@ -3916,7 +3920,7 @@ function createApp(options = {}) {
     timeline TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed','closed'))
   )`);
-  app.post('/api/creative-house/project-requests', (req,res)=>{
+  app.post('/api/creative-house/project-requests', rateLimit({windowMs:60*60*1000,max:5,keyPrefix:'creative-project-request'}), (req,res)=>{
     const v=req.body||{};
     const field=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
     const kind=field('kind',30),contactName=field('contact_name',100),contactEmail=field('contact_email',200).toLowerCase(),title=field('title',120),description=field('description',2500);
