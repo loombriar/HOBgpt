@@ -1341,7 +1341,14 @@ function createApp(options = {}) {
       if (!tracker?.id) return res.json({ received: true, ignored: true });
 
       const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
-      if (!transfer || transfer.status === 'paid') return res.json({ received: true, ignored: true });
+      if (!transfer) return res.json({ received: true, ignored: true });
+
+      // Fulfillment continues after payout. Keep delivery status current without
+      // re-entering payout processing or sending another verification notice.
+      if (transfer.status === 'paid') {
+        db.prepare('UPDATE designer_transfers SET tracking_status = ? WHERE id = ?').run(tracker.status || 'unknown', transfer.id);
+        return res.json({ received: true });
+      }
 
       const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
       const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
