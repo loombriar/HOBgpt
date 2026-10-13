@@ -898,9 +898,31 @@ function createApp(options = {}) {
   const aiToolLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: 'designer-ai-tool' });
   const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
-  function trustedAppOrigin(req) {
-    return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
+  const configuredOidcIssuer = String(options.oidcIssuer || process.env.OIDC_ISSUER || '').replace(/\\/$/, '');
+  const oidcIssuer = configuredOidcIssuer || configuredAppOrigin;
+  if (process.env.NODE_ENV === 'production' && !configuredOidcIssuer) {
+    throw new Error('OIDC_ISSUER must be explicitly configured in production.');
   }
+  if (oidcIssuer) {
+    const parsed = new URL(oidcIssuer);
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== oidcIssuer ||
+        parsed.username || parsed.password || (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:')) {
+      throw new Error('OIDC_ISSUER must be a trusted HTTP(S) origin (HTTPS in production), without path or credentials.');
+    }
+  }
+  function trustedAppOrigin(_req) {
+    return configuredAppOrigin;
+  }
+  // Validate the authority before routing or handling credentials; never trust forwarding headers.
+  app.use((req,res,next)=>{
+    if (!configuredAppOrigin) return next(); // local isolated tests only
+    const host=req.get('host');
+    if (!host || /[\\s,/@]/.test(host)) return fail(res,400,'invalid_host','Unexpected request host.');
+    let actual;
+    try { actual=new URL('http://'+host).host; } catch { return fail(res,400,'invalid_host','Unexpected request host.'); }
+    if (actual!==new URL(configuredAppOrigin).host) return fail(res,400,'invalid_host','Unexpected request host.');
+    next();
+  });
 
   function isSameOriginUrl(value, origin) {
     try { return new URL(value).origin === new URL(origin).origin; } catch { return false; }
@@ -908,12 +930,14 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    const origin = trustedAppOrigin(req);
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
+    if (!oidcIssuer) return null;
+    const discovery = await fetch(`${oidcIssuer}/_genesis/auth/.well-known/openid-configuration`, {redirect:'error'});
     if (!discovery.ok) return null;
     const metadata = await discovery.json();
-    if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
+    if (metadata.issuer !== oidcIssuer || typeof metadata.userinfo_endpoint !== 'string' ||
+        !isSameOriginUrl(metadata.userinfo_endpoint, oidcIssuer) ||
+        new URL(metadata.userinfo_endpoint).protocol !== new URL(oidcIssuer).protocol) return null;
+    const userInfo = await fetch(metadata.userinfo_endpoint, {redirect:'error',headers: { Authorization: `Bearer ${token}` } });
     if (!userInfo.ok) return null;
     return userInfo.json();
   }
