@@ -13,7 +13,7 @@ test('trusted-host guard rejects unexpected Host before routes, and allows confi
   try {
     const bad=await fetch(base+'/api/products',{headers:{Host:'attacker.example'}});
     assert.equal(bad.status,400);
-    assert.equal((await bad.json()).error,'invalid_host');
+    assert.equal((await bad.json()).error.code,'invalid_host');
     const good=await fetch(base+'/api/products',{headers:{Host:'houseofbriar.shop'}});
     assert.notEqual(good.status,400);
   }finally{
