@@ -17,6 +17,7 @@ const FAVORITE_KEY = 'house-of-briar:favorites';
 const ANALYTICS_SESSION_KEY = 'house-of-briar:analytics-session';
 
 function trackStorefrontPageView() {
+  if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
   if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) return;
   let sessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
   if (!sessionId) {

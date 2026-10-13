@@ -72,6 +72,7 @@ function attribution() {
  */
 export function trackCommerceEvent(event: CommerceEvent) {
   if (typeof window === 'undefined') return;
+  if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
   try {
     const payload = JSON.stringify({
     ...event,
