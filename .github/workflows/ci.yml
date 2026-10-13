@@ -26,6 +26,9 @@ jobs:
       - name: Install marketplace dependencies from committed lockfile
         working-directory: apps/default
         run: npm ci
+      - name: Audit marketplace production dependencies (moderate or higher)
+        working-directory: apps/default
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Run checkout and marketplace regression tests
         working-directory: apps/default
         run: npm test

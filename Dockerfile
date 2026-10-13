@@ -18,6 +18,8 @@ RUN npm prune --omit=dev
 FROM public.ecr.aws/docker/library/node:20-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=build /app /app
+COPY --from=build --chown=node:node /app /app
+# Run the HTTP process without root privileges. Persistent data must be writable by UID 1000.
+USER node
 EXPOSE 3000
 CMD ["npm","start"]
