@@ -16,7 +16,7 @@ function order(db,id,status='pending'){
 test('purchase analytics reject fabricated receipts and ignore forged totals and duplicate returns',async()=>{
  const f=await fixture();try{
   order(f.ctx.db,'paid','paid');order(f.ctx.db,'pending');
-  const send=body=>fetch(f.origin+'/api/analytics/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:'purchase',...body})});
+  const send=body=>fetch(f.origin+'/api/analytics/events',{method:'POST',headers:{Origin:f.origin,'Content-Type':'application/json'},body:JSON.stringify({event:'purchase',...body})});
   assert.equal((await send({orderId:'fake',value:99999})).status,409);
   assert.equal((await send({orderId:'pending',value:99999})).status,409);
   assert.equal((await send({orderId:'cs_paid',value:99999,currency:'eur',sessionId:'visitor'})).status,202);

@@ -111,3 +111,10 @@ body.blackberry-house :is(a,button,summary,input,select,textarea):focus-visible{
 .hob-creator-spotlight :is(a):focus-visible{outline:2px solid currentColor;outline-offset:4px}
 @media(max-width:720px){.hob-creator-spotlight-grid{grid-template-columns:1fr}.hob-creator-spotlight-grid>a{min-height:unset;gap:10px}.hob-creator-spotlight-action{align-items:stretch;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.hob-creator-spotlight-grid>a{transition:none}.hob-creator-spotlight-grid>a:hover{transform:none}}
+
+/* Pair newsletter colors independently of inverted global theme tokens. */
+body.blackberry-house #journal .newsletter-box{background:#29252b!important;color:#fffdf8!important;border-color:#51454f!important}
+body.blackberry-house #journal :is(.newsletter-heading h2,.newsletter-heading h2 em,.newsletter-heading>p,.newsletter-form>label.small-print,.form-message){color:#fffdf8!important}
+body.blackberry-house #journal .newsletter-form>#email{background:#fffdf8!important;color:#262421!important}
+body.blackberry-house #journal .newsletter-form>#email::placeholder{color:#62594e!important;opacity:1}
+body.blackberry-house #journal .newsletter-form>button[type=submit]{color:#29252b!important}

@@ -1,0 +1,17 @@
+/* Shared palette for shopping, account, checkout and studio routes. */
+:root:root{--background:35 48% 97%;--foreground:280 8% 16%;--card:40 60% 99%;--card-foreground:280 8% 16%;--popover:40 60% 99%;--popover-foreground:280 8% 16%;--primary:12 35% 38%;--primary-foreground:40 60% 99%;--secondary:148 38% 90%;--secondary-foreground:280 8% 16%;--accent:12 65% 92%;--accent-foreground:280 8% 16%;--muted:35 22% 92%;--muted-foreground:285 6% 42%;--border:20 22% 83%;--input:20 22% 83%;--ring:36 48% 42%;--radius:1rem}
+html.dark.dark{--background:260 11% 12%;--foreground:34 50% 94%;--card:263 10% 16%;--card-foreground:34 50% 94%;--popover:263 10% 16%;--popover-foreground:34 50% 94%;--primary:12 58% 78%;--primary-foreground:260 11% 12%;--secondary:153 16% 25%;--secondary-foreground:34 50% 94%;--accent:350 20% 29%;--accent-foreground:34 50% 94%;--muted:263 10% 20%;--muted-foreground:280 10% 74%;--border:285 8% 30%;--input:285 8% 30%;--ring:36 55% 66%}
+.fashion-app.fashion-app :is(.rounded-2xl,.rounded-3xl){border-radius:20px}.fashion-app.fashion-app .rounded-full{border-radius:999px}
+.fashion-app.fashion-app .house-room{--primary:12 35% 38%;--primary-foreground:40 60% 99%;--accent:148 38% 90%;--border:20 22% 83%;--ring:36 48% 42%}
+.dark .fashion-app.fashion-app .house-room{--primary:12 58% 78%;--primary-foreground:260 11% 12%;--accent:153 16% 25%;--border:285 8% 30%;--ring:36 55% 66%}
+.house-compact-header>div{flex-wrap:nowrap!important;min-height:64px}.house-compact-links{flex-wrap:nowrap!important;gap:16px!important}.house-compact-links a{white-space:nowrap}.house-compact-links a[aria-current=page]{color:hsl(var(--primary));text-decoration:underline;text-underline-offset:7px}.house-main{padding-top:72px}
+.house-skip-link{position:fixed;top:8px;left:8px;transform:translateY(-160%);z-index:10001;background:hsl(var(--card));color:hsl(var(--foreground));padding:12px;border:2px solid hsl(var(--ring))}.house-skip-link:focus{transform:none}
+.fashion-app.fashion-app article{box-shadow:0 6px 24px hsl(var(--foreground)/.04)}.fashion-app.fashion-app img{background:hsl(var(--muted));object-fit:contain}.fashion-app.fashion-app :is(input,select,textarea){border-radius:10px;min-height:44px}.fashion-app :is(a,button):focus-visible{outline:2px solid hsl(var(--ring));outline-offset:4px}
+@media(max-width:950px){.house-compact-header>div{flex-wrap:wrap!important;gap:4px!important}.house-compact-links{width:100%;overflow-x:auto;padding-bottom:3px;gap:14px!important}.house-compact-header>div>a{font-size:21px}.house-main{padding-top:124px}}
+@media(prefers-reduced-motion:reduce){.fashion-app *, .fashion-app *::before,.fashion-app *::after{transition:none!important;animation:none!important}.fashion-app article:hover{transform:none!important}}
+
+/* Keep account and checkout controls distinct from dark card surfaces. */
+html.dark.dark{--border:285 8% 48%;--input:285 8% 48%;--muted-foreground:280 10% 78%}
+.dark .fashion-app.fashion-app .house-room{--border:285 8% 48%}
+.dark .fashion-app :is(input,select,textarea){color:hsl(var(--foreground));caret-color:hsl(var(--foreground))}
+.dark .fashion-app :is(input,textarea)::placeholder{color:hsl(var(--muted-foreground));opacity:1}

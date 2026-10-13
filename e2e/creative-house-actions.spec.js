@@ -28,7 +28,9 @@ test('saving a published creator profile gives an actionable public link', async
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{"profiles":[],"opportunities":[],"events":[],"inquiries":[]}' });
   });
   await page.goto('/creative-house.html');
+  await page.locator('[data-creative-workflow="profile"]').click();
   const form = page.locator('#profile-form');
+  await expect(form).toBeVisible();
   const fields = await form.locator('[name]').evaluateAll(nodes => nodes.map(n => ({ name:n.name, required:n.required, type:n.type })));
   for (const field of fields) {
     if (!field.required || field.type === 'checkbox') continue;
@@ -54,7 +56,9 @@ test('creator profile save errors are shown without a false success message', as
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{"profiles":[],"opportunities":[],"events":[],"inquiries":[]}' });
   });
   await page.goto('/creative-house.html');
+  await page.locator('[data-creative-workflow="profile"]').click();
   const form = page.locator('#profile-form');
+  await expect(form).toBeVisible();
   const fields = await form.locator('[name]').evaluateAll(nodes => nodes.filter(n => n.required && n.type !== 'checkbox').map(n => n.name));
   for (const name of fields) await form.locator('[name="' + name + '"]').fill(name === 'bio' ? 'A detailed creative profile for editorial fashion work.' : 'Creative');
   await form.locator('button[type="submit"]').click();

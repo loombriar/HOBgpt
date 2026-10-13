@@ -14,6 +14,7 @@ for(const width of [390,1280]) {
   await page.locator('.shop-drop-windows').scrollIntoViewIfNeeded();
   await page.screenshot({path:`/tmp/hob-windows-${width}.png`});
   await page.goto('/designers/room');
+  await page.getByText('Have an older access token?',{exact:true}).click();
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
@@ -62,6 +63,7 @@ for(const width of [390,1280]) {
 
 test('designer and admin credentials can be revealed and hidden without changing values', async ({ page }) => {
   await page.goto('/designers/room');
+  await page.getByText('Have an older access token?',{exact:true}).click();
   await page.locator('#designer-token').fill('example-designer-token');
   const designer = page.locator('#designer-token');
   const designerToggle = page.locator('#designer-login-form').getByRole('button', { name: 'Show password' });
