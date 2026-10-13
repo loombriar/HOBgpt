@@ -29,7 +29,8 @@ function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,uploa
     if(typeof req.body?.story!=='string'||req.body.story.length>2000)return fail(res,422,'invalid_story','Keep your studio story under 2,000 characters.');
     db.prepare('INSERT INTO designer_stories(designer_id,story) VALUES(?,?) ON CONFLICT(designer_id) DO UPDATE SET story=excluded.story').run(req.designerId,req.body.story.trim());res.json({ok:true});
   });
-  app.post('/api/my/studio-photo',authDesigner,upload.single('image'),async(req,res,next)=>{
+  const studioPhotoLimiter=rateLimit({windowMs:15*60*1000,max:12,keyPrefix:'studio-photo-processing'});
+  app.post('/api/my/studio-photo',authDesigner,studioPhotoLimiter,upload.single('image'),async(req,res,next)=>{
     let newKey;
     try{
       if(!req.file)return fail(res,400,'missing_image','Choose a studio photo.');
