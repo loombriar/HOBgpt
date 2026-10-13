@@ -1524,6 +1524,29 @@ function createApp(options = {}) {
     try{const summary=await reconcileSpecialDeposits();return res.json({summary,offers:specialDepositReview.report()});}catch(error){return next(error);}
   });
 
+  // Recovery is an explicit admin action, never an automatic payment-state transition.
+  // Re-fetch Stripe evidence at the moment of approval rather than trusting a stale report.
+  app.post('/api/admin/special-deposits/:offerId/confirm-paid',authAdmin,rateLimit({windowMs:60000,max:5,keyPrefix:'special-deposit-confirm'}),async(req,res,next)=>{
+    try{
+      const offer=db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(req.params.offerId);
+      if(!offer||!offer.stripe_session_id)return fail(res,404,'offer_not_found','Deposit session not found.');
+      if(offer.status==='deposit_refunded'||offer.stripe_refund_id)return fail(res,409,'already_refunded','A refunded deposit cannot be marked paid.');
+      if(offer.status==='deposit_paid')return res.json({ok:true,status:'deposit_paid'});
+      const session=await stripeApi(`checkout/sessions/${encodeURIComponent(offer.stripe_session_id)}`);
+      const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id;
+      if(session.id!==offer.stripe_session_id||session.metadata?.special_offer_id!==offer.id||
+         String(session.currency).toLowerCase()!=='usd'||session.amount_total!==offer.deposit_cents||
+         session.status!=='complete'||session.payment_status!=='paid'||typeof intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(intent)){
+        return fail(res,409,'unverified_deposit','Stripe has not confirmed a matching paid deposit.');
+      }
+      const changed=db.prepare(`UPDATE special_order_offers SET status='deposit_paid',stripe_payment_intent_id=?,deposit_paid_at=COALESCE(deposit_paid_at,?)
+        WHERE id=? AND stripe_session_id=? AND status NOT IN ('deposit_paid','deposit_refunded') AND stripe_refund_id IS NULL`)
+        .run(intent,new Date().toISOString(),offer.id,offer.stripe_session_id);
+      if(changed.changes!==1)return fail(res,409,'deposit_state_changed','Deposit state changed; review it again.');
+      return res.json({ok:true,status:'deposit_paid'});
+    }catch(error){return next(error);}
+  });
+
   const portfolioSubscriptions = require('./portfolio-subscriptions').registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin,upload,fail,rateLimit,imageWork,stripeApi,trustedAppOrigin,imagesDir,options});
 
   require('./newsletter').registerNewsletter({ app, db, fail, rateLimit });
