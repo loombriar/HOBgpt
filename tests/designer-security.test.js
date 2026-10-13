@@ -112,10 +112,36 @@ test('carrier updates acknowledge verified shipping while holding payouts withou
   });}finally{if(previous===undefined)delete process.env.EASYPOST_WEBHOOK_SECRET;else process.env.EASYPOST_WEBHOOK_SECRET=previous;}
 });
 
+test('public designer signup and verification never reveal account existence, state, or IDs',async()=>fixture(async({ctx,origin,emails})=>{
+  async function start(email,brandName){
+    const response=await fetch(origin+'/api/designer-applications',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({email,displayName:'Test Maker',brandName,categories:['Art'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION})});
+    const body=await response.json();
+    assert.equal(response.status,202);
+    assert.deepEqual(Object.keys(body).sort(),['message','requestId']);
+    assert.ok(!JSON.stringify(body).includes('designer-'));
+    assert.ok(!JSON.stringify(body).includes('approved'));
+    return body.requestId;
+  }
+  async function verify(id){
+    const code=emails.at(-1).text.match(/Your designer code is (\d{6})/)[1];
+    const response=await fetch(origin+'/api/designer/verify-code',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({requestId:id,code})});
+    const body=await response.json();
+    assert.equal(response.status,200);
+    assert.deepEqual(body,{message:'Email verified. You can continue to your Designer Room.'});
+    assert.ok(response.headers.get('set-cookie')?.includes('hob_designer_session='));
+    return body;
+  }
+  const first=await verify(await start('uniform-signup@example.test','First Atelier'));
+  // Existing account follows the exact same unauthenticated request and verification response.
+  const second=await verify(await start('uniform-signup@example.test','Second Atelier'));
+  assert.deepEqual(first,second);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM designer_profiles WHERE email=?').get('uniform-signup@example.test').n,1);
+}));
+
 test('verified signup records presented terms and opens the room with a cookie',async()=>fixture(async({ctx,call,origin})=>{
   const body={email:'signup@example.test',displayName:'Signup Maker',brandName:'Signup Atelier',categories:['Art'],sellerTermsAccepted:true};
   assert.equal((await call('/api/designer-applications',body,'')).status,422);
-  const signup=await call('/api/designer-applications',{...body,sellerTermsVersion:SELLER_TERMS_VERSION},'');assert.equal(signup.status,201);
-  const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:signup.cookie}});assert.equal(profile.status,200);assert.equal((await profile.json()).designer.sellerTermsAccepted,true);assert.equal(signup.body.accessToken,undefined);
-  const record=ctx.db.prepare('SELECT * FROM designer_terms_acceptances WHERE designer_id=?').get(signup.body.designer.id);assert.equal(record.acceptance_source,'signup');assert.equal(record.terms_version,SELLER_TERMS_VERSION);assert.ok(record.accepted_at);
+  const signup=await call('/api/designer-applications',{...body,sellerTermsVersion:SELLER_TERMS_VERSION},'');assert.equal(signup.status,200);
+  const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:signup.cookie}});assert.equal(profile.status,200);const designer=(await profile.json()).designer;assert.equal(designer.sellerTermsAccepted,true);assert.equal(signup.body.accessToken,undefined);
+  const record=ctx.db.prepare('SELECT * FROM designer_terms_acceptances WHERE designer_id=?').get(designer.id);assert.equal(record.acceptance_source,'signup');assert.equal(record.terms_version,SELLER_TERMS_VERSION);assert.ok(record.accepted_at);
 }));

@@ -7,6 +7,8 @@ async function verifiedSignup(origin,db,body){
   const code='123456';
   db.prepare('UPDATE designer_login_challenges SET code_hash=? WHERE id=?').run(crypto.createHash('sha256').update(pending.requestId+':'+code).digest('hex'),pending.requestId);
   const verified=await fetch(origin+'/api/designer/verify-code',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({requestId:pending.requestId,code})});
-  return {response:verified,body:await verified.json(),cookie:(verified.headers.get('set-cookie')||'').split(';')[0]};
+  const cookie=(verified.headers.get('set-cookie')||'').split(';')[0];
+  const profile=verified.ok ? await (await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}})).json() : null;
+  return {response:verified,body:await verified.json(),cookie,profile};
 }
 module.exports={verifiedSignup};

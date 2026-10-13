@@ -73,12 +73,12 @@ function registerDesignerAuth({app,db,fail,rateLimit,trustedAppOrigin,deliverEma
         db.prepare('UPDATE designer_profiles SET email_verified_at=?,bearer_disabled_at=? WHERE id=?').run(now,now,designer.id);
         db.prepare('UPDATE designer_access_tokens SET revoked_at=? WHERE designer_id=?').run(now,designer.id);
         db.prepare('DELETE FROM designer_sessions WHERE designer_id=?').run(designer.id);
-        return {designer,created:!existing};
+        return {designer};
       }).immediate();
       if(!result)return fail(res,401,'invalid_code','That code is invalid, expired, or unavailable. Request a new code.');
       issueSession(req,res,result.designer.id);
       const d=result.designer;
-      return res.status(result.created?201:200).json({designer:{id:d.id,email:d.email,status:d.status},signup:{id:d.application_id,status:'complete'}});
+      return res.status(200).json({message:'Email verified. You can continue to your Designer Room.'});
     } catch(error){return next(error);}
   });
 }
