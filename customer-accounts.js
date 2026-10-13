@@ -1,6 +1,7 @@
 const crypto=require('node:crypto');
 const {dailyTraffic}=require('./lib/daily-traffic');
 const {isTrustedRequestOrigin}=require('./lib/request-origin');
+const {clientAddress}=require('./lib/client-address');
 const COOKIE='hob_customer_session';
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigin,clearDesignerSession,imagesDir}){
@@ -79,7 +80,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   const email=typeof req.body?.email==='string'?req.body.email.trim().toLowerCase():'';
   const name=typeof req.body?.name==='string'?req.body.name.trim():'';
   if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||name.length>80)return fail(res,422,'invalid_email','Enter a valid email and a name of 80 characters or fewer.');
-  if(!consume.immediate(hash('email:'+email),5)||!consume.immediate(hash('ip:'+req.ip),40)){res.set('Retry-After','3600');return fail(res,429,'rate_limited','Too many sign-in requests. Try again later.');}
+  if(!consume.immediate(hash('email:'+email),5)||!consume.immediate(hash('ip:'+clientAddress(req)),40)){res.set('Retry-After','3600');return fail(res,429,'rate_limited','Too many sign-in requests. Try again later.');}
   if(req.body?.acceptedRules!==true)return fail(res,422,'rules_required','Agree to the House rules before continuing.');
   const previous=db.prepare('SELECT created_at FROM customer_login_challenges WHERE email=?').get(email);
   if(previous&&Date.now()-Date.parse(previous.created_at)<60000){res.set('Retry-After','60');return fail(res,429,'rate_limited','Wait a minute before requesting another code.');}
@@ -88,7 +89,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,sendEmail,trustedAppOrigi
   try{await sendEmail({to:email,subject:'Your House of Briar sign-in code',text:`Your code is ${code}. It expires in 15 minutes. Use it to sign in or finish creating your optional customer account. If you did not request this, ignore this email.`,eventKey:'customer-signin:'+id});return res.set('Cache-Control','no-store').status(202).json({requestId:id,message:'Check your email for a six-digit code. Delivery may take a few minutes.'});}catch(error){db.prepare('DELETE FROM customer_login_challenges WHERE id=?').run(id);return next(error);}
  });
  app.post('/api/customer/verify-code',origin,(req,res)=>{
-  if(!consume.immediate(hash('verify-ip:'+req.ip),100))return fail(res,429,'rate_limited','Too many attempts. Try again later.');
+  if(!consume.immediate(hash('verify-ip:'+clientAddress(req)),100))return fail(res,429,'rate_limited','Too many attempts. Try again later.');
   const requestId=typeof req.body?.requestId==='string'?req.body.requestId:'';const code=typeof req.body?.code==='string'?req.body.code:'';
   const result=db.transaction(()=>{
    const challenge=db.prepare('SELECT * FROM customer_login_challenges WHERE id=?').get(requestId);
