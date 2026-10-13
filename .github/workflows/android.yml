@@ -38,6 +38,9 @@ jobs:
       - name: Generate native Android project
         run: npx cap add android
         working-directory: mobile
+      - name: Configure edge-to-edge system bars
+        run: npm run android:configure
+        working-directory: mobile
       - name: Verify target API
         run: npm run android:verify
         working-directory: mobile
