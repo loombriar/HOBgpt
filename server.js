@@ -1,4 +1,5 @@
 const {trafficLocation}=require('./lib/traffic-location');
+const {clientAddress}=require('./lib/client-address');
 const { dailyTraffic: summarizeDailyTraffic } = require('./lib/daily-traffic');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -877,7 +878,7 @@ function createApp(options = {}) {
   function rateLimit({ windowMs, max, keyPrefix }) {
     return (req, res, next) => {
       const now = Date.now();
-      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+      const actor = req.designerId ? `designer:${req.designerId}` : `ip:${clientAddress(req)}`;
       const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
       const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
       if (entry.count > max) {
