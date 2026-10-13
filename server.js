@@ -910,8 +910,12 @@ function createApp(options = {}) {
       throw new Error('OIDC_ISSUER must be a trusted HTTP(S) origin (HTTPS in production), without path or credentials.');
     }
   }
-  function trustedAppOrigin(_req) {
-    return configuredAppOrigin;
+  function trustedAppOrigin(req) {
+    // Browser same-origin checks in isolated local tests need the ephemeral listener origin.
+    // OIDC discovery uses only oidcIssuer and never calls this helper.
+    if (configuredAppOrigin) return configuredAppOrigin;
+    if (process.env.NODE_ENV === 'production' || options.enforceTrustedHost === true) return '';
+    return `${req.protocol}://${req.get('host')}`;
   }
 
   function isSameOriginUrl(value, origin) {
