@@ -1,3 +1,4 @@
+const {verifiedSignup}=require('./helpers/verified-designer');
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {once}=require('node:events');
 const {createApp,SELLER_TERMS_VERSION}=require('../server');
@@ -7,12 +8,12 @@ test('first 25 designer slots persist across restart and suspension; later signu
   const tokens=Object.fromEntries(Array.from({length:24},(_,i)=>['token'+i,'maker'+i]));
   let ctx,server;
   try {
-    ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:tokens});
+    ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:tokens,sendEmail:async()=>true});
     server=ctx.app.listen(0,'127.0.0.1'); await once(server,'listening');
     const origin='http://127.0.0.1:'+server.address().port;
     const signup=async n=>{
-      const response=await fetch(origin+'/api/designer-applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'founder'+n+'@example.test',displayName:'Maker '+n,brandName:'Studio '+n,categories:['Clothing'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION})});
-      assert.equal(response.status,201); return response.json();
+      const result=await verifiedSignup(origin,ctx.db,{email:'founder'+n+'@example.test',displayName:'Maker '+n,brandName:'Studio '+n,categories:['Clothing'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION});
+      assert.equal(result.response.status,201);return {...result.body,cookie:result.cookie};
     };
     assert.deepEqual(await (await fetch(origin+'/api/founding-designers')).json(),{limit:25,awarded:24,remaining:1});
     const last=await signup(25),later=await signup(26);
@@ -20,7 +21,7 @@ test('first 25 designer slots persist across restart and suspension; later signu
     assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM founding_designers').get().n,25);
     const publicLast=await (await fetch(origin+'/api/designers/'+last.designer.id)).json();
     assert.ok(publicLast.designer.badges.some(b=>b.type==='founding_designer'));
-    const own=await (await fetch(origin+'/api/my/designer-profile',{headers:{Authorization:'Bearer '+last.accessToken}})).json();
+    const own=await (await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:last.cookie}})).json();
     assert.equal(own.designer.foundingBadge.label,'Founding Designer');
     const publicLater=await (await fetch(origin+'/api/designers/'+later.designer.id)).json();
     assert.ok(!publicLater.designer.badges.some(b=>b.type==='founding_designer'));
@@ -30,7 +31,7 @@ test('first 25 designer slots persist across restart and suspension; later signu
     assert.equal((await fetch(origin+'/api/designers/maker0')).status,404);
     const before=ctx.db.prepare('SELECT * FROM founding_designers ORDER BY slot').all();
     await new Promise(r=>server.close(r));server=null;ctx.db.close();ctx=null;
-    ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:tokens});
+    ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:tokens,sendEmail:async()=>true});
     assert.deepEqual(ctx.db.prepare('SELECT * FROM founding_designers ORDER BY slot').all(),before);
     assert.equal(ctx.db.prepare('SELECT * FROM founding_designers WHERE designer_id=?').get(later.designer.id),undefined);
   }finally {if(server)await new Promise(r=>server.close(r));ctx?.db.close();fs.rmSync(dir,{recursive:true,force:true});}
