@@ -1276,6 +1276,24 @@ function createApp(options = {}) {
 
   let app;
   app = express();
+  // Reject untrusted Host values before any route constructs links or handles auth.
+  // Unconfigured local development is restricted to loopback hostnames.
+  const allowedHost = configuredAppOrigin ? new URL(configuredAppOrigin).host.toLowerCase() : null;
+  const allowedHosts = new Set([allowedHost, ...(options.allowedHosts || String(process.env.ALLOWED_HOSTS || '').split(','))].filter(Boolean).map(host => host.trim().toLowerCase()));
+  app.use((req, res, next) => {
+    const host = req.headers.host;
+    if (typeof host !== 'string' || !host || host.includes(',') || host.includes('@') || host.includes('/') || /[\s\\]/.test(host)) {
+      return res.status(400).json({ error: 'invalid_host' });
+    }
+    const normalized = host.toLowerCase();
+    // Railway's healthcheck hostname is accepted only for its read-only probe.
+    if (process.env.RAILWAY_PROJECT_ID && normalized === 'healthcheck.railway.app' && req.method === 'GET' && req.path === '/api/health') return next();
+    const localHost = process.env.NODE_ENV !== 'production' && /^(localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?$/.test(normalized);
+    if (!allowedHosts.has(normalized) && !localHost) {
+      return res.status(400).json({ error: 'invalid_host' });
+    }
+    next();
+  });
   app.disable('x-powered-by');
   const {createAnalyticsIngest,validateEvent:validateAnalyticsEvent}=require('./lib/analytics-ingest');
   const analyticsIngest=createAnalyticsIngest({db,dataDir,trustedAppOrigin,options:options.analyticsIngest||{}});
