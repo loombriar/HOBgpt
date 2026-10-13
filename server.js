@@ -899,6 +899,8 @@ function createApp(options = {}) {
   const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
   function trustedAppOrigin(req) {
+    // Local previews may use ephemeral ports for page links and CSRF checks.
+    // Never use this request-derived value for server-side OIDC requests.
     return configuredAppOrigin || `${req.protocol}://${req.get('host')}`;
   }
 
@@ -908,13 +910,19 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    const origin = trustedAppOrigin(req);
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`);
-    if (!discovery.ok) return null;
+    // OIDC discovery is a privileged outbound request: its target must be
+    // configured, never derived from an untrusted HTTP Host header.
+    const origin = configuredAppOrigin;
+    if (!origin) return null;
+    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`, { redirect: 'manual' });
+    if (!discovery.ok || (discovery.status >= 300 && discovery.status < 400)) return null;
     const metadata = await discovery.json();
     if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, { headers: { Authorization: `Bearer ${token}` } });
-    if (!userInfo.ok) return null;
+    const userInfo = await fetch(metadata.userinfo_endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'manual'
+    });
+    if (!userInfo.ok || (userInfo.status >= 300 && userInfo.status < 400)) return null;
     return userInfo.json();
   }
 
