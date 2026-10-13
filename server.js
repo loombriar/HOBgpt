@@ -898,7 +898,7 @@ function createApp(options = {}) {
   const aiToolLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: 'designer-ai-tool' });
   const imageUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, keyPrefix: 'designer-image-upload' });
 
-  const configuredOidcIssuer = String(options.oidcIssuer || process.env.OIDC_ISSUER || '').replace(/\\/$/, '');
+  const configuredOidcIssuer = String(options.oidcIssuer || process.env.OIDC_ISSUER || '').replace(/\/$/, '');
   const oidcIssuer = configuredOidcIssuer || configuredAppOrigin;
   if (process.env.NODE_ENV === 'production' && !configuredOidcIssuer) {
     throw new Error('OIDC_ISSUER must be explicitly configured in production.');
