@@ -141,7 +141,8 @@ const COOKIE_SESSION_MARKER = '__house_session__';
 localStorage.removeItem('briarDesignerToken');
 sessionStorage.removeItem('briarDesignerToken');
 let designerToken = '';
-let adminToken = sessionStorage.getItem('briarAdminToken') || '';
+let adminSessionActive = false;
+sessionStorage.removeItem('briarAdminToken');
 let currentListingId = '';
 let currentIdempotencyKey = '';
 let galleryItems = [];
@@ -1825,7 +1826,6 @@ loadGallery();
 
 function adminHeaders(extra = {}) {
   const headers = new Headers(extra);
-  if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
   return headers;
 }
 
@@ -1850,6 +1850,7 @@ async function renderAdminQueue() {
     const view = byId('admin-listing-view')?.value || 'pending_review';
     const payload = await adminRequest(view === 'pending_review' ? '/api/admin/listings/review-queue' : '/api/admin/listings');
     if (view !== 'all') payload.items = (payload.items || []).filter(item => item.status === view);
+    adminSessionActive = true;
     void renderAdminOverview();
     adminLoginPanel?.classList.add('hidden');
     adminReviewWorkspace?.classList.remove('hidden');
@@ -1950,7 +1951,7 @@ async function renderAdminQueue() {
 
 function openAdminReview() {
   adminReviewDialog?.showModal();
-  if (adminToken) renderAdminQueue();
+  renderAdminQueue();
 }
 
 byId('founder-signup-link')?.addEventListener('click', event => { event.preventDefault(); openDesignerRoom('#designer-signup'); });
@@ -1964,21 +1965,32 @@ window.addEventListener('hashchange', () => {
 adminReviewClose?.addEventListener('click', () => adminReviewDialog?.close());
 adminLoginForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  adminToken = adminTokenInput?.value.trim() || '';
-  if (!adminToken) return;
-  sessionStorage.setItem('briarAdminToken', adminToken);
-  await renderAdminQueue();
+  const token = adminTokenInput?.value.trim() || '';
+  if (!token) return;
+  try {
+    const response = await fetch('/api/admin/session', {method:'POST',headers:{Authorization:`Bearer ${token}`}});
+    const payload = await response.json().catch(()=>({}));
+    if (!response.ok) throw new Error(payload?.error?.message || 'Administrator sign in failed.');
+    adminSessionActive = true;
+    sessionStorage.removeItem('briarAdminToken');
+    if (adminTokenInput) adminTokenInput.value = '';
+    await renderAdminQueue();
+  } catch (error) { setMessage(adminReviewMessage,error.message,'error'); }
 });
-adminSignoutBtn?.addEventListener('click', () => {
-  ++adminOverviewLoad;
-  byId('admin-overview')?.replaceChildren();
-  adminReviewList?.replaceChildren();
-  adminToken = '';
-  sessionStorage.removeItem('briarAdminToken');
-  if (adminTokenInput) adminTokenInput.value = '';
-  adminReviewWorkspace?.classList.add('hidden');
-  adminLoginPanel?.classList.remove('hidden');
-  setMessage(adminReviewMessage, '');
+adminSignoutBtn?.addEventListener('click', async () => {
+  try {
+    const response = await fetch('/api/admin/session',{method:'DELETE'});
+    if (!response.ok) throw new Error('Admin sign out did not complete. Please try again.');
+    ++adminOverviewLoad;
+    byId('admin-overview')?.replaceChildren();
+    adminReviewList?.replaceChildren();
+    adminSessionActive = false;
+    sessionStorage.removeItem('briarAdminToken');
+    if (adminTokenInput) adminTokenInput.value = '';
+    adminReviewWorkspace?.classList.add('hidden');
+    adminLoginPanel?.classList.remove('hidden');
+    setMessage(adminReviewMessage, '');
+  } catch (error) { setMessage(adminReviewMessage,error.message,'error'); }
 });
 
 byId('production-info-close')?.addEventListener('click', () => byId('production-info-dialog')?.close());
@@ -2001,7 +2013,7 @@ async function renderAdminOverview() {
     const section = makeElement('details', 'admin-summary-section');
     section.append(makeElement('summary', '', title)); host.append(section);
     try {
-      const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminToken) return;
+      const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminSessionActive) return;
       if (data.customers) {
         section.id='admin-customer-signups';
         const stats=makeElement('div','admin-traffic-stats');

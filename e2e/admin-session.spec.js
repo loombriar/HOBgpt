@@ -16,3 +16,18 @@ test('admin exchanges its token for a cookie and sign out revokes access',async(
   await expect(page.getByRole('button',{name:'Open dashboard'})).toBeVisible();
   expect((await page.request.get('/api/admin/operations')).status()).toBe(401);
 });
+
+ test('homepage admin panel uses the same revocable cookie without storing its code',async({page})=>{
+  await page.addInitScript(()=>sessionStorage.setItem('briarAdminToken','stale-admin-token'));
+  await page.goto('/');
+  await page.getByRole('button',{name:'Admin panel',exact:true}).click();
+  await page.getByLabel('Administrator code').fill('e2e-admin-token');
+  await page.getByRole('button',{name:'Open admin panel',exact:true}).click();
+  await expect(page.locator('#admin-review-workspace')).toBeVisible();
+  await expect(page.getByLabel('Administrator code')).toHaveValue('');
+  expect(await page.evaluate(()=>sessionStorage.getItem('briarAdminToken'))).toBeNull();
+  expect((await page.context().cookies()).find(c=>c.name==='hob_admin_session').httpOnly).toBe(true);
+  await page.locator('#admin-signout-btn').click();
+  await expect(page.locator('#admin-login-panel')).toBeVisible();
+  expect((await page.request.get('/api/admin/operations')).status()).toBe(401);
+ });
