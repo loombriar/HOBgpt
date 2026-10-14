@@ -20,8 +20,14 @@ const config=()=>{
 const hash=(key,data)=>crypto.createHmac('sha256',key).update(data).digest();
 const sha=data=>crypto.createHash('sha256').update(data).digest('hex');
 const enc=s=>encodeURIComponent(s).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
-function objectPath(bucket,key){return '/'+enc(bucket)+'/'+key.split('/').map(enc).join('/');}
+function objectPath(bucket,key){return '/'+enc(bucket)+(key?'/'+key.split('/').map(enc).join('/'):'');}
+function canonicalQuery(query){
+ return [...new URLSearchParams(query)].map(([name,value])=>[enc(name),enc(value)])
+  .sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:a[1]<b[1]?-1:a[1]>b[1]?1:0)
+  .map(([name,value])=>name+'='+value).join('&');
+}
 async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={}){
+ query=canonicalQuery(query);
  const {endpoint,bucket,accessKey,secretKey,region}=config();
  const now=new Date(),amz=now.toISOString().replace(/[:-]|\.\d{3}/g,''),date=amz.slice(0,8);
  const payloadHash=sha(body),host=endpoint.host,uri=objectPath(bucket,key);
@@ -86,4 +92,4 @@ async function main(){
  fs.rmSync(root,{recursive:true,force:true});
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={listContents,list};
+module.exports={listContents,list,canonicalQuery};
