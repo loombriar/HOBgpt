@@ -12,4 +12,5 @@ mkdir -p "$DATA_PATH"
 chown -R node:node "$DATA_PATH"
 
 # Only the narrow startup ownership repair runs as root.
+gosu node node -e 'const uid=process.getuid();if(uid!==1000){console.error(`Runtime UID verification failed: ${uid}`);process.exit(1)}console.log(`Runtime UID verified: ${uid} (node)`)'
 exec gosu node "$@"
