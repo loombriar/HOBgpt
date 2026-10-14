@@ -113,3 +113,28 @@ body.blackberry-house .product-section .shop-drop-window .category-window-title 
 
 /* Email authentication shows one step at a time. */
 :is(#designer-code-form,#designer-email-login-form,#designer-signup-form)[hidden] { display:none!important; }
+
+/* The standalone room has its own header; remove the storefront's reserved space. */
+body.designer-room-open #top,
+body.designer-room-open .site-header { display:none!important; }
+body.designer-room-open .page-shell { min-height:0!important; padding-bottom:0!important; }
+body.designer-room-open .designer-room-page { margin-top:16px!important; }
+body.designer-room-open .designer-room-header {
+  position:sticky!important; top:var(--hob-bar-height,64px)!important;
+  z-index:25!important; background:var(--room-paper)!important;
+  padding:12px 16px!important; border-bottom:1px solid var(--room-border);
+}
+#designer-workspace > .designer-room-panel {
+  display:block; margin:0; padding:0; min-width:0;
+  border:1px solid var(--room-border); border-radius:18px; background:var(--room-paper);
+}
+#designer-workspace > .designer-room-panel > summary {
+  min-height:48px; padding:16px 20px; cursor:pointer;
+  font:600 1.1rem/1.5 Inter,sans-serif; color:var(--room-ink);
+}
+#designer-workspace > .designer-room-panel:not([open]) > :not(summary) { display:none!important; }
+#designer-workspace > .designer-room-panel[open] > :not(summary) { margin:0; }
+#designer-workspace > .designer-room-panel > summary:focus-visible { outline:3px solid #a982ae; outline-offset:2px; }
+body.designer-room-open #designer-workspace :is(form,section,details,[id]) {
+  scroll-margin-top:calc(var(--hob-bar-height,64px) + 120px);
+}
