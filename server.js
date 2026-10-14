@@ -48,6 +48,41 @@ function parseDesignerTokens(value) {
   }
 }
 
+function parseAdminTokens(options) {
+  const entries = [];
+  if (options.adminToken || process.env.ADMIN_TOKEN) entries.push(['legacy-admin', options.adminToken ?? process.env.ADMIN_TOKEN]);
+  if (process.env.ADMIN_TOKENS_JSON) {
+    try {
+      const parsed = JSON.parse(process.env.ADMIN_TOKENS_JSON);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+        for (const [label, value] of Object.entries(parsed)) {
+          const entry = value && typeof value === 'object' && !Array.isArray(value)
+            ? { token: value.token, role: value.role || 'operator' }
+            : { token: value, role: 'operator' };
+          entries.push([String(label), entry]);
+        }
+    } catch { /* production validation below reports the configuration problem */ }
+  }
+  for (const [index, token] of (process.env.ADMIN_TOKENS || '').split(',').entries()) {
+    if (token.trim()) entries.push([`admin-${index + 1}`, token]);
+  }
+  return entries.map(([label, value]) => ({
+    label,
+    token: String(value?.token ?? value ?? '').trim(),
+    role: String(value?.role || 'operator').trim() || 'operator'
+  })).filter(entry => entry.token);
+}
+function productionConfigurationErrors({adminEntries}) {
+  if (process.env.NODE_ENV !== 'production' || process.env.ADMIN_HARDENING_REQUIRED !== 'true') return [];
+  const errors = [];
+  if (!adminEntries.length) errors.push('Configure ADMIN_TOKENS_JSON or ADMIN_TOKEN before starting in production.');
+  if (adminEntries.some(entry => entry.token.length < 32)) errors.push('Every production admin token must be at least 32 characters.');
+  if (process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
+  for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
+    if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
+  if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
+  return errors;
+}
 function makeId() {
   return crypto.randomUUID();
 }
@@ -457,6 +492,22 @@ function createApp(options = {}) {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_designer ON designer_sessions(designer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_expiry ON designer_sessions(expires_at)');
+  db.exec(`CREATE TABLE IF NOT EXISTS admin_sessions (
+    session_hash TEXT PRIMARY KEY,
+    actor TEXT NOT NULL,
+    role TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  ); CREATE INDEX IF NOT EXISTS admin_sessions_expiry ON admin_sessions(expires_at);`);
+  db.exec(`CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id TEXT PRIMARY KEY,
+    actor TEXT NOT NULL,
+    role TEXT NOT NULL,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    status_code INTEGER,
+    created_at TEXT NOT NULL
+  ); CREATE INDEX IF NOT EXISTS admin_audit_log_created ON admin_audit_log(created_at DESC);`);
   db.exec(`CREATE TABLE IF NOT EXISTS designer_terms_acceptances (
     designer_id TEXT NOT NULL REFERENCES designer_profiles(id),
     terms_version TEXT NOT NULL,
@@ -756,8 +807,10 @@ function createApp(options = {}) {
   for (const designerId of new Set(Object.values(designerTokens).map(value => String(value || '').trim()).filter(Boolean))) {
     ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
   }
-  const adminTokens = [options.adminToken ?? process.env.ADMIN_TOKEN ?? '', ...(process.env.ADMIN_TOKENS || '').split(',')]
-    .map(value => String(value || '').trim()).filter(Boolean);
+  const adminEntries = parseAdminTokens(options);
+  const adminTokens = adminEntries.map(entry => entry.token);
+  const adminConfigurationErrors = productionConfigurationErrors({adminEntries});
+  if (adminConfigurationErrors.length) throw new Error(`Production configuration is incomplete: ${adminConfigurationErrors.join(' ')}`);
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
   const reviewRequired = options.reviewRequired ?? process.env.REVIEW_REQUIRED !== 'false';
 
@@ -1005,7 +1058,7 @@ function createApp(options = {}) {
       // Browser-controlled Fetch Metadata proves a same-origin request even then.
       if (fetchSite !== 'same-origin') return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
     }
-    if (!origin && fetchSite && !['same-origin','same-site','none'].includes(fetchSite)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
+    if (!origin && fetchSite && !['same-origin','none'].includes(fetchSite)) return fail(res,403,'invalid_origin','This request did not come from House of Briar.');
     if (!origin && !fetchSite) return fail(res,403,'invalid_origin','A trusted request origin is required.');
     return next();
   }
@@ -1087,12 +1140,60 @@ function createApp(options = {}) {
     }
   }
 
+  const ADMIN_SESSION_COOKIE = 'hob_admin_session';
+  const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+  function adminEntryForToken(token) {
+    const entry = adminEntries.find(candidate => safeEqual(token, candidate.token));
+    if (entry) return entry;
+    // Keep the compatibility check explicit while legacy ADMIN_TOKENS are migrated.
+    if (adminTokens.some(candidate => safeEqual(token, candidate))) return {label: 'admin', role: 'operator', token};
+    return null;
+  }
+  function setAdminSessionCookie(req, res, token, maxAgeSeconds = Math.floor(ADMIN_SESSION_TTL_MS / 1000)) {
+    const secure = trustedAppOrigin(req).startsWith('https://');
+    res.cookie(ADMIN_SESSION_COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, path: '/', maxAge: maxAgeSeconds * 1000 });
+  }
+  function issueAdminSession(req, res, entry) {
+    const token = crypto.randomBytes(32).toString('base64url');
+    const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
+    db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?').run(now.toISOString());
+    db.prepare('INSERT INTO admin_sessions(session_hash,actor,role,created_at,expires_at) VALUES (?,?,?,?,?)')
+      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString());
+    setAdminSessionCookie(req, res, token);
+  }
+  function clearAdminSession(req, res) {
+    const token = cookieValue(req, ADMIN_SESSION_COOKIE);
+    if (token) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(token).digest('hex'));
+    setAdminSessionCookie(req, res, '', 0);
+  }
+  function recordAdminAudit(req, res) {
+    const actor = req.adminActor || 'admin', role = req.adminRole || 'operator';
+    res.on('finish', () => db.prepare('INSERT INTO admin_audit_log(id,actor,role,method,path,status_code,created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(makeId(), actor, role, req.method, req.originalUrl.split('?')[0].slice(0,500), res.statusCode, new Date().toISOString()));
+  }
+  function requireAdminRequestOrigin(req, res, next) {
+    if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return next();
+    const expectedOrigin = trustedAppOrigin(req), origin = req.get('origin'), fetchSite = String(req.get('sec-fetch-site') || '').toLowerCase();
+    if (origin && !isSameOriginUrl(origin, expectedOrigin)) return fail(res, 403, 'invalid_origin', 'This request did not come from House of Briar.');
+    if (!origin && fetchSite && !['same-origin','none'].includes(fetchSite)) return fail(res, 403, 'invalid_origin', 'This request did not come from House of Briar.');
+    if (!origin && !fetchSite) return fail(res, 403, 'invalid_origin', 'A trusted request origin is required.');
+    return next();
+  }
   function authAdmin(req, res, next) {
-    const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!token) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
-    if (!adminTokens.length || !adminTokens.some(candidate => safeEqual(token, candidate))) {
-      return fail(res, 403, 'forbidden', 'Administrator access is required.');
+    const sessionToken = cookieValue(req, ADMIN_SESSION_COOKIE);
+    if (sessionToken) {
+      const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+      const session = db.prepare('SELECT actor,role,expires_at FROM admin_sessions WHERE session_hash=?').get(sessionHash);
+      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role)) {
+        req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return requireAdminRequestOrigin(req, res, next);
+      }
+      if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);
     }
+    const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const entry = token ? adminEntryForToken(token) : null;
+    if (!entry) return fail(res, token ? 403 : 401, token ? 'forbidden' : 'unauthorized', token ? 'Administrator access is required.' : 'Administrator authentication is required.');
+    req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
+    // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
     return next();
   }
 
@@ -1543,6 +1644,14 @@ function createApp(options = {}) {
   // Parse analytics before the general parser so its smaller limit is enforced.
   app.use('/api/analytics/events',express.json({limit:'16kb'}));
   app.use(express.json({ limit: '64kb' }));
+  app.post('/api/admin/session', rateLimit({windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'admin-login'}), (req, res) => {
+    const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const entry = token ? adminEntryForToken(token) : null;
+    if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+    return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
+  });
+  app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
+
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(customerRouter);
   const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
@@ -4086,10 +4195,13 @@ function createApp(options = {}) {
       genesisAuth: 'external',
       taskadeGateway: 'external'
     };
-    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || persistentStorageConfigured);
+    const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
+      ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.ADMIN_HARDENING_REQUIRED !== 'true' || (backupConfigured && !adminConfigurationErrors.length))));
     res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
     res.set('X-HOB-Database', database);
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
+    res.set('X-HOB-Offsite-Backup', backupConfigured ? 'configured' : 'missing');
     res.set('X-HOB-React-Build', hasReactBuild ? 'present' : 'absent');
     res.set('X-HOB-Director-Dependencies', Object.keys(directorDependencies).join(','));
     return res.status(ready ? 200 : 503).json({ ok: ready });
