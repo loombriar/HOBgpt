@@ -28,7 +28,7 @@ export function HouseAuth({children}:{children:ReactNode}){
  const version=useRef(0);
  const [manager]=useState(()=>new UserManager({authority:window.location.origin,client_id:'house',redirect_uri:window.location.origin+'/designers/room',automaticSilentRenew:false}));
  useEffect(()=>{let active=true;async function refresh(){const attempt=++version.current;setUser(null);setLoading(true);try{const next=await validateHouseSession();if(active&&attempt===version.current)setUser(next);}catch{if(active&&attempt===version.current)setUser(null);}finally{if(active&&attempt===version.current)setLoading(false);}}void refresh();window.addEventListener('storage',refresh);return()=>{active=false;version.current++;window.removeEventListener('storage',refresh);};},[]);
- async function removeUser(){version.current++;await revokeHouseSessions();localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');clearHouseCartOnSignOut();setUser(null);setLoading(false);}
+ async function removeUser(){version.current++;await revokeHouseSessions();clearHouseCartOnSignOut();setUser(null);setLoading(false);}
  async function signinRedirect(){window.location.assign('/designers/room');}
  async function signoutRedirect(){await removeUser();window.location.assign('/');}
  const unsupported=async()=>{throw Error('Use your existing House Designer’s Room to sign in.');};
