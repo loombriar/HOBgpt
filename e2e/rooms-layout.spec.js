@@ -18,6 +18,9 @@ for(const width of [390,1280]) {
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
+  await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(7);
+  await expect(page.locator('#product-form')).not.toBeVisible();
+  await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
   const checkbox=await page.locator('#product-international').boundingBox();
@@ -25,6 +28,12 @@ for(const width of [390,1280]) {
   await expect(page.locator('#product-form fieldset').filter({has:page.getByText('Price & shipping',{exact:true})})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await expect(page.locator('#product-name')).toBeInViewport();
+  await page.locator('#product-name').fill('Unsaved design');
+  const panel=page.locator('.designer-room-panel').filter({has:page.locator('#product-form')});
+  await panel.locator('summary').click();
+  await expect(page.locator('#product-form')).not.toBeVisible();
+  await panel.locator('summary').click();
+  await expect(page.locator('#product-name')).toHaveValue('Unsaved design');
   await page.screenshot({path:`/tmp/hob-room-${width}.png`});
   await page.goto('/');
   await page.getByRole('button',{name:'Admin panel',exact:true}).click();
