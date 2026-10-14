@@ -2459,3 +2459,44 @@ for (const button of document.querySelectorAll('button[aria-controls="designer-t
     button.setAttribute('aria-pressed', String(visible));
   });
 }
+
+
+/* Keep the standalone Designer Room compact without replacing form elements. */
+function prepareDesignerRoomPanels() {
+  const workspace=byId('designer-workspace');
+  if(!workspace||workspace.dataset.panelsReady)return;
+  workspace.dataset.panelsReady='true';
+  const groups=[
+    ['.seller-readiness-card','Getting started'],
+    ['.payout-setup-card','Payout setup'],
+    ['#designer-studio-overview','Studio overview'],
+    ['#designer-products','Your listings'],
+    ['#product-form','Create or edit a piece'],
+    ['#designer-brand-form','Brand & profile'],
+    ['.fabric-finder-card','Fabric Finder']
+  ];
+  for(const [selector,title] of groups){
+    const content=workspace.querySelector(selector);
+    if(!content||content.parentElement!==workspace)continue;
+    const panel=document.createElement('details');
+    panel.className='designer-room-panel';
+    const summary=document.createElement('summary');
+    summary.textContent=title;
+    content.before(panel);panel.append(summary,content);
+  }
+  const reveal=target=>{
+    if(!target)return;
+    for(let parent=target;parent&&parent!==workspace;parent=parent.parentElement){
+      if(parent.tagName==='DETAILS')parent.open=true;
+    }
+  };
+  workspace.addEventListener('invalid',event=>reveal(event.target),true);
+  byId('new-listing-btn')?.addEventListener('click',()=>{const form=byId('product-form');reveal(form);scrollRoomTarget(form,{block:'start'});});
+  workspace.addEventListener('click',event=>{
+    if(event.target.closest('.designer-product-actions'))reveal(byId('product-form'));
+  });
+  const revealHash=()=>{const id=location.hash.slice(1);if(id)reveal(byId(id));};
+  window.addEventListener('hashchange',revealHash);
+  revealHash();
+}
+prepareDesignerRoomPanels();
