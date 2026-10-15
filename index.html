@@ -28,7 +28,7 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=audit-20261008" defer></script>
+    <script src="/script.js?v=editorial-20261015" defer></script>
     <script type="module" src="/native-back.js"></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=hero-wide-20261011" />
@@ -78,7 +78,7 @@ html[data-hob-theme="dark"] :is(h1,h2,h3,h4,p,li,small,label){color:inherit}
 html[data-hob-theme="dark"] :is(.product-card,.listing-card,.card,.hob-creator-spotlight-grid>a,article){background-color:#2b3031!important;color:#eee8dc!important;border-color:#515657!important}
 html[data-hob-theme="dark"] :is(input,select,textarea,dialog){background-color:#2b3031!important;color:#eee8dc!important;border-color:#686e6d!important}
 html[data-hob-theme="dark"] :is(a,button){color:inherit}
-</style><link rel="stylesheet" href="/briar-makeover.css?v=dark-contrast-20261012"><link rel="stylesheet" href="/customer-edit.css?v=20261015"></head>
+</style><link rel="stylesheet" href="/briar-makeover.css?v=dark-contrast-20261012"><link rel="stylesheet" href="/customer-edit.css?v=editorial-20261015"></head>
   <body><div id="hob-global-nav" role="navigation" aria-label="House of Briar main navigation"><a class="hob-global-wordmark" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="Main links"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><a href="/creative-house.html">The Creative House</a><button type="button" id="hob-theme-toggle" aria-label="Switch to dark mode" aria-pressed="false" title="Switch theme"><span id="hob-theme-icon" aria-hidden="true">☾</span></button><a class="hob-global-cart-link" href="/?openCart=1" aria-label="Open shopping cart"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span></a></nav></div>
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">Virtual styling preview</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
     <div class="page-shell">
@@ -106,7 +106,14 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       <main id="top">
 
         <section class="hero sewing-hero fashion-cover" aria-label="House of Briar — Independent by design">
-  <div class="fashion-cover-art" aria-hidden="true"><div class="fashion-cover-art-inner"><span class="fashion-cover-art-number">ISSUE Nº 01 / THE INDEPENDENTS</span><img id="house-hero-piece" class="house-hero-piece" alt="" hidden><span class="fashion-cover-art-monogram">H<span>o</span>B</span><span class="fashion-cover-art-caption">A NEW POINT OF VIEW</span></div></div>
+  <div class="fashion-cover-art" aria-label="House of Briar — Slow-made, not mass-made">
+    <div class="briar-editorial-poster">
+      <span class="briar-poster-kicker">HOUSE OF BRIAR / THE INDEPENDENT EDIT</span>
+      <span class="briar-poster-title">Wear<br>your own<br><em>point of view.</em></span>
+      <span class="briar-poster-seam" aria-hidden="true"></span>
+      <div class="briar-poster-footer"><span>Slow-made.<br>Not mass-made.</span><span aria-hidden="true">H<i>o</i>B ↗</span></div>
+    </div>
+  </div>
   <div class="container sewing-hero-content fashion-cover-copy">
     <p class="eyebrow">INDEPENDENT BY DESIGN <span aria-hidden="true">/</span> THE FOUNDING EDIT</p>
     <h1>Made by someone,<br><em>not everyone.</em></h1>
@@ -116,6 +123,14 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
   </div>
 </section>
 <div class="house-shopping-promises" aria-label="Shopping with House of Briar"><span><b>01</b> Independent designers</span><span><b>02</b> Free US delivery</span><span><b>03</b> Checkout without an account</span></div>
+<section class="briar-invitation" aria-labelledby="briar-invitation-title">
+  <div class="briar-invitation-heading"><p class="eyebrow">WE ARE IN OUR SIGNUP ERA</p><h2 id="briar-invitation-title">A new House.<br><em>A world of possibility.</em></h2><p>The collection is growing. The invitation is open. Bring your ideas, your eye, your beautifully unexpected self.</p></div>
+  <div class="briar-invitation-grid">
+    <a class="briar-invite briar-invite-mint" href="/designers/room#designer-signup"><span>01 / MAKE SOMETHING</span><strong>Your label.<br>Your rules.</strong><p>A judgment-free place to begin. Free to join, with no listing fees.</p><b>Join as a designer ↗</b></a>
+    <a class="briar-invite briar-invite-coral" href="/creative-house.html#join-house"><span>02 / FIND YOUR PEOPLE</span><strong>Behind the lens.<br>In the spotlight.</strong><p>Models, photographers, DJs and venues: make your introduction.</p><b>Enter the Creative House ↗</b></a>
+    <a class="briar-invite briar-invite-paper" href="#shop"><span>03 / FOLLOW YOUR CURIOSITY</span><strong>A little different.<br>Entirely you.</strong><p>Explore original clothing and meet the people creating it.</p><b>Discover the collection ↗</b></a>
+  </div>
+</section>
 <section id="shop" class="product-section">
           <div class="container">
             <div class="section-heading">
