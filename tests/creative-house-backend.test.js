@@ -11,16 +11,16 @@ async function fixture(){
 }
 test('creative profiles save, update without changing links, survive restart, and enforce publication and ownership',async()=>{
  const f=await fixture();try{const a=await f.customer('creative-a@example.test'),b=await f.customer('creative-b@example.test');
- const payload={display_name:'Same Name',role:'model',location:'Ohio',bio:'Original creative biography',published:true};
+ const payload={display_name:'Same Name',role:'model',location:'Ohio',bio:'Original creative biography',specialties:'Runway, Editorial',published:true};
  assert.equal((await f.call('/api/creative-house/my-profile','PUT',payload)).status,401);
  assert.equal((await f.call('/api/creative-house/my-profile','PUT',payload,a,'https://evil.example')).status,403);
  const first=await f.call('/api/creative-house/my-profile','PUT',payload,a);assert.equal(first.status,200);const slug=first.body.profile.slug;
  const other=await f.call('/api/creative-house/my-profile','PUT',payload,b);assert.notEqual(other.body.profile.slug,slug);
  assert.equal((await f.call('/api/creative-house/profiles/'+slug)).status,401);
  assert.equal((await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,b)).status,401);
- const publicProfile=await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,'seller');assert.equal(publicProfile.status,200);assert.ok(!JSON.stringify(publicProfile.body).includes('owner_subject'));
+ const publicProfile=await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,'seller');assert.equal(publicProfile.status,200);assert.equal(publicProfile.body.profile.specialties,'Runway, Editorial');assert.ok(!JSON.stringify(publicProfile.body).includes('owner_subject'));
  const edit=await f.call('/api/creative-house/my-profile','PUT',{...payload,display_name:'Updated Name'},a);assert.equal(edit.body.profile.slug,slug);
- await f.restart();assert.equal((await f.call('/api/creative-house/my-profile','GET',undefined,a)).body.profile.display_name,'Updated Name');
+ await f.restart();const restored=(await f.call('/api/creative-house/my-profile','GET',undefined,a)).body.profile;assert.equal(restored.display_name,'Updated Name');assert.equal(restored.specialties,'Runway, Editorial');
  await f.call('/api/creative-house/my-profile','PUT',{...payload,published:false},a);assert.equal((await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,'seller')).status,404);
  assert.equal((await f.call('/api/creative-house/my-profile','PUT',{...payload,role:'admin'},a)).status,400);
  }finally{await f.close();}
@@ -86,5 +86,18 @@ test('project requests reach an admin-only review queue and retain their reviewe
  assert.equal((await f.call('/api/admin/creative-project-requests/'+id,'PATCH',{status:'invalid'},'admin-test')).status,400);
  assert.equal((await f.call('/api/admin/creative-project-requests/'+id,'PATCH',{status:'reviewed'},'admin-test')).status,200);
  await f.restart();assert.equal((await f.call('/api/admin/creative-project-requests','GET',undefined,'admin-test')).body.requests[0].status,'reviewed');
+ }finally{await f.close();}
+});
+
+test('creative specialties migrate old profiles and remain private across legacy saves',async()=>{
+ const f=await fixture();try{
+  f.ctx.db.exec('ALTER TABLE creative_profiles DROP COLUMN specialties');await f.restart();
+  const account=await f.customer('specialty-model@example.test');
+  const profile={display_name:'Editorial model',role:'model',bio:'Independent editorial work',location:'Ohio',published:true};
+  await f.call('/api/creative-house/my-profile','PUT',{...profile,specialties:'Runway, Editorial'},account);
+  await f.call('/api/creative-house/my-profile','PUT',profile,account);
+  const own=await f.call('/api/creative-house/my-profile','GET',undefined,account);assert.equal(own.body.profile.specialties,'Runway, Editorial');
+  assert.equal((await f.call('/api/creative-house/profiles','GET',undefined,account)).status,401);
+  const designers=await f.call('/api/creative-house/profiles','GET',undefined,'seller');assert.equal(designers.body.profiles[0].specialties,'Runway, Editorial');
  }finally{await f.close();}
 });

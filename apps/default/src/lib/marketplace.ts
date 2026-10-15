@@ -9,6 +9,7 @@ type GalleryItem = {
   price: number;
   category?: string;
   style?: string;
+  aesthetic?: string;
   size?: string;
   designerId?: string;
   designerName?: string;
@@ -30,6 +31,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@categ': item.category || 'One-of-a-kind',
       '/attributes/@tagsx': [item.style, item.category].filter(Boolean).join(', ') || 'Independent design',
       '/attributes/@style': item.style || '',
+      '/attributes/@aesth': item.aesthetic || '',
       '/attributes/@sizex': item.size?.trim() || (item.productionType === 'Made to Order' ? 'Made to order · check measurements' : 'See measurements'),
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',

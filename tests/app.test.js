@@ -278,7 +278,7 @@ test('editorial storefront serves its stylesheet and keeps account and cart entr
 
 test('editorial storefront retains accessible native category filters and their choices', async () => {
   const html = await (await fetch(`${baseUrl}/`)).text();
-  for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-accessory-filter', 'shop-designer-filter', 'shop-pattern-filter']) {
+  for (const id of ['shop-category-filter', 'shop-garment-filter', 'shop-aesthetic-filter', 'shop-designer-filter', 'shop-pattern-filter']) {
     assert.ok(html.includes(`id="${id}" aria-label=`), `${id} should remain an accessible native filter`);
   }
   assert.match(html, /<option value="all">All prints<\/option>/);
