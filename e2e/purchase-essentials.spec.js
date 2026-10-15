@@ -4,12 +4,13 @@ for (const width of [390, 1280]) {
   test(`buying details appear once before the cart action at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.route('**/api/gallery*', route => route.fulfill({ json: { items: [{
-      id: 'clarity-piece', title: 'Clarity dress', price: 89, category: 'womenswear',
+      id: 'e2e-piece', title: 'Clarity dress', price: 89, category: 'womenswear',
       status: 'published', productionType: 'One of a Kind', availableQuantity: 1,
       handlingDaysMin: 2, handlingDaysMax: 4,
       description: 'An independent original.\n[GARMENT DETAILS]\nGarment Measurements: Waist 30 inches\nFit Notes: Relaxed through the hips\nMaterial: Cotton\nCare Instructions: Hand wash cold\n[END GARMENT DETAILS]',
     }] } }));
-    await page.goto('/shop/clarity-piece');
+    const response = await page.goto('/shop/e2e-piece');
+    expect(response.status()).toBe(200);
     const essentials = page.getByRole('region', { name: 'Purchase essentials', exact: true });
     await expect(essentials).toBeVisible();
     for (const text of ['Waist 30 inches', 'Relaxed through the hips', 'Free US delivery', '2–4 business days', 'Carrier transit time is additional.']) {
