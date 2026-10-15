@@ -1,5 +1,7 @@
 'use strict';
 const status=document.getElementById('status');
+const setupMode=new URLSearchParams(window.location.search).get('setup')==='1';
+if(setupMode){const setup=document.querySelector('details');setup.open=true;document.getElementById('reviewer-signin').before(setup);document.getElementById('reviewer-signin').hidden=true;}
 async function submitReviewer(event,route){
  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button');
  const output=route==='enroll'?document.getElementById('setup-status'):status;
@@ -16,7 +18,7 @@ async function submitReviewer(event,route){
   }
   form.querySelectorAll('input[type=password]').forEach(input=>{input.value='';});
   if(route==='signin')window.location.assign(data.redirect==='/'?'/':'/designers/room');
-  else {document.getElementById('setup-reverify').hidden=true;show('Reviewer password saved for '+data.role+'. You can now use it in the sign-in form above.');}
+  else {document.getElementById('setup-reverify').hidden=true;document.getElementById('reviewer-signin').hidden=false;document.getElementById('role').value=data.role;show('Reviewer password saved for '+data.role+'. You can now use it in the sign-in form above.');}
  }catch(error){show(error.message);}finally{button.disabled=false;}
 }
 document.getElementById('reviewer-signin').addEventListener('submit',event=>void submitReviewer(event,'signin'));
@@ -29,3 +31,4 @@ document.getElementById('reviewer-enroll').addEventListener('invalid',event=>{
  const message=event.target.validity.valueMissing?'Fill in both password boxes.':event.target.validity.tooShort?'Use at least 16 characters in each password box.':'Check the password fields and try again.';
  const output=document.getElementById('setup-status');output.textContent=message;output.scrollIntoView({block:'nearest'});
 },true);
+
