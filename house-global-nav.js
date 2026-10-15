@@ -10,6 +10,7 @@
     nav.innerHTML = '<a class="hob-global-wordmark" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="House of Briar main menu"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><a href="/creative-house.html">The Creative House</a><a class="hob-global-cart-link" href="/?openCart=1" aria-label="Open shopping cart"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span></a></nav>';
     document.body.prepend(nav);
   }
+  nav.classList.add('hob-global-nav');
   const links = nav.querySelector('nav');
   const creativeLink = links.querySelector('a[href="/creative-house.html"]');
   if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
@@ -49,6 +50,7 @@
   } else {
     const signIn = document.createElement('a');
     signIn.href = '/?visitors=signup';
+    signIn.className = 'hob-global-account-link';
     signIn.textContent = 'My account';
     links.appendChild(signIn);
   }
@@ -87,6 +89,13 @@
   links.querySelectorAll('a').forEach(link => {
     if (link.pathname === location.pathname && link.pathname !== '/') link.setAttribute('aria-current', 'page');
   });
+  const actions = document.createElement('div');
+  actions.className = 'hob-global-actions';
+  actions.setAttribute('aria-label', 'Account, cart and theme');
+  for (const control of [themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link'), account || links.querySelector('.hob-global-account-link')]) {
+    if (control) actions.appendChild(control);
+  }
+  nav.appendChild(actions);
   if (header) header.classList.add('hob-original-header');
   const setOffset = () => {
     const height = Math.ceil(nav.getBoundingClientRect().height);

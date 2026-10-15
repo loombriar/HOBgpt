@@ -94,3 +94,32 @@ html[data-hob-theme="dark"] body.blackberry-house .product-card :is(.card-descri
 html[data-hob-theme="dark"] body.blackberry-house .product-card .badge{background:var(--briar-coral)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
 html[data-hob-theme="dark"] body.blackberry-house .product-card .favorite-button{background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
 html[data-hob-theme="dark"] body.blackberry-house :is(.secondary-button,.text-button,.favorite-button):hover{background:var(--briar-mint)!important;color:var(--briar-ink)!important}
+
+/* Opaque card surfaces prevent the glass layer washing out Android dark mode. */
+html[data-hob-theme=dark] body.blackberry-house #product-grid>.product-card,
+html[data-hob-theme=dark] body.blackberry-house #product-grid>.product-card .product-body{
+ background:var(--briar-card)!important;background-image:none!important;color:var(--briar-ink)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+}
+body.blackberry-house #product-grid>.product-card{display:flex;flex-direction:column}
+body.blackberry-house #product-grid>.product-card .product-body{flex:1}
+@media(max-width:560px){
+ body.blackberry-house #product-grid .designer-card-link{font:600 13px/1.35 Inter,Arial,sans-serif!important;gap:6px;margin-bottom:6px;overflow-wrap:anywhere}
+ body.blackberry-house #product-grid .designer-card-link img{width:24px!important;height:24px!important;flex:0 0 24px}
+ body.blackberry-house #product-grid .listing-badges{display:flex;flex-wrap:wrap;gap:5px!important}
+ body.blackberry-house #product-grid .listing-badges>span{display:inline-flex;align-items:center;gap:4px;padding:5px 7px!important;min-height:28px;max-width:100%;box-sizing:border-box;font:600 10px/1.3 Inter,Arial,sans-serif!important;letter-spacing:0;text-transform:none;white-space:normal}
+ body.blackberry-house #product-grid .listing-badges .supporter-badge-art{width:18px!important;height:18px!important;flex:0 0 18px}
+ body.blackberry-house #product-grid .meta-row .badge{font:500 11px/1.3 Inter,Arial,sans-serif!important;padding:4px 7px!important}
+ body.blackberry-house #product-grid .card-title{font-size:23px!important;line-height:1.15!important;margin-block:8px!important}
+ body.blackberry-house .designer-room-page .fabric-finder-card{padding:16px!important;border-radius:12px!important}
+ body.blackberry-house .designer-room-page .fabric-finder-card h3{font-size:25px!important;margin-bottom:10px}
+ body.blackberry-house .designer-room-page .fabric-finder-card p{font-size:14px!important;line-height:1.55!important}
+ body.blackberry-house .designer-room-page .fabric-finder-card .small-print{font-size:12px!important}
+ body.blackberry-house .designer-room-page .fabric-finder-card input[type=file]{width:100%;min-width:0;font-size:13px!important;padding:10px!important}
+}
+@media(max-width:700px){
+ /* Keep the Android storefront bar compact after all legacy header overrides. */
+ html body.blackberry-house #hob-global-nav{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:44px 36px!important;gap:2px 8px!important;padding:6px 12px!important;height:96px!important;min-height:96px!important;align-content:start!important}
+ html body.blackberry-house #hob-global-nav>.hob-global-wordmark{grid-column:1;grid-row:1;font-size:18px!important;letter-spacing:.025em!important}
+ html body.blackberry-house #hob-global-nav>.hob-global-actions{grid-column:2;grid-row:1;height:44px;display:flex;align-items:center;gap:5px}
+ html body.blackberry-house #hob-global-nav>nav{grid-column:1/-1;grid-row:2;height:36px!important;min-height:36px;flex-wrap:nowrap!important;align-items:center!important;gap:4px 16px!important}
+}

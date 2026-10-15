@@ -8,6 +8,11 @@ import VisualSearch from '@/components/VisualSearch';
 import { MARKET_STYLES, getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, isPublicProduct, getProductImages, getProductVisual, money, setPersistentFavorite } from '@/lib/marketplace';
 import { trackCommerceEvent } from '@/lib/analytics';
 
+const GARMENT_SUBCATEGORIES=['Dress','Skirt','Top','Set / Outfit','Jacket / Outerwear','Winter Wear','Pants / Shorts','Jumpsuit / Romper','Costume','Other clothing'];
+const ACCESSORY_SUBCATEGORIES=['Belt','Purse / Bag','Scarf / Wrap','Hat / Headwear','Gloves','Hair Accessory','Other accessory'];
+const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories',menswear:'Masculine',womenswear:'Womenswear',unisex:'Unisex',costumes:'Costumes'};
+const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex','costumes'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
+
 const LIKED_PRODUCTS_KEY = 'house-of-briar:liked-products';
 const PRICE_RANGES = [
   { value: 'all-prices', label: 'All prices' },
@@ -106,6 +111,8 @@ export default function ShopPage() {
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const savedOnly = searchParams.get('saved') === 'true' || searchParams.get('liked') === 'true';
+  const subcategory=searchParams.get('subcategory')??'All subcategories';
+  const subcategories=category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
   const designerFilter = searchParams.get('designer') ?? 'All designers';
   useEffect(() => { setQuery(searchParams.get('q') ?? ''); setCategory(searchParams.get('category') ?? 'All pieces'); setPriceRange(searchParams.get('price') ?? 'all-prices'); setSort(searchParams.get('sort') ?? 'newest'); setStyle(searchParams.get('style') ?? 'All styles'); }, [searchParams]);
   const updateFilter = (key: string, value: string, defaultValue: string) => { const next = new URLSearchParams(searchParams); if (!value || value === defaultValue) next.delete(key); else next.set(key, value); setSearchParams(next, { replace: true }); };
@@ -115,7 +122,7 @@ export default function ShopPage() {
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
   }, []);
-  const categories = useMemo(() => ['All pieces', ...Array.from(new Set(products.map((item) => getFieldValue(item, '@categ', 'Category')).filter(Boolean) as string[]))], [products]);
+  const categories = useMemo(() => ['All pieces',...Object.keys(CATEGORY_LABELS),...Array.from(new Set(products.map(item=>getFieldValue(item,'@categ','Category')).filter((value):value is string=>Boolean(value)&&!Object.keys(CATEGORY_LABELS).includes(value!))))], [products]);
   const designers = useMemo(() => ['All designers', ...Array.from(new Set(products.map((item) => getFieldValue(item, '@desig', 'Designer')).filter(Boolean) as string[])).sort()], [products]);
   const visible = products.filter((product) => {
     if (!isPublicProduct(product) || (savedOnly && !savedIds.includes(product.id))) return false;
@@ -124,12 +131,13 @@ export default function ShopPage() {
     const productDesigner = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
     const price = getFieldNumber(product, '@price', 'Price') ?? 0;
     const description = getFieldValue(product, '@descr', 'Description') ?? ''; const material = getFieldValue(product, '@mater', 'Material') ?? ''; const productStyleForSearch = getFieldValue(product, '@style', 'Style') ?? ''; const productCategoryForSearch = getFieldValue(product, '@categ', 'Category') ?? ''; const matchesQuery = searchMatches(query, [name, tags, productDesigner, description, material, productStyleForSearch, productCategoryForSearch]);
-    const matchesCategory = category === 'All pieces' || getFieldValue(product, '@categ', 'Category') === category;
+    const matchesCategory = categoryMatches(category,getFieldValue(product,'@categ','Category')??'',productStyleForSearch);
+    const matchesSubcategory=subcategory==='All subcategories'||productStyleForSearch===subcategory;
     const matchesDesigner = designerFilter === 'All designers' || productDesigner === designerFilter;
     const productStyle = getFieldValue(product, '@style', 'Style') ?? '';
-    const matchesStyle = style === 'All styles' || productStyle === style;
+    const matchesStyle = style === 'All styles' || (getFieldValue(product,'@aesth','Aesthetic')||productStyle) === style;
     const matchesPrice = matchesPriceRange(price, priceRange);
-    return matchesQuery && matchesCategory && matchesDesigner && matchesStyle && matchesPrice;
+    return matchesQuery && matchesCategory && matchesSubcategory && matchesDesigner && matchesStyle && matchesPrice;
   }).sort((a, b) => { const aPrice=getFieldNumber(a,'@price','Price')??0; const bPrice=getFieldNumber(b,'@price','Price')??0; const aName=getTitle(a,'Name')??''; const bName=getTitle(b,'Name')??''; if(sort==='price-low')return aPrice-bPrice; if(sort==='price-high')return bPrice-aPrice; if(sort==='name')return aName.localeCompare(bName); return 0; });
   const handleSave = (productId: string) => {
     const shouldSave=!savedIds.includes(productId);
@@ -150,7 +158,7 @@ export default function ShopPage() {
   }, [query, visible.length]);
 
     if (loading) return <HouseShell><section className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8"><div className="space-y-4 border-b border-border pb-10"><div className="h-4 w-28 animate-pulse rounded-full bg-muted" /><div className="h-14 w-3/4 animate-pulse rounded-2xl bg-muted" /><div className="h-5 w-full max-w-xl animate-pulse rounded-full bg-muted" /></div><div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />)}</div></section></HouseShell>;
-  const activeFilters = [category !== 'All pieces', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers'].filter(Boolean).length;
+  const activeFilters = [category !== 'All pieces', subcategory !== 'All subcategories', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers'].filter(Boolean).length;
   return <HouseShell>
     <section className="house-shop mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="house-shop-heading">
@@ -166,8 +174,9 @@ export default function ShopPage() {
           <input value={query} onChange={event => { setQuery(event.target.value); updateFilter('q', event.target.value, ''); }} placeholder="Search pieces, designers, materials…" />
         </label>
         <label className="house-filter-label" htmlFor="category-filter">Category
-          <select id="category-filter" value={category} onChange={event => { setCategory(event.target.value); updateFilter('category', event.target.value, 'All pieces'); }}>{categories.map(item => <option key={item} value={item}>{item}</option>)}</select>
+          <select id="category-filter" value={category} onChange={event => { const next=new URLSearchParams(searchParams);next.delete('subcategory');if(event.target.value==='All pieces')next.delete('category');else next.set('category',event.target.value);setSearchParams(next,{replace:true}); }}>{categories.map(item => <option key={item} value={item}>{CATEGORY_LABELS[item]||item}</option>)}</select>
         </label>
+        <label className="house-filter-label" htmlFor="subcategory-filter">Subcategory<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item}>{item}</option>)}</select></label>
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
         </label>

@@ -153,6 +153,7 @@ let shopSearch = '';
 let activeAccessory = 'all';
 let selectedImages = [];
 let activeFilter = 'all';
+let activeShopCategory = 'all';
 let activeDesigner = 'all';
 let galleryRequest = 0;
 let activeMeasurements = null;
@@ -645,7 +646,7 @@ async function loadGallery() {
     params.set('category', 'accessories');
     if (activeAccessory !== 'accessories') params.set('style', activeAccessory);
   } else if (activeFilter !== 'all') {
-    if (activeFilter === 'apparel') params.set('category', 'apparel');
+    if (['apparel','menswear','womenswear','unisex','costumes'].includes(activeFilter)) params.set('category', activeFilter);
     else params.set('style', activeFilter);
   }
   for (const [key, value] of [['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
@@ -1604,6 +1605,25 @@ async function signOut() {
   location.replace('/designers/room');
 }
 
+const clothingSubcategories = [['Dress','Dresses'],['Skirt','Skirts'],['Top','Tops'],['Set / Outfit','Sets & Outfits'],['Jacket / Outerwear','Outerwear'],['Winter Wear','Winter Wear'],['Pants / Shorts','Pants & Shorts'],['Jumpsuit / Romper','Jumpsuits & Rompers'],['Costume','Costumes'],['Other clothing','Other clothing']];
+const accessorySubcategories = [['Belt','Belts'],['Purse / Bag','Purses & Bags'],['Scarf / Wrap','Scarves & Wraps'],['Hat / Headwear','Hats & Headwear'],['Gloves','Gloves'],['Hair Accessory','Hair Accessories'],['Other accessory','Other accessories']];
+function syncShopSubcategories() {
+  const select=byId('shop-garment-filter');if(!select)return;
+  select.replaceChildren();
+  const add=(parent,value,label)=>{const option=makeElement('option','',label);option.value=value;parent.appendChild(option);};
+  add(select,'all','All subcategories');
+  const groups=activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories]]:[['Clothing',clothingSubcategories]];
+  for(const [name,items] of groups){const group=document.createElement('optgroup');group.label=name;for(const [value,label] of items)add(group,value,label);select.appendChild(group);}
+  select.dispatchEvent(new Event('shop-caption'));
+}
+byId('shop-category-filter')?.addEventListener('change',event=>{
+  activeShopCategory=event.target.value||'all';
+  activeFilter=activeShopCategory==='accessories'?'all':activeShopCategory;
+  activeAccessory=activeShopCategory==='accessories'?'accessories':'all';
+  syncShopSubcategories();loadGallery();
+});
+syncShopSubcategories();
+
 function applyFilterButtons() {
   const garmentSelect = byId('shop-garment-filter');
   const aestheticSelect = byId('shop-aesthetic-filter');
@@ -1612,9 +1632,14 @@ function applyFilterButtons() {
 }
 
 byId('shop-garment-filter')?.addEventListener('change', (event) => {
-  activeFilter = event.target.value || 'all';
-  activeAccessory = 'all';
-  byId('shop-accessory-filter').value = 'all';
+  const value=event.target.value||'all';
+  if(typeof activeShopCategory!=='undefined' && (activeShopCategory==='accessories' || (activeShopCategory==='all' && typeof accessorySubcategories!=='undefined' && accessorySubcategories.some(([id])=>id===value)))){
+    activeFilter='all';activeAccessory=value==='all'?'accessories':value;
+  }else{
+    activeFilter=value==='all'&&typeof activeShopCategory!=='undefined'?activeShopCategory:value;
+    activeAccessory='all';
+  }
+  byId('shop-accessory-filter').value=activeAccessory;
   byId('shop-accessory-filter').dispatchEvent(new Event('shop-caption'));
   loadGallery();
 });
@@ -1682,6 +1707,8 @@ for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-
   select.addEventListener('shop-caption', syncCaption);
   syncCaption();
 }
+
+byId('shop-clear-filters')?.addEventListener('click',()=>{activeShopCategory='all';byId('shop-category-filter').value='all';syncShopSubcategories();});
 
 if (designerSignupLink) {
   designerSignupLink.addEventListener('click', (event) => {

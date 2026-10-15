@@ -2946,8 +2946,8 @@ function createApp(options = {}) {
     const values = [];
     for (const key of ['category', 'style', 'aesthetic', 'pattern']) {
       if (filters[key] && filters[key] !== 'all') {
-        conditions.push(`LOWER(TRIM(l.${key})) = LOWER(?)`);
-        values.push(filters[key]);
+        if(key==='category' && filters[key]==='apparel'){conditions.push("LOWER(TRIM(l.category)) IN ('apparel','menswear','womenswear','unisex','costumes')");}
+        else {conditions.push(`LOWER(TRIM(l.${key})) = LOWER(?)`);values.push(filters[key]);}
       }
     }
     if (filters.designer && filters.designer !== 'all') {
@@ -4168,14 +4168,15 @@ function createApp(options = {}) {
     published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  if(!db.prepare('PRAGMA table_info(creative_profiles)').all().some(column=>column.name==='specialties'))db.exec("ALTER TABLE creative_profiles ADD COLUMN specialties TEXT NOT NULL DEFAULT ''");
   const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
   app.get('/api/creative-house/profiles/:slug',authDesigner,(req,res)=>{
-    const profile=db.prepare('SELECT slug,display_name,role,location,bio,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,specialties,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
     if(!profile)return res.status(404).json({error:'Profile not found'});
     res.json({profile});
   });
   app.get('/api/creative-house/my-profile',authBuyer,(req,res)=>{
-    const profile=db.prepare('SELECT slug,display_name,role,location,bio,published,updated_at FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const profile=db.prepare('SELECT slug,display_name,role,location,bio,specialties,published,updated_at FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
     res.json({profile:profile||null});
   });
   app.put('/api/creative-house/my-profile',authBuyer,(req,res)=>{
@@ -4184,14 +4185,15 @@ function createApp(options = {}) {
     const displayName=clean('display_name',80),role=clean('role',20),location=clean('location',100),bio=clean('bio',800);
     if(!displayName||!['model','photographer','designer'].includes(role))return res.status(400).json({error:'A display name and valid role are required.'});
     if(v.published!==true&&v.published!==false)return res.status(400).json({error:'Choose whether to publish your profile.'});
-    const previous=db.prepare('SELECT slug FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const previous=db.prepare('SELECT slug,specialties FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
+    const specialties=typeof v.specialties==='string'?clean('specialties',250):previous?.specialties||'';
     const slug=previous?.slug||portfolioSlug(displayName)+'-'+crypto.randomBytes(4).toString('hex');
-    db.prepare(`INSERT INTO creative_profiles(owner_subject,slug,display_name,role,location,bio,published) VALUES(?,?,?,?,?,?,?)
-      ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,v.published?1:0);
-    res.json({profile:{slug,display_name:displayName,role,location,bio,published:v.published}});
+    db.prepare(`INSERT INTO creative_profiles(owner_subject,slug,display_name,role,location,bio,specialties,published) VALUES(?,?,?,?,?,?,?,?)
+      ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,specialties=excluded.specialties,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,specialties,v.published?1:0);
+    res.json({profile:{slug,display_name:displayName,role,location,bio,specialties,published:v.published}});
   });
   app.get('/api/creative-house/profiles',authDesigner,(_req,res)=>{
-    const profiles=db.prepare('SELECT slug,display_name,role,location,bio FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
+    const profiles=db.prepare('SELECT slug,display_name,role,location,bio,specialties FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
     res.json({profiles});
   });
   // Public project-intake forms do not expose talent portfolios or contact details.
