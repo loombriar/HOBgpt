@@ -559,16 +559,6 @@ function renderGallery() {
   productGrid.replaceChildren();
 
   const items = galleryItems;
-    const heroPhoto = byId('house-hero-piece');
-    if (heroPhoto && !heroPhoto.getAttribute('src')) {
-      const featured = galleryItems.find(item => getProductImages(item)[0]?.url);
-      if (featured) {
-        heroPhoto.addEventListener('load', () => { heroPhoto.hidden = false; heroPhoto.parentElement.classList.add('has-piece'); }, {once: true});
-        heroPhoto.src = getProductImages(featured)[0].url;
-      }
-    }
-
-
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
   if (!items.length) {

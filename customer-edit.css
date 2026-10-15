@@ -11,8 +11,6 @@ body.blackberry-house .fashion-cover-art::before,body.blackberry-house .fashion-
 body.blackberry-house .fashion-cover-art-number{position:absolute!important;top:22px!important;left:22px!important;font-size:9px!important;z-index:1}
 body.blackberry-house .fashion-cover-art-monogram{font-size:clamp(100px,15vw,220px)!important}
 body.blackberry-house .fashion-cover-art-caption{position:absolute!important;bottom:22px!important;font-size:10px!important;z-index:1}
-.house-hero-piece{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--briar-mint)}
-.has-piece .fashion-cover-art-monogram,.has-piece .fashion-cover-art-number,.has-piece .fashion-cover-art-caption{visibility:hidden}
 body.blackberry-house .fashion-cover-footnote{font:10px/1.6 Inter,Arial,sans-serif!important;letter-spacing:.13em;margin-top:28px!important;color:var(--briar-muted)!important}
 body.blackberry-house .sewing-hero-actions{margin-top:24px!important;gap:12px!important}
 body.blackberry-house :is(.primary-button,.secondary-button){border-radius:3px!important;padding:13px 22px!important;font:500 14px/1.4 Inter,Arial,sans-serif!important;min-height:48px}
@@ -55,3 +53,27 @@ body.blackberry-house :is(a,button,input,select,summary):focus-visible{outline:2
 @media(prefers-reduced-motion:reduce){body.blackberry-house *,body.blackberry-house *::before,body.blackberry-house *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .house-card-size{display:block;margin-top:8px;font:12px/1.5 Inter,Arial,sans-serif;color:var(--briar-muted)}
 body.blackberry-house .product-body button.card-title{display:block;background:transparent;border:0;border-radius:0;padding:0;margin:8px 0 0;text-align:left;color:var(--briar-ink);font-family:'Cormorant Garamond',Georgia,serif!important;cursor:pointer;min-height:44px;white-space:normal}
+
+/* The cover is a permanent brand composition, independent of catalog order. */
+body.blackberry-house .hero.sewing-hero.fashion-cover{gap:clamp(24px,5vw,72px);padding-block:clamp(28px,5vw,68px)!important}
+body.blackberry-house .fashion-cover-copy h1{color:var(--briar-ink)!important;font-weight:500!important;letter-spacing:-.045em!important;line-height:1.02!important}
+body.blackberry-house .fashion-cover-copy h1 em{color:var(--briar-ink)!important}
+body.blackberry-house .fashion-cover .fashion-cover-art{background:#e6a398!important;aspect-ratio:1/1.05;border:1px solid #242321!important}
+.briar-editorial-poster{box-sizing:border-box;position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:32px;min-height:100%;padding:clamp(24px,3vw,46px);color:#242321;background:#e6a398;isolation:isolate}
+.briar-poster-kicker{font:500 10px/1.6 Inter,Arial,sans-serif;letter-spacing:.15em;max-width:260px}
+.briar-poster-title{display:block;font:500 clamp(48px,6.2vw,92px)/.94 'Cormorant Garamond',Georgia,serif;letter-spacing:-.045em;padding:24px 0;position:relative;z-index:1}
+.briar-poster-title em{font-weight:400}
+.briar-poster-seam{position:absolute;inset:15px;border:1px dashed #24232155;pointer-events:none;z-index:-1}
+.briar-poster-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-top:1px solid #24232177;padding-top:20px;font:500 11px/1.6 Inter,Arial,sans-serif;letter-spacing:.06em}
+.briar-poster-footer>span:last-child{font:32px/1 Georgia,serif;letter-spacing:-.05em}
+html[data-hob-theme=dark] .briar-editorial-poster{background:#e6a398!important;color:#242321!important}
+@media(max-width:560px){body.blackberry-house .fashion-cover .fashion-cover-art{aspect-ratio:auto;min-height:0!important}.briar-poster-title{font-size:clamp(48px,12vw,68px);padding:10px 0}.briar-editorial-poster{gap:20px;padding:26px}.briar-poster-kicker{font-size:9px}body.blackberry-house .fashion-cover-copy h1{font-size:clamp(42px,10.8vw,58px)!important}.briar-poster-footer{padding-top:14px}}
+
+.briar-invitation{padding:64px clamp(20px,5vw,72px);max-width:1440px;margin:auto;box-sizing:border-box}
+.briar-invitation-heading{max-width:650px;margin-bottom:32px}.briar-invitation-heading h2{font:500 clamp(36px,4.5vw,62px)/1.05 'Cormorant Garamond',Georgia,serif;letter-spacing:-.03em;margin:16px 0;color:var(--briar-ink)}.briar-invitation-heading>p:last-child{font:14px/1.8 Inter,Arial,sans-serif;color:var(--briar-muted);max-width:520px}
+.briar-invitation-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.briar-invite{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:22px;min-width:0;padding:30px;text-decoration:none!important;color:#242321!important;border:1px solid #242321;box-shadow:5px 5px 0 #242321;transition:transform .2s,box-shadow .2s;overflow:hidden}
+.briar-invite:hover{transform:translateY(-4px);box-shadow:7px 9px 0 #242321}.briar-invite>span{font:500 9px/1.6 Inter,Arial,sans-serif;letter-spacing:.12em}.briar-invite strong{font:500 clamp(30px,3vw,44px)/1.03 'Cormorant Garamond',Georgia,serif;letter-spacing:-.025em}.briar-invite p{font:13px/1.8 Inter,Arial,sans-serif;margin:0;max-width:280px;color:inherit!important}.briar-invite b{margin-top:auto;padding-top:14px;border-top:1px dashed #24232177;width:100%;font:500 12px/1.6 Inter,Arial,sans-serif}
+html body .briar-invite-mint{background:#c8dcd0!important}html body .briar-invite-coral{background:#e6a398!important}html body .briar-invite-paper{background:#eee5cd!important}
+.briar-editorial-poster::after{content:'';position:absolute;right:-24px;top:28%;width:130px;height:200px;border:1px solid #24232155;border-radius:50%;transform:rotate(28deg);pointer-events:none;z-index:-1}
+@media(max-width:700px){.briar-invitation{padding:40px 20px}.briar-invitation-grid{grid-template-columns:1fr;gap:22px}.briar-invite{padding:26px;gap:18px}.briar-invite strong{font-size:38px}}
