@@ -88,7 +88,7 @@ test('storefront route records an anonymous designer view without storing an IP 
 test('buyer can review a seeded piece in the suitcase and remove it', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
   await page.goto('/cart');
-  await expect(page.getByRole('heading', { name: 'Pieces waiting for you.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your shopping cart.' })).toBeVisible();
   await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('main').getByText('$89.99', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();

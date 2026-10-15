@@ -169,7 +169,7 @@ export default function ShopPage() {
           <select id="category-filter" value={category} onChange={event => { setCategory(event.target.value); updateFilter('category', event.target.value, 'All pieces'); }}>{categories.map(item => <option key={item} value={item}>{item}</option>)}</select>
         </label>
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
-          <select id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
+          <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
         </label>
       </div>
       <details className="house-shop-filters" open={activeFilters > 0 || undefined}>
