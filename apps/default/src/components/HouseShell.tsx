@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Bell, Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -25,6 +25,17 @@ function ThemeButton() {
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(124);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const measure = () => setHeaderHeight(Math.ceil(header.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const [cartCount, setCartCount] = useState(0);
   const [designerAlerts,setDesignerAlerts]=useState<{id:string;title:string;body:string;readAt?:string|null;orderId?:string|null}[]>([]);
   const [designerUnread,setDesignerUnread]=useState(0);
@@ -76,14 +87,14 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
     <div className="fashion-app min-h-screen bg-background text-foreground">
 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
-      <header className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
+      <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
           <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
           <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
             <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
             <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
-            <ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
+            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
             <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2 hover:border-primary">
               <img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
               <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
@@ -100,7 +111,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </nav>
         </div>
       </header>
-      <main id="house-main" className="house-main">{children}</main>
+      <main id="house-main" className="house-main" style={{ paddingTop: headerHeight + 12 }}>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
           <div>
@@ -109,7 +120,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Explore</p>
-            <div className="mt-4 flex flex-col gap-3 text-sm"><Link to="/shop" className="transition hover:text-primary">Shop the collection</Link><Link to="/designers" className="transition hover:text-primary">Meet the designers</Link><Link to="/account" className="transition hover:text-primary">List your work</Link><a href="/shipping.html" className="transition hover:text-primary">Shipping &amp; Delivery</a><a href="/rules" className="transition hover:text-primary">Rules &amp; Returns</a><Link to="/account#house-support" className="transition hover:text-primary">Customer support</Link><Link to="/admin" className="transition hover:text-primary">Admin dashboard</Link></div>
+            <div className="mt-4 flex flex-col gap-3 text-sm"><Link to="/shop" className="transition hover:text-primary">Shop the collection</Link><Link to="/designers" className="transition hover:text-primary">Meet the designers</Link><Link to="/account" className="transition hover:text-primary">Designer dashboard</Link><a href="/shipping.html" className="transition hover:text-primary">Shipping &amp; Delivery</a><a href="/rules" className="transition hover:text-primary">Rules &amp; Returns</a><Link to="/account#house-support" className="transition hover:text-primary">Customer support</Link><Link to="/admin" className="transition hover:text-primary">Admin dashboard</Link></div>
           </div>
         </div>
       </footer>
