@@ -9,7 +9,7 @@
   --hob-ivory:#fffdf8;
 }
 html[data-hob-theme="light"] body.blackberry-house,
-body.blackberry-house:not(:has(#hob-theme-toggle[aria-pressed="true"])){
+html:not([data-hob-theme]) body.blackberry-house{
   --briar-paper:var(--hob-parchment);
   --briar-card:var(--hob-ivory);
   --briar-ink:var(--hob-night);
@@ -83,7 +83,7 @@ body.blackberry-house .product-card{
   box-shadow:0 7px 24px #10271b12!important
 }
 body.blackberry-house .product-card:hover{transform:translateY(-5px);box-shadow:0 18px 44px #10271b21!important}
-body.blackberry-house .product-card .product-image{background:#eee9dc!important}
+body.blackberry-house .product-card .product-image{background:var(--briar-mint)!important}
 body.blackberry-house .hob-door{border-radius:12px!important}
 body.blackberry-house :is(input,select,textarea){border-radius:6px!important}
 body.blackberry-house :is(a,button,input,select,textarea):focus-visible{
@@ -94,10 +94,16 @@ body.blackberry-house :is(a,button,input,select,textarea):focus-visible{
   body.blackberry-house .fashion-cover .fashion-cover-art{margin:16px!important;border-radius:150px 150px 10px 10px!important}
   body.blackberry-house .fashion-cover-copy h1{font-size:clamp(3.1rem,13vw,5rem)!important}
   body.blackberry-house #hob-global-nav{gap:6px 10px!important}
-  body.blackberry-house #hob-global-nav nav{overflow-x:auto;max-width:100%;flex-wrap:nowrap!important}
+  body.blackberry-house #hob-global-nav nav{max-width:100%;flex-wrap:wrap!important;overflow:visible}
   body.blackberry-house .section-heading h2{font-size:clamp(2.3rem,9vw,3.5rem)}
 }
 @media(prefers-reduced-motion:reduce){
   body.blackberry-house .product-card:hover,
   body.blackberry-house .primary-button:hover{transform:none}
 }
+
+/* Theme-specific action colors keep contrast consistent across hover states. */
+html[data-hob-theme="dark"] body.blackberry-house .primary-button{background:#d8b878!important;color:#17251f!important;border-color:#d8b878!important}
+html[data-hob-theme="dark"] body.blackberry-house .primary-button:hover{background:#f0d49d!important;color:#17251f!important;border-color:#f0d49d!important}
+html[data-hob-theme="dark"] body.blackberry-house .secondary-button{color:var(--briar-ink)!important}
+@media(min-width:561px) and (max-width:720px){body.blackberry-house .hero.sewing-hero.fashion-cover{grid-template-columns:1fr!important}body.blackberry-house .fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1}body.blackberry-house .fashion-cover .fashion-cover-art{grid-column:1;grid-row:2}}
