@@ -116,3 +116,10 @@ body.blackberry-house #product-grid>.product-card .product-body{flex:1}
  body.blackberry-house .designer-room-page .fabric-finder-card .small-print{font-size:12px!important}
  body.blackberry-house .designer-room-page .fabric-finder-card input[type=file]{width:100%;min-width:0;font-size:13px!important;padding:10px!important}
 }
+@media(max-width:700px){
+ /* Keep the Android storefront bar compact after all legacy header overrides. */
+ html body.blackberry-house #hob-global-nav{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:44px 36px!important;gap:2px 8px!important;padding:6px 12px!important;height:96px!important;min-height:96px!important;align-content:start!important}
+ html body.blackberry-house #hob-global-nav>.hob-global-wordmark{grid-column:1;grid-row:1;font-size:18px!important;letter-spacing:.025em!important}
+ html body.blackberry-house #hob-global-nav>.hob-global-actions{grid-column:2;grid-row:1;height:44px;display:flex;align-items:center;gap:5px}
+ html body.blackberry-house #hob-global-nav>nav{grid-column:1/-1;grid-row:2;height:36px!important;min-height:36px;flex-wrap:nowrap!important;align-items:center!important;gap:4px 16px!important}
+}
