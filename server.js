@@ -586,6 +586,7 @@ function createApp(options = {}) {
   ensureColumn('analytics_events', 'designer_id', 'TEXT');
   ensureColumn('analytics_events', 'device_category', 'TEXT');
   for(const column of ['country','region','city'])ensureColumn('analytics_events',column,'TEXT');
+  require('./reviewer-auth').initReviewerAuth(db);
   const customerRouter=express.Router();
   const customerAccounts=require('./customer-accounts').createCustomerAccounts({app:customerRouter,db,fail,authAdmin,deliverEmail,trustedAppOrigin,clearDesignerSession,imagesDir});
   recordMigration(4, 'first_party_commerce_analytics');
@@ -994,7 +995,7 @@ function createApp(options = {}) {
       const customer=customerAccounts.authenticate(req);if(customer)return customer;
       const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
       if(!sessionToken)return null;
-      const session=db.prepare("SELECT p.id,p.email,s.designer_id,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=? AND s.expires_at>? AND p.status='active'").get(crypto.createHash('sha256').update(sessionToken).digest('hex'),new Date().toISOString());
+      const session=db.prepare("SELECT p.id,p.email,s.session_hash,s.designer_id,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=? AND s.expires_at>? AND p.status='active'").get(crypto.createHash('sha256').update(sessionToken).digest('hex'),new Date().toISOString());
       return validDesignerSession(session)?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
     }
     const hash=crypto.createHash('sha256').update(token).digest('hex');
@@ -1044,9 +1045,11 @@ function createApp(options = {}) {
     db.prepare('INSERT INTO designer_sessions(session_hash,designer_id,created_at,expires_at,credential_hash) VALUES (?,?,?,?,?)').run(hash,designerId,now.toISOString(),expires.toISOString(),credentialHash);
     db.prepare('DELETE FROM designer_sessions WHERE expires_at<=?').run(now.toISOString());
     setDesignerSessionCookie(req,res,token);
+    return hash;
   }
   function validDesignerSession(session) {
     if(!session || session.expires_at<=new Date().toISOString())return false;
+    if(!require('./reviewer-auth').validReviewerSession(db,session.session_hash))return false;
     if(!session.credential_hash)return true; // Mailbox-verified sign-in has no bootstrap dependency.
     const id=session.designer_id;
     const profile=db.prepare('SELECT bearer_disabled_at FROM designer_profiles WHERE id=?').get(id);
@@ -1081,7 +1084,7 @@ function createApp(options = {}) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
-      const session=db.prepare("SELECT s.designer_id,p.status,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
+      const session=db.prepare("SELECT s.session_hash,s.designer_id,p.status,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
       if(validDesignerSession(session)){
         if(session.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
         req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
@@ -1812,6 +1815,9 @@ function createApp(options = {}) {
     return db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(designerId);
   }
   require('./designer-auth').registerDesignerAuth({app,db,fail,rateLimit,trustedAppOrigin,deliverEmail,completeSignup:completeDesignerSignup,issueSession:issueDesignerSession,termsVersion:SELLER_TERMS_VERSION});
+  require('./reviewer-auth').registerReviewerAuth({app,db,fail,rateLimit,trustedAppOrigin,customerAccounts,authDesigner,issueDesignerSession,clearDesignerSession,email:options.reviewerEmail??process.env.REVIEWER_LOGIN_EMAIL});
+  app.get('/reviewer-login',(_req,res)=>{res.set('Cache-Control','no-store');res.sendFile(path.join(rootDir,'reviewer-login.html'));});
+  app.get('/reviewer-login.js',(_req,res)=>{res.set('Cache-Control','no-store');res.sendFile(path.join(rootDir,'reviewer-login.js'));});
 
   app.get('/api/admin/designer-applications', authAdmin, (_req,res)=>{
     const applications=db.prepare("SELECT id,email,display_name,brand_name,portfolio_url,statement,location,social_url,categories,price_range,production_method,originality_confirmed,marketplace_terms_accepted,status,designer_id,created_at,reviewed_at FROM designer_applications ORDER BY created_at DESC").all();
