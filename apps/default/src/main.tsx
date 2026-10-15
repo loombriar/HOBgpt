@@ -1,3 +1,8 @@
+// Register the public offline fallback for clean-profile deep links too.
+if ('serviceWorker' in navigator) {
+  const register = () => { void navigator.serviceWorker.register('/service-worker.js').catch(() => {}); };
+  if (document.readyState === 'complete') register(); else window.addEventListener('load', register, { once: true });
+}
 import './index.css';
 // After index.css so the interface defaults can read the theme tokens it
 // declares (`--ring`, `--background`, `--foreground`). Every selector in there

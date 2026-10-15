@@ -20,3 +20,23 @@ test('backup creates a consistent SQLite snapshot and excludes WAL/SHM files',()
  assert.notEqual(restore().status,0);assert.equal(fs.existsSync(restored),false);
  db.close();fs.rmSync(root,{recursive:true,force:true});
 });
+
+test('backup creation and verification require listing, portrait, logo, portfolio and studio media',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'hob-media-backup-')),data=path.join(root,'data'),out=path.join(root,'backup');
+ fs.mkdirSync(path.join(data,'images'),{recursive:true});const db=new Database(path.join(data,'catalog.sqlite'));
+ db.exec("CREATE TABLE listing_images(storage_key TEXT,upload_status TEXT); CREATE TABLE designer_profiles(portrait_storage_key TEXT,logo_storage_key TEXT); CREATE TABLE portfolio_images(storage_key TEXT); CREATE TABLE designer_stories(photo_key TEXT); INSERT INTO listing_images VALUES('listing.webp','ready'); INSERT INTO designer_profiles VALUES('portrait.webp','logo.webp'); INSERT INTO portfolio_images VALUES('portfolio.webp'); INSERT INTO designer_stories VALUES('studio.webp');");
+ const keys=['listing','portrait','logo','portfolio','studio'].map(k=>k+'.webp');for(const key of keys)fs.writeFileSync(path.join(data,'images',key),'mock media');
+ const run=(script,args)=>spawnSync(process.execPath,['scripts/'+script,...args],{cwd:path.join(__dirname,'..'),env:{...process.env,DATA_DIR:data},encoding:'utf8'});
+ try{
+  assert.equal(run('backup-data.js',['--output',out]).status,0);assert.equal(run('verify-backup.js',[out]).status,0);
+  const original=fs.readFileSync(path.join(out,'manifest.json'),'utf8');
+  for(const key of keys){
+   const manifest=JSON.parse(original);manifest.files=manifest.files.filter(f=>f.path!=='images/'+key);fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest));
+   const verify=run('verify-backup.js',[out]);assert.notEqual(verify.status,0);assert.match(verify.stderr,/missing referenced media/);
+  }
+  fs.writeFileSync(path.join(out,'manifest.json'),original);
+  fs.unlinkSync(path.join(data,'images','listing.webp'));
+  const incomplete=path.join(root,'incomplete');assert.notEqual(run('backup-data.js',['--output',incomplete]).status,0);assert.equal(fs.existsSync(path.join(incomplete,'manifest.json')),false);
+  assert.notEqual(run('backup-data.js',['--output',path.join(data,'nested-backup')]).status,0);
+ }finally{db.close();fs.rmSync(root,{recursive:true,force:true});}
+});

@@ -492,6 +492,10 @@ function createApp(options = {}) {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_designer ON designer_sessions(designer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_expiry ON designer_sessions(expires_at)');
+  const hadSessionSource=db.prepare('PRAGMA table_info(designer_sessions)').all().some(c=>c.name==='credential_hash');
+  ensureColumn('designer_sessions','credential_hash','TEXT');
+  // Pre-migration sessions cannot prove their authentication source. Require one fresh login.
+  if(!hadSessionSource)db.prepare('DELETE FROM designer_sessions').run();
   db.exec(`CREATE TABLE IF NOT EXISTS admin_sessions (
     session_hash TEXT PRIMARY KEY,
     actor TEXT NOT NULL,
@@ -499,6 +503,7 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL
   ); CREATE INDEX IF NOT EXISTS admin_sessions_expiry ON admin_sessions(expires_at);`);
+  ensureColumn('admin_sessions','credential_hash','TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS admin_audit_log (
     id TEXT PRIMARY KEY,
     actor TEXT NOT NULL,
@@ -989,8 +994,8 @@ function createApp(options = {}) {
       const customer=customerAccounts.authenticate(req);if(customer)return customer;
       const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
       if(!sessionToken)return null;
-      const session=db.prepare("SELECT p.id,p.email FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=? AND s.expires_at>? AND p.status='active'").get(crypto.createHash('sha256').update(sessionToken).digest('hex'),new Date().toISOString());
-      return session?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
+      const session=db.prepare("SELECT p.id,p.email,s.designer_id,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=? AND s.expires_at>? AND p.status='active'").get(crypto.createHash('sha256').update(sessionToken).digest('hex'),new Date().toISOString());
+      return validDesignerSession(session)?{sub:designerBadgeSubject(session.id),email:session.email,designerId:session.id}:null;
     }
     const hash=crypto.createHash('sha256').update(token).digest('hex');
     const access=db.prepare("SELECT t.designer_id FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL AND p.status='active'").get(hash,new Date().toISOString());
@@ -1031,14 +1036,23 @@ function createApp(options = {}) {
     const secure=trustedAppOrigin(req).startsWith('https://');
     res.cookie(DESIGNER_SESSION_COOKIE,token,{httpOnly:true,sameSite:'lax',secure,path:'/',maxAge:maxAgeSeconds*1000});
   }
-  function issueDesignerSession(req,res,designerId) {
+  function issueDesignerSession(req,res,designerId,credentialHash=null) {
     customerAccounts.clearSession(req,res);
     const token=crypto.randomBytes(32).toString('base64url');
     const hash=crypto.createHash('sha256').update(token).digest('hex');
     const now=new Date(),expires=new Date(now.getTime()+DESIGNER_SESSION_TTL_MS);
-    db.prepare('INSERT INTO designer_sessions(session_hash,designer_id,created_at,expires_at) VALUES (?,?,?,?)').run(hash,designerId,now.toISOString(),expires.toISOString());
+    db.prepare('INSERT INTO designer_sessions(session_hash,designer_id,created_at,expires_at,credential_hash) VALUES (?,?,?,?,?)').run(hash,designerId,now.toISOString(),expires.toISOString(),credentialHash);
     db.prepare('DELETE FROM designer_sessions WHERE expires_at<=?').run(now.toISOString());
     setDesignerSessionCookie(req,res,token);
+  }
+  function validDesignerSession(session) {
+    if(!session || session.expires_at<=new Date().toISOString())return false;
+    if(!session.credential_hash)return true; // Mailbox-verified sign-in has no bootstrap dependency.
+    const id=session.designer_id;
+    const profile=db.prepare('SELECT bearer_disabled_at FROM designer_profiles WHERE id=?').get(id);
+    if(!profile || profile.bearer_disabled_at)return false;
+    if(Object.entries(designerTokens).some(([token,designer])=>typeof designer==='string' && designer.trim()===id && crypto.createHash('sha256').update(token).digest('hex')===session.credential_hash))return true;
+    return Boolean(db.prepare("SELECT 1 FROM designer_access_tokens WHERE token_hash=? AND designer_id=? AND revoked_at IS NULL AND expires_at>?").get(session.credential_hash,id,new Date().toISOString()));
   }
   function clearDesignerSession(req,res) {
     const token=cookieValue(req,DESIGNER_SESSION_COOKIE);
@@ -1067,8 +1081,8 @@ function createApp(options = {}) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
-      const session=db.prepare("SELECT s.designer_id,p.status,s.expires_at FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
-      if(session && session.expires_at>new Date().toISOString()){
+      const session=db.prepare("SELECT s.designer_id,p.status,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
+      if(validDesignerSession(session)){
         if(session.status!=='active')return fail(res,403,'designer_inactive','This designer profile is not active.');
         req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
         return requireDesignerRequestOrigin(req,res,next);
@@ -1157,8 +1171,8 @@ function createApp(options = {}) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
     db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?').run(now.toISOString());
-    db.prepare('INSERT INTO admin_sessions(session_hash,actor,role,created_at,expires_at) VALUES (?,?,?,?,?)')
-      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString());
+    db.prepare('INSERT INTO admin_sessions(session_hash,actor,role,created_at,expires_at,credential_hash) VALUES (?,?,?,?,?,?)')
+      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString(), crypto.createHash('sha256').update(entry.token).digest('hex'));
     setAdminSessionCookie(req, res, token);
   }
   function clearAdminSession(req, res) {
@@ -1183,8 +1197,8 @@ function createApp(options = {}) {
     const sessionToken = cookieValue(req, ADMIN_SESSION_COOKIE);
     if (sessionToken) {
       const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
-      const session = db.prepare('SELECT actor,role,expires_at FROM admin_sessions WHERE session_hash=?').get(sessionHash);
-      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role)) {
+      const session = db.prepare('SELECT actor,role,expires_at,credential_hash FROM admin_sessions WHERE session_hash=?').get(sessionHash);
+      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && crypto.createHash('sha256').update(entry.token).digest('hex')===session.credential_hash)) {
         req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return requireAdminRequestOrigin(req, res, next);
       }
       if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);
@@ -1535,6 +1549,19 @@ function createApp(options = {}) {
       if (!event?.id || typeof event.id !== 'string' || !event.id.startsWith('evt_') || typeof event.type !== 'string') return res.status(400).send('Invalid Stripe event.');
       if (event.type !== 'account.updated' && db.prepare('SELECT 1 FROM stripe_webhook_events WHERE event_id=?').get(event.id)) return res.json({ received: true, duplicate: true });
       await portfolioSubscriptions.handleEvent(event);
+      if(event.type.startsWith('checkout.session.')) {
+        const payload=event.data?.object,orderId=payload?.metadata?.order_id;
+        if(orderId && typeof payload.id==='string' && payload.id.startsWith('cs_')) {
+          const order=db.prepare("SELECT * FROM orders WHERE id=? AND status='pending' AND stripe_session_id IS NULL").get(orderId);
+          const claim=order?db.prepare("SELECT 1 FROM stripe_operations WHERE kind='checkout' AND reference_id=? AND state IN ('initiating','unknown','received','applied','review_required')").get(orderId):null;
+          if(claim) {
+            const session=await stripeApi('checkout/sessions/'+encodeURIComponent(payload.id));
+            if(session.id!==payload.id||session.metadata?.order_id!==orderId||session.currency!==order.currency||session.amount_total!==order.subtotal_cents)throw new Error('Orphaned Checkout session mismatch.');
+            db.prepare('UPDATE orders SET stripe_session_id=? WHERE id=? AND stripe_session_id IS NULL').run(session.id,orderId);
+          }
+        }
+      }
+
       if (event.type === 'account.updated') {
         const accountId = event.data?.object?.id;
         if (!event.id || typeof accountId !== 'string' || !accountId.startsWith('acct_')) return res.status(400).send('Invalid Connect account event.');
@@ -1557,6 +1584,8 @@ function createApp(options = {}) {
         const refundId=event.data?.object?.id;
         if(typeof refundId!=='string'||!refundId.startsWith('re_'))return res.status(400).send('Invalid refund event.');
         const refund=await stripeApi(`refunds/${encodeURIComponent(refundId)}`);
+        const deposit=db.prepare('SELECT * FROM special_order_offers WHERE stripe_refund_id=? OR id=?').get(refundId,refund.metadata?.special_offer_id||'');
+        if(deposit)validateDepositRefund(deposit,refund);
         const operation=db.prepare('SELECT * FROM order_refunds WHERE stripe_refund_id=?').get(refundId)
           ||db.prepare('SELECT * FROM order_refunds WHERE order_id=? AND scope=?').get(refund.metadata?.order_id||'',refund.metadata?.refund_scope||'full');
         const order=operation?db.prepare('SELECT * FROM orders WHERE id=?').get(operation.order_id):null;
@@ -1866,7 +1895,11 @@ function createApp(options = {}) {
   }
 
   app.post('/api/session', authDesigner, (req, res) => {
-    if(req.designerAuthMethod!=='session')issueDesignerSession(req,res,req.designerId);
+    if(req.designerAuthMethod!=='session'){
+      const bearer=req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+      const bootstrap=bearer && (Object.keys(designerTokens).some(t=>safeEqual(t,bearer)) || db.prepare('SELECT 1 FROM designer_access_tokens WHERE token_hash=?').get(crypto.createHash('sha256').update(bearer).digest('hex')));
+      issueDesignerSession(req,res,req.designerId,bootstrap?crypto.createHash('sha256').update(bearer).digest('hex'):null);
+    }
     res.set('Cache-Control','no-store').json({ ok: true, designerId: req.designerId });
   });
   app.delete('/api/session', requireDesignerRequestOrigin, (req,res) => {
@@ -2128,6 +2161,17 @@ function createApp(options = {}) {
   }
 
   async function stripeApi(pathname, requestOptions = {}) {
+    const controller=new AbortController();
+    const timeout=Math.max(10,Number(options.stripeTimeoutMs)||30_000);
+    let timer;
+    try {
+      return await Promise.race([
+        stripeRequest(pathname,{...requestOptions,signal:controller.signal}),
+        new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Object.assign(new Error('Payment provider request timed out; outcome is unresolved.'),{statusCode:502,code:'payment_provider_timeout'}));},timeout);})
+      ]);
+    }finally{clearTimeout(timer);}
+  }
+  async function stripeRequest(pathname, requestOptions = {}) {
     if (typeof options.stripeApi === 'function') return options.stripeApi(pathname, requestOptions);
     const secret = process.env.STRIPE_SECRET_KEY;
     if (!secret) throw Object.assign(new Error('STRIPE_SECRET_KEY is not configured.'),{checkoutNotCreated:true});
@@ -2139,7 +2183,7 @@ function createApp(options = {}) {
         ...(pathname.startsWith('v2/') ? { 'Stripe-Version': '2026-09-30.endive' } : {}),
         ...(requestOptions.idempotencyKey ? { 'Idempotency-Key': requestOptions.idempotencyKey } : {})
       },
-      body: requestOptions.body
+      body: requestOptions.body, signal: requestOptions.signal
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -2147,6 +2191,98 @@ function createApp(options = {}) {
       throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerStatus:response.status,providerCode:String(payload?.error?.code||'').slice(0,80)});
     }
     return payload;
+  }
+
+  ensureColumn('special_order_offers','deposit_refund_status','TEXT');
+  ensureColumn('special_order_offers','deposit_refund_started_at','TEXT');
+  ensureColumn('special_order_offers','stripe_reversal_id','TEXT');
+  const stripeOperations=require('./lib/stripe-operations').createStripeOperations({db,stripeApi,applyResult:applyStripeOperation,onRejected(operation){
+    if(operation.kind==='checkout')releaseOrderInventory(operation.reference_id);
+    if(operation.kind==='payout')db.prepare("UPDATE designer_transfers SET payout_in_flight=0,status='failed' WHERE id=?").run(operation.reference_id);
+  }});
+
+  async function finishDepositRefund(offer) {
+      if(offer.stripe_transfer_id && !offer.stripe_reversal_id){
+        // Historical deposits used a 10% fee. Preserve the original amount.
+        await stripeOperations.request('deposit_reversal',offer.id,`transfers/${encodeURIComponent(offer.stripe_transfer_id)}/reversals`,{body:new URLSearchParams({amount:String(Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10))),'metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-reversal-${offer.id}`});
+      }
+      return await stripeOperations.request('deposit_refund',offer.id,'refunds',{body:new URLSearchParams({payment_intent:offer.stripe_payment_intent_id,amount:String(offer.deposit_cents),reason:'requested_by_customer','metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-${offer.id}`});
+  }
+
+  function validateDepositRefund(offer,refund) {
+    const intent=typeof refund.payment_intent==='string'?refund.payment_intent:refund.payment_intent?.id;
+    if(!offer || !refund.id?.startsWith('re_') || intent!==offer.stripe_payment_intent_id || refund.amount!==offer.deposit_cents || refund.currency!=='usd' || !['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))throw new Error('Refund does not match this special-order deposit.');
+    if(offer.stripe_refund_id && offer.stripe_refund_id!==refund.id)throw new Error('Deposit refund reference changed.');
+    db.prepare("UPDATE special_order_offers SET stripe_refund_id=?,deposit_refund_status=CASE WHEN deposit_refund_status='succeeded' THEN deposit_refund_status ELSE ? END,status=CASE WHEN deposit_refund_status='succeeded' OR ?='succeeded' THEN 'deposit_refunded' ELSE 'deposit_paid' END WHERE id=?").run(refund.id,refund.status,refund.status,offer.id);
+  }
+  async function applyStripeOperation(operation,result) {
+    const body=new URLSearchParams(operation.request_body);
+    if(operation.kind==='checkout') {
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(operation.reference_id);
+      if(!result.id.startsWith('cs_') || !order || (order.stripe_session_id && order.stripe_session_id!==result.id))throw new Error('Checkout operation reference mismatch.');
+      if(result.metadata && result.metadata.order_id!==order.id)throw new Error('Checkout order mismatch.');
+      db.prepare('UPDATE orders SET stripe_session_id=? WHERE id=?').run(result.id,order.id);
+    }else if(operation.kind==='payout') {
+      const transfer=db.prepare('SELECT * FROM designer_transfers WHERE id=?').get(operation.reference_id);
+      if(!result.id.startsWith('tr_') || !transfer || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.destination!==undefined && result.destination!==body.get('destination')) || (result.currency!==undefined && result.currency!==body.get('currency')))throw new Error('Payout operation mismatch.');
+      db.prepare("UPDATE designer_transfers SET stripe_transfer_id=?,status='paid',payout_in_flight=0,error_message=NULL,paid_at=COALESCE(paid_at,?),release_reason='tracking_verified' WHERE id=?").run(result.id,new Date().toISOString(),transfer.id);
+      await notifyPayout(transfer.id,'paid');
+    }else if(operation.kind==='deposit_refund') {
+      validateDepositRefund(db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(operation.reference_id),result);
+    }else if(operation.kind==='order_refund') {
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(operation.reference_id);
+      const scope=body.get('metadata[refund_scope]');
+      if(!result.id.startsWith('re_') || (result.payment_intent!==undefined && result.payment_intent!==body.get('payment_intent')) || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.currency!==undefined && result.currency!==order.currency) || !['pending','requires_action','succeeded','failed','canceled'].includes(result.status))throw new Error('Order refund mismatch.');
+      db.transaction(()=>{
+        db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(result.id,result.status,new Date().toISOString(),order.id,scope);
+        updateRefundSummary(order.id);
+      }).immediate();
+    }else if(operation.kind==='deposit_reversal') {
+      if(!result.id.startsWith('trr_'))throw new Error('Invalid reversal reference.');
+      db.prepare('UPDATE special_order_offers SET stripe_reversal_id=? WHERE id=?').run(result.id,operation.reference_id);
+    }else if(operation.kind==='order_reversal') {
+      if(!result.id.startsWith('trr_'))throw new Error('Invalid reversal reference.');
+      db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,refunded_cents=?,release_reason='refund_reversed' WHERE id=?").run(result.id,Number(body.get('amount')),operation.reference_id);
+    }
+  }
+  let financialReconciliationRunning=false;
+  async function reconcileFinancialOperations() {
+    if(financialReconciliationRunning)return {busy:true};
+    financialReconciliationRunning=true;
+    try {
+      const summary=await stripeOperations.reconcile();
+      const unfinishedDeposits=db.prepare("SELECT * FROM special_order_offers WHERE status='deposit_paid' AND deposit_refund_started_at IS NOT NULL AND stripe_refund_id IS NULL LIMIT 50").all();
+      for(const offer of unfinishedDeposits){
+        if(Date.now()-Date.parse(offer.deposit_refund_started_at)>=23*60*60*1000)continue;
+        try{await finishDepositRefund(offer);}catch{summary.errors++;}
+      }
+      const unfinishedRefunds=db.prepare("SELECT r.*,o.stripe_payment_intent_id FROM order_refunds r JOIN orders o ON o.id=r.order_id WHERE r.stripe_refund_id IS NULL AND r.status='initiating' LIMIT 50").all();
+      for(const hold of unfinishedRefunds){
+        if(!hold.stripe_payment_intent_id || Date.now()-Date.parse(hold.created_at)>=23*60*60*1000)continue;
+        try {
+          const transfers=db.prepare("SELECT * FROM designer_transfers WHERE order_id=? AND status='paid' AND (?='full' OR designer_id=?)").all(hold.order_id,hold.scope,hold.scope);
+          for(const transfer of transfers)if(!transfer.stripe_reversal_id){
+            if(!transfer.stripe_transfer_id)throw new Error('Transfer reference missing');
+            await stripeOperations.request('order_reversal',transfer.id,`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{body:new URLSearchParams({amount:String(transfer.amount_cents),'metadata[order_id]':hold.order_id,'metadata[designer_id]':transfer.designer_id}).toString(),idempotencyKey:`hob-refund-reversal-${hold.order_id}-${transfer.designer_id}`});
+          }
+          const body=new URLSearchParams({payment_intent:hold.stripe_payment_intent_id,amount:String(hold.amount_cents),reason:'requested_by_customer','metadata[order_id]':hold.order_id,'metadata[refund_scope]':hold.scope}).toString();
+          const key=hold.scope==='full'?`hob-refund-${hold.order_id}`:`hob-seller-refund-${hold.order_id}-${hold.scope}`;
+          await stripeOperations.request('order_refund',hold.order_id,'refunds',{body,idempotencyKey:key});
+        }catch{summary.errors++;}
+      }
+
+      // Known refund IDs remain safe to poll even after the replay window ends.
+      const deposits=db.prepare("SELECT * FROM special_order_offers WHERE stripe_refund_id IS NOT NULL AND COALESCE(deposit_refund_status,'') NOT IN ('succeeded','failed','canceled') LIMIT 50").all();
+      for(const offer of deposits){try{validateDepositRefund(offer,await stripeApi('refunds/'+encodeURIComponent(offer.stripe_refund_id)));}catch{summary.errors++;}}
+      const refunds=db.prepare("SELECT r.*,o.stripe_payment_intent_id,o.currency FROM order_refunds r JOIN orders o ON o.id=r.order_id WHERE r.stripe_refund_id IS NOT NULL AND r.status NOT IN ('succeeded','failed','canceled') LIMIT 50").all();
+      for(const row of refunds){try{
+        const refund=await stripeApi('refunds/'+encodeURIComponent(row.stripe_refund_id));
+        const intent=typeof refund.payment_intent==='string'?refund.payment_intent:refund.payment_intent?.id;
+        if(refund.id!==row.stripe_refund_id||intent!==row.stripe_payment_intent_id||refund.amount!==row.amount_cents||refund.currency!==row.currency||!['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))throw new Error('Refund mismatch');
+        db.prepare("UPDATE order_refunds SET status=?,updated_at=? WHERE order_id=? AND scope=? AND status!='succeeded'").run(refund.status,new Date().toISOString(),row.order_id,row.scope);updateRefundSummary(row.order_id);
+      }catch{summary.errors++;}}
+      return summary;
+    }finally{financialReconciliationRunning=false;}
   }
 
   const connectAccounts = parseDesignerTokens(options.connectAccounts ?? process.env.STRIPE_CONNECT_ACCOUNTS_JSON);
@@ -2278,7 +2414,6 @@ function createApp(options = {}) {
       }
       const transferId = existing?.id || makeId();
       if (!existing) db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, accountId, group.amount_cents, new Date().toISOString());
-      db.prepare("UPDATE designer_transfers SET payout_in_flight=1 WHERE id=?").run(transferId);
       try {
         const body = new URLSearchParams({
           amount: String(group.amount_cents),
@@ -2288,14 +2423,15 @@ function createApp(options = {}) {
           'metadata[order_id]': orderId,
           'metadata[designer_id]': group.designer_id
         });
-        const transfer = await stripeApi('transfers', { method: 'POST', body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
+        const transfer = await stripeOperations.request('payout',transferId,'transfers', { body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
         db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', payout_in_flight=0, error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
         await notifyPayout(transferId, 'paid');
         results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
       } catch (error) {
-        db.prepare("UPDATE designer_transfers SET status = 'failed', payout_in_flight=0, error_message = ? WHERE id = ?").run(String(error.message || error).slice(0, 500), transferId);
-        await notifyPayout(transferId, 'failed');
-        results.push({ designer_id: group.designer_id, status: 'failed' });
+        const rejected=stripeOperations.rejected(error);
+        db.prepare("UPDATE designer_transfers SET status=?,payout_in_flight=?,error_message=? WHERE id=?").run(rejected?'failed':'pending',rejected?0:1,String(error.message||error).slice(0,500),transferId);
+        if(rejected)await notifyPayout(transferId, 'failed');
+        results.push({designer_id:group.designer_id,status:rejected?'failed':'pending',reason:rejected?'provider_rejected':'provider_outcome_unknown'});
       }
     }
     return results;
@@ -2464,12 +2600,15 @@ function createApp(options = {}) {
     db.prepare('UPDATE orders SET shipping_details_json=COALESCE(shipping_details_json, ?) WHERE id=?').run(JSON.stringify(safe), order.id);
   }
 
+  let checkoutReconciliationRunning=false;
   async function reconcilePendingCheckouts() {
+    if(checkoutReconciliationRunning)return {busy:true};
+    checkoutReconciliationRunning=true;
+    try {
+    await stripeOperations.reconcile();
     const now = new Date().toISOString();
     const stale = db.prepare(`SELECT * FROM orders
-      WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND id IN (
-        SELECT order_id FROM inventory_reservations WHERE status = 'reserved' AND expires_at <= ?
-      )`).all(now);
+      WHERE status = 'pending' AND stripe_session_id IS NOT NULL AND (created_at<=? OR id IN (SELECT order_id FROM inventory_reservations WHERE status='reserved' AND expires_at<=?))`).all(new Date(Date.now()-CHECKOUT_RESERVATION_MINUTES*60*1000).toISOString(),now);
     const results = { checked: 0, paid: 0, released: 0, errors: 0 };
     for (const order of stale) {
       results.checked += 1;
@@ -2494,6 +2633,7 @@ function createApp(options = {}) {
       }
     }
     return results;
+    }finally{checkoutReconciliationRunning=false;}
   }
 
   function buildCheckoutQuote(requested, promoCodes = []) {
@@ -2627,15 +2767,13 @@ function createApp(options = {}) {
       const origin = trustedAppOrigin(req);
       const body = new URLSearchParams({
         mode: 'payment',
-        success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
+        success_url: `${origin}/checkout?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/checkout?checkout=canceled&order_id=${encodeURIComponent(orderId)}&cancel_token=${encodeURIComponent(cancelToken)}`,
         expires_at: String(Math.floor((Date.now() + CHECKOUT_RESERVATION_MINUTES * 60 * 1000) / 1000)),
         'metadata[order_id]': orderId,
         'payment_intent_data[metadata][order_id]': orderId,
         allow_promotion_codes: 'false'
       });
-      body.append('payment_method_types[]', 'card');
-      body.append('payment_method_types[]', 'us_bank_account');
       body.set('shipping_address_collection[allowed_countries][0]', 'US');
       let stripeLineIndex=0;
       const addExactLine = (name,totalCents,quantity) => {
@@ -2662,18 +2800,20 @@ function createApp(options = {}) {
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
         for(const item of quote.items)db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents,orderId,item.id);
         for(const item of quote.items)db.prepare('UPDATE order_items SET gift_note=? WHERE order_id=? AND listing_id=?').run(item.giftNote,orderId,item.id);
+        stripeOperations.claim('checkout',orderId,'checkout/sessions',{body:body.toString(),idempotencyKey:`hob-checkout-${orderId}`});
       }).immediate();
 
       let session;
       try {
-        session = await stripeApi('checkout/sessions', { method: 'POST', body: body.toString(), idempotencyKey: `hob-checkout-${orderId}` });
+        session = await stripeOperations.request('checkout',orderId,'checkout/sessions', { body: body.toString(), idempotencyKey: `hob-checkout-${orderId}` });
         db.prepare('UPDATE orders SET stripe_session_id = ? WHERE id = ?').run(session.id, orderId);
       } catch (error) {
         // Never strand a one-of-a-kind reservation when Stripe cannot create checkout.
         // A lost provider response might still have created a payable session.
         // Retain promotion capacity for review until Stripe confirms its outcome.
-        const creationRejected=error.checkoutNotCreated===true||[400,401,403,404].includes(error.providerStatus);
-        releaseOrderInventory(orderId,creationRejected);
+        const creationRejected=stripeOperations.rejected(error);
+        if(creationRejected)releaseOrderInventory(orderId);
+        // Unknown outcomes keep both inventory and promotion reservations held.
         throw error;
       }
       return res.status(201).json({ orderId, sessionId: session.id, url: session.url });
@@ -2691,6 +2831,7 @@ function createApp(options = {}) {
       }
       if (order.status === 'paid') return fail(res, 409, 'already_paid', 'Paid orders cannot be canceled from checkout.');
       // An open Checkout Session must stop being payable before its inventory can be released.
+      if(!order.stripe_session_id)assertCheckoutResolved(order);
       if (order.stripe_session_id) {
         await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`, { method: 'POST' });
       }
@@ -2864,15 +3005,13 @@ function createApp(options = {}) {
   });
 
   app.get('/api/designers', (_req,res)=>{
-    const rows=db.prepare(`SELECT dp.id,dp.display_name,dp.brand_name,dp.bio,dp.portrait_storage_key,
-      COUNT(l.id) piece_count,
-      SUM(CASE WHEN ir.status='sold' THEN 1 ELSE 0 END) sold_count,
-      SUM(CASE WHEN l.status='published' AND l.moderation_status='approved' AND ir.status IS NULL THEN 1 ELSE 0 END) available_count
-      FROM designer_profiles dp
-      LEFT JOIN listings l ON l.designer_id=dp.id AND l.status!='deleted'
-      LEFT JOIN inventory_reservations ir ON ir.listing_id=l.id AND ir.status='sold'
-      WHERE dp.status='active' GROUP BY dp.id ORDER BY COALESCE(dp.brand_name,dp.display_name)`).all();
-    return res.json({designers:rows.map(d=>({id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:d.piece_count||0,soldCount:d.sold_count||0,availableCount:db.prepare('SELECT * FROM listings WHERE designer_id=?').all(d.id).filter(row=>customerListingVisible(row) && (listingInventory(row).availableQuantity===null || listingInventory(row).availableQuantity>0)).length}))});
+    const rows=db.prepare("SELECT id,display_name,brand_name,bio,portrait_storage_key FROM designer_profiles WHERE status='active' ORDER BY COALESCE(brand_name,display_name)").all();
+    return res.json({designers:rows.map(d=>{
+      const pieces=db.prepare('SELECT * FROM listings WHERE designer_id=?').all(d.id).filter(customerListingVisible);
+      const sold=pieces.filter(row=>listingInventory(row).soldQuantity>0);
+      const available=pieces.filter(row=>listingInventory(row).availableQuantity===null || listingInventory(row).availableQuantity>0);
+      return {id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:pieces.length,soldCount:sold.length,availableCount:available.length};
+    })});
   });
 
   app.get('/api/designers/:designerId', (req, res) => {
@@ -3216,7 +3355,7 @@ function createApp(options = {}) {
       FROM listing_images
       WHERE id = ? AND listing_id = ? AND upload_status = 'ready'
     `).get(req.params.imageId, req.params.listingId);
-    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    if (!row || row.paused_by_designer || !db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id)) return fail(res, 404, 'not_found', 'Image not found.');
     res.type(row.mime_type);
     res.set('Cache-Control', 'private, no-store');
     return res.sendFile(path.join(imagesDir, row.storage_key));
@@ -3224,13 +3363,13 @@ function createApp(options = {}) {
 
   app.get('/api/listings/:listingId/images/:imageId/content', authDesigner, (req, res) => {
     const row = db.prepare(`
-      SELECT i.storage_key, i.mime_type
+      SELECT i.storage_key, i.mime_type, l.*
       FROM listing_images i
       JOIN listings l ON l.id = i.listing_id
       JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active'
       WHERE i.id = ? AND l.id = ? AND l.designer_id = ? AND i.upload_status = 'ready'
     `).get(req.params.imageId, req.params.listingId, req.designerId);
-    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    if (!row || row.paused_by_designer || !db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id)) return fail(res, 404, 'not_found', 'Image not found.');
     res.type(row.mime_type);
     res.set('Cache-Control', 'private, no-store');
     return res.sendFile(path.join(imagesDir, row.storage_key));
@@ -3540,7 +3679,7 @@ function createApp(options = {}) {
       COUNT(DISTINCT oi.designer_id) designer_count,COUNT(oi.id) item_count
       FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id GROUP BY o.id ORDER BY o.created_at DESC LIMIT 200`).all();
     const payouts = db.prepare(`SELECT dt.order_id,dt.designer_id,dt.amount_cents,dt.status,dt.error_message,dt.created_at,dt.paid_at,
-      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id
+      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id,dt.payout_in_flight
       FROM designer_transfers dt ORDER BY dt.created_at DESC LIMIT 300`).all();
     const inventory = db.prepare(`SELECT ir.listing_id,ir.order_id,ir.status,ir.reserved_at,ir.expires_at,ir.sold_at,l.title,l.designer_id
       FROM inventory_reservations ir LEFT JOIN listings l ON l.id=ir.listing_id
@@ -3559,7 +3698,8 @@ function createApp(options = {}) {
     const emailMessages=db.prepare('SELECT id,subject,status,attempts,next_attempt_at,created_at,sent_at FROM email_outbox ORDER BY created_at DESC,id DESC LIMIT 30').all();
     const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
-    return res.json({summary,orders,payouts,inventory,emails});
+    const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state!='applied' ORDER BY updated_at DESC LIMIT 100").all();
+    return res.json({summary,orders,payouts,inventory,emails,financialOperations});
   });
 
   app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
@@ -3615,13 +3755,13 @@ function createApp(options = {}) {
       for(const transfer of transfers){
         if(!transfer.stripe_transfer_id)return fail(res,409,'transfer_reference_missing','A released payout is missing its Stripe reference.');
         if(!transfer.stripe_reversal_id){
-          const reversal=await stripeApi(`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(transfer.amount_cents),'metadata[order_id]':order.id,'metadata[designer_id]':transfer.designer_id}).toString(),idempotencyKey:`hob-refund-reversal-${order.id}-${transfer.designer_id}`});
+          const reversal=await stripeOperations.request('order_reversal',transfer.id,`transfers/${encodeURIComponent(transfer.stripe_transfer_id)}/reversals`,{body:new URLSearchParams({amount:String(transfer.amount_cents),'metadata[order_id]':order.id,'metadata[designer_id]':transfer.designer_id}).toString(),idempotencyKey:`hob-refund-reversal-${order.id}-${transfer.designer_id}`});
           db.prepare("UPDATE designer_transfers SET stripe_reversal_id=?,refunded_cents=?,release_reason='refund_reversed' WHERE id=?").run(reversal.id,transfer.amount_cents,transfer.id);
         }
       }
       const body=new URLSearchParams({payment_intent:paymentIntent,amount:String(amount),reason:'requested_by_customer','metadata[order_id]':order.id,'metadata[refund_scope]':scope});
       const key=scope==='full'?`hob-refund-${order.id}`:`hob-seller-refund-${order.id}-${scope}`;
-      const refund=await stripeApi('refunds',{method:'POST',body:body.toString(),idempotencyKey:key});
+      const refund=await stripeOperations.request('order_refund',order.id,'refunds',{body:body.toString(),idempotencyKey:key});
       if(!refund.id)throw new Error('Payment provider returned no refund reference.');
       db.transaction(()=>{
         db.prepare("UPDATE order_refunds SET status=CASE WHEN status='succeeded' THEN status ELSE ? END,stripe_refund_id=?,updated_at=? WHERE order_id=? AND scope=?").run(refund.status||'pending',refund.id,new Date().toISOString(),order.id,scope);
@@ -3633,7 +3773,11 @@ function createApp(options = {}) {
   }
   app.post('/api/admin/orders/:orderId/refund',authAdmin,(req,res,next)=>refundOrder(req,res,next));
 
+  function assertCheckoutResolved(order) {
+    if(db.prepare("SELECT 1 FROM stripe_operations WHERE kind='checkout' AND reference_id=? AND state!='rejected'").get(order.id))throw Object.assign(new Error('Checkout creation outcome is unresolved. Inventory remains held until Stripe confirms it.'),{statusCode:409,code:'checkout_resolution_required'});
+  }
   async function expireOpenCheckout(order) {
+    if(!order.stripe_session_id)assertCheckoutResolved(order);
     if (order.stripe_session_id) {
       await stripeApi(`checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`, { method: 'POST' });
     }
@@ -3878,10 +4022,16 @@ function createApp(options = {}) {
     try{
       const offer=db.prepare("SELECT * FROM special_order_offers WHERE id=? AND designer_id=? AND status='deposit_paid'").get(req.params.id,req.designerId);if(!offer)return fail(res,404,'offer_not_found','Paid special-order deposit not found.');
       if(!offer.stripe_payment_intent_id)return fail(res,409,'payment_reference_missing','Deposit payment reference is unavailable.');
-      if(offer.stripe_transfer_id){const reversal=await stripeApi(`transfers/${encodeURIComponent(offer.stripe_transfer_id)}/reversals`,{method:'POST',body:new URLSearchParams({amount:String(Math.max(0,offer.deposit_cents-Math.round(offer.deposit_cents*.10))),'metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-reversal-${offer.id}`});}
-      const refund=await stripeApi('refunds',{method:'POST',body:new URLSearchParams({payment_intent:offer.stripe_payment_intent_id,amount:String(offer.deposit_cents),reason:'requested_by_customer','metadata[special_offer_id]':offer.id}).toString(),idempotencyKey:`hob-special-refund-${offer.id}`});
-      db.prepare("UPDATE special_order_offers SET status='deposit_refunded',stripe_refund_id=? WHERE id=?").run(refund.id||null,offer.id);
-      res.json({ok:true,status:refund.status,refundId:refund.id});
+      if(offer.stripe_refund_id){
+        const refund=await stripeApi('refunds/'+encodeURIComponent(offer.stripe_refund_id));
+        validateDepositRefund(offer,refund);
+        return res.json({ok:true,status:refund.status,refundId:refund.id});
+      }
+      const started=offer.deposit_refund_started_at||new Date().toISOString();
+      db.prepare("UPDATE special_order_offers SET deposit_refund_started_at=COALESCE(deposit_refund_started_at,?),deposit_refund_status=COALESCE(deposit_refund_status,'initiating') WHERE id=?").run(started,offer.id);
+      if(Date.now()-Date.parse(started)>=23*60*60*1000)return fail(res,409,'refund_review_required','Unresolved deposit refund requires provider review.');
+      const refund=await finishDepositRefund(offer);
+      return res.json({ok:true,status:refund.status,refundId:refund.id});
     }catch(error){return next(error);}
   });
 
@@ -3962,14 +4112,14 @@ function createApp(options = {}) {
 
   app.get('/media/:imageId', (req, res) => {
     const row = db.prepare(`
-      SELECT i.storage_key, i.mime_type
+      SELECT i.storage_key, i.mime_type, l.*
       FROM listing_images i
       JOIN listings l ON l.id = i.listing_id
       WHERE i.id = ? AND i.upload_status = 'ready' AND l.status = 'published' AND l.moderation_status = 'approved'
     `).get(req.params.imageId);
-    if (!row) return fail(res, 404, 'not_found', 'Image not found.');
+    if (!row || row.paused_by_designer || !db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id)) return fail(res, 404, 'not_found', 'Image not found.');
     res.type(row.mime_type);
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('Cache-Control', 'no-store');
     return res.sendFile(path.join(imagesDir, row.storage_key));
   });
 
@@ -4193,7 +4343,16 @@ function createApp(options = {}) {
     res.json({ok:true});
   });
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
-  const sendHouseStorefront=(_req,res)=>res.sendFile(path.join(rootDir,'index.html'));
+  const sendHouseStorefront=(req,res)=>{
+    // Preserve old Stripe callbacks, including the private cancellation token.
+    if(['success','canceled'].includes(req.query.checkout) && req.path!=='/designers/room') {
+      const query=new URLSearchParams();
+      for(const key of ['checkout','session_id','order_id','cancel_token'])if(typeof req.query[key]==='string')query.set(key,req.query[key]);
+      res.set('Cache-Control','no-store');
+      return res.redirect(303,'/checkout?'+query.toString());
+    }
+    return res.sendFile(path.join(rootDir,'index.html'));
+  };
   app.get(['/','/index.html','/designers/room'],sendHouseStorefront);
   if (hasReactBuild) app.use(express.static(reactDistDir, { index: false }));
 
@@ -4400,11 +4559,11 @@ function createApp(options = {}) {
 
   app.use((_req, res) => fail(res, 404, 'not_found', 'Route not found.'));
 
-  return { app, db, dataDir, imagesDir, analyticsIngest, reviewRequired, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
+  return { app, db, dataDir, imagesDir, analyticsIngest, reviewRequired, reconcileFinancialOperations, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox };
 }
 
 if (require.main === module) {
-  const { app, db, analyticsIngest, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
+  const { app, db, analyticsIngest, reconcileFinancialOperations, reconcileSpecialDeposits, reconcilePendingCheckouts, reconcileDonationBadges, processEmailOutbox } = createApp();
   const port = Number(process.env.PORT || 3000);
   const bindHost = process.env.HOB_LOOPBACK_BACKEND === 'true' ? '127.0.0.1' : '0.0.0.0';
   const server = app.listen(port, bindHost, () => {
@@ -4412,6 +4571,9 @@ if (require.main === module) {
     if (process.send) process.send({type:'backend-ready',port:server.address().port});
   });
   const reconciliationIntervalMs = Math.max(60_000, Number(process.env.RECONCILIATION_INTERVAL_MS || 300_000));
+  const financialTimer=setInterval(()=>{void reconcileFinancialOperations().catch(error=>console.error('Financial reconciliation failed:',error.message));},reconciliationIntervalMs);
+  financialTimer.unref();
+  void reconcileFinancialOperations().catch(error=>console.error('Financial reconciliation failed:',error.message));
   const reconciliationTimer = setInterval(() => { void reconcilePendingCheckouts(); }, reconciliationIntervalMs);
   reconciliationTimer.unref();
   const donationTimer = setInterval(() => { void reconcileDonationBadges(); }, reconciliationIntervalMs);
@@ -4445,7 +4607,7 @@ if (require.main === module) {
   const backupTimer = backupEnabled ? setInterval(runOffsiteBackup, backupIntervalMs) : null;
   if (backupTimer) backupTimer.unref();
 
-  const shutdown = () => { analyticsIngest.close(); clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
+  const shutdown = () => { analyticsIngest.close(); clearInterval(financialTimer); clearInterval(depositReviewTimer); clearInterval(reconciliationTimer); clearInterval(donationTimer); clearInterval(emailTimer); if (backupStartupTimer) clearTimeout(backupStartupTimer); if (backupTimer) clearInterval(backupTimer); server.close(() => { db.close(); process.exit(0); }); };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }

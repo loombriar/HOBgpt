@@ -4,8 +4,6 @@ import { useAuth } from 'react-oidc-context';
 import { Bell, Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { FloatingAgentChat } from '@/components/blocks/agent-chat/FloatingAgentChat';
-import { HOUSE_OF_BRIAR_AGENT_ID, HOUSE_OF_BRIAR_PUBLIC_AGENT_ID } from '@/lib/marketplace';
 
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -115,7 +113,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
         </div>
       </footer>
-      <FloatingAgentChat agentId={HOUSE_OF_BRIAR_AGENT_ID} publicAgentId={HOUSE_OF_BRIAR_PUBLIC_AGENT_ID} />
+      <Link to="/account#house-support" className="fixed bottom-5 right-5 z-40 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold shadow-lg focus-visible:outline focus-visible:outline-2" aria-label="Get House of Briar support">Need help?</Link>
     </div>
   );
 }

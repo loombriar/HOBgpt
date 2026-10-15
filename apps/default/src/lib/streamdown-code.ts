@@ -10,8 +10,11 @@
  * @see https://github.com/taskade/taskcade/issues/26056
  */
 
+import type { CodeHighlighterPlugin, HighlightOptions } from "streamdown";
 import type { HighlighterCore } from "@shikijs/core";
 import { getHighlighter } from "./shiki";
+
+type HighlightResult = NonNullable<ReturnType<CodeHighlighterPlugin['highlight']>>;
 
 // Re-use the theme names from the shared shiki singleton
 const THEMES = ["github-light", "github-dark"] as const;
@@ -19,13 +22,13 @@ const THEMES = ["github-light", "github-dark"] as const;
 // Cache: key → tokens result
 const cache = new Map<
   string,
-  { bg?: string; fg?: string; tokens: unknown[][] }
+  HighlightResult
 >();
 
 // In-flight subscribers for async results
 const subscribers = new Map<
   string,
-  Set<(result: { bg?: string; fg?: string; tokens: unknown[][] }) => void>
+  Set<(result: HighlightResult) => void>
 >();
 
 function cacheKey(
@@ -51,7 +54,7 @@ function themeNames(
  *
  * Implements the `CodeHighlighterPlugin` interface expected by Streamdown.
  */
-export const code = {
+export const code: CodeHighlighterPlugin = {
   name: "shiki" as const,
   type: "code-highlighter" as const,
 
@@ -71,17 +74,9 @@ export const code = {
   },
 
   highlight(
-    options: {
-      code: string;
-      language: string;
-      themes: [unknown, unknown];
-    },
-    callback?: (result: {
-      bg?: string;
-      fg?: string;
-      tokens: unknown[][];
-    }) => void
-  ): { bg?: string; fg?: string; tokens: unknown[][] } | null {
+    options: HighlightOptions,
+    callback?: (result: HighlightResult) => void
+  ): HighlightResult | null {
     const { code: src, language } = options;
     const names = themeNames(options.themes);
     const key = cacheKey(src, language, names);

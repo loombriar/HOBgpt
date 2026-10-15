@@ -114,7 +114,7 @@ test('payout retries queue one failure notification and preserve email delivery 
   ctx.db.prepare("UPDATE designer_profiles SET email='maker@example.test' WHERE id='maker'").run();
   const messages=[];
   options.sendEmail=async message=>{messages.push(message);throw Error('Temporary email outage');};
-  setHandler(async()=>{throw Error('Temporary transfer outage');});
+  setHandler(async()=>{throw Object.assign(Error('Provider rejected transfer'),{providerStatus:400});});
   await call(release);await call(release);
   const eventKey='payout-email:transfer_maker:failed';
   assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM email_outbox WHERE event_key=?').get(eventKey).n,1);
