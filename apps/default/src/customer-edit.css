@@ -31,3 +31,11 @@ html.dark.dark.dark{--background:40 3% 10%;--foreground:42 35% 94%;--card:45 3% 
 @media(max-width:1150px){.fashion-app.fashion-app .house-compact-header>div{flex-wrap:wrap!important;gap:4px!important}.house-compact-header .house-compact-links{width:100%;flex-wrap:wrap!important;overflow:visible;padding:0;gap:4px 18px!important}.house-compact-header .house-compact-links>a{min-height:40px}.house-shop-grid{gap:18px}}
 @media(max-width:680px){.house-shop-heading{align-items:start;flex-direction:column;gap:16px}.house-shop-heading h1{font-size:42px}.house-shop-toolbar{grid-template-columns:1fr 1fr;gap:12px}.house-search-field{grid-column:1/-1}.house-filter-options{grid-template-columns:1fr}.house-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.house-product-card .space-y-3{padding:12px}.house-product-card .space-y-3>div:first-child{flex-direction:column;gap:8px}.house-product-card h2{font-size:20px}.house-product-card .border-t{flex-wrap:wrap;gap:4px}.house-product-card .border-t>div{flex-wrap:wrap}.house-shop-note{gap:8px 16px;margin:22px 0}.house-shop-note a{flex-basis:100%}.house-compact-header .house-compact-links{gap:2px 14px!important}}
 @media(max-width:360px){.house-shop-grid{grid-template-columns:1fr}}
+/* Match the remodeled storefront without altering collection or account controls. */
+.fashion-app .house-shop-heading{position:relative;isolation:isolate;padding-block:12px 24px;border-bottom:1px solid hsl(var(--border))}
+.fashion-app .house-shop-heading::after{content:'';position:absolute;right:10px;top:0;width:52px;height:120px;background:url('/briar-thorn-vine.svg') center/contain no-repeat;opacity:.18;z-index:-1;pointer-events:none}
+.fashion-app .house-shop-heading h1{font-weight:400;letter-spacing:-.04em}
+.fashion-app .house-shop-note{background:hsl(var(--card));padding:16px;border:1px solid hsl(var(--border))}
+.fashion-app .house-product-card{transition:border-color .2s}
+.fashion-app .house-product-card:hover{border-color:hsl(var(--foreground))}
+.fashion-app .house-outline-link{background:hsl(var(--card))}
