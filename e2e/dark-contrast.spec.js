@@ -71,3 +71,22 @@ for(const width of [390,1280]) {
     await expectReadable(page.locator('#cart-dialog .dialog-header h2,#cart-dialog-close,#cart-dialog .primary-button,#cart-dialog .text-button,#cart-dialog .notice,#cart-dialog .cart-badge-reward p,#cart-dialog .cart-badge-reward strong,#cart-dialog .suitcase-info-links a'));
   });
 }
+
+for (const width of [393,1280]) {
+  test(`dark homepage editorial cards, story and shopping text are readable at ${width}px`,async({page})=>{
+    await page.setViewportSize({width,height:851});
+    await page.goto('/');
+    const stylesheet = await page.locator('link[href^="/customer-edit.css"]').getAttribute('href');
+    const asset = await page.request.get(stylesheet);
+    expect(asset.status()).toBe(200);
+    expect(asset.headers()['content-type']).toContain('text/css');
+    await page.locator('#hob-theme-toggle').click();
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
+    const text=page.locator('.fashion-cover-footnote,.briar-invite p,.briar-invite strong,.menswear-window-title,.menswear-window-subtitle,.feature-bar span,.feature-bar strong,.founder-announcement p,.founder-announcement a,.story-grid h2,.story-grid p,.story-grid a,.hob-door-content strong,.hob-door-content span,.hob-door-number,.product-card .badge,.product-card .card-description,.product-card .favorite-button,.house-styling button,.atelier-spotlight button');
+    expect(await text.count()).toBeGreaterThan(15);
+    await expectReadable(text);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
+    await expectReadable(text);
+  });
+}

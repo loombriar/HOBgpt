@@ -77,3 +77,20 @@ html[data-hob-theme=dark] .briar-editorial-poster{background:#e6a398!important;c
 html body .briar-invite-mint{background:#c8dcd0!important}html body .briar-invite-coral{background:#e6a398!important}html body .briar-invite-paper{background:#eee5cd!important}
 .briar-editorial-poster::after{content:'';position:absolute;right:-24px;top:28%;width:130px;height:200px;border:1px solid #24232155;border-radius:50%;transform:rotate(28deg);pointer-events:none;z-index:-1}
 @media(max-width:700px){.briar-invitation{padding:40px 20px}.briar-invitation-grid{grid-template-columns:1fr;gap:22px}.briar-invite{padding:26px;gap:18px}.briar-invite strong{font-size:38px}}
+
+/* Dark mode: switch editorial surfaces with their text, including Android layouts. */
+html[data-hob-theme="dark"] body.blackberry-house :is(.feature-bar,.founder-announcement,.story-grid,.story-visual,.story-copy,.hob-door-content){
+  background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important;
+}
+html[data-hob-theme="dark"] body.blackberry-house :is(.feature-bar,.founder-announcement,.story-grid,.hob-door) :is(h2,h3,p,a,span,strong,small,b){color:var(--briar-ink)!important}
+/* These three invitation cards intentionally retain their paper colors. */
+html[data-hob-theme="dark"] body.blackberry-house .briar-invite,
+html[data-hob-theme="dark"] body.blackberry-house .briar-invite :is(p,span,strong,b){color:#242321!important}
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-footnote,
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-footnote span{color:var(--briar-muted)!important}
+html[data-hob-theme="dark"] body.blackberry-house #shop :is(.menswear-window-title,.menswear-window-subtitle){color:var(--briar-ink)!important}
+html[data-hob-theme="dark"] body.blackberry-house :is(.secondary-button,.text-button){color:var(--briar-ink)!important}
+html[data-hob-theme="dark"] body.blackberry-house .product-card :is(.card-description,.house-card-size){color:var(--briar-muted)!important}
+html[data-hob-theme="dark"] body.blackberry-house .product-card .badge{background:var(--briar-coral)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html[data-hob-theme="dark"] body.blackberry-house .product-card .favorite-button{background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html[data-hob-theme="dark"] body.blackberry-house :is(.secondary-button,.text-button,.favorite-button):hover{background:var(--briar-mint)!important;color:var(--briar-ink)!important}
