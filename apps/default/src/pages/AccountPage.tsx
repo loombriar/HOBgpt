@@ -5,9 +5,9 @@ import DesignerSetupChecklist from '@/components/DesignerSetupChecklist';
 import HouseSupportAgent from '@/components/HouseSupportAgent';
 import SellerListingAssistant from '@/components/SellerListingAssistant';
 import {StudioDashboard,SharedStudioAccess,type StudioSummary} from '@/components/StudioDashboard';
-import { useEffect, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Bell, LogIn, Pencil, Plus, Save, Trash2 } from '@/lib/icons';
 import HouseShell from '@/components/HouseShell';
 import DesignerNotifications, { type DesignerNotification } from '@/components/DesignerNotifications';
@@ -33,7 +33,21 @@ type SellerOrder = {
 const DEFAULT_CATEGORY = MARKET_CATEGORIES[0];
 
 function StudioPanel({title,children}:{title:string;children:ReactNode}) {
-  return <details className="mb-5 rounded-3xl border border-border bg-card p-5"><summary className="min-h-11 cursor-pointer py-2 font-serif text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{title}</summary><div className="mt-5">{children}</div></details>;
+  const panelRef = useRef<HTMLDetailsElement>(null);
+  const { hash } = useLocation();
+  useEffect(() => {
+    const openLinkedSection = () => {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (target && panelRef.current?.contains(target)) {
+        panelRef.current.open = true;
+        target.scrollIntoView({ block: 'start' });
+      }
+    };
+    openLinkedSection();
+    window.addEventListener('hashchange', openLinkedSection);
+    return () => window.removeEventListener('hashchange', openLinkedSection);
+  }, [hash]);
+  return <details ref={panelRef} className="mb-5 rounded-3xl border border-border bg-card p-5"><summary className="min-h-11 cursor-pointer py-2 font-serif text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{title}</summary><div className="mt-5">{children}</div></details>;
 }
 
 function StudioContent() {

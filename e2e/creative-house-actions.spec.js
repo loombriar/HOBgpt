@@ -65,3 +65,30 @@ test('creator profile save errors are shown without a false success message', as
   await expect(page.locator('#profile-status')).toContainText('Sign in required');
   await expect(page.locator('#profile-status a')).toHaveCount(0);
 });
+
+test('activity selection hides unrelated sections while keeping browsing and inbox available', async ({ page }) => {
+  await page.goto('/creative-house.html');
+  for (const id of ['your-profile', 'event-profile-editor', 'post-event', 'post', 'casting-commissioning']) {
+    await expect(page.locator('#' + id)).toBeHidden();
+  }
+  await expect(page.locator('#private-inquiries .inquiry-inbox')).toBeVisible();
+  await page.locator('[data-creative-workflow="event"]').click();
+  await expect(page.locator('#post-event')).toBeVisible();
+  await expect(page.locator('#post')).toBeHidden();
+  await page.locator('[data-creative-workflow="browse"]').click();
+  await expect(page.locator('#post-event')).toBeHidden();
+  await expect(page.locator('#opportunities')).toBeVisible();
+  await expect(page.locator('#fashion-events')).toBeVisible();
+});
+
+test('category links reveal their forms and browser history restores browsing', async ({ page }) => {
+  await page.goto('/creative-house.html#opportunities');
+  await page.locator('.creative-jump-panel a[href="#your-profile"]').click();
+  await expect(page.locator('#profile-form')).toBeVisible();
+  await expect(page.locator('#event-profile-form')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('#your-profile')).toBeHidden();
+  await page.goto('/creative-house.html#post');
+  await expect(page.locator('#post-form')).toBeVisible();
+  await expect(page.locator('#event-form')).toBeHidden();
+});
