@@ -32,6 +32,9 @@ jobs:
       - name: Run checkout and marketplace regression tests
         working-directory: apps/default
         run: npm test
+      - name: Typecheck marketplace
+        working-directory: apps/default
+        run: npm run typecheck
       - name: Build marketplace
         working-directory: apps/default
         run: npm run build

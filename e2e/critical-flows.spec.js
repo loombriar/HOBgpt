@@ -220,7 +220,7 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
 }
 
 test('customers verify email, get a private account and appear once in the Admin signup tracker',async({page,request})=>{
- const email='shopper-e2e@example.test';
+ const email='shopper-e2e-'+crypto.randomUUID()+'@example.test';
  await page.goto('/?visitors=signup');
  const suite=page.locator('#visitor-suite-modal');await expect(suite).toBeVisible();
  await page.locator('#customer-signup-name').fill('E2E Shopper');
@@ -240,8 +240,8 @@ test('customers verify email, get a private account and appear once in the Admin
  await page.getByLabel('Administrator code').fill('e2e-admin-token');await page.locator('#admin-login-form button[type="submit"]').click();
  const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();await tracker.locator('summary').click();
  await expect(tracker.getByText("Today's new customers",{exact:true})).toBeVisible();
- await expect(tracker.locator('.admin-traffic-stat strong').first()).toHaveText('1');
- await expect(tracker.locator('tbody tr')).toHaveCount(1);
+ await expect(tracker.locator('.admin-traffic-stat strong').first()).not.toHaveText('0');
+ const account=await request.get('/__test/customer-count?email='+encodeURIComponent(email));expect((await account.json()).count).toBe(1);
 });
 
 

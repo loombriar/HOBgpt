@@ -2,6 +2,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const Database=require('better-sqlite3');
+const {verifyMediaReferences}=require('../lib/backup-media');
 
 const args=process.argv.slice(2),i=args.indexOf('--output');
 const source=path.resolve(process.env.DATA_DIR||'.data');
@@ -11,6 +12,8 @@ const databasePath=path.join(source,databaseName);
 
 if(!fs.existsSync(source))throw new Error('DATA_DIR does not exist: '+source);
 if(!fs.existsSync(databasePath))throw new Error('SQLite database does not exist: '+databasePath);
+if(target===source || target.startsWith(source+path.sep))throw new Error('Backup output must be outside DATA_DIR');
+if(fs.existsSync(target))throw new Error('Backup output already exists; use a fresh directory');
 fs.mkdirSync(path.join(target,'data'),{recursive:true});
 
 const files=[];
@@ -32,6 +35,8 @@ async function main(){
  try{await db.backup(snapshot);}finally{db.close();}
  record(databaseName,snapshot);
  copyMedia(source);
+ const snapshotDb=new Database(snapshot,{readonly:true,fileMustExist:true});
+ try{verifyMediaReferences(snapshotDb,path.join(target,'data'),new Set(files.map(f=>f.path)));}finally{snapshotDb.close();}
  const manifest={version:2,createdAt:new Date().toISOString(),database:databaseName,files:files.sort((a,b)=>a.path.localeCompare(b.path))};
  fs.writeFileSync(path.join(target,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
  console.log('Backup written to '+target+' ('+files.length+' files)');

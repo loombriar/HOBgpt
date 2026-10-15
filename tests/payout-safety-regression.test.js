@@ -8,7 +8,7 @@ const fn = source.slice(start, end);
 test('every Stripe payout path checks verified tracking before transfer API', () => {
   assert.ok(start >= 0 && end > start);
   const gate = fn.indexOf('carrier_verification_required');
-  const transfer = fn.indexOf("stripeApi('transfers'");
+  const transfer = fn.indexOf("stripeOperations.request('payout',transferId,'transfers'");
   assert.ok(gate > 0 && transfer > gate);
   assert.match(fn.slice(0, gate), /!existing\.tracking_verified_at/);
   assert.match(fn.slice(0, gate), /!existing\.tracking_number/);
@@ -45,5 +45,5 @@ test('payout gate behavior: admin override and simulated tracking never reach St
     assert.equal(blocked(transfer),expected,name);
   }
   assert.match(fn, /admin_override|releaseReason/);
-  assert.ok(fn.indexOf('carrier_verification_required') < fn.indexOf("stripeApi('transfers'"));
+  assert.ok(fn.indexOf('carrier_verification_required') < fn.indexOf("stripeOperations.request('payout',transferId,'transfers'"));
 });

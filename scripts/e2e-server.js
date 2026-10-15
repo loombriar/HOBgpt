@@ -21,6 +21,7 @@ db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_details_subm
 db.prepare('INSERT OR IGNORE INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('maker',SELLER_TERMS_VERSION,new Date().toISOString(),'e2e-fixture');
 const app=require('express')();
 // This endpoint exists only in the isolated E2E fixture; never mount it in server.js.
+app.get('/__test/customer-count',(req,res)=>res.json({count:db.prepare('SELECT COUNT(*) count FROM customer_accounts WHERE email=?').get(String(req.query.email||'')).count}));
 app.get('/__test/customer-code', (req,res)=>{
   const code=customerCodes.get(String(req.query.email||''));if(!code)return res.status(404).json({});return res.json({code});
 });
