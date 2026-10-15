@@ -10,6 +10,7 @@ if (scrollingHeader) {
 
 let customerSignedIn = false;
 let customerSigninRequest = '';
+let reviewerVerificationRequested = new URLSearchParams(window.location.search).get('reviewerVerify') === '1';
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -559,16 +560,6 @@ function renderGallery() {
   productGrid.replaceChildren();
 
   const items = galleryItems;
-    const heroPhoto = byId('house-hero-piece');
-    if (heroPhoto && !heroPhoto.getAttribute('src')) {
-      const featured = galleryItems.find(item => getProductImages(item)[0]?.url);
-      if (featured) {
-        heroPhoto.addEventListener('load', () => { heroPhoto.hidden = false; heroPhoto.parentElement.classList.add('has-piece'); }, {once: true});
-        heroPhoto.src = getProductImages(featured)[0].url;
-      }
-    }
-
-
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
   if (!items.length) {
@@ -2330,7 +2321,7 @@ async function refreshCustomerAccount() {
     const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
     if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
-    byId('customer-signup-form').hidden=customerSignedIn;
+    byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
     byId('customer-code-form').hidden=true;
     await refreshMeasurementProfiles(customerSignedIn);
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
@@ -2343,7 +2334,7 @@ byId('customer-signup-form')?.addEventListener('submit',async event=>{
 });
 byId('customer-code-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
-  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
 });
 byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
 byId('customer-delete-account')?.addEventListener('click',async()=>{
