@@ -123,3 +123,17 @@ body.blackberry-house #product-grid>.product-card .product-body{flex:1}
  html body.blackberry-house #hob-global-nav>.hob-global-actions{grid-column:2;grid-row:1;height:44px;display:flex;align-items:center;gap:5px}
  html body.blackberry-house #hob-global-nav>nav{grid-column:1/-1;grid-row:2;height:36px!important;min-height:36px;flex-wrap:nowrap!important;align-items:center!important;gap:4px 16px!important}
 }
+
+/* Badge cards keep ivory surfaces and readable text in both themes. */
+html body.blackberry-house #support .curation-card,
+html body.blackberry-house #support .curation-card :is(h3,p,label,.curation-number){color:#30271f!important}
+html body.blackberry-house #support .curation-card .supporter-thanks{color:#704638!important}
+@media(max-width:700px){
+ html body.blackberry-house #support.curation-section{padding-block:32px!important}
+ html body.blackberry-house #support .curation-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
+ html body.blackberry-house #support .curation-card{min-height:0!important;padding:18px 16px!important;border-radius:16px!important}
+ html body.blackberry-house #support .house-supporter-art{width:64px!important;height:64px!important;margin:0 auto 8px!important}
+ html body.blackberry-house #support .curation-card h3{font-size:23px!important;line-height:1.2!important;margin:0 0 8px!important}
+ html body.blackberry-house #support .curation-card p{font-size:14px!important;line-height:1.5!important;margin:6px 0!important}
+ html body.blackberry-house #support .curation-number{width:40px!important;height:40px!important;font-size:24px!important;margin-bottom:8px!important}
+}
