@@ -29,7 +29,7 @@ test('cancelled checkout preserves a clear recovery route on mobile', async ({ p
 
 test('mobile bag remains accessible with an empty cart', async ({ page }) => {
   await page.goto('/cart');
-  await expect(page.getByRole('heading', { name: 'Pieces waiting for you.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your shopping cart.' })).toBeVisible();
   await expect(page.getByRole('link', { name: /continue shopping/i })).toBeVisible();
 });
 

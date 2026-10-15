@@ -559,6 +559,16 @@ function renderGallery() {
   productGrid.replaceChildren();
 
   const items = galleryItems;
+    const heroPhoto = byId('house-hero-piece');
+    if (heroPhoto && !heroPhoto.getAttribute('src')) {
+      const featured = galleryItems.find(item => getProductImages(item)[0]?.url);
+      if (featured) {
+        heroPhoto.addEventListener('load', () => { heroPhoto.hidden = false; heroPhoto.parentElement.classList.add('has-piece'); }, {once: true});
+        heroPhoto.src = getProductImages(featured)[0].url;
+      }
+    }
+
+
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
   if (!items.length) {
@@ -571,9 +581,6 @@ function renderGallery() {
     const images = getProductImages(item);
     const card = document.createElement('article');
     card.className = 'product-card';
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `View ${item.title} details`);
 
     const favoriteIds = getFavoriteIds();
     const isFavorited = favoriteIds.includes(item.id);
@@ -623,19 +630,16 @@ function renderGallery() {
     maker.addEventListener('keydown', event => event.stopPropagation());
     body.append(maker, meta);
     if (badgeRow.children.length) body.appendChild(badgeRow);
-    body.appendChild(makeElement('span', 'card-title', item.title));
+    const titleButton = makeElement('button', 'card-title', item.title);
+    titleButton.type = 'button';
+    titleButton.setAttribute('aria-label', `View ${item.title} details`);
+    body.appendChild(titleButton);
+    body.appendChild(makeElement('span', 'house-card-size', item.size ? `Size ${item.size}` : 'See garment measurements'));
     body.appendChild(makeElement('span', 'card-description', item.description || 'A one-of-a-kind designation from an independent designer.'));
 
     card.addEventListener('click', (event) => {
       if (event.target.closest('.favorite-button')) return;
       openProductDetails(item);
-    });
-
-    card.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openProductDetails(item);
-      }
     });
 
     card.append(imageWrap, body);

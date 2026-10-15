@@ -12,7 +12,7 @@
   }
   const links = nav.querySelector('nav');
   const creativeLink = links.querySelector('a[href="/creative-house.html"]');
-  if (creativeLink && !links.querySelector('.hob-creative-menu')) {
+  if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
     const menu = document.createElement('details');
     menu.className = 'hob-creative-menu';
     const summary = document.createElement('summary');

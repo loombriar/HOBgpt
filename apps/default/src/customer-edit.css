@@ -1,0 +1,33 @@
+/* Shopping edit, shared by collection, product, cart and account surfaces. */
+:root:root:root{--background:42 32% 96%;--foreground:40 4% 14%;--card:44 60% 99%;--card-foreground:40 4% 14%;--popover:44 60% 99%;--popover-foreground:40 4% 14%;--primary:29 26% 33%;--primary-foreground:44 60% 99%;--muted:40 18% 90%;--muted-foreground:37 5% 40%;--border:38 16% 80%;--input:38 16% 80%;--accent:40 23% 89%;--accent-foreground:40 4% 14%}
+html.dark.dark.dark{--background:40 3% 10%;--foreground:42 35% 94%;--card:45 3% 14%;--card-foreground:42 35% 94%;--popover:45 3% 14%;--popover-foreground:42 35% 94%;--primary:35 42% 73%;--primary-foreground:40 3% 10%;--muted:40 4% 20%;--muted-foreground:40 12% 76%;--border:40 6% 43%;--input:40 6% 43%;--accent:40 5% 23%;--accent-foreground:42 35% 94%}
+.fashion-app.fashion-app :is(.rounded-2xl,.rounded-3xl){border-radius:6px}
+.fashion-app.fashion-app .house-compact-header>div{min-height:76px;gap:16px!important}
+.house-compact-header .house-compact-links{gap:18px!important;align-items:center}
+.house-compact-header .house-compact-links>a{font-size:12px}
+.house-shop-heading{display:flex;align-items:end;justify-content:space-between;gap:24px}
+.house-outline-link{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:10px 18px;border:1px solid hsl(var(--border));font-size:12px;font-weight:500;white-space:nowrap}
+.house-shop-note{display:flex;flex-wrap:wrap;gap:12px 28px;margin:28px 0;padding:15px 0;border-block:1px solid hsl(var(--border));font-size:11px;color:hsl(var(--muted-foreground))}
+.house-shop-note a{text-decoration:underline;text-underline-offset:3px}
+.house-shop-toolbar{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;align-items:end}
+.house-search-field{display:flex;gap:12px;align-items:center;min-height:50px;padding:0 16px;border:1px solid hsl(var(--border));background:hsl(var(--card))}
+.fashion-app .house-search-field input{width:100%;min-width:0;border:0;outline:none;padding:12px 0;background:transparent;font-size:14px;box-shadow:none}
+.house-search-field:focus-within{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.house-filter-label{display:grid;gap:6px;font-size:11px;font-weight:500;color:hsl(var(--muted-foreground))}
+.fashion-app .house-filter-label select{width:100%;min-width:0;min-height:50px;padding:10px 12px;border:1px solid hsl(var(--border));border-radius:0;background:hsl(var(--card));color:hsl(var(--foreground));font-size:13px}
+.house-shop-filters{padding:18px 0;border-bottom:1px solid hsl(var(--border))}
+.house-shop-filters summary{display:flex;align-items:center;gap:8px;min-height:36px;width:fit-content;cursor:pointer;list-style:none;font-size:12px}
+.house-shop-filters summary::after{content:'+';margin-left:14px;font-size:18px}.house-shop-filters[open] summary::after{content:'−'}
+.house-filter-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:16px 0}
+.house-results-line{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0;font-size:12px;color:hsl(var(--muted-foreground))}
+.house-results-line button{min-height:44px;text-decoration:underline;text-underline-offset:3px}
+.house-shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.fashion-app.fashion-app .house-product-card{border-radius:3px;box-shadow:none}
+.house-product-card>a{background:hsl(var(--muted))!important}
+.house-product-card>a>div.absolute{display:none}.house-product-card>a>div.relative{background:hsl(var(--card));color:hsl(var(--foreground));border:1px solid hsl(var(--border));backdrop-filter:none;font-size:9px;letter-spacing:.1em}
+.house-product-card img{mix-blend-mode:normal}.house-product-card .space-y-3{padding:18px}.house-product-card h2{line-height:1.25;overflow-wrap:anywhere}
+.house-shop-empty{padding:64px 20px;text-align:center;border:1px dashed hsl(var(--border));background:hsl(var(--card))}.house-shop-empty>svg{margin:auto}
+.house-photo-search{margin-top:48px;padding:20px;border:1px solid hsl(var(--border));font-size:13px}.house-photo-search>summary{min-height:28px;cursor:pointer}
+@media(max-width:1150px){.fashion-app.fashion-app .house-compact-header>div{flex-wrap:wrap!important;gap:4px!important}.house-compact-header .house-compact-links{width:100%;flex-wrap:wrap!important;overflow:visible;padding:0;gap:4px 18px!important}.house-compact-header .house-compact-links>a{min-height:40px}.house-shop-grid{gap:18px}}
+@media(max-width:680px){.house-shop-heading{align-items:start;flex-direction:column;gap:16px}.house-shop-heading h1{font-size:42px}.house-shop-toolbar{grid-template-columns:1fr 1fr;gap:12px}.house-search-field{grid-column:1/-1}.house-filter-options{grid-template-columns:1fr}.house-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.house-product-card .space-y-3{padding:12px}.house-product-card .space-y-3>div:first-child{flex-direction:column;gap:8px}.house-product-card h2{font-size:20px}.house-product-card .border-t{flex-wrap:wrap;gap:4px}.house-product-card .border-t>div{flex-wrap:wrap}.house-shop-note{gap:8px 16px;margin:22px 0}.house-shop-note a{flex-basis:100%}.house-compact-header .house-compact-links{gap:2px 14px!important}}
+@media(max-width:360px){.house-shop-grid{grid-template-columns:1fr}}
