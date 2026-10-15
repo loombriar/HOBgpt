@@ -1413,6 +1413,10 @@ function createApp(options = {}) {
     if (!allowedHosts.has(normalized) && !localHost) {
       return res.status(400).json({ error: 'invalid_host' });
     }
+    // Canonicalize public page URLs without redirecting API or webhook requests.
+    if (normalized === 'www.houseofbriar.shop' && (req.method === 'GET' || req.method === 'HEAD')) {
+      return res.redirect(301, `https://houseofbriar.shop${req.originalUrl}`);
+    }
     next();
   });
   app.disable('x-powered-by');
