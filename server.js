@@ -2946,7 +2946,7 @@ function createApp(options = {}) {
     const values = [];
     for (const key of ['category', 'style', 'aesthetic', 'pattern']) {
       if (filters[key] && filters[key] !== 'all') {
-        if(key==='category' && filters[key]==='apparel'){conditions.push("LOWER(TRIM(l.category)) IN ('apparel','menswear','womenswear','unisex')");}
+        if(key==='category' && filters[key]==='apparel'){conditions.push("LOWER(TRIM(l.category)) IN ('apparel','menswear','womenswear','unisex','costumes')");}
         else {conditions.push(`LOWER(TRIM(l.${key})) = LOWER(?)`);values.push(filters[key]);}
       }
     }

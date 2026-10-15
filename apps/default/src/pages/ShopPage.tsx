@@ -11,7 +11,7 @@ import { trackCommerceEvent } from '@/lib/analytics';
 const GARMENT_SUBCATEGORIES=['Dress','Skirt','Top','Set / Outfit','Jacket / Outerwear','Winter Wear','Pants / Shorts','Jumpsuit / Romper','Costume','Other clothing'];
 const ACCESSORY_SUBCATEGORIES=['Belt','Purse / Bag','Scarf / Wrap','Hat / Headwear','Gloves','Hair Accessory','Other accessory'];
 const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories',menswear:'Masculine',womenswear:'Womenswear',unisex:'Unisex',costumes:'Costumes'};
-const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
+const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex','costumes'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
 
 const LIKED_PRODUCTS_KEY = 'house-of-briar:liked-products';
 const PRICE_RANGES = [
