@@ -4502,7 +4502,7 @@ function createApp(options = {}) {
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
   const illustratedPublicAssets = [
-    'briar-portrait-v1.webp', 'briar-portrait-v1-mobile.webp',
+    'briar-portrait-green-v2.webp', 'briar-portrait-green-v2-mobile.webp',
     'briar-couture-v1.webp', 'briar-couture-v1-mobile.webp',
     'pastel-briar-window-v1.svg',
     'house-of-briar-pastel-wordmark-v2.webp',
