@@ -23,9 +23,9 @@
       const labels=[...new Set([...(suggestions[role.value]||[]),...[...list.children].filter(card=>!role.value||card.dataset.role===role.value).flatMap(tags)])].sort();
       specialty.replaceChildren();const all=document.createElement('option');all.value='';all.textContent='All specialties';specialty.appendChild(all);
       for(const label of labels){const option=document.createElement('option');option.value=label;option.textContent=label;specialty.appendChild(option);}
-      specialty.value=labels.includes(selected)?selected:'';render();
+      specialty.value=labels.includes(selected)?selected:'';const menu=document.getElementById(prefix+'-specialty-menu');if(menu){const caption=menu.querySelector('summary span');if(caption)caption.textContent=specialty.value|| (role.value?'All specialties':'Choose a role first');}render();
     };
-    role.addEventListener('change',()=>{specialty.value='';options();});specialty.addEventListener('change',render);
+    role.addEventListener('change',()=>{specialty.value='';options();const menu=document.getElementById(prefix+'-specialty-menu');if(menu)menu.open=Boolean(role.value);});specialty.addEventListener('change',()=>{options();});
     new MutationObserver(options).observe(list,{childList:true});options();
   }
   connect('creative-directory-list','directory');connect('event-profiles-list','event-directory');
