@@ -608,7 +608,7 @@ function renderGallery() {
     imageButton.setAttribute('aria-label', `View photos and details of ${item.title}`);
     imageWrap.appendChild(imageButton);
     const unavailable = item.productionType !== 'Made to Order' && item.availableQuantity != null && Number(item.availableQuantity) <= 0;
-    if (unavailable) imageWrap.appendChild(makeElement('span', 'product-stock-label', Number(item.soldQuantity) > 0 ? 'Sold' : 'Unavailable'));
+    if (unavailable) imageWrap.appendChild(makeElement('span', 'product-stock-label', Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable'));
     imageWrap.appendChild(favoriteButton);
 
     const body = makeElement('div', 'product-body');

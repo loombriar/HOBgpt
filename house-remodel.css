@@ -178,3 +178,5 @@ html body.blackberry-house #product-grid .meta-row{justify-content:flex-start;ga
 html body.blackberry-house #product-grid .product-image{padding:0!important;border-radius:0!important;box-sizing:border-box}
 html body.blackberry-house #product-grid .product-image>img{position:absolute;inset:0;aspect-ratio:auto!important;border:0!important;border-radius:0!important;background:transparent!important}
 html body.blackberry-house #product-grid .product-image-open{background:transparent!important;border:0!important;border-radius:0!important;margin:0;padding:0}
+
+.product-stock-label{max-width:calc(100% - 76px);box-sizing:border-box;overflow-wrap:anywhere}
