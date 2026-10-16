@@ -1082,6 +1082,7 @@ function renderSelectedImages() {
     photoPreview.appendChild(item);
   });
   if(byId('listing-preview')?.open)renderListingDraftPreview();
+  renderListingReadiness();
 }
 
 function addFiles(fileList) {
@@ -2785,3 +2786,20 @@ function renderListingDraftPreview(){
 }
 byId('listing-preview')?.addEventListener('toggle',event=>{if(event.currentTarget.open)renderListingDraftPreview();});
 byId('product-form')?.addEventListener('input',()=>{if(byId('listing-preview')?.open)renderListingDraftPreview();});
+
+function renderListingReadiness(){
+ const host=byId('listing-readiness');if(!host)return;host.replaceChildren();
+ host.append(makeElement('h3','','Listing readiness'),makeElement('p','small-print','A quick guide, not a submission guarantee. Final validation happens when you save or submit.'));
+ const val=id=>byId(id)?.value?.trim()||'';
+ const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const suggested=[['Add body measurement ranges',Object.keys(readFitRanges()).length>0,'product-fit-bust-min'],['Add preparation time',Boolean(val('product-handling-min')||val('product-handling-max')),'product-handling-min']];
+ for(const [heading,rows]of [['Before submission',required],['Helpful suggestions',suggested]]){
+  host.append(makeElement('h4','',heading));const list=document.createElement('ul');
+  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','○ '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
+ }
+ host.append(makeElement('h4','','Before going live'));const payout=makeElement('button','text-button','Review payout setup →');payout.type='button';payout.addEventListener('click',()=>{const target=byId('payout-setup-title');for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});});host.append(payout);
+}
+byId('product-form')?.addEventListener('input',renderListingReadiness);
+byId('product-form')?.addEventListener('change',renderListingReadiness);
+byId('product-form')?.addEventListener('reset',()=>setTimeout(renderListingReadiness,0));
+renderListingReadiness();
