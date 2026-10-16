@@ -52,12 +52,20 @@ html body.blackberry-house .footer-menu>summary:focus-visible{outline:2px solid 
  .briar-creative-actions a{flex:1 1 140px}
 }
 
-/* Green-eyed botanical portrait: separate art and copy for clear mobile reading. */
-html body.blackberry-house .hero.sewing-hero.fashion-cover{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;min-height:0}
-html body.blackberry-house .fashion-cover .briar-portrait-art{position:relative;inset:auto;z-index:0;grid-column:2;grid-row:1;aspect-ratio:4/5;height:auto;min-height:0!important;background:#b9afa2!important}
-html body.blackberry-house .fashion-cover .briar-portrait-art img{width:100%;height:100%;object-fit:cover;object-position:center;max-height:none}
-html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;width:100%!important;padding:clamp(28px,4vw,56px)!important;background:#1c1a19;box-sizing:border-box}
+/* Compact editorial pairing keeps copy next to the portrait on every screen. */
+html body.blackberry-house .hero.sewing-hero.fashion-cover{display:grid!important;grid-template-columns:minmax(0,3fr) minmax(0,2fr)!important;min-height:0}
+html body.blackberry-house .fashion-cover .briar-portrait-art{position:relative;inset:auto;z-index:0;grid-column:2;grid-row:1;aspect-ratio:auto;height:100%;min-height:380px!important;background:#b9afa2!important;overflow:hidden;align-self:stretch}
+html body.blackberry-house .fashion-cover .briar-portrait-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;max-height:none}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;width:100%!important;padding:clamp(28px,4vw,48px)!important;background:#1c1a19;box-sizing:border-box}
 @media(max-width:700px){
- html body.blackberry-house .fashion-cover .briar-portrait-art{aspect-ratio:4/5;max-height:none!important;flex:none}
- html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{padding:32px 24px!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover{display:grid!important;grid-template-columns:minmax(0,3fr) minmax(0,2fr)!important}
+ html body.blackberry-house .fashion-cover .briar-portrait-art{width:100%!important;height:100%;min-height:0!important;max-height:none!important;aspect-ratio:auto}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{padding:24px 14px!important;min-width:0}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy::before,html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy::after{display:none!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(25px,5.8vw,40px)!important;line-height:1.08!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy p{font-size:13px;line-height:1.5}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy .eyebrow{font-size:9px!important;letter-spacing:.08em!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions{gap:8px}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions a{width:100%;min-height:44px;padding:10px 8px;font-size:12px;white-space:normal;text-align:center}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font-size:9px!important;letter-spacing:.06em!important}
 }
