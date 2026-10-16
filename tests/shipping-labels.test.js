@@ -5,7 +5,7 @@ const Database=require('better-sqlite3');
 const {once}=require('node:events');
 const {mountShippingLabels,safeLabelUrl}=require('../lib/shipping-labels');
 
-async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,mode='test'}={}) {
+async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,refundResponse,mode='test'}={}) {
   const db=new Database(':memory:');
   db.exec(`CREATE TABLE orders (id TEXT,status TEXT,stripe_session_id TEXT,shipping_details_json TEXT,refund_status TEXT);
     CREATE TABLE order_items (order_id TEXT,designer_id TEXT,designer_amount_cents INTEGER);
@@ -19,6 +19,7 @@ async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='
     calls.push({url,body:opts.body?JSON.parse(opts.body):null});
     if(!opts.body && readTransaction)return readTransaction(url);
     if(url.includes('/shipments/'))return Response.json({test:true,rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
+    if(url.includes('/refunds/')&&refundResponse)return refundResponse();
     if(transaction)return transaction();
     return Response.json({test:true,status:'SUCCESS',object_id:'transaction',tracking_number:'TEST123',label_url:'https://deliver.goshippo.com/test.pdf'});
   }});
@@ -132,4 +133,21 @@ test('uncertain or newly successful provider result cannot be cleared for anothe
     try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/correct',{})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,1);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_label_attempts').get().n,0);}finally{await f.close();}
   }
   const f=await fixture({transaction:()=>{throw new Error('unknown');}});try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/correct',{})).status,409);assert.equal(f.calls.length,2);}finally{await f.close();}
+});
+
+test('cancellation credits only confirmed refunds, never repeats its POST, and permits a replacement afterwards',async()=>{
+ let state='SUCCESS',posts=0;
+ const f=await fixture({readTransaction:()=>Response.json({test:true,status:state,object_id:'transaction',metadata:'hob-test:order:seller',rate:'rate',tracking_status:'PRE_TRANSIT'}),refundResponse:()=>{posts++;state='REFUNDPENDING';return Response.json({object_id:'refund',transaction:'transaction',status:'PENDING'});}});
+ try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/cancel',{confirmCancellation:false})).status,409);const pending=await f.call('/cancel',{confirmCancellation:true});assert.equal(pending.body.label.cancelStatus,'pending');assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refund_pending');await f.call('/cancel',{confirmCancellation:true});assert.equal(posts,1);
+ f.db.exec("UPDATE designer_transfers SET tracking_number='TEST_ALREADY_SAVED'");
+ state='REFUNDED';const done=await f.call('/cancel/status',{});assert.equal(done.body.label.status,'cancelled');assert.equal(done.body.label.labelUrl,null);assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refunded');await f.call('/cancel/status',{});assert.equal(posts,1);
+ f.db.exec("UPDATE designer_transfers SET tracking_number=NULL");assert.equal((await f.call('/correct',{})).status,200);assert.equal((await quote(f)).status,200);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_label_attempts').get().n,1);assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refunded');
+ }finally{await f.close();}
+});
+test('unknown refund retains its deduction and carrier rejection restores charged state',async()=>{
+ let state='SUCCESS';const f=await fixture({readTransaction:()=>Response.json({test:true,status:state,object_id:'transaction',metadata:'hob-test:order:seller',rate:'rate'}),refundResponse:()=>{throw new Error('timeout');}});
+ try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/cancel',{confirmCancellation:true})).body.label.cancelStatus,'unknown');assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refund_pending');state='REFUNDREJECTED';assert.equal((await f.call('/cancel/status',{})).body.label.cancelStatus,'rejected');assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'charged');}finally{await f.close();}
+});
+test('used labels, live or mismatched replies and other sellers cannot be cancelled',async()=>{
+ for(const change of [{tracking_status:'TRANSIT'},{test:false},{metadata:'other'}]){let posts=0;const f=await fixture({readTransaction:()=>Response.json({test:true,status:'SUCCESS',object_id:'transaction',metadata:'hob-test:order:seller',rate:'rate',...change}),refundResponse:()=>{posts++;return Response.json({});}});try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/cancel',{confirmCancellation:true},'other')).status,404);assert.equal((await f.call('/cancel',{confirmCancellation:true})).status,409);assert.equal(posts,0);assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'charged');}finally{await f.close();}}
 });
