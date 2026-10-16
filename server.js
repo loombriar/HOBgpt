@@ -2211,6 +2211,8 @@ function createApp(options = {}) {
     if(operation.kind==='payout')db.prepare("UPDATE designer_transfers SET payout_in_flight=0,status='failed' WHERE id=?").run(operation.reference_id);
   }});
 
+  const postageAccounting=require('./lib/postage-accounting').createPostageAccounting(db);
+
   async function finishDepositRefund(offer) {
       if(offer.stripe_transfer_id && !offer.stripe_reversal_id){
         // Historical deposits used a 10% fee. Preserve the original amount.
@@ -2424,9 +2426,14 @@ function createApp(options = {}) {
       }
       const transferId = existing?.id || makeId();
       if (!existing) db.prepare(`INSERT INTO designer_transfers (id, order_id, designer_id, stripe_account_id, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`).run(transferId, orderId, group.designer_id, accountId, group.amount_cents, new Date().toISOString());
+      const postage=postageAccounting.summary(order.id,group.designer_id);
+      if(postage.postageHold||postage.insufficientEarnings){results.push({designer_id:group.designer_id,status:'pending',reason:postage.postageHold?'postage_review_required':'postage_exceeds_earnings'});continue;}
+      if(postage.netEarningsCents===0){results.push({designer_id:group.designer_id,status:'pending',reason:'no_transfer_due'});continue;}
+      let payoutAmount;
+      try{payoutAmount=postageAccounting.freezePayout(order.id,group.designer_id);}catch(error){results.push({designer_id:group.designer_id,status:'pending',reason:'postage_review_required'});continue;}
       try {
         const body = new URLSearchParams({
-          amount: String(group.amount_cents),
+          amount: String(payoutAmount),
           currency: order.currency,
           destination: accountId,
           transfer_group: orderId,
@@ -3709,7 +3716,8 @@ function createApp(options = {}) {
     const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
     const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state!='applied' ORDER BY updated_at DESC LIMIT 100").all();
-    return res.json({summary,orders,payouts,inventory,emails,financialOperations});
+    const postageReviews=db.prepare('SELECT DISTINCT order_id,designer_id FROM postage_charges').all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
+    return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews});
   });
 
   app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
@@ -4056,6 +4064,7 @@ function createApp(options = {}) {
       WHERE oi.designer_id=? ORDER BY o.created_at DESC`).all(req.designerId);
     const map=new Map();
     for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails:row.shipping_details_json?JSON.parse(row.shipping_details_json):null,shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({giftNote:row.gift_note||null,title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
+    for(const order of map.values())order.earnings=postageAccounting.summary(order.id,req.designerId);
     return res.json({orders:[...map.values()]});
   });
 

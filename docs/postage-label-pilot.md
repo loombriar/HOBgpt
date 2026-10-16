@@ -11,23 +11,49 @@ US return address and the packed weight (ounces) and dimensions (inches).
 Compare rates, choose an affordable rate, approve the displayed sample deduction,
 and create the sample PDF label. Open the PDF and use the browser's print action.
 
-The exact quoted postage is recorded once per order/designer in a separate test
-ledger. It is subtracted from the displayed sample earnings only. Real transfer
-amounts, shipment tracking, buyer emails and payout verification are untouched.
-Test labels cannot ship packages. Each designer sees only their own order data.
-Rates expire after 15 minutes. A timeout or uncertain outcome blocks another
-label request; inspect the Shippo test account before resolving it. There is no
-automatic retry or replacement label purchase.
+Confirmed label costs are recorded once per Shippo transaction in
+`postage_charges`. Test and live charges are kept separate. Designer earnings
+show sale total, the original House fee, postage, confirmed postage refunds and
+net earnings. Existing labels from this pilot are imported as test costs only.
+Simulated practice orders still cannot produce Stripe payouts or buyer emails.
+Rates expire after 15 minutes. Uncertain requests remain held without an
+automatic duplicate purchase.
+
+## Payout and refund accounting
+
+The payout engine deducts the matching order/designer postage balance before
+creating a transfer and freezes the exact net amount before leaving the process.
+The durable Stripe operation retains that amount for retries. Carrier verification,
+seller terms, payment-provider restrictions and customer-refund holds still apply.
+Zero or negative transfer amounts are not sent to Stripe.
+
+An unused sample label can be cancelled after explicit confirmation. The server
+checks its Shippo transaction and refuses known carrier movement. It records a
+durable cancellation reservation before requesting the refund, and never repeats
+that POST after a timeout. **Check cancellation status** uses GET requests only.
+Only a matching test transaction reporting REFUNDED credits the postage. Pending
+or unknown outcomes keep the deduction and payout hold; REFUNDREJECTED keeps the
+charge. Refunded states are terminal and cannot be re-deducted by a delayed reply.
+A confirmed cancelled label may be archived for a replacement; the old charge,
+credit and cancellation records remain, and a new label needs fresh rate consent.
+
+Customer refunds remain separate from carrier refunds. A customer refund reverses
+only the amount actually transferred to that designer, while returning the full
+customer amount for the selected refund scope. Unrecovered postage after a
+customer refund and credits arriving after a payout was fixed appear in the admin
+Postage review queue. They are not automatically charged to a card, moved to another
+order or paid out a second time. Those cases require House reconciliation.
 
 ## Before enabling real postage
 
-Live purchases remain intentionally unavailable. The next phase must apply the
-postage ledger to Stripe transfers (the current payout code calculates earnings
-from order items), reconcile carrier adjustments and void/refund outcomes, lock
-payout/refund/label operations together, and handle unresolved provider outcomes.
-Update the seller agreement and explicit acceptance to cover platform-funded
-postage deductions. Define who bears postage after customer refunds and carrier
-adjustments. Do not change the feature flag to `live`: that mode is unsupported.
+Live label buying remains unavailable; `SHIPPO_LABELS_MODE=live` is unsupported.
+No endpoint accepts client-supplied live postage charges. The accounting module can
+apply a verified live charge once a future trusted live-label writer is enabled.
+Before that launch, finish the live purchase/transaction reconciliation path,
+carrier adjustment accounting, label tracking registration, and a versioned seller
+agreement with explicit consent for platform-funded postage deductions. Define the
+policy and admin settlement process for costs left after customer refunds and late
+carrier credits. Existing off-site backup and admin startup requirements still apply.
 
 House of Briar pays the carrier account and deducts the exact confirmed postage
 from that designer's earnings. Buyers continue to receive free US delivery. If
