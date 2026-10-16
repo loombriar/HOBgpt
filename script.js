@@ -1937,7 +1937,7 @@ async function renderAdminQueue() {
     const payload = await adminRequest(view === 'pending_review' ? '/api/admin/listings/review-queue' : '/api/admin/listings');
     if (view !== 'all') payload.items = (payload.items || []).filter(item => item.status === view);
     adminSessionActive = true;
-    void renderAdminOverview();
+    void renderAdminOverview(view === 'pending_review' ? payload.items : undefined);
     adminLoginPanel?.classList.add('hidden');
     adminReviewWorkspace?.classList.remove('hidden');
     setMessage(adminReviewMessage, '');
@@ -2069,6 +2069,8 @@ adminSignoutBtn?.addEventListener('click', async () => {
     if (!response.ok) throw new Error('Admin sign out did not complete. Please try again.');
     ++adminOverviewLoad;
     byId('admin-overview')?.replaceChildren();
+    byId('admin-attention-cards')?.replaceChildren();
+    if(byId('admin-attention-status'))byId('admin-attention-status').textContent='Sign in to check the House.';
     adminReviewList?.replaceChildren();
     adminSessionActive = false;
     sessionStorage.removeItem('briarAdminToken');
@@ -2083,10 +2085,42 @@ byId('production-info-close')?.addEventListener('click', () => byId('production-
 
 byId('admin-listing-view')?.addEventListener('change', renderAdminQueue);
 byId('admin-refresh-btn')?.addEventListener('click', renderAdminQueue);
+byId('admin-attention-refresh')?.addEventListener('click',()=>void renderAdminOverview());
 let adminOverviewLoad = 0;
-async function renderAdminOverview() {
+function adminAttentionCounts(approvals, operations, support) {
+  if(!Array.isArray(approvals))approvals=null;
+  if(!Array.isArray(operations?.orders)||!Array.isArray(operations?.payouts))operations=null;
+  if(!Array.isArray(support?.messages))support=null;
+  return {
+    approvals: approvals ? approvals.filter(item=>item.status==='pending_review').length : null,
+    shipping: operations ? operations.orders.filter(order=>order.status==='paid'&&order.refund_status!=='succeeded'&&operations.payouts.some(payout=>payout.order_id===order.id&&!payout.tracking_number&&!payout.stripe_reversal_id&&payout.status!=='paid')).length : null,
+    payouts: operations ? operations.payouts.filter(payout=>!payout.stripe_reversal_id&&(payout.status==='failed'||(payout.status==='pending'&&Boolean(payout.error_message)))).length : null,
+    support: support ? support.messages.filter(message=>!['closed','resolved','replied'].includes(String(message.status||'').toLowerCase())).length : null
+  };
+}
+function renderAdminAttention(counts, loading=false) {
+  const host=byId('admin-attention-cards'),status=byId('admin-attention-status');if(!host||!status)return;
+  host.replaceChildren();
+  if(loading){status.textContent='Checking approvals, orders, payouts and support…';return;}
+  const missing=Object.values(counts).some(value=>value===null);
+  status.textContent=missing?'Some queues could not be checked. Refresh to try again.':'Review the queues below. Counts are based on the latest saved status.';
+  for(const [key,label,href]of [['approvals','Clothing awaiting approval',null],['shipping','Paid orders awaiting shipment','/admin#admin-orders'],['payouts','Payout problems','/admin#admin-payouts'],['support','Support requests',null]]){
+    const card=makeElement(href?'a':'button','admin-attention-card');
+    if(href)card.href=href;else{card.type='button';card.addEventListener('click',async()=>{
+      if(key==='approvals'){byId('admin-listing-view').value='pending_review';await renderAdminQueue();const target=byId('admin-review-list');target.setAttribute('tabindex','-1');scrollRoomTarget(target,{block:'start'});target.focus({preventScroll:true});}
+      else{const target=byId('admin-customer-service');if(target){target.open=true;scrollRoomTarget(target,{block:'start'});target.querySelector('summary')?.focus({preventScroll:true});}}
+    });}
+    card.dataset.attentionQueue=key;
+    card.append(makeElement('strong','',counts[key]===null?'Could not check':String(counts[key])),makeElement('span','',label),makeElement('small','',href?'Open operations →':'Open queue →'));host.append(card);
+  }
+}
+
+async function renderAdminOverview(pendingItems) {
+  renderAdminAttention({},true);
   const host = byId('admin-overview'); if (!host) return;
   const load = ++adminOverviewLoad; host.replaceChildren();
+  const loaded={};
+  const pending=Array.isArray(pendingItems)?Promise.resolve(pendingItems):adminRequest('/api/admin/listings/review-queue').then(data=>data.items).catch(()=>null);
   const sections = [
     ['Website views', '/api/admin/analytics'],
     ['Customer sign-ups', '/api/admin/customer-signups'],
@@ -2097,9 +2131,11 @@ async function renderAdminOverview() {
   ];
   await Promise.all(sections.map(async ([title, url]) => {
     const section = makeElement('details', 'admin-summary-section');
+    section.id='admin-'+title.toLowerCase().replaceAll(' ','-');
     section.append(makeElement('summary', '', title)); host.append(section);
     try {
       const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminSessionActive) return;
+      loaded[url]=data;
       if (data.customers) {
         section.id='admin-customer-signups';
         const stats=makeElement('div','admin-traffic-stats');
@@ -2210,6 +2246,9 @@ async function renderAdminOverview() {
       }
     } catch (error) { section.append(makeElement('p', 'form-message', `Could not load this section: ${error.message}`)); }
   }));
+  const approvals=await pending;
+  if(load!==adminOverviewLoad||!adminSessionActive)return;
+  renderAdminAttention(adminAttentionCounts(approvals,loaded['/api/admin/operations']||null,loaded['/api/admin/support']||null));
 }
 
 async function loadDesignerBrand() {

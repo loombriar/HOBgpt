@@ -28,11 +28,11 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=visitor-suite-20261016" defer></script>
+    <script src="/script.js?v=admin-priorities-20261016" defer></script>
     <script type="module" src="/native-back.js"></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=hero-wide-20261011" />
-    <link rel="stylesheet" href="/rooms.css?v=visitor-suite-20261016" />
+    <link rel="stylesheet" href="/rooms.css?v=admin-priorities-20261016" />
     <link rel="stylesheet" href="/fashion-refresh-2026.css?v=creator-spotlight-20261011" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
     <style>
@@ -622,7 +622,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       </section>
       <p id="admin-review-message" class="form-message" role="status" aria-live="polite"></p>
       <section id="admin-review-workspace" class="hidden">
-        <nav class="room-navigation" aria-label="Admin room sections"><button type="button" data-room-target="admin-review-list">Review listings</button><button type="button" data-room-target="admin-overview">House overview</button><a href="/admin">Orders, inventory &amp; support ↗</a></nav>
+        <nav class="room-navigation" aria-label="Admin room sections"><button type="button" data-room-target="admin-attention">Needs attention</button><button type="button" data-room-target="admin-review-list">Review listings</button><button type="button" data-room-target="admin-overview">House overview</button><a href="/admin">Orders, inventory &amp; support ↗</a></nav>
+        <section id="admin-attention" class="admin-attention" aria-labelledby="admin-attention-title"><div class="admin-attention-heading"><div><p class="eyebrow">Start here</p><h3 id="admin-attention-title">Needs attention</h3></div><button type="button" id="admin-attention-refresh" class="secondary-button">Refresh overview</button></div><p id="admin-attention-status" role="status">Checking the House…</p><div id="admin-attention-cards" class="admin-attention-cards"></div><p class="small-print">Order and payout counts cover the most recent 200 orders and 300 transfers. Open the full operations dashboard for details.</p></section>
         <div class="studio-toolbar"><div><h3>Pending clothing</h3><p>Approve pieces to publish them in the Shop, or reject them with a reason.</p></div><button id="admin-signout-btn" class="text-button" type="button">Sign out</button></div>
         <label for="admin-listing-view">Listing view</label><select id="admin-listing-view"><option value="pending_review">Pending approval</option><option value="published">Published</option><option value="all">All active listings</option></select><button id="admin-refresh-btn" type="button" class="secondary-button">Refresh admin panel</button>
         <div id="admin-review-list" class="admin-review-list" aria-live="polite"></div>
