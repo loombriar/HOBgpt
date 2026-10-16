@@ -206,7 +206,17 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
     await expect.poll(async()=>Math.round((await header.boundingBox()).y)).toBe(0);
     await expect(page.locator('#cart-btn')).toBeInViewport();
-    await page.locator('.footer-links').getByRole('link',{name:'Support & Badges',exact:true}).click();
+    const footer=page.locator('.site-footer');
+    const explore=footer.locator('details.footer-menu').filter({has:page.locator('summary').filter({hasText:/^Explore$/})});
+    await expect(explore).not.toHaveAttribute('open','');
+    if(viewport.width===390){
+      expect((await footer.boundingBox()).height).toBeLessThan(360);
+      await footer.locator('#admin-review-btn').scrollIntoViewIfNeeded();
+      await expect(footer.locator('#admin-review-btn')).toBeInViewport();
+    }
+    await explore.locator('summary').click();
+    await expect(explore).toHaveAttribute('open','');
+    await explore.getByRole('link',{name:'Support & Badges',exact:true}).click();
     await expect.poll(async()=>{
       const h=await header.boundingBox(),section=await page.locator('#support').boundingBox();
       return section.y >= h.y+h.height-2;
