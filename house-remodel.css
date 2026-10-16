@@ -122,3 +122,20 @@ html body.blackberry-house .site-footer::after{top:auto;bottom:0;height:230px;tr
  html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
  html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{width:26px}
 }
+
+/* Two main windows, with subcategories inside their parent. */
+html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start;gap:12px!important}
+.shop-filter-menu{min-width:0;border:1px solid var(--briar-line);background:var(--briar-card);color:var(--briar-ink)}
+.shop-filter-menu>summary{display:flex;flex-direction:column;gap:6px;padding:14px 36px 14px 16px;min-height:64px;box-sizing:border-box;cursor:pointer;position:relative;list-style:none;font:600 13px/1.4 Inter,Arial,sans-serif}
+.shop-filter-menu>summary::-webkit-details-marker,.shop-filter-child>summary::-webkit-details-marker{display:none}
+.shop-filter-menu>summary::after{content:'+';position:absolute;right:16px;top:20px;font-size:20px;font-weight:400}
+.shop-filter-menu[open]>summary::after{content:'−'}
+.shop-filter-selection{font-size:12px;font-weight:400;color:var(--briar-muted);overflow-wrap:anywhere}
+.shop-filter-panel{padding:0 12px 12px;border-top:1px solid var(--briar-line)}
+.shop-filter-child{margin-top:10px;border:1px solid var(--briar-line);background:var(--briar-paper)}
+.shop-filter-child>summary{padding:12px;cursor:pointer;list-style:none;font:500 13px/1.5 Inter,Arial,sans-serif}
+.shop-filter-child>summary::before{content:'›';display:inline-block;margin-right:10px}
+.shop-filter-child[open]>summary::before{transform:rotate(90deg)}
+html body.blackberry-house #shop .shop-filter-panel .shop-drop-window{min-height:0!important;padding:8px 12px!important;border:0!important;background:transparent!important}
+html body.blackberry-house #shop .shop-filter-panel select{min-width:0;max-width:100%}
+@media(max-width:560px){html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:minmax(0,1fr)!important}}
