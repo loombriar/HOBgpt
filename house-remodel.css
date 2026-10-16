@@ -114,3 +114,25 @@ html[data-hob-theme=dark] body.blackberry-house :is(#support,#journal,.designer-
  html body.blackberry-house #support .curation-card:not(:first-child){gap:6px 12px}
  html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)>.container{max-width:calc(100% - 48px)!important;margin-inline:auto!important}
 }
+
+/* Sculpted briar: individual climbing branches, never tiled stitching. */
+html body.blackberry-house .fashion-cover-copy::before,
+html body.blackberry-house .fashion-cover-copy::after,
+html body.blackberry-house .briar-editorial-poster::before,
+html body.blackberry-house .briar-editorial-poster::after,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after,
+body.creative-makeover main>.hero::after{background-repeat:no-repeat!important;background-size:contain!important}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{width:clamp(26px,5vw,72px);opacity:.85}
+html body.blackberry-house .fashion-cover-copy::before,
+html body.blackberry-house .fashion-cover-copy::after{width:28px;opacity:.75}
+html body.blackberry-house .briar-invitation::before{width:200px;max-width:60%;height:72px;background-repeat:no-repeat;background-size:contain;transform:rotate(78deg);margin-block:24px 48px}
+html body.blackberry-house .site-footer::before{top:0;bottom:auto;height:230px;transform:rotate(20deg)}
+html body.blackberry-house .site-footer::after{top:auto;bottom:0;height:230px;transform:rotate(200deg)}
+@media(max-width:700px){
+ html body.blackberry-house .fashion-cover-copy::before,
+ html body.blackberry-house .fashion-cover-copy::after{width:24px}
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{width:26px}
+}
