@@ -90,6 +90,7 @@ export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,tok
       <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 text-sm font-medium transition hover:border-primary hover:text-primary focus-within:ring-2 focus-within:ring-primary/30">
         <ImagePlus size={17} /> Choose photos
         <input
+          id="draft-piece-photos"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/heic,image/heif"
           multiple
