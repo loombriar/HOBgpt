@@ -1,7 +1,7 @@
 import {useEffect, useState, type FormEvent} from 'react';
 
 type Rate={id:string;costCents:number;carrier:string;service:string;remainingCents:number;affordable:boolean};
-type Label={status:string;costCents:number;labelUrl?:string;trackingNumber?:string;carrier?:string;test:true};
+type Label={status:string;costCents:number;labelUrl?:string;trackingNumber?:string;carrier?:string;message?:string|null;test:true};
 const money=(cents:number)=>`$${(cents/100).toFixed(2)}`;
 export default function PostageLabel({orderId,earningsCents}:{orderId:string;earningsCents:number}) {
   const [enabled,setEnabled]=useState(false);
@@ -30,7 +30,7 @@ export default function PostageLabel({orderId,earningsCents}:{orderId:string;ear
   const getRates=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();setBusy(true);setMessage('');setRates([]);setConfirmed(false);setSelected('');
     const form=new FormData(event.currentTarget);
-    const from=Object.fromEntries(['name','street1','street2','city','state','zip'].map(k=>[k,form.get(k)]));
+    const from=Object.fromEntries(['name','street1','street2','city','state','zip','email','phone'].map(k=>[k,form.get(k)]));
     const parcel=Object.fromEntries(['length','width','height','weight'].map(k=>[k,form.get(k)]));
     try {const data=await request('/rates',{from,parcel});setRates(data.rates);setQuoteId(data.quoteId);}
     catch(e){setMessage(e instanceof Error?e.message:'Rates could not be loaded.');}
@@ -42,18 +42,26 @@ export default function PostageLabel({orderId,earningsCents}:{orderId:string;ear
     catch(e){setMessage(e instanceof Error?e.message:'The label needs review.');}
     finally{setBusy(false);}
   };
+  const correct=async()=>{
+    setBusy(true);setMessage('');
+    try{const data=await request('/correct',{});setLabel(null);setRates([]);setSelected('');setConfirmed(false);setMessage(data.message);}catch(e){setMessage(e instanceof Error?e.message:'This label is still held.');}finally{setBusy(false);}
+  };
+  const reconcile=async()=>{
+    setBusy(true);setMessage('');
+    try{await request('/reconcile',{});}catch(e){setMessage(e instanceof Error?e.message:'The label could not be checked.');}finally{setBusy(false);}
+  };
   if(!enabled&&!label)return null;
   const choice=rates.find(r=>r.id===selected);
   return <details className="mt-4 rounded-xl border border-border p-4"><summary className="cursor-pointer font-medium">Postage &amp; print label · test mode</summary>
     <p className="mt-3 text-sm text-muted-foreground">Try the shipping process with a sample label. This label cannot be used for delivery. No real postage is charged or deducted, and payouts stay held.</p>
-    {label?<div className="mt-4 text-sm"><p>Sample postage deduction: {money(label.costCents)}</p><p>Earnings after sample postage: {money(earningsCents-label.costCents)}</p>{label.status==='ready'?<><p className="mt-2">{label.carrier} · {label.trackingNumber}</p><a className="mt-3 inline-block rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground" href={label.labelUrl} target="_blank" rel="noopener noreferrer">Open sample label PDF to print ↗</a></>:<p role="status" className="mt-2">{label.status==='processing'?'Label request is processing. Refresh this order to check its status.':'Label outcome needs review. Contact House of Briar before trying again.'}</p>}</div>:<>
+    {label?<div className="mt-4 text-sm"><p>{label.status==='ready'?'Sample postage deduction':'Reserved sample postage'}: {money(label.costCents)}</p><p>{label.status==='ready'?'Earnings after sample postage':'Sample earnings if the label succeeds'}: {money(earningsCents-label.costCents)}</p>{label.status==='ready'?<><p className="mt-2">{label.carrier} · {label.trackingNumber}</p><a className="mt-3 inline-block rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground" href={label.labelUrl} target="_blank" rel="noopener noreferrer">Open sample label PDF to print ↗</a></>:<p role="status" className="mt-2">{label.status==='processing'?'Label request is processing. Refresh this order to check its status.':'Label outcome needs review. Check its status before trying again.'}</p>}{label.message&&<p className="mt-2 text-muted-foreground">{label.message}</p>}{label.status!=='ready'&&<button type="button" disabled={busy} onClick={()=>void reconcile()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">{busy?'Checking existing label…':'Check existing label status'}</button>}{label.status==='provider_error'&&<button type="button" disabled={busy} onClick={()=>void correct()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">Correct details &amp; get fresh rates</button>}</div>:<>
     <form className="mt-4" onSubmit={getRates} onChange={()=>{setRates([]);setConfirmed(false);setSelected('');}}>
       <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold">Your US return address</legend>
-        {(['name','street1','street2','city','state','zip'] as const).map(key=><label key={key} className="grid gap-1 text-sm">{{name:'Sender name',street1:'Street address',street2:'Apartment / suite (optional)',city:'City',state:'State',zip:'ZIP code'}[key]}<input className="min-h-11 rounded-lg border border-border bg-background px-3" name={key} required={key!=='street2'} maxLength={150}/></label>)}
+        {(['name','street1','street2','city','state','zip','email','phone'] as const).map(key=><label key={key} className="grid gap-1 text-sm">{{name:'Sender name',street1:'Street address',street2:'Apartment / suite (optional)',city:'City',state:'State',zip:'ZIP code',email:'Sender email',phone:'Sender phone'}[key]}<input className="min-h-11 rounded-lg border border-border bg-background px-3" name={key} type={key==='email'?'email':key==='phone'?'tel':'text'} required={key!=='street2'} maxLength={150}/></label>)}
       </fieldset>
       <fieldset disabled={busy} className="mt-4 grid grid-cols-2 gap-3"><legend className="mb-3 text-sm font-semibold">Packed parcel</legend>
         {(['length','width','height','weight'] as const).map(key=><label key={key} className="grid gap-1 text-sm">{key[0].toUpperCase()+key.slice(1)} ({key==='weight'?'oz':'in'})<input className="min-h-11 rounded-lg border border-border bg-background px-3" name={key} type="number" min="0.01" step="0.01" max={key==='weight'?1120:108} required/></label>)}
-      </fieldset><p className="mt-3 text-xs text-muted-foreground">Delivery address comes from this order. Include the packaging in the weight.</p>
+      </fieldset><p className="mt-3 text-xs text-muted-foreground">Delivery address comes from this order. Sender email and phone are required by USPS and shared with the carrier. Include the packaging in the weight.</p>
       <button disabled={busy} className="mt-3 min-h-11 rounded-full border border-border px-5 text-sm font-semibold disabled:opacity-50">{busy?'Checking…':'Compare test shipping rates'}</button>
     </form>
     {rates.length>0&&<fieldset disabled={busy} className="mt-4 space-y-3"><legend className="mb-2 text-sm font-semibold">Choose postage</legend>{rates.map(rate=><label key={rate.id} className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm"><input type="radio" name={`postage-${orderId}`} checked={selected===rate.id} disabled={!rate.affordable} onChange={()=>{setSelected(rate.id);setConfirmed(false);}}/><span>{rate.carrier} · {rate.service} · {money(rate.costCents)}<span className="mt-1 block text-muted-foreground">{rate.affordable?`Earnings after sample postage: ${money(rate.remainingCents)}`:'Postage exceeds this order’s earnings. Choose another rate or contact support.'}</span></span></label>)}</fieldset>}
