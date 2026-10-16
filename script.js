@@ -1329,8 +1329,53 @@ async function handleSave(event) {
   }
 }
 
+// Display groups keep approval separate from stock availability.
+function designerListingGroup(item) {
+  if (item.status === 'draft') return 'Drafts';
+  if (item.status === 'pending_review') return 'Pending approval';
+  if (item.status === 'published' && item.moderationStatus === 'approved' && !item.pausedByDesigner) {
+    if (item.productionType !== 'Made to Order' && item.availableQuantity === 0 && !item.reservedQuantity) return Number(item.soldQuantity) > 0 ? 'Sold' : 'Other';
+    return 'Live';
+  }
+  return 'Other';
+}
+function designerOrderAttention(order) {
+  if (order.orderStatus !== 'paid') return [];
+  const reasons = [];
+  if (order.fulfillmentStatus === 'awaiting_shipment') reasons.push('Add shipment tracking');
+  if (order.payoutStatus === 'failed') reasons.push('Review failed payout');
+  return reasons;
+}
+
 let designerListingsLoad = 0;
 let designerListingFilter = 'All';
+async function loadDesignerAttention(loadId = designerListingsLoad) {
+  const status=byId('designer-attention-status'),counts=byId('designer-attention-counts'),list=byId('designer-attention-orders');
+  if(!designerToken||!status||!counts||!list)return;
+  const request=++designerAttentionRequest;
+  status.textContent='Checking your orders…';
+  try{
+    const payload=await apiRequest('/api/my/orders',{cache:'no-store'});
+    if(request!==designerAttentionRequest||loadId!==designerListingsLoad||!designerToken)return;
+    if(!Array.isArray(payload.orders))throw new Error('Order information could not be read.');
+    const orders=payload.orders.filter(order=>designerOrderAttention(order).length);
+    counts.replaceChildren();list.replaceChildren();
+    for(const [title,count] of [['Awaiting shipment',orders.filter(order=>order.fulfillmentStatus==='awaiting_shipment').length],['Failed payouts',orders.filter(order=>order.payoutStatus==='failed').length]]){
+      const card=makeElement('div','designer-attention-count');card.append(makeElement('strong','',String(count)),makeElement('span','',title));counts.append(card);
+    }
+    status.textContent=orders.length?`${orders.length} paid ${orders.length===1?'order needs':'orders need'} follow-up.`:'No paid orders need shipment or failed-payout follow-up.';
+    for(const order of orders.slice(0,5)){
+      const row=makeElement('a','designer-attention-order');row.href='/account#orders';
+      row.append(makeElement('strong','',`Order ${String(order.id).slice(-8).toUpperCase()}`),makeElement('span','',designerOrderAttention(order).join(' · ')));list.append(row);
+    }
+    if(orders.length>5)list.append(makeElement('p','small-print',`${orders.length-5} more — open Manage orders & tracking to review all.`));
+  }catch(error){
+    if(request!==designerAttentionRequest||loadId!==designerListingsLoad||!designerToken)return;
+    counts.replaceChildren();list.replaceChildren();status.textContent='Orders could not be checked. Refresh or open Manage orders & tracking.';
+  }
+}
+let designerAttentionRequest=0;
+byId('designer-attention-refresh')?.addEventListener('click',()=>void loadDesignerAttention());
 async function loadDesignerListings() {
   const loadId = ++designerListingsLoad;
   if (!designerToken) return;
@@ -1341,11 +1386,20 @@ async function loadDesignerListings() {
     if (designerProductsContainer) designerProductsContainer.replaceChildren();
     const allListings = payload.items || [];
     const overview=byId('designer-studio-overview');
-    if(overview){overview.replaceChildren();overview.append(makeElement('h3','','Listing status'));
-      for(const status of ['All','Active','Draft','Expired','Sold Out','Inactive']){const button=makeElement('button','secondary-button',`${status} ${status==='All'?allListings.length:payload.counts[status]}`);button.type='button';button.setAttribute('aria-pressed',String(status===designerListingFilter));button.addEventListener('click',()=>{designerListingFilter=status;void loadDesignerListings();});overview.append(button);}
-      const notice=makeElement('p','notice',designerListingFilter==='All'?'Showing all listings.':`Listings have been updated to display only ${designerListingFilter.toLowerCase()} listings.`);notice.setAttribute('role','status');overview.append(notice,makeElement('p','',`${payload.ordersCount} orders · ${payload.messages} item requests · ${payload.views.events} tracked product views in the last 30 days`));
+    if(overview){
+      overview.replaceChildren();
+      const filters=makeElement('div','designer-listing-filters');filters.setAttribute('role','group');filters.setAttribute('aria-label','Filter your listings');
+      for(const status of ['All','Drafts','Pending approval','Live','Sold','Other']){
+        const count=status==='All'?allListings.length:allListings.filter(item=>designerListingGroup(item)===status).length;
+        const button=makeElement('button','secondary-button',`${status} (${count})`);button.type='button';button.dataset.listingGroup=status;
+        button.setAttribute('aria-pressed',String(status===designerListingFilter));
+        button.addEventListener('click',()=>{designerListingFilter=status;void loadDesignerListings();});filters.append(button);
+      }
+      const notice=makeElement('p','small-print',designerListingFilter==='Other'?'Paused, expired, unavailable, or returned for changes.':designerListingFilter==='All'?'Drafts stay private. Only approved, published pieces can appear in the shop.':`Showing ${designerListingFilter.toLowerCase()} listings.`);notice.setAttribute('role','status');
+      overview.append(filters,notice,makeElement('p','small-print',`${payload.ordersCount ?? 0} orders · ${payload.messages ?? 0} item requests · ${payload.views?.events ?? 0} tracked product views in the last 30 days`));
     }
-    const listings=allListings.filter(item=>designerListingFilter==='All'||item.studioStatus===designerListingFilter);
+    void loadDesignerAttention(loadId);
+    const listings=allListings.filter(item=>designerListingFilter==='All'||designerListingGroup(item)===designerListingFilter);
     designerReadinessState.listings=allListings;renderSellerReadiness();
     if (!listings.length) {
       if (designerProductsContainer) designerProductsContainer.appendChild(makeElement('p', 'empty-state', designerListingFilter==='All'?'No listings yet. Create a new design above.':`No ${designerListingFilter.toLowerCase()} listings.`));
@@ -1382,7 +1436,8 @@ async function loadDesignerListings() {
       row.appendChild(info);
 
       const actions = makeElement('div', 'designer-product-actions');
-      const badge = makeElement('span', 'status-badge', listing.status === 'pending_review' ? 'Pending review' : listing.status === 'published' ? 'Published' : listing.status === 'rejected' ? 'Rejected' : 'Draft');
+      const group=designerListingGroup(listing);
+      const badge = makeElement('span', 'status-badge', group === 'Other' ? listing.status === 'rejected' ? 'Changes requested' : listing.pausedByDesigner ? 'Paused' : listing.studioStatus || 'Unavailable' : group === 'Drafts' ? 'Draft' : group);
       actions.appendChild(badge);
       const edit = document.createElement('button');
       edit.type = 'button';
@@ -2499,8 +2554,7 @@ function prepareDesignerRoomPanels() {
   const groups=[
     ['.seller-readiness-card','Getting started'],
     ['.payout-setup-card','Payout setup'],
-    ['#designer-studio-overview','Studio overview'],
-    ['#designer-products','Your listings'],
+    ['#designer-listing-area','Your listings'],
     ['#product-form','Create or edit a piece'],
     ['#designer-brand-form','Brand & profile'],
     ['.fabric-finder-card','Fabric Finder']
@@ -2510,6 +2564,7 @@ function prepareDesignerRoomPanels() {
     if(!content||content.parentElement!==workspace)continue;
     const panel=document.createElement('details');
     panel.className='designer-room-panel';
+    panel.open=selector==='#designer-listing-area';
     const summary=document.createElement('summary');
     summary.textContent=title;
     content.before(panel);panel.append(summary,content);

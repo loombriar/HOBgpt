@@ -28,11 +28,11 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=nested-shop-filters-20261015" defer></script>
+    <script src="/script.js?v=designer-priorities-20261016" defer></script>
     <script type="module" src="/native-back.js"></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=hero-wide-20261011" />
-    <link rel="stylesheet" href="/rooms.css?v=rooms-20261012" />
+    <link rel="stylesheet" href="/rooms.css?v=priorities-20261016" />
     <link rel="stylesheet" href="/fashion-refresh-2026.css?v=creator-spotlight-20261011" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
     <style>
@@ -386,6 +386,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       </section>
       <section id="designer-workspace" class="hidden" aria-label="Your designer workspace">
         <nav class="room-navigation" aria-label="Designer room sections">
+          <button type="button" data-room-target="designer-attention">Needs attention</button>
           <button type="button" data-room-target="seller-readiness-title">Getting started</button>
           <button type="button" data-room-target="designer-products">Your listings</button>
           <button type="button" data-room-target="product-form">Create a piece</button>
@@ -393,14 +394,25 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <button type="button" data-room-target="designer-settings">Settings</button>
           <a href="/account#orders">Orders &amp; messages ↗</a>
         </nav>
+        <section id="designer-attention" class="room-card designer-attention" aria-labelledby="designer-attention-title">
+          <div class="designer-attention-heading"><div><p class="eyebrow">Start here</p><h3 id="designer-attention-title">Orders needing attention</h3></div><button id="designer-attention-refresh" class="text-button" type="button">Refresh orders</button></div>
+          <p id="designer-attention-status" role="status">Checking your orders…</p>
+          <div id="designer-attention-counts" class="designer-attention-counts"></div>
+          <div id="designer-attention-orders"></div>
+          <a class="secondary-button" href="/account#orders">Manage orders &amp; tracking ↗</a>
+        </section>
+        <section id="designer-listing-area" aria-label="Manage your listings">
         <div class="studio-toolbar">
           <div><h3>Your listings</h3><p>Only published listings appear in the public shop.</p></div>
           <div class="studio-toolbar-actions">
-            <button id="new-listing-btn" class="secondary-button" type="button">List your first piece</button>
+            <button id="new-listing-btn" class="secondary-button" type="button">Create a listing</button>
             <button id="signout-btn" class="text-button" type="button">Sign out</button>
           </div>
         </div>
         <p id="designer-listings-message" class="form-message" role="status" aria-live="polite"></p>
+          <section id="designer-studio-overview" aria-label="Listing filters"></section>
+          <div id="designer-products" class="designer-products room-card" aria-live="polite"></div>
+        </section>
         <section class="seller-readiness-card" aria-labelledby="seller-readiness-title">
           <div class="seller-readiness-heading"><div><p class="eyebrow">Designer onboarding</p><h3 id="seller-readiness-title">Your selling setup</h3><div id="designer-founding-badge" class="listing-badges"></div></div><span id="seller-readiness-badge" class="status-badge">Checking…</span></div>
           <p id="seller-readiness-summary" class="small-print">Checking your Designer dashboard setup.</p>
@@ -422,11 +434,6 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 
 
         <p><span class="primary-button" aria-label="The Briar Runway is coming soon">The Briar Runway — Coming Soon</span></p>
-        <section id="designer-studio-overview" aria-label="Studio overview"></section>
-        <p><a href="/account">Full Studio: seller AI, orders, gift notes and shared access</a></p>
-        <div id="designer-products" class="designer-products room-card" aria-live="polite"></div>
-
-
         <hr class="soft-rule" />
         <form id="product-form" class="stack-form room-card" novalidate>
           <input id="product-id" name="listingId" type="hidden" />

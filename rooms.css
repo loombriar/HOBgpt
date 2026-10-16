@@ -138,3 +138,28 @@ body.designer-room-open .designer-room-header {
 body.designer-room-open #designer-workspace :is(form,section,details,[id]) {
   scroll-margin-top:calc(var(--hob-bar-height,64px) + 120px);
 }
+
+/* Orders first, inventory in one panel, secondary tools collapsed. */
+.designer-attention-heading{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.designer-attention-heading h3{margin:4px 0 12px}.designer-attention-heading .eyebrow{margin:0}
+.designer-attention-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.designer-attention-count{display:grid;gap:5px;padding:16px;border:1px solid var(--room-border);border-radius:10px;background:var(--room-paper);color:var(--room-ink)}
+.designer-attention-count strong{font-size:26px}.designer-attention-count span{font-size:13px}
+.designer-attention-order{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:12px 0;border-top:1px solid var(--room-border);color:var(--room-ink);text-decoration:none;overflow-wrap:anywhere}
+.designer-attention-order span{font-size:13px}.designer-attention .secondary-button{margin-top:16px}
+#designer-listing-area .studio-toolbar{padding:16px 20px;margin:0;gap:12px;flex-wrap:wrap}
+#designer-studio-overview{padding:0 20px 16px}
+#designer-listing-area #designer-products{border:0;box-shadow:none;margin:0}
+.designer-listing-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.designer-listing-filters button{min-height:44px;font:500 13px/1.4 Inter,sans-serif;padding:10px 14px}
+.designer-listing-filters button[aria-pressed=true]{background:var(--room-ink)!important;color:var(--room-paper)!important;border-color:var(--room-ink)!important}
+.designer-room-header #modal-close{flex-shrink:0;min-height:44px}
+@media(max-width:700px){
+ .designer-attention-order{align-items:start;flex-direction:column;gap:6px}
+ .designer-attention-count{padding:12px}.designer-attention-count span{font-size:12px}
+ .designer-listing-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .designer-listing-filters button{width:100%;white-space:normal}
+ body.designer-room-open .designer-room-header{flex-direction:row!important;align-items:center!important;gap:10px!important;padding:10px!important}
+ .designer-room-header h2{font-size:23px!important;margin:0!important}.designer-room-header .eyebrow{display:none}
+ .designer-room-header #modal-close{font-size:12px;padding:10px;white-space:normal;max-width:145px}
+}
