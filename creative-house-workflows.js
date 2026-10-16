@@ -37,6 +37,15 @@
 // Category links choose the matching directory branch before following its anchor.
 (() => {
   const menus = [...document.querySelectorAll('.creative-category-menu')];
+  const openLinkedMenu = () => {
+    const menu = menus.find(item => '#' + item.id === location.hash);
+    if (menu) menu.open = true;
+  };
+  document.querySelectorAll('.briar-creative-actions a').forEach(link => link.addEventListener('click', () => {
+    const menu = menus.find(item => '#' + item.id === link.getAttribute('href'));
+    if (menu) menu.open = true;
+  }));
+  openLinkedMenu();
   menus.forEach(menu => menu.addEventListener('toggle', () => {
     if (menu.open) menus.forEach(other => { if (other !== menu) other.open = false; });
   }));
