@@ -83,3 +83,8 @@ html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
  html body #hob-global-nav.hob-global-nav:has(.hob-mailbox-wrap:not([hidden])) .hob-global-wordmark{font-size:clamp(12px,3.5vw,17px)!important}
  #hob-global-nav:has(.hob-mailbox-wrap:not([hidden])) .hob-global-actions :is(#header-customer-auth-btn,.hob-global-account-link){max-width:60px}
 }
+/* Inbox actions must sit above the notification row's painted surface. */
+#hob-global-nav .hob-mailbox-panel{z-index:10;isolation:isolate}
+#hob-global-nav .hob-mailbox-note{position:relative;display:flow-root;isolation:isolate}
+#hob-global-nav .hob-mailbox-note>button{position:relative!important;z-index:2!important;display:inline-flex!important;align-items:center;justify-content:center;pointer-events:auto!important;transform:none!important;min-height:44px;touch-action:manipulation}
+#hob-global-nav .hob-mailbox-note::before,#hob-global-nav .hob-mailbox-note::after{pointer-events:none!important}
