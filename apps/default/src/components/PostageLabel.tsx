@@ -46,7 +46,7 @@ export default function PostageLabel({orderId,earningsCents,onChanged}:{orderId:
   };
   const correct=async()=>{
     setBusy(true);setMessage('');
-    try{const data=await request('/correct',{});setLabel(null);setRates([]);setSelected('');setConfirmed(false);setMessage(data.message);}catch(e){setMessage(e instanceof Error?e.message:'This label is still held.');}finally{setBusy(false);}
+    try{const data=await request('/correct',{});setLabel(null);setRates([]);setSelected('');setQuoteId('');setConfirmed(false);setCancelConfirmed(false);setMessage(data.message);}catch(e){setMessage(e instanceof Error?e.message:'This label is still held.');}finally{setBusy(false);}
   };
   const reconcile=async()=>{
     setBusy(true);setMessage('');
