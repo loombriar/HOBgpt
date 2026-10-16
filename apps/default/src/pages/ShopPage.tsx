@@ -191,7 +191,7 @@ export default function ShopPage() {
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
         </label>
-      </div>
+      </div>}
       {!noCatalogPieces && <details className="house-shop-filters" open={activeFilters > 0 || undefined}>
         <summary><SlidersHorizontal size={16}/> More filters {activeFilters > 0 && `(${activeFilters} active)`}</summary>
         <div className="house-filter-options">
@@ -199,13 +199,13 @@ export default function ShopPage() {
           <label className="house-filter-label" htmlFor="price-filter">Price range<select id="price-filter" value={priceRange} onChange={event => { setPriceRange(event.target.value); updateFilter('price', event.target.value, 'all-prices'); }}>{PRICE_RANGES.map(range => <option key={range.value} value={range.value}>{range.label}</option>)}</select></label>
           <label className="house-filter-label" htmlFor="style-filter">Style<select id="style-filter" value={style} onChange={event => { setStyle(event.target.value); updateFilter('style', event.target.value, 'All styles'); }}><option>All styles</option>{MARKET_STYLES.map(item => <option key={item}>{item}</option>)}</select></label>
         </div>
-      </details>
-      {!noCatalogPieces && <div className="house-results-line"><p role="status">{visible.length} {visible.length === 1 ? 'piece' : 'pieces'}{savedOnly ? ' saved' : ' to discover'}</p>{(activeFilters > 0 || query) && <button type="button" onClick={() => { const next = new URLSearchParams(); if (savedOnly) next.set('saved', 'true'); setSearchParams(next); }}>Clear search &amp; filters</button>}</div>
-      {!noCatalogPieces && <div className="house-shop-grid">{visible.map(product => <ProductCard key={product.id} product={product} onLike={handleLike} liked={likedIds.includes(product.id)} saved={savedIds.includes(product.id)} onSave={handleSave}/>)}</div>
+      </details>}
+      {!noCatalogPieces && <div className="house-results-line"><p role="status">{visible.length} {visible.length === 1 ? 'piece' : 'pieces'}{savedOnly ? ' saved' : ' to discover'}</p>{(activeFilters > 0 || query) && <button type="button" onClick={() => { const next = new URLSearchParams(); if (savedOnly) next.set('saved', 'true'); setSearchParams(next); }}>Clear search &amp; filters</button>}</div>}
+      {!noCatalogPieces && <div className="house-shop-grid">{visible.map(product => <ProductCard key={product.id} product={product} onLike={handleLike} liked={likedIds.includes(product.id)} saved={savedIds.includes(product.id)} onSave={handleSave}/>)}</div>}
       {catalogError && <div role="alert" className="house-shop-empty"><p>{catalogError}</p><button type="button" className="house-outline-link mt-4" onClick={() => window.location.reload()}>Try again</button></div>}
       {!catalogError && visible.length === 0 && !noCatalogPieces && <div className="house-shop-empty"><Heart size={28}/><h2 className="mt-4 font-serif text-3xl">{savedOnly ? 'Keep your favorites close.' : 'No pieces found just yet.'}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{savedOnly ? 'Tap Save on a piece you love. You can come back to it here.' : 'Try another search or clear your filters to see the full collection.'}</p><Link to="/shop" onClick={() => setSearchParams(new URLSearchParams())} className="house-outline-link mt-6">Browse all pieces</Link></div>}
       {(foundingCollection || noCatalogPieces) && invitation}
-      {!noCatalogPieces && <details className="house-photo-search" open={window.location.hash === '#visual-search-title' || undefined}><summary>Have a style in mind? Search with a photo ↗</summary><VisualSearch token={auth.user?.access_token || ''}/></details>
+      {!noCatalogPieces && <details className="house-photo-search" open={window.location.hash === '#visual-search-title' || undefined}><summary>Have a style in mind? Search with a photo ↗</summary><VisualSearch token={auth.user?.access_token || ''}/></details>}
     </section>
   </HouseShell>;
 }
