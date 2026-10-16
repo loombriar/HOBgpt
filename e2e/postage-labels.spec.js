@@ -32,3 +32,20 @@ for(const width of [390,1280])test(`designer confirms sample postage and opens t
   await expect(page.getByText('TEST123',{exact:false})).toBeVisible();
   expect(confirmations).toBe(1);
 });
+
+test('an uncertain sample label is recovered by checking status without another purchase',async({page})=>{
+  expect((await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
+  await page.route('**/api/my/orders',route=>route.fulfill({json:{orders:[{id:'recovery-order',orderStatus:'paid',fulfillmentStatus:'awaiting_shipment',payoutStatus:'pending',earningsCents:9100,items:[{title:'Recovery test piece',quantity:1,earningsCents:9100}]}]}}));
+  let label={status:'review_required',costCents:610,test:true};
+  let checks=0;
+  await page.route('**/api/orders/recovery-order/postage',route=>route.fulfill({json:{enabled:true,test:true,label}}));
+  await page.route('**/api/orders/recovery-order/postage/label',()=>{throw new Error('Recovery must not buy another label');});
+  await page.route('**/api/orders/recovery-order/postage/reconcile',route=>{checks++;label={status:'ready',costCents:610,test:true,trackingNumber:'TESTRECOVERED',carrier:'USPS',labelUrl:'https://deliver.goshippo.com/recovered.pdf'};return route.fulfill({json:{label}});});
+  await page.goto('/account#orders');
+  await page.getByText('Postage & print label · test mode',{exact:true}).click();
+  await expect(page.getByText('Reserved sample postage: $6.10',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Check existing label status',exact:true}).click();
+  await expect(page.getByRole('link',{name:'Open sample label PDF to print ↗',exact:true})).toHaveAttribute('href','https://deliver.goshippo.com/recovered.pdf');
+  await expect(page.getByText('Earnings after sample postage: $84.90',{exact:true})).toBeVisible();
+  expect(checks).toBe(1);
+});

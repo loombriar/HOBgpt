@@ -5,7 +5,7 @@ const Database=require('better-sqlite3');
 const {once}=require('node:events');
 const {mountShippingLabels,safeLabelUrl}=require('../lib/shipping-labels');
 
-async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,mode='test'}={}) {
+async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,mode='test'}={}) {
   const db=new Database(':memory:');
   db.exec(`CREATE TABLE orders (id TEXT,status TEXT,stripe_session_id TEXT,shipping_details_json TEXT,refund_status TEXT);
     CREATE TABLE order_items (order_id TEXT,designer_id TEXT,designer_amount_cents INTEGER);
@@ -16,7 +16,8 @@ async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='
   const app=express();app.use(express.json());
   const calls=[];
   mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key},authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
-    calls.push({url,body:JSON.parse(opts.body)});
+    calls.push({url,body:opts.body?JSON.parse(opts.body):null});
+    if(!opts.body && readTransaction)return readTransaction(url);
     if(url.includes('/shipments/'))return Response.json({test:true,rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
     if(transaction)return transaction();
     return Response.json({test:true,status:'SUCCESS',object_id:'transaction',tracking_number:'TEST123',label_url:'https://deliver.goshippo.com/test.pdf'});
@@ -77,7 +78,29 @@ test('concurrent confirmation requests produce one provider transaction',async()
 test('invalid parcels, refunded orders and unsafe/non-test label responses fail closed',async()=>{
   const f=await fixture();try{assert.equal((await f.call('/rates',{from,parcel:{...parcel,weight:0}})).status,422);f.db.exec("UPDATE orders SET refund_status='pending'");assert.equal((await quote(f)).status,409);assert.equal(f.calls.length,0);}finally{await f.close();}
   for(const response of [{test:false,status:'SUCCESS'},{test:true,status:'SUCCESS',object_id:'tx',tracking_number:'TEST123',label_url:'https://evil.test/label.pdf'}]){
-    const f=await fixture({transaction:()=>Response.json(response)});try{const q=await quote(f);assert.equal((await buy(f,q)).status,502);assert.equal((await f.call()).body.label.status,'review_required');}finally{await f.close();}
+    const f=await fixture({transaction:()=>Response.json(response)});try{const q=await quote(f);assert.equal((await buy(f,q)).status,response.test===false?502:202);assert.equal((await f.call()).body.label.status,'review_required');assert.equal((await f.call()).body.label.labelUrl,null);}finally{await f.close();}
   }
   assert.equal(safeLabelUrl('javascript:alert(1)'),false);assert.equal(safeLabelUrl('https://goshippo.com.evil.test/a'),false);
+});
+
+
+test('reconciles a lost response by matching the exact order metadata and rate without another POST',async()=>{
+  const tx={test:true,status:'SUCCESS',object_id:'recovered',metadata:'hob-test:order:seller',rate:{object_id:'rate'},tracking_number:'TEST123',label_url:'https://deliver.goshippo.com/sample.pdf'};
+  const f=await fixture({transaction:()=>{throw new Error('connection lost');},readTransaction:()=>Response.json({results:[tx],next:null})});
+  try{const q=await quote(f);assert.equal((await buy(f,q)).status,502);const checked=await f.call('/reconcile',{});assert.equal(checked.status,200);assert.equal(checked.body.label.status,'ready');assert.equal(checked.body.label.trackingNumber,'TEST123');assert.equal(f.calls.filter(c=>c.body&&c.url.includes('/transactions/')).length,1);assert.equal((await f.call('/reconcile',{})).body.label.status,'ready');assert.equal(f.calls.length,3);}finally{await f.close();}
+});
+
+test('retains pending transaction ID and displays provider rejection instead of losing the response',async()=>{
+  const tx={test:true,status:'WAITING',object_id:'pending',metadata:'hob-test:order:seller',rate:'rate'};
+  const f=await fixture({transaction:()=>Response.json(tx),readTransaction:()=>Response.json({...tx,status:'ERROR',messages:[{code:'missing_phone',text:'Sender phone is required.'}]})});
+  try{const q=await quote(f);const result=await buy(f,q);assert.equal(result.status,202);assert.equal(result.body.label.status,'processing');assert.equal(f.db.prepare('SELECT transaction_id FROM shipping_labels').get().transaction_id,'pending');const checked=await f.call('/reconcile',{});assert.equal(checked.body.label.status,'provider_error');assert.match(checked.body.label.message,/Sender phone is required/);assert.equal(f.calls.filter(c=>c.body&&c.url.includes('/transactions/')).length,1);assert.match(f.calls.at(-1).url,/transactions\/pending\//);}finally{await f.close();}
+});
+
+test('reconciliation refuses other orders, multiple transactions, live responses and untrusted document hosts',async()=>{
+  for(const variant of ['wrong_metadata','duplicate','live','unsafe_url']){
+    const tx={test:true,status:'SUCCESS',object_id:'recovered',metadata:'hob-test:order:seller',rate:'rate',tracking_number:'TEST123',label_url:'https://deliver.goshippo.com/sample.pdf'};
+    if(variant==='wrong_metadata')tx.metadata='another-order';if(variant==='live')tx.test=false;if(variant==='unsafe_url')tx.label_url='https://evil.test/sample.pdf';
+    const f=await fixture({transaction:()=>{throw new Error('lost');},readTransaction:()=>Response.json({results:variant==='duplicate'?[tx,tx]:[tx],next:null})});
+    try{const q=await quote(f);await buy(f,q);const checked=await f.call('/reconcile',{});assert.equal(checked.status,variant==='unsafe_url'?200:409);assert.equal((await f.call()).body.label.status,'review_required');assert.equal((await f.call()).body.label.labelUrl,null);assert.equal((await f.call('/reconcile',{},'other')).status,404);assert.equal(f.calls.filter(c=>c.body&&c.url.includes('/transactions/')).length,1);}finally{await f.close();}
+  }
 });

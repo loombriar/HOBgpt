@@ -45,3 +45,13 @@ No listing, stock, card charge or buyer email is created. The order is marked
 `test_fixture` rather than `stripe`, so the existing payment-provider checks
 prevent Stripe payouts. This fulfillment fixture tests labels, not checkout or
 payment processing. Production never offers or accepts this action.
+
+## Reviewing an uncertain label
+
+Use **Check existing label status** on an order with a pending/review label.
+This makes only GET requests to Shippo. It retrieves the recorded transaction,
+or searches at most three pages of recent history for exactly one transaction
+matching both the order/designer metadata and selected rate. The response must
+be a test transaction. A successful, trusted document is restored to the order;
+queued labels remain pending and provider errors are displayed. No additional
+label purchase is made, and ambiguous/missing matches remain on hold.

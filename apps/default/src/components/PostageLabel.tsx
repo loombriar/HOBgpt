@@ -1,7 +1,7 @@
 import {useEffect, useState, type FormEvent} from 'react';
 
 type Rate={id:string;costCents:number;carrier:string;service:string;remainingCents:number;affordable:boolean};
-type Label={status:string;costCents:number;labelUrl?:string;trackingNumber?:string;carrier?:string;test:true};
+type Label={status:string;costCents:number;labelUrl?:string;trackingNumber?:string;carrier?:string;message?:string|null;test:true};
 const money=(cents:number)=>`$${(cents/100).toFixed(2)}`;
 export default function PostageLabel({orderId,earningsCents}:{orderId:string;earningsCents:number}) {
   const [enabled,setEnabled]=useState(false);
@@ -42,11 +42,15 @@ export default function PostageLabel({orderId,earningsCents}:{orderId:string;ear
     catch(e){setMessage(e instanceof Error?e.message:'The label needs review.');}
     finally{setBusy(false);}
   };
+  const reconcile=async()=>{
+    setBusy(true);setMessage('');
+    try{await request('/reconcile',{});}catch(e){setMessage(e instanceof Error?e.message:'The label could not be checked.');}finally{setBusy(false);}
+  };
   if(!enabled&&!label)return null;
   const choice=rates.find(r=>r.id===selected);
   return <details className="mt-4 rounded-xl border border-border p-4"><summary className="cursor-pointer font-medium">Postage &amp; print label · test mode</summary>
     <p className="mt-3 text-sm text-muted-foreground">Try the shipping process with a sample label. This label cannot be used for delivery. No real postage is charged or deducted, and payouts stay held.</p>
-    {label?<div className="mt-4 text-sm"><p>Sample postage deduction: {money(label.costCents)}</p><p>Earnings after sample postage: {money(earningsCents-label.costCents)}</p>{label.status==='ready'?<><p className="mt-2">{label.carrier} · {label.trackingNumber}</p><a className="mt-3 inline-block rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground" href={label.labelUrl} target="_blank" rel="noopener noreferrer">Open sample label PDF to print ↗</a></>:<p role="status" className="mt-2">{label.status==='processing'?'Label request is processing. Refresh this order to check its status.':'Label outcome needs review. Contact House of Briar before trying again.'}</p>}</div>:<>
+    {label?<div className="mt-4 text-sm"><p>{label.status==='ready'?'Sample postage deduction':'Reserved sample postage'}: {money(label.costCents)}</p><p>{label.status==='ready'?'Earnings after sample postage':'Sample earnings if the label succeeds'}: {money(earningsCents-label.costCents)}</p>{label.status==='ready'?<><p className="mt-2">{label.carrier} · {label.trackingNumber}</p><a className="mt-3 inline-block rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground" href={label.labelUrl} target="_blank" rel="noopener noreferrer">Open sample label PDF to print ↗</a></>:<p role="status" className="mt-2">{label.status==='processing'?'Label request is processing. Refresh this order to check its status.':'Label outcome needs review. Check its status before trying again.'}</p>}{label.message&&<p className="mt-2 text-muted-foreground">{label.message}</p>}{label.status!=='ready'&&<button type="button" disabled={busy} onClick={()=>void reconcile()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">{busy?'Checking existing label…':'Check existing label status'}</button>}</div>:<>
     <form className="mt-4" onSubmit={getRates} onChange={()=>{setRates([]);setConfirmed(false);setSelected('');}}>
       <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold">Your US return address</legend>
         {(['name','street1','street2','city','state','zip'] as const).map(key=><label key={key} className="grid gap-1 text-sm">{{name:'Sender name',street1:'Street address',street2:'Apartment / suite (optional)',city:'City',state:'State',zip:'ZIP code'}[key]}<input className="min-h-11 rounded-lg border border-border bg-background px-3" name={key} required={key!=='street2'} maxLength={150}/></label>)}
