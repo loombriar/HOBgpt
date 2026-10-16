@@ -192,3 +192,9 @@ body.designer-room-open #designer-workspace :is(form,section,details,[id]) {
 .admin-attention-card:focus-visible{outline:3px solid var(--room-accent);outline-offset:2px}
 #admin-overview{margin-top:24px}
 @media(max-width:600px){.admin-attention{padding:14px}.admin-attention-cards{gap:8px}.admin-attention-card{padding:12px;font-size:12px}.admin-attention-card strong{font-size:23px}}
+
+/* Keep the pending-clothing surface and its text in the same theme. */
+html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-toolbar{
+ background:var(--room-paper)!important;color:var(--room-ink)!important;border-color:var(--room-border)!important;
+}
+html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-toolbar :is(h3,p,button){color:var(--room-ink)!important}
