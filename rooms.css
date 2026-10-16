@@ -206,3 +206,8 @@ html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-
 #designer-workspace #designer-setup-panel{margin-top:12px}
 #designer-workspace #designer-setup-panel>summary{font-weight:600}
 @media(max-width:600px){#designer-workspace .designer-start-actions{gap:8px;padding:14px 0}#designer-workspace .designer-start-actions .primary-button{width:100%}}
+
+.listing-photo-guide,.listing-submission-guide{padding:16px;border:1px solid var(--room-border);border-radius:12px;background:var(--room-paper);color:var(--room-ink);font-size:14px;line-height:1.6}
+.listing-photo-guide ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px;padding-left:20px;margin:10px 0}
+.listing-photo-guide p,.listing-submission-guide p{margin:8px 0 0}
+@media(max-width:600px){.listing-photo-guide ul{grid-template-columns:minmax(0,1fr)}}

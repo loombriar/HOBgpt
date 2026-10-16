@@ -77,6 +77,16 @@ export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,tok
         <h3 id="studio-photos-heading" className="text-sm font-medium">Listing photos</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Add up to 10 photos. The first is the cover; reorder or remove photos before saving.</p>
       </div>
+      <aside className="rounded-xl border border-border bg-accent/20 p-4 text-sm" aria-label="Photo guide">
+        <strong>Four useful views</strong>
+        <ul className="mt-2 grid list-disc gap-2 pl-5 sm:grid-cols-2">
+          <li><b>Front:</b> the whole piece, clearly lit—ideal for your cover.</li>
+          <li><b>Back:</b> show the shape and closures.</li>
+          <li><b>Detail:</b> fabric, stitching, texture, and any imperfections.</li>
+          <li><b>Fit:</b> on a person, mannequin, or styled flat to show proportion.</li>
+        </ul>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">Use a simple background and natural light. Keep colors true to the piece. These are suggestions, not four required uploads.</p>
+      </aside>
       <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 text-sm font-medium transition hover:border-primary hover:text-primary focus-within:ring-2 focus-within:ring-primary/30">
         <ImagePlus size={17} /> Choose photos
         <input
