@@ -229,3 +229,12 @@ html body.blackberry-house .site-footer .copyright{width:auto;text-align:left!im
 @media(hover:hover) and (prefers-reduced-motion:no-preference){html body.blackberry-house .site-footer:is(:hover,:focus-within)::after{animation:briar-drift 2.2s ease-in-out 2}}
 @media(prefers-reduced-motion:reduce){html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::before,html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::after{animation:none!important;translate:none!important}}
 @media(max-width:700px){html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1fr);gap:28px}.footer-brand-actions{justify-content:center}.footer-kicker{text-align:center}html body.blackberry-house .footer-bottom{flex-direction:column;gap:8px}html body.blackberry-house .site-footer .copyright{text-align:center!important}html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:26px!important;height:170px!important}html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:24px!important}}
+
+/* Welcome while the House's first collection grows. */
+html body.blackberry-house #product-grid .house-shop-invitation{grid-column:1/-1;text-align:center;border:1px solid var(--briar-line);border-radius:18px;padding:clamp(24px,4vw,40px);background:var(--briar-card);color:var(--briar-ink)}
+html body.blackberry-house #product-grid .house-shop-invitation h3{font:400 clamp(28px,4vw,42px)/1.15 'Cormorant Garamond',Georgia,serif;margin:10px 0}
+html body.blackberry-house #product-grid .house-shop-invitation>p:not(.eyebrow){max-width:620px;margin:12px auto;font-size:14px;line-height:1.7}
+.house-shop-invitation-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
+.house-shop-invitation-actions a{min-height:44px;box-sizing:border-box;white-space:normal;text-align:center}
+html body.blackberry-house #product-grid .house-founding-collection{grid-column:1/-1;margin:12px 0 0;font:400 30px/1.2 'Cormorant Garamond',Georgia,serif;color:var(--briar-ink)}
+@media(max-width:600px){.house-shop-invitation-actions a{width:100%}}
