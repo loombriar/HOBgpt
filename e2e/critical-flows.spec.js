@@ -232,7 +232,7 @@ test('customers verify email, get a private account and appear once in the Admin
  await page.locator('#customer-signin-code').fill(code);
  await suite.getByRole('button',{name:'Verify and sign in',exact:true}).click();
  await expect(page.locator('#customer-account-greeting')).toContainText(email);
- await suite.getByRole('link',{name:'My account & orders →',exact:true}).click();
+ await suite.getByRole('link',{name:'Full purchase history & support ↗',exact:true}).click();
  await expect(page).toHaveURL(/\/account$/);
  await expect(page.getByText('Your buyer account is ready.',{exact:false})).toBeVisible();
  await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);
