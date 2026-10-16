@@ -162,6 +162,10 @@ export default function ShopPage() {
   }, [query, visible.length]);
 
     if (loading) return <HouseShell><section className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8"><div className="space-y-4 border-b border-border pb-10"><div className="h-4 w-28 animate-pulse rounded-full bg-muted" /><div className="h-14 w-3/4 animate-pulse rounded-2xl bg-muted" /><div className="h-5 w-full max-w-xl animate-pulse rounded-full bg-muted" /></div><div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />)}</div></section></HouseShell>;
+  const hasCatalogPieces = products.some(product => isPublicProduct(product) || getFieldValue(product, '@statx', 'Status') === 'Sold Out');
+  const foundingCollection = !savedOnly && !searchParams.toString() && visible.length > 0 && visible.length <= 4;
+  const noCatalogPieces = !catalogError && !savedOnly && !hasCatalogPieces;
+  const invitation = <aside className="my-10 rounded-3xl border border-border bg-card px-6 py-9 text-center shadow-sm sm:px-12" aria-labelledby="house-invitation-title"><p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">An invitation from the House</p><h2 id="house-invitation-title" className="mt-3 font-serif text-3xl sm:text-4xl">The House is getting dressed</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">Our first pieces are only the beginning. We're welcoming independent designers to bring their own vision to the House.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/sell" className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Join as a designer</Link><a href="/#journal" className="inline-flex min-h-12 items-center justify-center rounded-full border border-border px-6 text-sm font-semibold hover:bg-accent">Get notified when pieces arrive</a></div></aside>;
   const activeFilters = [category !== 'All pieces', subcategory !== 'All subcategories', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers'].filter(Boolean).length;
   return <HouseShell>
     <section className="house-shop mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -173,7 +177,8 @@ export default function ShopPage() {
         <Link to={savedOnly ? '/shop' : '/shop?saved=true'} className="house-outline-link"><Heart size={16}/>{savedOnly ? 'Browse all pieces' : 'Saved pieces'}</Link>
       </div>
       <div className="house-shop-note"><span>Free US delivery</span><span>Guest checkout welcome</span><a href="/shipping.html">Shipping &amp; returns ↗</a></div>
-      <div className="house-shop-toolbar">
+      {foundingCollection && <div className="mt-9"><p className="text-xs font-semibold uppercase tracking-[.2em] text-primary">The first chapter</p><h2 className="mt-2 font-serif text-3xl sm:text-4xl">The Founder's Collection</h2><p className="mt-2 max-w-xl text-sm leading-7 text-muted-foreground">Meet the original pieces that began House of Briar. A small, considered collection while our community of designers grows.</p></div>}
+      {!noCatalogPieces && <div className="house-shop-toolbar">
         <label className="house-search-field"><span className="sr-only">Search pieces</span><Search size={18}/>
           <input value={query} onChange={event => { setQuery(event.target.value); updateFilter('q', event.target.value, ''); }} placeholder="Search pieces, designers, materials…" />
         </label>
@@ -187,7 +192,7 @@ export default function ShopPage() {
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
         </label>
       </div>
-      <details className="house-shop-filters" open={activeFilters > 0 || undefined}>
+      {!noCatalogPieces && <details className="house-shop-filters" open={activeFilters > 0 || undefined}>
         <summary><SlidersHorizontal size={16}/> More filters {activeFilters > 0 && `(${activeFilters} active)`}</summary>
         <div className="house-filter-options">
 
@@ -195,11 +200,12 @@ export default function ShopPage() {
           <label className="house-filter-label" htmlFor="style-filter">Style<select id="style-filter" value={style} onChange={event => { setStyle(event.target.value); updateFilter('style', event.target.value, 'All styles'); }}><option>All styles</option>{MARKET_STYLES.map(item => <option key={item}>{item}</option>)}</select></label>
         </div>
       </details>
-      <div className="house-results-line"><p role="status">{visible.length} {visible.length === 1 ? 'piece' : 'pieces'}{savedOnly ? ' saved' : ' to discover'}</p>{(activeFilters > 0 || query) && <button type="button" onClick={() => { const next = new URLSearchParams(); if (savedOnly) next.set('saved', 'true'); setSearchParams(next); }}>Clear search &amp; filters</button>}</div>
-      <div className="house-shop-grid">{visible.map(product => <ProductCard key={product.id} product={product} onLike={handleLike} liked={likedIds.includes(product.id)} saved={savedIds.includes(product.id)} onSave={handleSave}/>)}</div>
+      {!noCatalogPieces && <div className="house-results-line"><p role="status">{visible.length} {visible.length === 1 ? 'piece' : 'pieces'}{savedOnly ? ' saved' : ' to discover'}</p>{(activeFilters > 0 || query) && <button type="button" onClick={() => { const next = new URLSearchParams(); if (savedOnly) next.set('saved', 'true'); setSearchParams(next); }}>Clear search &amp; filters</button>}</div>
+      {!noCatalogPieces && <div className="house-shop-grid">{visible.map(product => <ProductCard key={product.id} product={product} onLike={handleLike} liked={likedIds.includes(product.id)} saved={savedIds.includes(product.id)} onSave={handleSave}/>)}</div>
       {catalogError && <div role="alert" className="house-shop-empty"><p>{catalogError}</p><button type="button" className="house-outline-link mt-4" onClick={() => window.location.reload()}>Try again</button></div>}
-      {!catalogError && visible.length === 0 && <div className="house-shop-empty"><Heart size={28}/><h2 className="mt-4 font-serif text-3xl">{savedOnly ? 'Keep your favorites close.' : 'No pieces found just yet.'}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{savedOnly ? 'Tap Save on a piece you love. You can come back to it here.' : 'Try another search or clear your filters to see the full collection.'}</p><Link to="/shop" onClick={() => setSearchParams(new URLSearchParams())} className="house-outline-link mt-6">Browse all pieces</Link></div>}
-      <details className="house-photo-search" open={window.location.hash === '#visual-search-title' || undefined}><summary>Have a style in mind? Search with a photo ↗</summary><VisualSearch token={auth.user?.access_token || ''}/></details>
+      {!catalogError && visible.length === 0 && !noCatalogPieces && <div className="house-shop-empty"><Heart size={28}/><h2 className="mt-4 font-serif text-3xl">{savedOnly ? 'Keep your favorites close.' : 'No pieces found just yet.'}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{savedOnly ? 'Tap Save on a piece you love. You can come back to it here.' : 'Try another search or clear your filters to see the full collection.'}</p><Link to="/shop" onClick={() => setSearchParams(new URLSearchParams())} className="house-outline-link mt-6">Browse all pieces</Link></div>}
+      {(foundingCollection || noCatalogPieces) && invitation}
+      {!noCatalogPieces && <details className="house-photo-search" open={window.location.hash === '#visual-search-title' || undefined}><summary>Have a style in mind? Search with a photo ↗</summary><VisualSearch token={auth.user?.access_token || ''}/></details>
     </section>
   </HouseShell>;
 }
