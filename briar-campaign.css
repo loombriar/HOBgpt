@@ -81,3 +81,16 @@ body.creative-makeover main>.briar-creative-hero{grid-template-columns:minmax(0,
  .briar-creative-hero .briar-creative-art{width:100%;height:340px;aspect-ratio:auto;justify-content:center}
  .briar-creative-hero .briar-creative-art img{width:auto;max-width:100%;height:100%;object-fit:contain}
 }
+
+/* Badge artwork leads; the support gallery closes the homepage. */
+html body.blackberry-house #support .curation-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important}
+html body.blackberry-house #support .curation-grid>.curation-card:first-child{grid-column:1/-1}
+html body.blackberry-house #support .curation-card:has(.house-supporter-art){text-align:center;padding:20px 16px!important;min-width:0}
+html body.blackberry-house #support .house-supporter-art{display:block;width:200px!important;height:200px!important;max-width:100%;object-fit:contain;margin:0 auto 12px!important}
+html body.blackberry-house #support .curation-card:has(.house-supporter-art) h3{font-size:20px!important;line-height:1.25!important;margin:0 0 8px!important}
+html body.blackberry-house #support .curation-card:has(.house-supporter-art) p{font-size:13px!important;line-height:1.5!important;margin:6px 0!important}
+@media(max-width:700px){
+ html body.blackberry-house #support .curation-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}
+ html body.blackberry-house #support .house-supporter-art{width:180px!important;height:180px!important}
+ html body.blackberry-house #support .curation-card:has(.house-supporter-art) h3{font-size:19px!important}
+}
