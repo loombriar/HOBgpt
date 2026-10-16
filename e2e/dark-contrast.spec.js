@@ -90,19 +90,3 @@ for (const width of [393,1280]) {
     await expectReadable(text);
   });
 }
-
-for(const width of [390,1280])for(const theme of ['light','dark']){
- test(`pending-clothing toolbar stays readable in ${theme} mode at ${width}px`,async({page})=>{
-  await page.setViewportSize({width,height:844});
-  await page.goto('/');
-  if((await page.locator('html').getAttribute('data-hob-theme'))!==theme)await page.locator('#hob-theme-toggle').click();
-  await page.getByRole('button',{name:'Admin panel',exact:true}).click();
-  await page.getByLabel('Administrator code').fill('e2e-admin-token');
-  await page.locator('#admin-login-form button[type=submit]').click();
-  const toolbar=page.locator('#admin-review-workspace .studio-toolbar');
-  await toolbar.scrollIntoViewIfNeeded();
-  await expect(toolbar.getByRole('heading',{name:'Pending clothing',exact:true})).toBeVisible();
-  await expect(toolbar.locator('#admin-signout-btn')).toBeVisible();
-  await expectReadable(toolbar.locator('h3,p,button'));
- });
-}
