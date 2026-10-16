@@ -112,3 +112,8 @@ html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art{
 html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-fit:contain;object-position:center bottom}
 html body.blackberry-house .fashion-cover.briar-cutout-hero .fashion-cover-copy{background:transparent!important}
 @media(max-width:700px){html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-position:center}}
+
+/* One quiet botanical accent below the main content, never the opening view. */
+html body.blackberry-house .house-botanical-accent{height:120px;max-width:1100px;margin:12px auto 0;display:flex;justify-content:flex-end;padding:0 8%;box-sizing:border-box;overflow:hidden;pointer-events:none;user-select:none}
+html body.blackberry-house .house-botanical-accent img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;opacity:.3;mask-image:linear-gradient(to bottom,#000 75%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000 75%,transparent)}
+@media(max-width:700px){html body.blackberry-house .house-botanical-accent{height:90px;padding-inline:12%;margin-top:0}}
