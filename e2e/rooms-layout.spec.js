@@ -50,9 +50,9 @@ for(const width of [390,1280]) {
   await expect(page.locator('#product-price')).toHaveValue('100');
   await page.locator('#product-name').fill('Unsaved design');
   const panel=page.locator('.designer-room-panel').filter({has:page.locator('#product-form')});
-  await panel.locator('summary').click();
+  await panel.locator(':scope > summary').click();
   await expect(page.locator('#product-form')).not.toBeVisible();
-  await panel.locator('summary').click();
+  await panel.locator(':scope > summary').click();
   await expect(page.locator('#product-name')).toHaveValue('Unsaved design');
   await page.screenshot({path:`/tmp/hob-room-${width}.png`});
   await page.goto('/');
