@@ -33,3 +33,15 @@ House of Briar pays the carrier account and deducts the exact confirmed postage
 from that designer's earnings. Buyers continue to receive free US delivery. If
 postage exceeds the order's available earnings, label creation is blocked; no
 negative balance or surprise charge is introduced.
+
+## Creating the practice order
+
+The payment-test site offers **Create sample postage order** in Account → Orders
+only when it is running in the designated Payment Tests Railway project and
+`testing` environment, with the label pilot enabled and both Shippo and Stripe
+test keys. It creates one repeatable simulated order per signed-in designer,
+using a public sample delivery address, a $100 total and $91 sample earnings.
+No listing, stock, card charge or buyer email is created. The order is marked
+`test_fixture` rather than `stripe`, so the existing payment-provider checks
+prevent Stripe payouts. This fulfillment fixture tests labels, not checkout or
+payment processing. Production never offers or accepts this action.
