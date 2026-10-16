@@ -24,6 +24,8 @@ for(const width of [390,1280]){
   await expect(page.locator('#designer-attention-orders')).toContainText('SHIP1234');
   await expect(page.locator('#designer-attention-orders')).not.toContainText('UNPAID');
   expect(await page.locator('#designer-attention').evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#designer-listing-area'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await expect(page.locator('#designer-listing-area')).toBeHidden();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Your listings',exact:true}).click();
   await expect(page.locator('#designer-listing-area')).toBeVisible();
   await expect(page.locator('#product-form')).toBeHidden();
   for(const [group,title]of [['Drafts','Private draft'],['Pending approval','Awaiting review'],['Live','Live piece'],['Sold','Sold piece'],['Other','Paused piece']]){
