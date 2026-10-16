@@ -82,3 +82,35 @@ html[data-hob-theme=dark] body.blackberry-house .fashion-cover-copy::before,html
  html body.blackberry-house #hob-global-nav>nav{justify-content:center!important}
  html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:18px;opacity:.65}
 }
+
+/* Compact badges and a thorn-lined lower House. */
+html body.blackberry-house #support .curation-grid{align-items:start!important;gap:16px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+html body.blackberry-house #support .curation-card{min-height:0!important;height:auto!important;padding:20px!important;box-shadow:none!important;border:1px solid var(--briar-line)!important;border-radius:6px!important}
+html body.blackberry-house #support .curation-card:first-child{grid-column:1/-1}
+html body.blackberry-house #support .curation-card:not(:first-child){display:grid!important;grid-template-columns:56px minmax(0,1fr);gap:8px 14px;align-items:start;text-align:left!important}
+html body.blackberry-house #support .house-supporter-art{grid-column:1;grid-row:1/4;width:56px!important;height:56px!important;margin:0!important}
+html body.blackberry-house #support .curation-card:not(:first-child)>:not(img){grid-column:2;min-width:0}
+html body.blackberry-house #support .curation-card h3{font-size:24px!important;line-height:1.15!important;margin:0!important}
+html body.blackberry-house #support .curation-card p{font-size:13px!important;line-height:1.5!important;margin:0!important}
+html body.blackberry-house #support .curation-card:first-child>p{margin-block:10px!important}
+html body.blackberry-house #support .supporter-thanks{font-size:12px!important}
+html body.blackberry-house .footer-story{grid-column:1/-1;width:100%;border-block:1px solid var(--briar-line);color:var(--briar-ink)}
+html body.blackberry-house .footer-story>summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer;min-height:48px;padding:12px 0;font-size:16px;list-style:none}
+.footer-story>summary::-webkit-details-marker{display:none}
+.footer-story[open]>summary span{transform:rotate(45deg)}
+html body.blackberry-house .footer-story .story-section{padding:24px 0!important;margin:0!important;background:transparent!important}
+html body.blackberry-house .footer-story .story-grid{width:100%!important;padding:0!important;gap:24px!important}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer){position:relative;isolation:isolate}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{content:''!important;display:block!important;position:absolute;top:12px;bottom:12px;width:clamp(18px,4vw,52px);background:url('/briar-thorn-vine.svg') center/100% auto repeat-y;opacity:.8;pointer-events:none;z-index:-1}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before{left:2px;transform:scaleX(-1)}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{right:2px}
+html[data-hob-theme=dark] body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html[data-hob-theme=dark] body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{filter:brightness(2)}
+@media(max-width:900px){html body.blackberry-house #support .curation-grid{grid-template-columns:minmax(0,1fr)!important}}
+@media(max-width:700px){
+ html body.blackberry-house #support .curation-card{padding:16px!important}
+ html body.blackberry-house #support .curation-card h3{font-size:22px!important}
+ html body.blackberry-house #support .curation-card:not(:first-child){gap:6px 12px}
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)>.container{max-width:calc(100% - 48px)!important;margin-inline:auto!important}
+}
