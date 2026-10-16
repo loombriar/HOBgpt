@@ -563,9 +563,21 @@ function renderGallery() {
   const items = galleryItems;
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
+  const browsingAll=[activeFilter,activeAccessory,activeShopCategory,activeAesthetic,activePattern,activeDesigner].every(value=>value==='all')&&!shopSearch.trim()&&!activeMeasurements&&!location.pathname.startsWith('/collections/');
+  if(browsingAll&&items.length<=4){
+    const welcome=makeElement('aside','house-shop-invitation');
+    welcome.setAttribute('aria-labelledby','home-shop-invitation-title');
+    welcome.append(makeElement('p','eyebrow','An invitation from the House'));
+    const title=makeElement('h3','','The House is getting dressed');title.id='home-shop-invitation-title';welcome.append(title);
+    welcome.append(makeElement('p','',items.length?'Our first pieces are only the beginning. We’re welcoming independent designers to bring their own vision to the House.':'We’re welcoming independent designers and preparing for our first arrivals. Your next favorite is still to come.'));
+    const actions=makeElement('div','house-shop-invitation-actions');
+    const join=makeElement('a','primary-button','Join as a designer');join.href='/designers/room#designer-signup';
+    const notify=makeElement('a','secondary-button','Get notified when pieces arrive');notify.href='#journal';actions.append(join,notify);welcome.append(actions);productGrid.append(welcome);
+    if(items.length){const collection=makeElement('h3','house-founding-collection','The Founder’s Collection');productGrid.append(collection);}
+    else{if(shopStatus)setMessage(shopStatus,'New pieces are on their way to the House.','');return;}
+  }
   if (!items.length) {
-    const empty = makeElement('p', 'empty-gallery', 'No published pieces are available in this category yet.');
-    productGrid.appendChild(empty);
+    productGrid.appendChild(makeElement('p','empty-gallery','No pieces match these filters yet. Try another search or clear your filters.'));
     return;
   }
 
