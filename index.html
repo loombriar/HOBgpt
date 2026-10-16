@@ -28,11 +28,11 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=designer-priorities-20261016" defer></script>
+    <script src="/script.js?v=visitor-suite-20261016" defer></script>
     <script type="module" src="/native-back.js"></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=hero-wide-20261011" />
-    <link rel="stylesheet" href="/rooms.css?v=priorities-20261016" />
+    <link rel="stylesheet" href="/rooms.css?v=visitor-suite-20261016" />
     <link rel="stylesheet" href="/fashion-refresh-2026.css?v=creator-spotlight-20261011" />
     <script src="/atelier.js?v=mess-around-1" defer></script>
     <style>
@@ -297,16 +297,16 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
     </div>
 
     <dialog id="visitor-suite-modal" class="app-dialog visitor-suite-dialog" aria-labelledby="visitor-suite-title">
-      <div class="dialog-header"><div><p class="eyebrow">For every shopper — designers too</p><h2 id="visitor-suite-title">Customer account</h2><p class="small-print">Your shopping account, favorites &amp; measurements</p></div><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Customer account">×</button></div>
+      <div class="dialog-header"><div><h2 id="visitor-suite-title">Customer account</h2></div><div class="visitor-header-actions"><button type="button" id="customer-start-shopping" class="secondary-button">Back to shop</button><button id="visitor-suite-close" class="icon-button" type="button" aria-label="Close Customer account">×</button></div></div>
       <section class="customer-account-card" aria-labelledby="customer-account-title">
         <p class="eyebrow">Your free shopping account</p><h3 id="customer-account-title">Welcome to your corner of the House.</h3>
         <p>Save favorites, keep your measurements handy and find your purchase history in one place. New here or returning? Start with your email.</p>
         <div id="customer-signed-in" hidden><p id="customer-account-greeting"></p><nav class="customer-next-steps" aria-label="Your next shopping step">
-<button type="button" class="primary-button" id="customer-start-shopping">Shop the pieces →</button>
+<button type="button" class="secondary-button" data-customer-section="visitor-orders-title">My orders</button>
 <button type="button" class="secondary-button" data-customer-section="measurement-profile-name">Save my measurements</button>
 <button type="button" class="secondary-button" data-customer-section="visitor-favorites-title">See my favorites</button>
-<a href="/account" class="text-button">My account &amp; orders →</a>
-</nav><p class="small-print">Measurements are optional and saved in this browser. They are shared with a designer only when you choose to send a request.</p> <button id="customer-delete-account" type="button" class="secondary-button" style="color:#a63838;border-color:#a63838">Delete account permanently</button> <p class="small-print">Deleting your account removes your profile and saved favorites. Orders, donations, or messages may require a privacy review first. This cannot be undone.</p> <button id="customer-signout" type="button" class="secondary-button">Sign out of customer account</button></div>
+<button type="button" class="secondary-button" data-customer-section="visitor-account-settings">Account settings</button>
+</nav><details id="visitor-account-settings" class="visitor-panel visitor-settings"><summary>Account settings</summary><div class="visitor-panel-content"><p>Your House account uses a six-digit email code. There is no password to manage.</p><a href="/account">Open full account settings ↗</a><h4>Delete account</h4><p class="small-print">Deleting your account removes your profile and saved favorites. Orders, donations, or messages may require a privacy review first. This cannot be undone.</p><button id="customer-delete-account" type="button" class="secondary-button" style="color:#a63838;border-color:#a63838">Delete account permanently</button></div></details> <button id="customer-signout" type="button" class="secondary-button">Sign out of customer account</button></div>
         <p><a href="/reviewer-login">Google Play reviewer sign-in</a></p>
         <form id="customer-signup-form" class="stack-form">
           <label>Your name <span class="small-print">(optional)</span><input id="customer-signup-name" maxlength="80" autocomplete="given-name" /></label>
@@ -319,7 +319,16 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         <p id="customer-signup-status" class="form-message" role="status" aria-live="polite"></p>
       </section>
       <section id="visitor-suite" class="visitor-suite-section">
-        <div class="section-heading"><div><p class="eyebrow">Customer account</p><h2>Your shopping account</h2></div></div>
+        <section id="visitor-orders" class="visitor-orders" aria-labelledby="visitor-orders-title"><div class="visitor-orders-heading"><h3 id="visitor-orders-title">My orders</h3><button type="button" id="visitor-orders-refresh" class="text-button">Refresh orders</button></div><p id="visitor-orders-status" role="status">Sign in to see your purchases.</p><div id="visitor-orders-list"></div><p class="small-print">Purchases made while signed in appear here. Guest purchases are not linked by email; use your order confirmation for help.</p><a href="/account">Full purchase history &amp; support ↗</a></section>
+        <details class="visitor-panel" id="visitor-saved" open><summary>Saved pieces</summary><div class="visitor-panel-content">
+        <section class="visitor-favorites" aria-labelledby="visitor-favorites-title">
+          <div class="visitor-favorites-heading"><div><p class="eyebrow">Saved for later</p><h3 id="visitor-favorites-title">Favorites</h3></div><span id="visitor-favorites-count" class="status-badge">0 saved</span></div>
+          <p class="small-print">Tap the heart on any piece to keep it here. Guest favorites stay on this device; when you are signed in, House of Briar also keeps them with your account.</p>
+          <p id="visitor-favorites-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="visitor-favorites-list" class="wishlist-grid" aria-live="polite"></div>
+        </section>
+        </div></details>
+        <details class="visitor-panel" id="visitor-measurements"><summary>My measurements</summary><div class="visitor-panel-content">
         <p>Save more than one measurement profile for yourself or someone you shop for. Your saved profiles can autofill a specific piece’s measurement request; they are never sent to a designer unless you choose to send them.</p>
         <p class="small-print">Sign in to save up to 20 measurement profiles securely in your account, available when you sign in on another device. Older browser profiles stay on this device and are not added to your account automatically. Do not save someone else’s measurements without their permission.</p>
         <p class="small-print">Measurements are in inches. Compare them with the garment’s listed measurements; saved values do not guarantee fit.</p>
@@ -331,12 +340,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <button class="primary-button" type="submit">Save measurement profile</button><p id="measurement-profile-message" class="form-message" role="status"></p>
         </form>
         <div id="measurement-profile-list" class="designer-products"></div>
-        <section class="visitor-favorites" aria-labelledby="visitor-favorites-title">
-          <div class="visitor-favorites-heading"><div><p class="eyebrow">Saved for later</p><h3 id="visitor-favorites-title">Favorites</h3></div><span id="visitor-favorites-count" class="status-badge">0 saved</span></div>
-          <p class="small-print">Tap the heart on any piece to keep it here. Guest favorites stay on this device; when you are signed in, House of Briar also keeps them with your account.</p>
-          <p id="visitor-favorites-message" class="form-message" role="status" aria-live="polite"></p>
-          <div id="visitor-favorites-list" class="wishlist-grid" aria-live="polite"></div>
-        </section>
+        </div></details>
+
       </section>
     </dialog>
 

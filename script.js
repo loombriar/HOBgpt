@@ -1711,6 +1711,7 @@ byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
 // Scroll within open rooms without dragging the storefront behind them to the footer.
 function scrollRoomTarget(target, options = {}) {
   if (!target) return;
+  for(let parent=target;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
   const dialog = target.closest('dialog[open]');
   if (!dialog) { target.scrollIntoView(options); return; }
   const header = dialog.querySelector('.dialog-header');
@@ -2405,17 +2406,70 @@ byId('shop-fit-form')?.addEventListener('submit', event => {
 byId('shop-fit-remove')?.addEventListener('click', () => { activeMeasurements = null; setMessage(byId('shop-fit-message'), 'Measurement filter removed.', ''); loadGallery(); });
 refreshShopFitProfiles();
 
+function customerShipmentLabel(item, paid) {
+  if(!paid)return 'Payment not confirmed';
+  if(item.trackingStatus?.startsWith('test_') || /^SHIPPO_/i.test(item.trackingNumber||''))return 'Simulated tracking · test order';
+  if(!item.trackingNumber)return 'Paid · Awaiting shipment';
+  return ({delivered:'Delivered',out_for_delivery:'Out for delivery',in_transit:'Shipped · In transit',pre_transit:'Tracking added · Awaiting carrier pickup',failure:'Delivery needs attention',return_to_sender:'Returning to sender',cancelled:'Shipment cancelled',canceled:'Shipment cancelled'})[item.trackingStatus] || 'Tracking added · Waiting for a carrier update';
+}
+function customerTrackingLink(item, paid) {
+  if(!paid||!item.trackingNumber||item.trackingStatus?.startsWith('test_')||/^SHIPPO_/i.test(item.trackingNumber))return null;
+  const carrier=(item.trackingCarrier||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(carrier==='usps')return 'https://tools.usps.com/go/TrackConfirmAction?tLabels='+encodeURIComponent(item.trackingNumber);
+  if(carrier==='ups')return 'https://www.ups.com/track?tracknum='+encodeURIComponent(item.trackingNumber);
+  if(carrier==='fedex')return 'https://www.fedex.com/en-us/tracking.html';
+  return null;
+}
+let customerOrdersRequest=0;
+async function refreshCustomerPurchases() {
+  const status=byId('visitor-orders-status'),list=byId('visitor-orders-list');
+  if(!status||!list)return;
+  const request=++customerOrdersRequest;
+  list.replaceChildren();
+  if(!customerSignedIn){status.textContent='Sign in to see your purchases.';return;}
+  status.textContent='Loading your purchases…';
+  try{
+    const payload=await apiRequest('/api/my/purchases',{cache:'no-store'});
+    if(request!==customerOrdersRequest||!customerSignedIn)return;
+    if(!Array.isArray(payload.orders))throw new Error('Purchase history unavailable');
+    status.textContent=payload.orders.length?`${payload.orders.length} ${payload.orders.length===1?'order':'orders'} in your purchase history.`:'No signed-in purchases yet.';
+    for(const order of payload.orders.slice(0,5)){
+      const card=makeElement('article','visitor-order-card');
+      card.append(makeElement('h4','',`Order ${String(order.id).slice(-8).toUpperCase()}`));
+      const label=order.refundStatus==='succeeded'?'Refunded':order.refundStatus==='partial'?'Partially refunded':String(order.status||'').replaceAll('_',' ');
+      card.append(makeElement('p','small-print',label));
+      for(const item of order.items||[]){
+        const row=makeElement('div','visitor-order-item');
+        row.append(makeElement('strong','',item.title),makeElement('p','small-print',`Quantity ${item.quantity} · ${item.designerName || 'Independent designer'}`),makeElement('p','',customerShipmentLabel(item,order.status==='paid')));
+        if(item.trackingNumber)row.append(makeElement('p','visitor-tracking-number',`Tracking: ${item.trackingCarrier||''} ${item.trackingNumber}`));
+        const url=customerTrackingLink(item,order.status==='paid');
+        if(url){const link=makeElement('a','visitor-tracking-link',`Track with ${item.trackingCarrier}`);link.href=url;link.target='_blank';link.rel='noopener noreferrer';row.append(link);}
+        card.append(row);
+      }
+      list.append(card);
+    }
+    if(payload.orders.length>5)list.append(makeElement('p','small-print','Open Full purchase history & support to see all orders.'));
+  }catch{
+    if(request!==customerOrdersRequest||!customerSignedIn)return;
+    list.replaceChildren();status.textContent='Purchase history could not load. Refresh or open your full account.';
+  }
+}
+byId('visitor-orders-refresh')?.addEventListener('click',()=>void refreshCustomerPurchases());
+let customerAccountRequest=0;
 async function refreshCustomerAccount() {
+  const request=++customerAccountRequest;
   try {
     const response=await fetch('/api/customer/session',{cache:'no-store'});
-    const data=await response.json();customerSignedIn=response.ok&&Boolean(data.customer);
+    const data=await response.json();if(request!==customerAccountRequest)return;customerSignedIn=response.ok&&Boolean(data.customer);
+    void refreshCustomerPurchases();
     if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
     byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
     byId('customer-code-form').hidden=true;
     await refreshMeasurementProfiles(customerSignedIn);
+    if(request!==customerAccountRequest)return;
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
-  }catch{customerSignedIn=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
+  }catch{if(request!==customerAccountRequest)return;customerSignedIn=false;void refreshCustomerPurchases();byId('customer-signed-in').hidden=true;byId('customer-signup-form').hidden=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
 void refreshCustomerAccount();
 byId('customer-signup-form')?.addEventListener('submit',async event=>{
@@ -2435,12 +2489,12 @@ byId('customer-delete-account')?.addEventListener('click',async()=>{
   try{
     await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
     clearCustomerCart();
-    customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();
+    customerSignedIn=false;void refreshCustomerPurchases();void refreshMeasurementProfiles(false);await refreshCustomerAccount();
     byId('customer-signup-status').textContent='Your customer account has been deleted.';
   }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}
   finally{button.disabled=false;}
 });
-byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;void refreshMeasurementProfiles(false);await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
+byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;void refreshCustomerPurchases();void refreshMeasurementProfiles(false);await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
 if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
 refreshCustomerAccount();
 

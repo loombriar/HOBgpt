@@ -163,3 +163,22 @@ body.designer-room-open #designer-workspace :is(form,section,details,[id]) {
  .designer-room-header h2{font-size:23px!important;margin:0!important}.designer-room-header .eyebrow{display:none}
  .designer-room-header #modal-close{font-size:12px;padding:10px;white-space:normal;max-width:145px}
 }
+
+/* Visitor Suite: purchases, saved pieces, measurements, and tucked-away settings. */
+.visitor-suite-dialog .dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.visitor-header-actions{display:flex;align-items:center;gap:10px}
+.visitor-header-actions button{min-height:44px}.visitor-header-actions .secondary-button{font-size:13px}
+.visitor-suite-dialog .customer-next-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block:16px}
+.visitor-suite-dialog .customer-next-steps button{min-height:44px;padding:10px;font-size:13px;white-space:normal}
+.visitor-panel{margin:16px 0;border:1px solid var(--room-border);border-radius:12px;background:var(--room-paper);color:var(--room-ink);overflow:hidden}
+.visitor-panel>summary{min-height:48px;box-sizing:border-box;cursor:pointer;padding:14px 16px;font:600 15px/1.4 Inter,sans-serif}
+.visitor-panel-content{padding:0 16px 18px;min-width:0}.visitor-panel:not([open])>:not(summary){display:none!important}
+.visitor-suite-dialog .visitor-favorites{margin:0;padding:0;border:0}
+.visitor-suite-dialog .visitor-suite-section{padding-top:8px}
+.visitor-orders{padding-bottom:16px}.visitor-orders-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.visitor-orders-heading button{min-height:44px}.visitor-order-card{border:1px solid var(--room-border);border-radius:12px;padding:16px;margin:12px 0;background:var(--room-paper);color:var(--room-ink)}
+.visitor-order-card h4{margin:0 0 8px}.visitor-order-item{padding-top:12px;margin-top:12px;border-top:1px solid var(--room-border)}
+.visitor-order-card p{margin:6px 0}.visitor-tracking-number{font-size:13px;overflow-wrap:anywhere}.visitor-tracking-link{display:inline-flex;align-items:center;min-height:44px;text-underline-offset:3px}
+.visitor-settings a{display:inline-flex;align-items:center;min-height:44px}.visitor-suite-dialog #customer-signout{min-height:44px;margin-block:8px}
+.visitor-suite-dialog :is(input:not([type=checkbox]),select,textarea){font-size:16px}
+@media(max-width:600px){.visitor-suite-dialog .dialog-header{padding:12px 16px}.visitor-suite-dialog .dialog-header h2{font-size:24px}.visitor-header-actions{width:100%;justify-content:space-between}.visitor-suite-dialog>.customer-account-card,.visitor-suite-dialog>.visitor-suite-section{margin-inline:16px}.visitor-panel-content{padding-inline:12px}.visitor-suite-dialog .form-row{grid-template-columns:minmax(0,1fr)}}
