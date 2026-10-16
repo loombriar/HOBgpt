@@ -55,3 +55,11 @@ matching both the order/designer metadata and selected rate. The response must
 be a test transaction. A successful, trusted document is restored to the order;
 queued labels remain pending and provider errors are displayed. No additional
 label purchase is made, and ambiguous/missing matches remain on hold.
+
+USPS requires sender email and phone as well as the return address. These fields
+are validated before requesting rates and included in Shippo's address_from.
+A confirmed provider ERROR can be corrected using **Correct details & get fresh
+rates**. The server re-reads the same transaction, requires it still be a matching
+test ERROR, archives the failed attempt, and only then clears the active hold.
+Unknown, queued or successful transactions cannot use this action. Creating a
+new label still requires fresh rates and explicit sample-cost confirmation.

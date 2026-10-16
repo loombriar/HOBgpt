@@ -31,7 +31,7 @@ async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='
   },async close(){await new Promise(resolve=>server.close(resolve));db.close();}};
 }
 const parcel={length:10,width:8,height:2,weight:12};
-const from={name:'Test Designer',street1:'200 Test Street',city:'Columbus',state:'OH',zip:'43211'};
+const from={name:'Test Designer',street1:'200 Test Street',city:'Columbus',state:'OH',zip:'43211',email:'sender@example.com',phone:'+14155550123'};
 const quote=f=>f.call('/rates',{from,parcel});
 const buy=(f,q,extra={})=>f.call('/label',{quoteId:q.body.quoteId,rateId:'rate',confirmDeduction:true,...extra});
 
@@ -103,4 +103,33 @@ test('reconciliation refuses other orders, multiple transactions, live responses
     const f=await fixture({transaction:()=>{throw new Error('lost');},readTransaction:()=>Response.json({results:variant==='duplicate'?[tx,tx]:[tx],next:null})});
     try{const q=await quote(f);await buy(f,q);const checked=await f.call('/reconcile',{});assert.equal(checked.status,variant==='unsafe_url'?200:409);assert.equal((await f.call()).body.label.status,'review_required');assert.equal((await f.call()).body.label.labelUrl,null);assert.equal((await f.call('/reconcile',{},'other')).status,404);assert.equal(f.calls.filter(c=>c.body&&c.url.includes('/transactions/')).length,1);}finally{await f.close();}
   }
+});
+
+test('requires carrier sender contact before requesting any rates',async()=>{
+  const f=await fixture();try{
+    for(const bad of [{...from,email:''},{...from,phone:''},{...from,email:'bad'},{...from,phone:'x'}])assert.equal((await f.call('/rates',{from:bad,parcel})).status,422);
+    assert.equal(f.calls.length,0);
+    await quote(f);assert.equal(f.calls[0].body.address_from.email,'sender@example.com');assert.equal(f.calls[0].body.address_from.phone,'+14155550123');
+  }finally{await f.close();}
+});
+
+test('confirmed failed test request can be archived and corrected, without a new purchase',async()=>{
+  const tx={test:true,status:'ERROR',object_id:'failed',metadata:'hob-test:order:seller',rate:'rate',messages:[{code:'sender_info_missing',text:'Sender email and phone required.'}]};
+  const f=await fixture({transaction:()=>Response.json(tx),readTransaction:()=>Response.json(tx)});
+  try{
+    const q=await quote(f);assert.equal((await buy(f,q)).body.label.status,'provider_error');
+    const corrected=await f.call('/correct',{});assert.equal(corrected.status,200);assert.equal(corrected.body.corrected,true);
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_label_attempts').get().n,1);
+    assert.equal(f.calls.filter(c=>c.body&&c.url.includes('/transactions/')).length,1);
+    assert.equal((await quote(f)).status,200);
+  }finally{await f.close();}
+});
+
+test('uncertain or newly successful provider result cannot be cleared for another purchase',async()=>{
+  for(const status of ['SUCCESS','WAITING']){
+    const tx={test:true,status:'ERROR',object_id:'failed',metadata:'hob-test:order:seller',rate:'rate'};
+    const f=await fixture({transaction:()=>Response.json(tx),readTransaction:()=>Response.json({...tx,status})});
+    try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/correct',{})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,1);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_label_attempts').get().n,0);}finally{await f.close();}
+  }
+  const f=await fixture({transaction:()=>{throw new Error('unknown');}});try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/correct',{})).status,409);assert.equal(f.calls.length,2);}finally{await f.close();}
 });

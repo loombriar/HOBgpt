@@ -16,7 +16,7 @@ for(const width of [390,1280])test(`designer confirms sample postage and opens t
   await page.goto('/account#orders');
   const panel=page.locator('details').filter({has:page.getByText('Postage & print label · test mode',{exact:true})}).last();
   await panel.locator(':scope > summary').click();
-  for(const [name,value] of [['Sender name','Test Designer'],['Street address','200 Test Street'],['City','Columbus'],['State','OH'],['ZIP code','43211'],['Length (in)','10'],['Width (in)','8'],['Height (in)','2'],['Weight (oz)','12']])await panel.getByLabel(name,{exact:true}).fill(value);
+  for(const [name,value] of [['Sender name','Test Designer'],['Street address','200 Test Street'],['City','Columbus'],['State','OH'],['ZIP code','43211'],['Sender email','sender@example.com'],['Sender phone','+14155550123'],['Length (in)','10'],['Width (in)','8'],['Height (in)','2'],['Weight (oz)','12']])await panel.getByLabel(name,{exact:true}).fill(value);
   await panel.getByRole('button',{name:'Compare test shipping rates'}).click();
   await expect(panel.getByRole('radio').nth(1)).toBeDisabled();
   await panel.getByRole('radio').first().check();
