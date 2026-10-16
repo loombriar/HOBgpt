@@ -4047,6 +4047,8 @@ function createApp(options = {}) {
 
   app.post('/api/admin/orders/:orderId/designers/:designerId/refund',authAdmin,(req,res,next)=>refundOrder(req,res,next,req.params.designerId));
 
+  require('./lib/shipping-labels').mountShippingLabels({app,db,authDesigner,fetch:options.fetch || fetch});
+
   app.get('/api/my/orders', authDesigner, (req, res) => {
     const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.gift_note,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
       dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
