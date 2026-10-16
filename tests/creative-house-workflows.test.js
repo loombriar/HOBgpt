@@ -19,7 +19,7 @@ test('Creative House keeps complete task sections in sync with forms and categor
   const listeners = {};
   const location = { hash: '' };
   vm.runInNewContext(readFileSync('creative-house-workflows.js', 'utf8'), {
-    document: { getElementById: id => nodes.get(id), querySelectorAll: selector => selector === '[data-creative-workflow]' ? buttons : [] },
+    document: { getElementById: id => nodes.get(id), addEventListener() {}, querySelectorAll: selector => selector === '[data-creative-workflow]' ? buttons : [] },
     location, window: { matchMedia: () => ({ matches: false }), addEventListener: (type, fn) => { listeners[type] = fn; } },
   });
   assert.ok(sections.slice(0, 5).every(section => section.hidden));
@@ -30,7 +30,13 @@ test('Creative House keeps complete task sections in sync with forms and categor
   assert.equal(sections[0].hidden, true);
   location.hash = '#your-profile'; listeners.hashchange();
   assert.equal(sections[0].hidden, false);
+  assert.equal(sections[1].hidden, true);
+  location.hash = '#event-profile-editor'; listeners.hashchange();
+  assert.equal(sections[0].hidden, true);
   assert.equal(sections[1].hidden, false);
+  listeners['creative-profile-role']({detail:{role:'photographer'}});
+  assert.equal(sections[0].hidden, false);
+  assert.equal(sections[1].hidden, true);
   assert.equal(nodes.get('profile-start').hidden, false);
   location.hash = '#opportunities'; listeners.hashchange();
   assert.ok(sections.slice(0, 5).every(section => section.hidden));

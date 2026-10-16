@@ -83,9 +83,10 @@ test('activity selection hides unrelated sections while keeping browsing and inb
 
 test('category links reveal their forms and browser history restores browsing', async ({ page }) => {
   await page.goto('/creative-house.html#opportunities');
+  await page.locator('#creative-profile-menu > summary').click();
   await page.locator('.creative-jump-panel a[href="#your-profile"]').click();
   await expect(page.locator('#profile-form')).toBeVisible();
-  await expect(page.locator('#event-profile-form')).toBeVisible();
+  await expect(page.locator('#event-profile-form')).toBeHidden();
   await page.goBack();
   await expect(page.locator('#your-profile')).toBeHidden();
   await page.goto('/creative-house.html#post');
