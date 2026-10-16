@@ -48,6 +48,22 @@ for(const width of [390,1280]) {
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
   await page.locator('#admin-login-form button[type="submit"]').click();
   await expect(page.locator('#admin-overview > details')).toHaveCount(6);
+  // Check both themes using this test's existing session; do not spend extra login attempts.
+  const toolbar=page.locator('#admin-review-workspace .studio-toolbar');
+  for(const theme of ['light','dark']){
+   await page.evaluate(theme=>document.documentElement.setAttribute('data-hob-theme',theme),theme);
+   await toolbar.scrollIntoViewIfNeeded();
+   await expect(toolbar.getByRole('heading',{name:'Pending clothing',exact:true})).toBeVisible();
+   await expect.poll(async()=>toolbar.locator('h3,p,button').evaluateAll(elements=>{
+    const rgb=value=>(value.match(/[\d.]+/g)||[]).map(Number);
+    const lum=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+    return Math.min(...elements.map(el=>{
+     let bg=[0,0,0];for(let p=el;p;p=p.parentElement){const c=rgb(getComputedStyle(p).backgroundColor);if(c.length===3||c[3]===1){bg=c;break;}}
+     const a=lum(rgb(getComputedStyle(el).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    }));
+   }),{message:`Pending clothing text needs 4.5:1 contrast in ${theme} mode`}).toBeGreaterThanOrEqual(4.5);
+  }
+
   await page.locator('#admin-overview > details').first().locator('summary').click();
   await expect(page.locator('#admin-daily-traffic')).toBeVisible();
   await page.locator('#admin-review-dialog').evaluate(el=>el.scrollTop=el.scrollHeight);
