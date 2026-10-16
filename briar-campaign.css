@@ -112,3 +112,6 @@ html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art{
 html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-fit:contain;object-position:center bottom}
 html body.blackberry-house .fashion-cover.briar-cutout-hero .fashion-cover-copy{background:transparent!important}
 @media(max-width:700px){html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-position:center}}
+
+/* Soft pastel artwork blends into the shared hero surface. */
+html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art{opacity:.85}
