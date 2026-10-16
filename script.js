@@ -1577,6 +1577,15 @@ function renderSellerReadiness(){
     row.append(mark,copy);list.append(row);
   }
   const ready=accountReady;
+  const setupPanel=byId('designer-setup-panel');
+  if(setupPanel){
+    const setupSummary=setupPanel.querySelector('summary');
+    if(setupSummary)setupSummary.textContent=ready?'Selling setup complete':'Finish your setup';
+    if(profile&&stripe&&setupPanel.dataset.ready!==String(ready)){
+      setupPanel.open=!ready;
+      setupPanel.dataset.ready=String(ready);
+    }
+  }
   if(badge){badge.textContent=ready?'Ready to sell':!profile||!stripe?'Checking your setup…':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
   if(summary)summary.textContent=ready?'Your account is ready. Approved pieces with available stock appear in the shop unless paused or you are on vacation.':'Your pieces stay in your dashboard. Accept the current delivery terms and finish payment setup before customers can buy them.';
 }
@@ -2668,11 +2677,26 @@ function prepareDesignerRoomPanels() {
     if(!content||content.parentElement!==workspace)continue;
     const panel=document.createElement('details');
     panel.className='designer-room-panel';
-    panel.open=selector==='#designer-listing-area';
+    panel.open=selector==='.seller-readiness-card';
+    if(selector==='.seller-readiness-card')panel.id='designer-setup-panel';
     const summary=document.createElement('summary');
     summary.textContent=title;
     content.before(panel);panel.append(summary,content);
   }
+  const setupPanel=byId('designer-setup-panel');
+  const attention=byId('designer-attention');
+  const firstTask=attention||workspace.firstElementChild;
+  if(setupPanel&&firstTask)firstTask.before(setupPanel);
+  const actions=document.createElement('div');
+  actions.className='designer-start-actions';
+  const addPiece=document.createElement('button');
+  addPiece.type='button';addPiece.className='primary-button';
+  addPiece.id='designer-add-piece';addPiece.textContent='Add a piece';
+  addPiece.addEventListener('click',()=>byId('new-listing-btn')?.click());
+  const help=makeElement('p','small-print','Start a draft now. Finish and submit it whenever you are ready.');
+  actions.append(addPiece,help);
+  if(attention)attention.before(actions);else workspace.prepend(actions);
+  renderSellerReadiness();
   const reveal=target=>{
     if(!target)return;
     for(let parent=target;parent&&parent!==workspace;parent=parent.parentElement){

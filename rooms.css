@@ -198,3 +198,11 @@ html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-
  background:var(--room-paper)!important;color:var(--room-ink)!important;border-color:var(--room-border)!important;
 }
 html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-toolbar :is(h3,p,button){color:var(--room-ink)!important}
+
+/* Designer entry: setup, primary task, then order follow-up. */
+#designer-workspace .designer-start-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:18px 0}
+#designer-workspace .designer-start-actions .primary-button{min-height:48px;padding:12px 28px;font-size:17px}
+#designer-workspace .designer-start-actions p{margin:0;flex:1 1 220px;color:var(--room-ink)}
+#designer-workspace #designer-setup-panel{margin-top:12px}
+#designer-workspace #designer-setup-panel>summary{font-weight:600}
+@media(max-width:600px){#designer-workspace .designer-start-actions{gap:8px;padding:14px 0}#designer-workspace .designer-start-actions .primary-button{width:100%}}

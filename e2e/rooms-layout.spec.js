@@ -28,6 +28,13 @@ for(const width of [390,1280]) {
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
   await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(6);
   await expect(page.locator('#product-form')).not.toBeVisible();
+  await expect(page.locator('#designer-add-piece')).toBeVisible();
+  expect(await page.locator('#designer-workspace').evaluate(el=>{
+   const setup=el.querySelector('#designer-setup-panel'),add=el.querySelector('.designer-start-actions'),orders=el.querySelector('#designer-attention');
+   return Boolean(setup.compareDocumentPosition(add)&Node.DOCUMENT_POSITION_FOLLOWING)&&Boolean(add.compareDocumentPosition(orders)&Node.DOCUMENT_POSITION_FOLLOWING);
+  })).toBeTruthy();
+  await page.locator('#designer-add-piece').click();
+  await expect(page.locator('#product-form')).toBeVisible();
   await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
