@@ -2522,3 +2522,31 @@ function prepareDesignerRoomPanels() {
   revealHash();
 }
 prepareDesignerRoomPanels();
+
+// Nested shop filters retain the existing native controls and filtering handlers.
+{
+ const menus=[...document.querySelectorAll('.shop-filter-menu')];
+ const label=id=>{const s=document.getElementById(id);return s?.selectedOptions[0]?.textContent?.trim()||'';};
+ const value=id=>document.getElementById(id)?.value||'all';
+ const update=()=>{
+  for(const menu of menus){
+   const kind=menu.dataset.filterMenu;
+   const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='style'?['shop-aesthetic-filter','shop-pattern-filter']:['shop-designer-filter'];
+   const chosen=ids.filter(id=>value(id)!=='all').map(label);
+   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||(kind==='category'?'All pieces':kind==='style'?'All styles & prints':'All designers');
+  }
+ };
+ menus.forEach(menu=>{
+  menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});
+  menu.querySelectorAll('select').forEach(select=>select.addEventListener('change',()=>{
+   update();
+   if(select.id==='shop-category-filter'){
+    const child=document.getElementById('shop-subcategory-menu');if(child)child.open=true;
+   }else{menu.open=false;}
+  }));
+ });
+ document.addEventListener('click',event=>{if(!event.target.closest('.shop-nested-filters'))menus.forEach(menu=>menu.open=false);});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'){const open=menus.find(menu=>menu.open);if(open){open.open=false;open.querySelector('summary').focus();}}});
+ document.getElementById('shop-clear-filters')?.addEventListener('click',()=>{update();menus.forEach(menu=>{menu.open=false;menu.querySelectorAll('details').forEach(child=>child.open=false);});});
+ update();
+}

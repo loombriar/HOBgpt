@@ -284,7 +284,13 @@ test('editorial storefront retains accessible native category filters and their 
   assert.match(html, /<option value="all">All prints<\/option>/);
   assert.match(html, /<option value="Costume">Costumes<\/option>/);
   assert.doesNotMatch(html, /class="fashion-hero-side"/);
-  assert.match(html, /class="shop-drop-window menswear-window"/);
+  assert.doesNotMatch(html, /class="shop-drop-window menswear-window"/);
+  assert.equal((html.match(/class="shop-filter-menu"/g) || []).length, 2);
+  assert.match(html, /data-filter-menu="category"/);
+  assert.match(html, /data-filter-menu="style"/);
+  assert.match(html, /id="shop-subcategory-menu"/);
+  assert.match(html, /<option value="menswear">Masculine<\/option>/);
+  assert.doesNotMatch(html, /data-filter-menu="designer"/);
   assert.doesNotMatch(html, /class="fashion-category-links"/);
   assert.match(html, /href="\/shop\?category=menswear"/);
   assert.match(html, /id="designers-wanted-title">Made by someone,/);
