@@ -76,22 +76,26 @@ function ProductCard({ product, onLike, liked, saved, onSave }: ProductCardProps
   const category = getFieldValue(product, '@categ', 'Category') ?? 'One-of-a-kind';
   const designer = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
   const designerId = getFieldValue(product, '@desid', 'Designer ID') ?? '';
+  const status = getFieldValue(product, '@statx', 'Status') ?? 'Available';
+  const stockLabel = status === 'Sold Out' ? 'Sold' : status === 'Temporarily Unavailable' ? 'Unavailable' : '';
   const likes = (getFieldNumber(product, '@likes', 'Likes') ?? 0) + (liked ? 1 : 0);
   const images = getProductImages(getFieldValue(product, '@image', 'Image URL'), getFieldValue(product, '@gally', 'Gallery URLs'));
   const primaryImage = images[0];
   const hasMultipleImages = images.length > 1;
   return (
     <article className="house-product-card group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <Link to={`/shop/${product.id}`} className={`relative flex aspect-[4/5] items-end overflow-hidden bg-gradient-to-br ${getProductVisual(name)} p-5`}>
-        {primaryImage ? <img src={primaryImage} alt={`${name} by ${designer}`} className="absolute inset-0 size-full object-contain transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_25%_25%,hsl(var(--primary-foreground)/.4),transparent_34%),linear-gradient(135deg,transparent_55%,hsl(var(--background)/.22))]" aria-hidden="true" />}
-        <div className="absolute inset-0 bg-background/15" aria-hidden="true" />
-        <div className="relative z-10 rounded-full border border-primary-foreground/25 bg-background/15 px-3 py-1 text-xs uppercase tracking-[0.18em] text-primary-foreground backdrop-blur">{category}</div>
-        {hasMultipleImages && <span className="absolute bottom-5 right-5 z-10 rounded-full border border-primary-foreground/25 bg-background/75 px-3 py-1 text-xs font-medium text-foreground backdrop-blur">{images.length} photos</span>}
-        <span className="absolute right-4 top-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground">{getFieldValue(product, '@statx', 'Status') ?? 'Available'}</span>
+      <Link to={`/shop/${product.id}`} aria-label={`View ${name} photos and details`} className={`house-card-photo relative flex aspect-[4/5] items-end overflow-hidden bg-gradient-to-br ${getProductVisual(name)} p-5`}>
+        {primaryImage ? <img src={primaryImage} alt={`${name} by ${designer}`} loading="lazy" decoding="async" className="absolute inset-0 size-full object-contain transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_25%_25%,hsl(var(--primary-foreground)/.4),transparent_34%),linear-gradient(135deg,transparent_55%,hsl(var(--background)/.22))]" aria-hidden="true" />}
+        {hasMultipleImages && <span className="house-card-photo-count">{images.length} photos</span>}
+        {stockLabel && <span className="house-card-stock">{stockLabel}</span>}
+
       </Link>
-      <div className="space-y-3 p-5">
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-serif text-xl font-semibold"><Link to={`/shop/${product.id}`} className="hover:underline">{name}</Link></h2><p className="mt-1 text-sm text-muted-foreground">by {designerId ? <Link to={`/designers/${encodeURIComponent(designerId)}`} onClick={(event) => event.stopPropagation()} className="hover:text-primary hover:underline">{designer}</Link> : designer}</p></div><span className="shrink-0 text-sm font-semibold tabular-nums">{money.format(price)}</span></div>
-        <div className="flex items-center justify-between border-t border-border pt-3"><span className="text-xs text-muted-foreground">{getFieldValue(product, '@sizex', 'Size') ?? 'Made to order'}</span><div className="flex items-center gap-1"><button type="button" aria-label={`${saved ? 'Remove' : 'Save'} ${name}`} onClick={() => onSave(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${saved ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={saved ? 'currentColor' : 'none'} />{saved ? 'Saved' : 'Save'}</button><button type="button" aria-label={`${liked ? 'Unlike' : 'Like'} ${name}`} onClick={() => onLike(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${liked ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={liked ? 'currentColor' : 'none'} />{likes}</button></div></div>
+      <div className="house-card-info space-y-3 p-5">
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-serif text-xl font-semibold"><Link to={`/shop/${product.id}`} className="hover:underline">{name}</Link></h2><p className="mt-1 text-sm text-muted-foreground">by {designerId ? <Link to={`/designers/${encodeURIComponent(designerId)}`} onClick={(event) => event.stopPropagation()} className="hover:text-primary hover:underline">{designer}</Link> : designer}</p></div></div>
+        <p className="house-card-price text-base font-semibold tabular-nums">{money.format(price)}</p>
+        <p className="house-card-size text-sm text-muted-foreground">{getFieldValue(product, '@sizex', 'Size') ?? 'See measurements'}</p>
+        <p className="house-card-type text-xs text-muted-foreground">{CATEGORY_LABELS[category] || category}</p>
+        <div className="house-card-actions flex items-center justify-between border-t border-border pt-3"><div className="flex items-center gap-1"><button type="button" aria-label={`${saved ? 'Remove' : 'Save'} ${name}`} onClick={() => onSave(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${saved ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={saved ? 'currentColor' : 'none'} />{saved ? 'Saved' : 'Save'}</button><button type="button" aria-label={`${liked ? 'Unlike' : 'Like'} ${name}`} onClick={() => onLike(product.id)} className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs transition hover:bg-accent hover:text-primary ${liked ? 'text-primary' : 'text-muted-foreground'}`}><Heart size={15} fill={liked ? 'currentColor' : 'none'} />{likes}</button></div></div>
       </div>
     </article>
   );
@@ -125,7 +129,7 @@ export default function ShopPage() {
   const categories = ['All pieces', ...Object.keys(CATEGORY_LABELS)];
 
   const visible = products.filter((product) => {
-    if (!isPublicProduct(product) || (savedOnly && !savedIds.includes(product.id))) return false;
+    if ((!isPublicProduct(product) && getFieldValue(product,'@statx','Status') !== 'Sold Out') || (savedOnly && !savedIds.includes(product.id))) return false;
     const name = getTitle(product, 'Name') ?? '';
     const tags = getFieldValue(product, '@tagsx', 'Tags') ?? '';
     const productDesigner = getFieldValue(product, '@desig', 'Designer') ?? 'Independent designer';
