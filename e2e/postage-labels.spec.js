@@ -1,0 +1,34 @@
+const {test,expect}=require('@playwright/test');
+for(const width of [390,1280])test(`designer confirms sample postage and opens the saved label at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:900});
+  const session=await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+  expect(session.ok()).toBeTruthy();
+  await page.route('**/api/my/orders',route=>route.fulfill({json:{orders:[{id:'postage-order',orderStatus:'paid',fulfillmentStatus:'awaiting_shipment',currency:'usd',payoutStatus:'pending',earningsCents:9100,shippingCents:0,items:[{title:'Test piece',quantity:1,earningsCents:9100}]}]}}));
+  let confirmations=0;
+  let label=null;
+  await page.route('**/api/orders/postage-order/postage',route=>route.fulfill({json:{enabled:true,test:true,label}}));
+  await page.route('**/api/orders/postage-order/postage/rates',route=>route.fulfill({json:{test:true,quoteId:'quote',rates:[{id:'rate',carrier:'USPS',service:'Ground',costCents:500,remainingCents:8600,affordable:true},{id:'expensive',carrier:'UPS',service:'Express',costCents:10000,remainingCents:-900,affordable:false}]}}));
+  await page.route('**/api/orders/postage-order/postage/label',route=>{
+    const body=route.request().postDataJSON();expect(body.confirmDeduction).toBe(true);expect(body.rateId).toBe('rate');confirmations++;
+    label={status:'ready',costCents:500,test:true,carrier:'USPS',trackingNumber:'TEST123',labelUrl:'https://deliver.goshippo.com/test.pdf'};
+    return route.fulfill({json:{label,remainingCents:8600}});
+  });
+  await page.goto('/account#orders');
+  const panel=page.locator('details').filter({has:page.getByText('Postage & print label · test mode',{exact:true})}).last();
+  await panel.locator(':scope > summary').click();
+  for(const [name,value] of [['Sender name','Test Designer'],['Street address','200 Test Street'],['City','Columbus'],['State','OH'],['ZIP code','43211'],['Length (in)','10'],['Width (in)','8'],['Height (in)','2'],['Weight (oz)','12']])await panel.getByLabel(name,{exact:true}).fill(value);
+  await panel.getByRole('button',{name:'Compare test shipping rates'}).click();
+  await expect(panel.getByRole('radio').nth(1)).toBeDisabled();
+  await panel.getByRole('radio').first().check();
+  const confirm=panel.getByRole('button',{name:'Confirm & create sample label'});
+  await expect(confirm).toBeDisabled();
+  await panel.getByRole('checkbox').check();await confirm.click();
+  await expect(panel.getByRole('link',{name:'Open sample label PDF to print ↗'})).toHaveAttribute('href','https://deliver.goshippo.com/test.pdf');
+  await expect(panel.getByText('Earnings after sample postage: $86.00',{exact:true})).toBeVisible();
+  expect(confirmations).toBe(1);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await page.reload();
+  await page.locator('details').filter({has:page.getByText('Postage & print label · test mode',{exact:true})}).last().locator(':scope > summary').click();
+  await expect(page.getByText('TEST123',{exact:false})).toBeVisible();
+  expect(confirmations).toBe(1);
+});
