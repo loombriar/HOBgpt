@@ -59,3 +59,27 @@ html body #hob-global-nav{display:flex!important;position:fixed!important;top:0!
  html body #hob-global-nav.hob-global-nav:has(.hob-creative-menu){grid-template-rows:44px auto}
  html body #hob-global-nav.hob-global-nav:has(.hob-creative-menu)>nav{height:auto;flex-wrap:wrap!important;gap:4px 12px!important}
 }
+
+/* Heart mailbox: visible unread state without relying on motion or color alone. */
+.hob-mailbox{display:inline-flex!important;align-items:center;justify-content:center;gap:5px;min-width:48px;min-height:44px;padding:4px 8px!important;border:1px solid #a48a76!important;border-radius:14px!important;background:#f8f2e9!important;color:#664d3c!important;cursor:pointer;position:relative;text-decoration:none}
+.hob-mailbox-icon{flex:none;display:block;overflow:visible}
+.hob-mailbox.has-unread{border-color:#bb334b!important}
+.hob-mailbox.has-unread .hob-mailbox-heart{color:#c52d48}
+.hob-mailbox-count{border-radius:99px;background:#a7233c;color:#fff;padding:2px 6px;font:600 11px/1.4 Arial,sans-serif}
+.hob-mailbox-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(340px,calc(100vw - 28px));max-height:65vh;overflow:auto;padding:16px;box-sizing:border-box;border:1px solid #a48a76;border-radius:16px;background:#faf7f2;color:#30271f;box-shadow:0 12px 32px #0003;font:14px/1.5 Arial,sans-serif}
+.hob-mailbox-panel[hidden],.hob-mailbox-wrap[hidden]{display:none!important}
+.hob-mailbox-wrap{position:relative}
+.hob-mailbox-panel a{display:block;padding:10px 0;color:inherit;text-decoration:underline}
+.hob-mailbox-note{padding:12px 0;border-top:1px solid #b9a99b}
+.hob-mailbox-panel button{min-height:44px;padding:8px 12px;border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+html[data-hob-theme=dark] .hob-mailbox,.dark .hob-mailbox{background:#30282a!important;color:#f3deca!important}
+html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
+@keyframes hob-heart-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(prefers-reduced-motion:no-preference){.hob-mailbox.has-unread .hob-mailbox-heart{animation:hob-heart-pulse 1.8s ease-in-out infinite}}
+@media(max-width:700px){
+ #hob-global-nav .hob-mailbox{width:44px;min-width:44px;padding:3px!important;box-sizing:border-box}
+ #hob-global-nav .hob-mailbox-icon{width:32px}
+ #hob-global-nav .hob-mailbox-count{position:absolute;right:-3px;top:-2px;padding:1px 4px;font-size:10px}
+ html body #hob-global-nav.hob-global-nav:has(.hob-mailbox-wrap:not([hidden])) .hob-global-wordmark{font-size:clamp(12px,3.5vw,17px)!important}
+ #hob-global-nav:has(.hob-mailbox-wrap:not([hidden])) .hob-global-actions :is(#header-customer-auth-btn,.hob-global-account-link){max-width:60px}
+}

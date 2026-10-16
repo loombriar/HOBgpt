@@ -1,9 +1,11 @@
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { Bell, Moon, Sun } from '@/lib/icons';
+import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+function HeartMailboxIcon() { return (<svg className="hob-mailbox-icon" viewBox="0 0 64 56" width="38" height="34" aria-hidden="true"><path d="M12 43V23a17 17 0 0 1 34 0v20H12Z" fill="currentColor" fillOpacity=".08" stroke="currentColor" strokeWidth="2.5"/><path d="M12 43h42V25c0-10-7-19-17-19M20 43v10m21-10v10M47 22V8h10v9H47" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><path className="hob-mailbox-heart" d="M29 24c-7-8-16 3 0 13 16-10 7-21 0-13Z" fill="currentColor"/></svg>); }
 
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -100,7 +102,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
               <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
             </Link>
             {auth.isAuthenticated && isDesigner && <div className="relative">
-              <button type="button" aria-label={`Designer notifications, ${designerUnread} unread, ${designerSales} sales`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen(open => !open)} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2"><Bell size={17} />{designerUnread > 0 && <span>{designerUnread}</span>}</button>
+              <button type="button" aria-label={`Designer notifications, ${designerUnread} unread, ${designerSales} sales`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen(open => !open)} className={`hob-mailbox ${designerUnread>0?'has-unread':''}`}><HeartMailboxIcon />{designerUnread > 0 && <span className="hob-mailbox-count">{designerUnread>99?'99+':designerUnread}</span>}</button>
               {alertsOpen && <div className="absolute right-0 top-full z-[10000] mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-card p-4 text-foreground shadow-xl">
                 <strong className="block font-serif text-lg">Designer sales & updates</strong>
                 <p className="mt-1 text-sm">{designerSales} orders · {designerUnread} unread</p>
