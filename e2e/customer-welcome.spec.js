@@ -28,7 +28,7 @@ for (const width of [390, 1280]) {
     await page.locator('#visitor-suite-close').click();
     await expect(page.locator('#visitor-suite-modal')).not.toBeVisible();
     await page.locator('#header-customer-auth-btn').click();
-    await page.getByRole('button', { name: 'Shop the pieces →', exact: true }).click();
+    await page.getByRole('button', { name: 'Back to shop', exact: true }).click();
     await expect(page.locator('#visitor-suite-modal')).not.toBeVisible();
     await expect(page.locator('#shop')).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

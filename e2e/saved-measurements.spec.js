@@ -12,6 +12,7 @@ test('homepage profiles persist in the account, appear on the account page, and 
   await page.locator('#customer-signin-code').fill((await code.json()).code);
   await page.getByRole('button',{name:'Verify and sign in',exact:true}).click();
   await expect(page.locator('#customer-signed-in')).toBeVisible();
+  await page.locator('#visitor-measurements > summary').click();
   await page.locator('#measurement-profile-name').fill('Account fit');
   await page.locator('#measurement-profile-bust').fill('35');
   await page.locator('#measurement-profile-inseam').fill('30.5');
@@ -42,6 +43,7 @@ test('homepage profiles persist in the account, appear on the account page, and 
   await page.goto('/?visitors=signup');
   await expect(page.locator('#measurement-profile-list')).toContainText('Account fit');
   await expect(page.locator('#shop-fit-profile option')).toHaveCount(2);
+  await page.locator('#visitor-measurements > summary').click();
   await page.locator('#measurement-profile-list').getByRole('button',{name:'Delete',exact:true}).click();
   await expect(page.locator('#measurement-profile-list')).not.toContainText('Account fit');
   await expect(page.locator('#shop-fit-profile option')).toHaveCount(1);
@@ -50,6 +52,7 @@ test('homepage profiles persist in the account, appear on the account page, and 
 
 test('signed-out saves do not write new measurements to browser storage',async({page})=>{
   await page.goto('/?visitors=signup');
+  await page.locator('#visitor-measurements > summary').click();
   await page.locator('#measurement-profile-name').fill('Do not save');
   await page.getByRole('button',{name:'Save measurement profile',exact:true}).click();
   await expect(page.locator('#measurement-profile-message')).toContainText('Sign in to save measurements securely');

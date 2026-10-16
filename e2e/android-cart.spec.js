@@ -40,6 +40,7 @@ test('successful account deletion clears the Android cart and gift choices',asyn
   await expect(page.locator('#customer-signed-in')).toBeVisible();
   await page.evaluate(()=>{localStorage.setItem('house-of-briar:cart','["e2e-piece"]');localStorage.setItem('house-of-briar:gift-wrap','["e2e-piece"]');});
   page.once('dialog',dialog=>dialog.accept('DELETE'));
+  await page.locator('#visitor-account-settings > summary').tap();
   await page.locator('#customer-delete-account').tap();
   await expect(page.locator('#customer-signup-status')).toHaveText('Your customer account has been deleted.');
   expect(await cart(page)).toEqual([]);
