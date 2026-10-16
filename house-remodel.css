@@ -180,3 +180,35 @@ html body.blackberry-house #product-grid .product-image>img{position:absolute;in
 html body.blackberry-house #product-grid .product-image-open{background:transparent!important;border:0!important;border-radius:0!important;margin:0;padding:0}
 
 .product-stock-label{max-width:calc(100% - 76px);box-sizing:border-box;overflow-wrap:anywhere}
+
+/* Footer: grouped navigation and one centered closing row. */
+html body.blackberry-house .site-footer{--briar-ink:#f4e8e4;--briar-muted:#d8ced4;--briar-line:#766770;padding:44px 0 24px!important;overflow:hidden}
+html body.blackberry-house .site-footer>.footer-inner{display:block!important;width:calc(100% - 80px)!important;max-width:1200px!important;margin-inline:auto!important;padding:0!important;box-sizing:border-box}
+html body.blackberry-house .footer-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:40px;align-items:start;padding-bottom:28px}
+html body.blackberry-house .footer-brand{padding-top:4px;min-width:0}
+html body.blackberry-house .footer-brand .brand-name{display:inline-block;margin:0;font:400 30px/1.2 'Cormorant Garamond',Georgia,serif;text-decoration:none}
+html body.blackberry-house .footer-copy{margin:12px 0 0;font:400 14px/1.7 Inter,Arial,sans-serif;color:var(--briar-muted)!important}
+html body.blackberry-house .footer-links{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start!important;justify-content:normal!important;min-width:0}
+html body.blackberry-house .footer-link-group{display:flex;flex-direction:column;min-width:0;gap:0}
+html body.blackberry-house .footer-link-group h2{margin:0 0 8px;font:600 12px/1.5 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--briar-muted)}
+html body.blackberry-house .footer-link-group a{display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 0;font:400 14px/1.5 Inter,Arial,sans-serif;text-decoration:none;overflow-wrap:anywhere}
+html body.blackberry-house .footer-links a:hover,html body.blackberry-house .footer-utilities :is(a,button):hover{text-decoration:underline;text-underline-offset:4px}
+html body.blackberry-house .footer-story{margin:0;box-sizing:border-box}
+html body.blackberry-house .footer-story>summary{box-sizing:border-box;padding:14px 0;min-height:52px;color:var(--briar-ink)}
+html body.blackberry-house .footer-story .story-grid{max-width:100%!important;margin:0!important;box-sizing:border-box}
+html body.blackberry-house .footer-bottom{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:18px;text-align:center}
+html body.blackberry-house .footer-utilities{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 28px}
+html body.blackberry-house .footer-utilities :is(a,button){display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 0;margin:0;font:400 13px/1.5 Inter,Arial,sans-serif;text-decoration:none;background:transparent;border:0;cursor:pointer}
+html body.blackberry-house .site-footer .copyright{grid-column:auto;width:100%;margin:0;text-align:center!important;font:400 12px/1.5 Inter,Arial,sans-serif;color:var(--briar-muted)!important}
+html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:28px!important;height:140px!important;background:url('/briar-thorn-vine.svg') center/contain no-repeat!important;opacity:.55;pointer-events:none}
+html body.blackberry-house .site-footer::before{inset:24px auto auto 8px!important;transform:scaleX(-1)}
+html body.blackberry-house .site-footer::after{inset:auto 8px 24px auto!important;transform:rotate(180deg)}
+@media(max-width:700px){
+ html body.blackberry-house .site-footer>.footer-inner{width:calc(100% - 64px)!important;max-width:1200px!important}
+ html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1fr);gap:28px;padding-bottom:22px}
+ html body.blackberry-house .footer-brand{text-align:center}
+ html body.blackberry-house .footer-links{gap:18px}
+ html body.blackberry-house .footer-link-group a{font-size:13px}
+ html body.blackberry-house .footer-story .story-grid{grid-template-columns:minmax(0,1fr)!important}
+ html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:20px!important}
+}
