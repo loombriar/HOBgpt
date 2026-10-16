@@ -44,19 +44,19 @@ export default function SellPage() {
   const field='mt-2 min-h-12 w-full rounded-xl border border-border bg-background px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20';
 
   return <HouseShell>
-    <main className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft size={16}/> Home</Link>
       <section className="relative mt-10 overflow-hidden rounded-[2rem] border border-primary/20 bg-card px-6 py-12 shadow-sm sm:px-12 sm:py-16" aria-labelledby="founding-designer-heading">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">An invitation to independent fashion makers</p>
-          <h1 id="founding-designer-heading" className="mt-5 font-serif text-5xl leading-tight sm:text-6xl">Become a Founding Designer.</h1>
-          <p className="mt-5 text-lg leading-8 text-muted-foreground">Your work deserves more than a listing. Join House of Briar, a marketplace made to celebrate original clothing, accessories, and the people who create them.</p>
+          <h1 id="founding-designer-heading" className="mt-5 font-serif text-5xl leading-tight sm:text-6xl">Why sell with House of Briar?</h1>
+          <p className="mt-5 text-lg leading-8 text-muted-foreground">Independent by design. A home for original clothing, your creative process, and the people who want to wear something made by someone—not everyone.</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#designer-signup" className="inline-flex min-h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground">Join the House →</a>
+            <a href="#designer-signup" className="inline-flex min-h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground">Start your designer profile →</a>
             <a href="#how-it-works" className="inline-flex min-h-12 items-center rounded-full border border-border px-7 text-sm font-semibold hover:border-primary">How it works</a>
           </div>
-          <p className="mt-5 text-sm text-muted-foreground">Free to sign up · No portfolio or approval process · Original work welcome</p>
+          <p className="mt-5 text-sm text-muted-foreground">Free to join · No listing fees · No portfolio required</p>
         </div>
       </section>
 
@@ -66,23 +66,32 @@ export default function SellPage() {
         <div className="mt-7 grid gap-4 md:grid-cols-3">
           <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">91% / 9%</p><h3 className="mt-3 font-semibold">Your craft, your earnings</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Designers retain 91% of qualifying sales before other applicable costs; House of Briar retains a 9% marketplace fee. Review the seller terms for full payment details.</p></article>
           <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">Your story</p><h3 className="mt-3 font-semibold">A storefront with personality</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Create a designer presence where shoppers can discover your original pieces and get to know the creative mind behind them.</p></article>
-          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">The first 25</p><h3 className="mt-3 font-semibold">Founding Designer recognition</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">The first 25 eligible designers to join receive a permanent Founding Designer badge. Availability depends on the number already registered.</p></article>
+          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">Free to begin</p><h3 className="mt-3 font-semibold">No listing fees</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your profile and draft your pieces at your own pace. The 9% marketplace fee applies to qualifying sales, not to uploading a listing.</p></article>
         </div>
       </section>
 
       <section id="how-it-works" className="mt-14 rounded-3xl border border-border bg-card p-6 sm:p-9" aria-labelledby="designer-steps-heading">
         <h2 id="designer-steps-heading" className="font-serif text-4xl">Your place in the House, in three steps.</h2>
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
-          <li><span className="text-sm font-semibold text-primary">01 · Introduce yourself</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Enter your name, brand, email, and the kinds of pieces you create.</p></li>
-          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Sign in with your email and complete your designer profile and payout setup.</p></li>
-          <li><span className="text-sm font-semibold text-primary">03 · Share your work</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Add original designs and start building your corner of the House.</p></li>
+          <li><span className="text-sm font-semibold text-primary">01 · Introduce yourself</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your free profile and verify your email. You do not need a portfolio or a designer application.</p></li>
+          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Tell your story, connect Stripe for payouts, and draft your first piece. You can prepare drafts while payment setup is in progress.</p></li>
+          <li><span className="text-sm font-semibold text-primary">03 · Share your work</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Submit your finished listings for review. Approved pieces can go on sale once your selling setup is ready.</p></li>
         </ol>
+      </section>
+
+      <section className="mt-10 rounded-3xl border border-border bg-card p-6 sm:p-9" aria-labelledby="designer-delivery-heading">
+        <h2 id="designer-delivery-heading" className="font-serif text-3xl">What happens when a piece sells?</h2>
+        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          <div><h3 className="font-semibold">You cover postage. Customers get free US delivery.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Include postage, packaging, materials, and your time in your price. Add your preparation time and measurements so shoppers know what to expect.</p></div>
+          <div><h3 className="font-semibold">Earnings stay held until shipment tracking is verified.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Connect Stripe to verify your seller details and payout account. After a sale, add tracking in your dashboard. Verified shipment tracking is required before earnings can be released; bank processing time may still apply.</p></div>
+        </div>
+        <p className="mt-5 text-sm leading-7 text-muted-foreground">You retain 91% of qualifying sales before postage and other applicable costs. <a className="underline underline-offset-4" href="/rules#seller-terms">Read the full seller terms →</a></p>
       </section>
 
       <section id="designer-signup" className="mx-auto mt-14 max-w-3xl scroll-mt-24" aria-labelledby="designer-signup-heading">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Your invitation starts here</p>
         <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Designer sign up</h2>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">There is no application or approval process. Create your designer profile below, then sign in to your studio when you are ready.</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email to create your profile. Individual listings are reviewed before appearing in the Shop.</p>
       {requestId ? <form onSubmit={e=>void verify(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6">
         <p role="status">{message}</p><label className="block text-sm font-medium">Six-digit code from your email<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} className={field}/></label>
         <button disabled={loading} className="min-h-12 rounded-full bg-primary px-6 text-primary-foreground">Verify email and open my room</button>
@@ -115,6 +124,6 @@ export default function SellPage() {
         <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created after you verify your email.</p>
       </form>}
       </section>
-    </main>
+    </div>
   </HouseShell>;
 }
