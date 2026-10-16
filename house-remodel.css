@@ -212,3 +212,20 @@ html body.blackberry-house .site-footer::after{inset:auto 8px 24px auto!importan
  html body.blackberry-house .footer-story .story-grid{grid-template-columns:minmax(0,1fr)!important}
  html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:20px!important}
 }
+
+/* Sculpted branches: deeper relief, gentle finite motion, generous footer spacing. */
+html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:36px!important;opacity:.85;filter:drop-shadow(2px 4px 3px rgb(35 20 12 / .22))}
+html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:44px!important;height:230px!important;opacity:.8;filter:none!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster)::before,html[data-hob-theme=dark] body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster)::after{filter:brightness(1.2) drop-shadow(2px 4px 3px rgb(0 0 0 / .3))!important}
+.footer-kicker{font:500 11px/1.5 Inter,Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;margin:0 0 12px;color:var(--briar-muted)}
+html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1.25fr) minmax(0,1.4fr);gap:clamp(32px,6vw,90px);padding-block:6px 32px}
+.footer-brand-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:16px}.footer-brand-actions a{display:inline-flex;align-items:center;min-height:44px;font:400 13px/1.5 Inter,Arial,sans-serif;text-underline-offset:4px}
+html body.blackberry-house .footer-bottom{flex-direction:row;justify-content:space-between;align-items:center;gap:18px;padding-top:20px}
+html body.blackberry-house .site-footer .copyright{width:auto;text-align:left!important}
+@keyframes briar-drift{0%,100%{translate:0 0}50%{translate:0 -4px}}
+@media(prefers-reduced-motion:no-preference){
+ html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .briar-editorial-poster::after{animation:briar-drift 2.2s ease-in-out 2}
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){html body.blackberry-house .site-footer:is(:hover,:focus-within)::after{animation:briar-drift 2.2s ease-in-out 2}}
+@media(prefers-reduced-motion:reduce){html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::before,html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::after{animation:none!important;translate:none!important}}
+@media(max-width:700px){html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1fr);gap:28px}.footer-brand-actions{justify-content:center}.footer-kicker{text-align:center}html body.blackberry-house .footer-bottom{flex-direction:column;gap:8px}html body.blackberry-house .site-footer .copyright{text-align:center!important}html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:26px!important;height:170px!important}html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:24px!important}}
