@@ -1480,6 +1480,7 @@ async function editListing(listingId) {
     const payload = await apiRequest(`/api/listings/${encodeURIComponent(listingId)}`);
     const listing = payload.item;
     currentListingId = listing.id;
+    for(const id of ['estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])if(byId(id))byId(id).value='';
     if (productIdInput) productIdInput.value = listing.id;
     if (byId('product-name')) byId('product-name').value = listing.title;
     if (byId('product-description')) byId('product-description').value = listing.description;
@@ -2611,18 +2612,28 @@ document.querySelectorAll('[data-customer-section]').forEach(button => {
       })();
 
 
+function calculateDesignerPriceEstimate(values) {
+  const hundredths=(value,max)=>{
+    const raw=String(value??'').trim();if(!raw)return 0;
+    const n=Number(raw);return Number.isFinite(n)&&n>=0&&n<=max&&Math.abs(n*100-Math.round(n*100))<0.000001?Math.round(n*100):null;
+  };
+  const price=hundredths(values.price,1000000),materials=hundredths(values.materials,1000000),postage=hundredths(values.postage,1000000),packaging=hundredths(values.packaging,1000000),hours=hundredths(values.hours,10000),rate=hundredths(values.rate,1000000);
+  if([price,materials,postage,packaging,hours,rate].some(value=>value===null)||price<=0)return null;
+  const fee=Math.round(price*.09),earnings=price-fee,labor=Math.round(hours*rate/100);
+  return {price,fee,earnings,materials,labor,postage,packaging,remaining:earnings-materials-labor-postage-packaging};
+}
 function renderDesignerPriceEstimate() {
   const output=byId('pricing-estimate');if(!output)return;
-  const cents=value=>{if(!value?.trim())return 0;const n=Number(value);return Number.isFinite(n)&&n>=0&&n<=1000000&&Math.abs(n*100-Math.round(n*100))<0.000001?Math.round(n*100):null;};
-  const price=cents(byId('product-price')?.value),postage=cents(byId('estimated-postage')?.value),packaging=cents(byId('estimated-packaging')?.value);
+  const fields={price:'product-price',materials:'estimated-materials',hours:'estimated-labor-hours',rate:'estimated-hourly-pay',postage:'estimated-postage',packaging:'estimated-packaging'};
+  const inputs=Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,byId(id)]));
+  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate(Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])));
   output.replaceChildren();
-  if(price===null||price<=0||postage===null||packaging===null){output.textContent='Enter a price and valid costs to see your estimate.';return;}
-  const fee=Math.round(price*.10),earnings=price-fee,remaining=earnings-postage-packaging;
+  if(!estimate){output.textContent='Enter a price above $0 and valid nonnegative costs (up to two decimal places) to see your estimate.';return;}
   const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
-  for(const text of [`House of Briar fee (10%): ${money(fee)}`,`Your earnings before delivery costs: ${money(earnings)}`,`Amount left after postage and packaging: ${money(remaining)}`])output.append(makeElement('p','',text));
-  if(remaining<0)output.append(makeElement('p','','This price does not cover these costs. Consider a higher price or lower delivery costs.'));
+  for(const [label,value]of [['House of Briar fee (9%)',estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
+  if(estimate.remaining<0)output.append(makeElement('p','','This price does not cover all the costs entered.'));
 }
-for(const id of ['product-price','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
+for(const id of ['product-price','estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
 byId('product-form')?.addEventListener('reset',()=>setTimeout(renderDesignerPriceEstimate,0));
 renderDesignerPriceEstimate();
 

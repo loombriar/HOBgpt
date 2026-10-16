@@ -36,6 +36,11 @@ for(const width of [390,1280]) {
   await expect(page.locator('#product-form fieldset').filter({has:page.getByText('Price & shipping',{exact:true})})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await expect(page.locator('#product-name')).toBeInViewport();
+  for(const [id,value]of [['product-price','100'],['estimated-materials','20'],['estimated-labor-hours','2'],['estimated-hourly-pay','15'],['estimated-postage','8'],['estimated-packaging','2']])await page.locator('#'+id).fill(value);
+  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (9%): $9.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('Labor (hours × hourly pay): $30.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $31.00');
+  await expect(page.locator('#product-price')).toHaveValue('100');
   await page.locator('#product-name').fill('Unsaved design');
   const panel=page.locator('.designer-room-panel').filter({has:page.locator('#product-form')});
   await panel.locator('summary').click();
