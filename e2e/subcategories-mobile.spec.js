@@ -41,7 +41,7 @@ test('shop page category and subcategory filters compose and reset together',asy
   {id:'dress',title:'Editorial dress',price:30,category:'apparel',style:'Dress',aesthetic:'Boho',status:'published'},
   {id:'belt',title:'Studio belt',price:20,category:'accessories',style:'Belt',aesthetic:'Boho',status:'published'}
  ]}}));
- await page.goto('/shop');await page.locator('#category-filter').selectOption('apparel');await page.locator('#subcategory-filter').selectOption('Dress');await page.locator('#style-filter').selectOption('Boho');
+ await page.goto('/shop');await page.getByText('Browse pieces ·',{exact:false}).click();await page.locator('#category-filter').selectOption('apparel');await page.locator('#subcategory-filter').selectOption('Dress');await page.locator('#style-filter').selectOption('Boho');
  await expect(page.locator('.house-shop-grid')).toContainText('Editorial dress');await expect(page.locator('.house-shop-grid')).not.toContainText('Studio belt');
  await page.locator('#category-filter').selectOption('accessories');await expect(page.locator('#subcategory-filter')).toHaveValue('All subcategories');
  await expect(page.locator('.house-shop-grid')).toContainText('Studio belt');await expect(page.locator('.house-shop-grid')).not.toContainText('Editorial dress');
