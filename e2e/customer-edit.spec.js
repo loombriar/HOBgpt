@@ -64,3 +64,23 @@ for (const width of [320, 390, 1280]) {
     expect(colors.ink).not.toBe(colors.paper);
   });
 }
+
+test('homepage photos open details from the keyboard and stock labels respect made-to-order pieces', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.route('**/api/gallery?*', route => route.fulfill({json:{items:[
+    {id:'sold-card',title:'Archive dress',designerName:'Studio',price:95,size:'Large',category:'apparel',status:'published',productionType:'One of a Kind',availableQuantity:0,soldQuantity:1},
+    {id:'custom-card',title:'Custom linen top',designerName:'Studio',price:80,category:'apparel',status:'published',productionType:'Made to Order',availableQuantity:0,soldQuantity:1}
+  ]}}));
+  await page.goto('/');
+  const cards=page.locator('#product-grid .product-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0).locator('.product-stock-label')).toHaveText('Sold');
+  await expect(cards.nth(1).locator('.product-stock-label')).toHaveCount(0);
+  await expect(cards.nth(0).locator('.house-card-price')).toHaveText('$95.00');
+  await expect(cards.nth(0).locator('.house-card-size')).toHaveText('Size Large');
+  await expect(cards.nth(1).locator('.house-card-size')).toContainText('Made to order');
+  await cards.nth(1).getByRole('button',{name:'View photos and details of Custom linen top',exact:true}).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#product-dialog')).toBeVisible();
+  await expect(page.locator('#product-detail-title')).toHaveText('Custom linen top');
+});
