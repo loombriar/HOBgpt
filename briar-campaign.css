@@ -1,0 +1,25 @@
+/* Botanical campaign art: copy remains selectable and controls stay above the art. */
+html body.blackberry-house .hero.sewing-hero.fashion-cover{position:relative;isolation:isolate;display:grid!important;grid-template-columns:minmax(0,1fr)!important;overflow:hidden;background:#1c1a19!important;color:#faf6ee;min-height:600px}
+html body.blackberry-house .fashion-cover .briar-portrait-art{position:absolute;inset:0;display:block;min-height:0!important;height:100%;background:#1c1a19!important;z-index:-1}
+.briar-portrait-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{width:46%!important;padding:64px 36px!important;text-align:left!important;margin:0!important;align-self:center;background:linear-gradient(90deg,rgba(22,20,19,.92),rgba(22,20,19,.4) 85%,transparent)}
+html body.blackberry-house .fashion-cover .fashion-cover-copy :is(h1,h1 em,p){color:#faf6ee!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions{justify-content:flex-start!important;flex-wrap:wrap}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .primary-button{background:#f6eee0!important;color:#241f1a!important;border-color:#f6eee0!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .secondary-button{background:#25211e!important;color:#faf6ee!important;border-color:#ae9680!important}
+body.creative-makeover main>.briar-creative-hero{display:grid;grid-template-columns:1fr;position:relative;isolation:isolate;min-height:600px;padding:60px 40px!important;background:#1c1a19!important;color:#faf6ee!important;overflow:hidden}
+body.creative-makeover main>.briar-creative-hero::after{display:none!important}
+.briar-creative-copy{align-self:center;width:46%;z-index:1;background:linear-gradient(90deg,rgba(22,20,19,.85),transparent)}
+body.creative-makeover .briar-creative-hero :is(h1,h1 em,p,a){color:#faf6ee!important}
+.briar-creative-art{position:absolute;inset:0;z-index:-1;display:block}
+.briar-creative-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+@media(max-width:700px){
+ html body.blackberry-house .hero.sewing-hero.fashion-cover{display:flex!important;flex-direction:column;min-height:0}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{order:0;width:100%!important;padding:32px 24px!important;background:#1c1a19}
+ html body.blackberry-house .fashion-cover .briar-portrait-art{order:1;position:relative;inset:auto;width:100%!important;height:auto;aspect-ratio:1.2;z-index:0}
+ .briar-portrait-art img{object-position:center 35%}
+ body.creative-makeover main>.briar-creative-hero{display:flex;flex-direction:column;min-height:0;padding:0!important}
+ .briar-creative-copy{width:100%;padding:32px 24px;background:#1c1a19}
+ .briar-creative-art{position:relative;inset:auto;z-index:0;aspect-ratio:1.1}
+ .briar-creative-art img{object-fit:contain}
+}
