@@ -67,7 +67,7 @@ for (const width of [320, 390, 1280]) {
 
 test('homepage photos open details from the keyboard and stock labels respect made-to-order pieces', async ({page}) => {
   await page.setViewportSize({width:390,height:844});
-  await page.route('**/api/gallery?*', route => route.fulfill({json:{items:[
+  await page.route('**/api/gallery*', route => route.fulfill({json:{items:[
     {id:'sold-card',title:'Archive dress',designerName:'Studio',price:95,size:'Large',category:'apparel',status:'published',productionType:'One of a Kind',availableQuantity:0,soldQuantity:1},
     {id:'custom-card',title:'Custom linen top',designerName:'Studio',price:80,category:'apparel',status:'published',productionType:'Made to Order',availableQuantity:0,soldQuantity:1}
   ]}}));
