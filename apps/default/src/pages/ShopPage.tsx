@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Heart, Search, SlidersHorizontal } from '@/lib/icons';
@@ -112,7 +112,7 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const savedOnly = searchParams.get('saved') === 'true' || searchParams.get('liked') === 'true';
   const subcategory=searchParams.get('subcategory')??'All subcategories';
-  const subcategories=category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
+  const subcategories=category==='costumes'?['Costume']:category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
   const designerFilter = searchParams.get('designer') ?? 'All designers';
   useEffect(() => { setQuery(searchParams.get('q') ?? ''); setCategory(searchParams.get('category') ?? 'All pieces'); setPriceRange(searchParams.get('price') ?? 'all-prices'); setSort(searchParams.get('sort') ?? 'newest'); setStyle(searchParams.get('style') ?? 'All styles'); }, [searchParams]);
   const updateFilter = (key: string, value: string, defaultValue: string) => { const next = new URLSearchParams(searchParams); if (!value || value === defaultValue) next.delete(key); else next.set(key, value); setSearchParams(next, { replace: true }); };
@@ -122,8 +122,8 @@ export default function ShopPage() {
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
   }, []);
-  const categories = useMemo(() => ['All pieces',...Object.keys(CATEGORY_LABELS),...Array.from(new Set(products.map(item=>getFieldValue(item,'@categ','Category')).filter((value):value is string=>Boolean(value)&&!Object.keys(CATEGORY_LABELS).includes(value!))))], [products]);
-  const designers = useMemo(() => ['All designers', ...Array.from(new Set(products.map((item) => getFieldValue(item, '@desig', 'Designer')).filter(Boolean) as string[])).sort()], [products]);
+  const categories = ['All pieces', ...Object.keys(CATEGORY_LABELS)];
+
   const visible = products.filter((product) => {
     if (!isPublicProduct(product) || (savedOnly && !savedIds.includes(product.id))) return false;
     const name = getTitle(product, 'Name') ?? '';
@@ -173,10 +173,12 @@ export default function ShopPage() {
         <label className="house-search-field"><span className="sr-only">Search pieces</span><Search size={18}/>
           <input value={query} onChange={event => { setQuery(event.target.value); updateFilter('q', event.target.value, ''); }} placeholder="Search pieces, designers, materials…" />
         </label>
-        <label className="house-filter-label" htmlFor="category-filter">Category
+        <details className="house-shop-filters min-w-0"><summary>Browse pieces · {CATEGORY_LABELS[category] || category}</summary><div className="house-filter-options">
+        <label className="house-filter-label" htmlFor="category-filter">Collection
           <select id="category-filter" value={category} onChange={event => { const next=new URLSearchParams(searchParams);next.delete('subcategory');if(event.target.value==='All pieces')next.delete('category');else next.set('category',event.target.value);setSearchParams(next,{replace:true}); }}>{categories.map(item => <option key={item} value={item}>{CATEGORY_LABELS[item]||item}</option>)}</select>
         </label>
-        <label className="house-filter-label" htmlFor="subcategory-filter">Subcategory<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item}>{item}</option>)}</select></label>
+        <label className="house-filter-label" htmlFor="subcategory-filter">Piece type<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item}>{item}</option>)}</select></label>
+        </div></details>
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
         </label>
@@ -184,7 +186,7 @@ export default function ShopPage() {
       <details className="house-shop-filters" open={activeFilters > 0 || undefined}>
         <summary><SlidersHorizontal size={16}/> More filters {activeFilters > 0 && `(${activeFilters} active)`}</summary>
         <div className="house-filter-options">
-          <label className="house-filter-label" htmlFor="designer-filter">Designer<select id="designer-filter" value={designerFilter} onChange={event => updateFilter('designer', event.target.value, 'All designers')}>{designers.map(item => <option key={item}>{item}</option>)}</select></label>
+
           <label className="house-filter-label" htmlFor="price-filter">Price range<select id="price-filter" value={priceRange} onChange={event => { setPriceRange(event.target.value); updateFilter('price', event.target.value, 'all-prices'); }}>{PRICE_RANGES.map(range => <option key={range.value} value={range.value}>{range.label}</option>)}</select></label>
           <label className="house-filter-label" htmlFor="style-filter">Style<select id="style-filter" value={style} onChange={event => { setStyle(event.target.value); updateFilter('style', event.target.value, 'All styles'); }}><option>All styles</option>{MARKET_STYLES.map(item => <option key={item}>{item}</option>)}</select></label>
         </div>
