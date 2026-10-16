@@ -127,7 +127,9 @@
         const body=document.createElement('p');body.textContent=item.body;
         const read=document.createElement('button');read.type='button';read.textContent='Mark read';
         read.addEventListener('click',async()=>{read.disabled=true;try{const r=await fetch(`/api/my/designer-notifications/${encodeURIComponent(item.id)}/read`,{method:'PATCH',credentials:'same-origin'});if(!r.ok)throw Error();await refreshMailbox();}catch{read.textContent='Try marking read again';}finally{read.disabled=false;}});
-        note.append(heading,body,read);panel.append(note);
+        note.append(heading,body);
+        read.className='hob-mailbox-read';
+        panel.append(note,read);
       }
     }catch{}finally{mailboxBusy=false;}
   }

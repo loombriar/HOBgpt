@@ -88,3 +88,8 @@ html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
 #hob-global-nav .hob-mailbox-note{position:relative;display:flow-root;isolation:isolate}
 #hob-global-nav .hob-mailbox-note>button{position:relative!important;z-index:2!important;display:inline-flex!important;align-items:center;justify-content:center;pointer-events:auto!important;transform:none!important;min-height:44px;touch-action:manipulation}
 #hob-global-nav .hob-mailbox-note::before,#hob-global-nav .hob-mailbox-note::after{pointer-events:none!important}
+
+/* Read controls are siblings of message content, with their own full-width hit area. */
+#hob-global-nav .hob-mailbox-panel{display:block}
+#hob-global-nav .hob-mailbox-panel>.hob-mailbox-note{display:block;position:static;isolation:auto;padding-bottom:6px}
+#hob-global-nav .hob-mailbox-panel>.hob-mailbox-read{position:relative!important;inset:auto!important;z-index:1!important;display:flex!important;width:100%;min-height:44px;margin:0 0 12px!important;box-sizing:border-box;transform:none!important;pointer-events:auto!important;align-items:center;justify-content:center}
