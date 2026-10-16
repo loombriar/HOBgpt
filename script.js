@@ -1081,6 +1081,7 @@ function renderSelectedImages() {
     item.appendChild(actions);
     photoPreview.appendChild(item);
   });
+  if(byId('listing-preview')?.open)renderListingDraftPreview();
 }
 
 function addFiles(fileList) {
@@ -2753,3 +2754,34 @@ prepareDesignerRoomPanels();
  document.getElementById('shop-clear-filters')?.addEventListener('click',()=>{update();menus.forEach(menu=>{menu.open=false;menu.querySelectorAll('details').forEach(child=>child.open=false);});});
  update();
 }
+
+// Draft preview reads current fields only; no API request or form submission.
+function renderListingDraftPreview(){
+ const host=byId('listing-preview-content');if(!host)return;host.replaceChildren();
+ host.append(makeElement('p','small-print','Private preview of your current draft. Nothing is submitted or published.'));
+ const layout=makeElement('div','listing-preview-layout'),images=makeElement('div','listing-preview-images'),copy=makeElement('div');
+ for(const [index,image]of selectedImages.entries()){
+  const src=image.objectUrl||image.url;if(!src)continue;
+  const img=document.createElement('img');img.src=src;img.alt=index?'Draft view '+(index+1):'Draft cover';images.append(img);
+ }
+ if(!images.children.length)images.append(makeElement('p','','Add a cover photo'));
+ const value=id=>byId(id)?.value?.trim()||'';
+ copy.append(makeElement('h3','',value('product-name')||'Your design name'));
+ const amount=Number(value('product-price'));
+ copy.append(makeElement('p','listing-preview-price',value('product-price')&&Number.isFinite(amount)&&amount>=0?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount):'Add a price'));
+ const min=value('product-handling-min'),max=value('product-handling-max');
+ copy.append(makeElement('p','','Free US delivery · Preparation: '+(min||max?((min||max)+(min&&max&&min!==max?'–'+max:'')+' business days'):'Add preparation time')));
+ copy.append(makeElement('h4','','Description'),makeElement('p','listing-preview-text',value('product-description')||'Add a description'));
+ copy.append(makeElement('h4','','Size & body measurements (inches)'));
+ const size=byId('product-size')?.selectedOptions[0]?.textContent||'';
+ copy.append(makeElement('p','',value('product-size')?size:'Add a size'));
+ let any=false;
+ for(const [key,label]of [['bust','Bust / chest'],['waist','Waist'],['hips','Hips'],['inseam','Inseam']]){
+  const low=value('product-fit-'+key+'-min'),high=value('product-fit-'+key+'-max');if(!low&&!high)continue;any=true;
+  copy.append(makeElement('p','',label+': '+(low||'—')+'–'+(high||'—')));
+ }
+ if(!any)copy.append(makeElement('p','','Add body measurement ranges in inches.'));
+ layout.append(images,copy);host.append(layout,makeElement('p','small-print','Return to your fields to make changes. Final shop layout may vary by screen.'));
+}
+byId('listing-preview')?.addEventListener('toggle',event=>{if(event.currentTarget.open)renderListingDraftPreview();});
+byId('product-form')?.addEventListener('input',()=>{if(byId('listing-preview')?.open)renderListingDraftPreview();});
