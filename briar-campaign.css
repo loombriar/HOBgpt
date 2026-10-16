@@ -105,3 +105,10 @@ html body.blackberry-house #support .curation-card:has(.house-supporter-art) p{f
  html body.blackberry-house #support .house-supporter-art{width:180px!important;height:180px!important}
  html body.blackberry-house #support .curation-card:has(.house-supporter-art) h3{font-size:19px!important}
 }
+
+/* Transparent portrait shares the hero background with the copy. */
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-cutout-hero{display:grid!important;grid-template-columns:minmax(0,3fr) minmax(0,2fr)!important;min-height:0}
+html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art{background:transparent!important;min-height:0!important;height:auto!important;aspect-ratio:auto;align-self:stretch}
+html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-fit:contain;object-position:center bottom}
+html body.blackberry-house .fashion-cover.briar-cutout-hero .fashion-cover-copy{background:transparent!important}
+@media(max-width:700px){html body.blackberry-house .fashion-cover.briar-cutout-hero .briar-portrait-art img{object-position:center}}
