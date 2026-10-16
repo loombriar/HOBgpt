@@ -603,6 +603,12 @@ function renderGallery() {
       imageWrap.classList.add('product-image-fallback');
       imageWrap.textContent = 'House of Briar';
     }
+    const imageButton = makeElement('button', 'product-image-open');
+    imageButton.type = 'button';
+    imageButton.setAttribute('aria-label', `View photos and details of ${item.title}`);
+    imageWrap.appendChild(imageButton);
+    const unavailable = item.productionType !== 'Made to Order' && item.availableQuantity != null && Number(item.availableQuantity) <= 0;
+    if (unavailable) imageWrap.appendChild(makeElement('span', 'product-stock-label', Number(item.soldQuantity) > 0 ? 'Sold' : 'Unavailable'));
     imageWrap.appendChild(favoriteButton);
 
     const body = makeElement('div', 'product-body');
@@ -611,22 +617,20 @@ function renderGallery() {
     renderItemBadges(badgeRow, item);
     meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
     if (item.aesthetic) meta.appendChild(makeElement('span', 'badge', item.aesthetic));
-    meta.appendChild(makeElement('span', 'price', `$${Number(item.price || 0).toFixed(2)}`));
-    if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
-      meta.appendChild(makeElement('span', 'badge', Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable'));
-    }
+    const price = makeElement('p', 'price house-card-price', `$${Number(item.price || 0).toFixed(2)}`);
     const maker = makeElement('a', 'designer-card-link', item.designerName || 'Independent designer');
     maker.href = `/designers/${encodeURIComponent(item.designerId)}`;
     if (item.designerLogoUrl) { const logo = document.createElement('img'); logo.src = item.designerLogoUrl; logo.alt = ''; logo.loading = 'lazy'; maker.prepend(logo); }
     maker.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); void openDesignerStorefront(item.designerId); });
     maker.addEventListener('keydown', event => event.stopPropagation());
-    body.append(maker, meta);
-    if (badgeRow.children.length) body.appendChild(badgeRow);
+
     const titleButton = makeElement('button', 'card-title', item.title);
     titleButton.type = 'button';
     titleButton.setAttribute('aria-label', `View ${item.title} details`);
-    body.appendChild(titleButton);
-    body.appendChild(makeElement('span', 'house-card-size', item.size ? `Size ${item.size}` : 'See garment measurements'));
+    body.append(titleButton, maker, price);
+    body.appendChild(makeElement('span', 'house-card-size', item.size ? `Size ${item.size}` : item.productionType === 'Made to Order' ? 'Made to order · see measurements' : 'See garment measurements'));
+    body.appendChild(meta);
+    if (badgeRow.children.length) body.appendChild(badgeRow);
     body.appendChild(makeElement('span', 'card-description', item.description || 'A one-of-a-kind designation from an independent designer.'));
 
     card.addEventListener('click', (event) => {
