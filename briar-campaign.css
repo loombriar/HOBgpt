@@ -1,3 +1,14 @@
+/* Text-only openings replace the disconnected rectangular photo panels. */
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero{display:block!important;min-height:0!important;grid-template-columns:minmax(0,1fr)!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy{width:100%!important;max-width:900px!important;margin-inline:auto!important;padding:clamp(32px,5vw,64px) 28px!important;text-align:center!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .sewing-hero-actions{justify-content:center!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1{font-size:clamp(36px,7vw,76px)!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .sewing-hero-actions a{width:auto!important}
+body.creative-makeover main>.briar-creative-hero.briar-text-hero{display:block!important;min-height:0!important;padding:0!important}
+body.creative-makeover main>.briar-creative-hero.briar-text-hero .briar-creative-copy{width:100%!important;max-width:900px;margin-inline:auto;box-sizing:border-box;padding:clamp(32px,5vw,64px) 28px;text-align:center}
+.briar-creative-hero.briar-text-hero .briar-creative-actions{justify-content:center}
+body.creative-makeover .briar-text-hero .briar-creative-access-note{margin-inline:auto}
+
 /* Botanical campaign art: copy remains selectable and controls stay above the art. */
 html body.blackberry-house .hero.sewing-hero.fashion-cover{position:relative;isolation:isolate;display:grid!important;grid-template-columns:minmax(0,1fr)!important;overflow:hidden;background:#1c1a19!important;color:#faf6ee;min-height:600px}
 html body.blackberry-house .fashion-cover .briar-portrait-art{position:absolute;inset:0;display:block;min-height:0!important;height:100%;background:#1c1a19!important;z-index:-1}
