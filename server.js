@@ -73,7 +73,7 @@ function parseAdminTokens(options) {
   })).filter(entry => entry.token);
 }
 function productionConfigurationErrors({adminEntries}) {
-  if (process.env.NODE_ENV !== 'production' || process.env.ADMIN_HARDENING_REQUIRED !== 'true') return [];
+  if (process.env.NODE_ENV !== 'production') return [];
   const errors = [];
   if (!adminEntries.length) errors.push('Configure ADMIN_TOKENS_JSON or ADMIN_TOKEN before starting in production.');
   if (adminEntries.some(entry => entry.token.length < 32)) errors.push('Every production admin token must be at least 32 characters.');
@@ -4380,7 +4380,7 @@ function createApp(options = {}) {
     };
     const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
       ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
-    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.ADMIN_HARDENING_REQUIRED !== 'true' || (backupConfigured && !adminConfigurationErrors.length))));
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (backupConfigured && !adminConfigurationErrors.length)));
     res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
     res.set('X-HOB-Database', database);
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
