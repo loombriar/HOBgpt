@@ -37,3 +37,20 @@ test('S3 listing refuses a truncated page without a continuation token',async()=
   assert.equal(canonicalQuery('list-type=2&prefix=house-of-briar%2F&continuation-token=abc%2B%2F%3D'),'continuation-token=abc%2B%2F%3D&list-type=2&prefix=house-of-briar%2F');
   assert.equal(canonicalQuery('z=a+b&a=2&a=1'),'a=1&a=2&z=a%20b');
  });
+
+
+test('virtual-host S3 requests sign and send requests to bucket hostname',async()=>{
+ const keys=['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY','BACKUP_S3_URL_STYLE'];
+ const old=keys.map(key=>process.env[key]),before=global.fetch;
+ [process.env.BACKUP_S3_ENDPOINT,process.env.BACKUP_S3_BUCKET,process.env.BACKUP_S3_ACCESS_KEY_ID,process.env.BACKUP_S3_SECRET_ACCESS_KEY,process.env.BACKUP_S3_URL_STYLE]=['https://storage.example.test','test-bucket','test','test','virtual-host'];
+ global.fetch=async(url,options)=>{
+  const parsed=new URL(url);
+  assert.equal(parsed.hostname,'test-bucket.storage.example.test');
+  assert.equal(parsed.pathname,'/');
+  assert.equal(options.headers.host,'test-bucket.storage.example.test');
+  assert.match(options.headers.Authorization,/SignedHeaders=host;x-amz-content-sha256;x-amz-date/);
+  return {ok:true,text:async()=>xml(item('house-of-briar/a','2026-01-01T00:00:00Z'))};
+ };
+ try{assert.equal((await list()).length,1);}
+ finally{global.fetch=before;keys.forEach((key,i)=>{if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i];});}
+});
