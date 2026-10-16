@@ -97,4 +97,4 @@ async function main(){
  fs.rmSync(root,{recursive:true,force:true});
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={listContents,list,canonicalQuery};
+module.exports={listContents,list,canonicalQuery,request};
