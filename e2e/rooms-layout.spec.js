@@ -26,7 +26,7 @@ for(const width of [390,1280]) {
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
-  await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(7);
+  await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(6);
   await expect(page.locator('#product-form')).not.toBeVisible();
   await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
