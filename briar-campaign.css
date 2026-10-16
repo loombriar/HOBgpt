@@ -69,3 +69,15 @@ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{g
  html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions a{width:100%;min-height:44px;padding:10px 8px;font-size:12px;white-space:normal;text-align:center}
  html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font-size:9px!important;letter-spacing:.06em!important}
 }
+
+/* Companion sculpture keeps the whole berry-vine train visible. */
+body.creative-makeover main>.briar-creative-hero{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);padding:0!important;min-height:0;gap:0}
+.briar-creative-hero .briar-creative-copy{width:100%;box-sizing:border-box;padding:40px 28px;background:#1c1a19}
+.briar-creative-hero .briar-creative-art{position:relative;inset:auto;z-index:0;display:flex;align-items:center;background:#b9afa2;min-width:0}
+.briar-creative-hero .briar-creative-art img{width:100%;height:auto;max-height:600px;object-fit:contain}
+@media(max-width:700px){
+ body.creative-makeover main>.briar-creative-hero{display:flex;flex-direction:column}
+ .briar-creative-hero .briar-creative-copy{padding:28px 24px}
+ .briar-creative-hero .briar-creative-art{width:100%;height:340px;aspect-ratio:auto;justify-content:center}
+ .briar-creative-hero .briar-creative-art img{width:auto;max-width:100%;height:100%;object-fit:contain}
+}
