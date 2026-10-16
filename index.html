@@ -132,12 +132,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               <div class="shop-search-controls">
                 <p class="shop-discovery-links"><a href="/shop">Explore all pieces ↗</a><a href="/shop#visual-search-title">Search by photo ↗</a><a href="/designers">Meet the designers ↗</a></p><label class="shop-search" for="shop-search-input"><span>Search the collection</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option></select><div class="shop-drop-windows shop-nested-filters" aria-label="Shop filters">
-<details class="shop-filter-menu" data-filter-menu="category"><summary>Category <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><label class="shop-drop-window illustrated-select category-window"><span class="category-window-title" aria-hidden="true">Category</span><span class="category-window-current" aria-hidden="true">All pieces</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="menswear">Masculine</option><option value="womenswear">Womenswear</option><option value="unisex">Unisex</option><option value="costumes">Costumes</option></select></label><details class="shop-filter-child" id="shop-subcategory-menu"><summary>Choose a garment or accessory</summary><label class="shop-drop-window illustrated-select garment-window">
-                    <svg class="category-window-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 43 28.5 11"/><ellipse cx="30.5" cy="7.5" rx="1.8" ry="4.5" transform="rotate(30 30.5 7.5)"/><path d="M32 5c4-6 13-2 11 5-2 7-12 6-15 13s10 10 14 5"/></svg>
-                    <span class="category-window-title" aria-hidden="true">Subcategory</span>
-                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
-                    <span class="category-window-current" aria-hidden="true">All clothing</span>
-                    <select id="shop-garment-filter" aria-label="Filter by subcategory">
+<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Choose a collection, then narrow it down by piece type.</p><label class="shop-filter-field"><span>Collection</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="menswear">Masculine</option><option value="womenswear">Womenswear</option><option value="unisex">Unisex</option><option value="costumes">Costumes</option></select></label><details class="shop-filter-child" id="shop-subcategory-menu"><summary>Piece type</summary><label class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
                       <option value="all">All pieces</option>
                       <option value="apparel">All clothing</option>
                       <option value="menswear">Masculine — suits, tailoring &amp; more</option>
@@ -151,13 +146,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Jumpsuit / Romper">Jumpsuits &amp; Rompers</option>
                       <option value="Costume">Costumes</option>
                       <option value="Other clothing">Other</option>
-                    </select>
-                  </label></details></div></details>
-<details class="shop-filter-menu" data-filter-menu="style"><summary>Style <span class="shop-filter-selection">All styles &amp; prints</span></summary><div class="shop-filter-panel"><details class="shop-filter-child"><summary>Aesthetic</summary><label class="shop-drop-window illustrated-select aesthetic-window">
-                    <span class="category-window-title" aria-hidden="true">Aesthetic</span>
-                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
-                    <span class="category-window-current" aria-hidden="true">All aesthetics</span>
-                    <select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
+                    </select></label></details></div></details>
+<details class="shop-filter-menu" data-filter-menu="style"><summary>Style &amp; print <span class="shop-filter-selection">All styles &amp; prints</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
                       <option value="all">All aesthetics</option>
                       <option value="Feminine">Feminine</option>
                       <option value="Masculine">Masculine</option>
@@ -173,19 +163,13 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Minimalist">Minimalist</option>
                       <option value="Western">Western</option>
                       <option value="Punk / Alternative">Punk / Alternative</option>
-                    </select>
-                  </label></details><details class="shop-filter-child"><summary>Print / Pattern</summary><label class="shop-drop-window illustrated-select pattern-window">
-                    <span class="category-window-title" aria-hidden="true">Print / Pattern</span>
-                    <img class="category-window-art" src="/pastel-briar-window-v1.svg" alt="" aria-hidden="true" />
-                    <span class="category-window-current" aria-hidden="true">All prints</span>
-                    <select id="shop-pattern-filter" aria-label="Filter by print or pattern">
+                    </select></label><label class="shop-filter-field"><span>Print / pattern</span><select id="shop-pattern-filter" aria-label="Filter by print or pattern">
                       <option value="all">All prints</option>
                       <option value="Solid">Solid</option><option value="Floral">Floral</option><option value="Leopard">Leopard</option><option value="Other Animal Print">Other Animal Print</option>
                       <option value="Plaid / Tartan">Plaid / Tartan</option><option value="Stripes">Stripes</option><option value="Polka Dot">Polka Dot</option><option value="Geometric">Geometric</option>
                       <option value="Paisley">Paisley</option><option value="Abstract">Abstract</option><option value="Botanical">Botanical</option><option value="Novelty">Novelty</option>
                       <option value="Tie-Dye">Tie-Dye</option><option value="Color Block">Color Block</option><option value="Mixed Print">Mixed Print</option><option value="Other">Other</option>
-                    </select>
-                  </label></details></div></details>
+                    </select></label></div></details>
 <div hidden aria-hidden="true"><label class="shop-drop-window illustrated-select designers-window">
                     <svg class="category-window-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 5h8v5l8 5-5 12 3 8H14l3-8-5-12 8-5Z"/><path d="M17 27h14M24 35v8M16 43h16M22 2h4"/></svg>
                     <span class="category-window-title" aria-hidden="true">Designers</span>

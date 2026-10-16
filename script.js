@@ -649,6 +649,7 @@ async function loadGallery() {
     if (['apparel','menswear','womenswear','unisex','costumes'].includes(activeFilter)) params.set('category', activeFilter);
     else params.set('style', activeFilter);
   }
+  if (activeShopCategory !== 'all') params.set('category', activeShopCategory);
   for (const [key, value] of [['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
     if (value !== 'all') params.set(key, value);
   }
@@ -1611,8 +1612,8 @@ function syncShopSubcategories() {
   const select=byId('shop-garment-filter');if(!select)return;
   select.replaceChildren();
   const add=(parent,value,label)=>{const option=makeElement('option','',label);option.value=value;parent.appendChild(option);};
-  add(select,'all','All subcategories');
-  const groups=activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories]]:[['Clothing',clothingSubcategories]];
+  add(select,'all',activeShopCategory==='accessories'?'All accessories':activeShopCategory==='costumes'?'All costumes':'All piece types');
+  const groups=activeShopCategory==='costumes'?[['Costumes',[['Costume','Costumes']]]]:activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories]]:[['Clothing',clothingSubcategories]];
   for(const [name,items] of groups){const group=document.createElement('optgroup');group.label=name;for(const [value,label] of items)add(group,value,label);select.appendChild(group);}
   select.dispatchEvent(new Event('shop-caption'));
 }
@@ -1681,6 +1682,9 @@ byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = e
 byId('shop-designer-filter')?.addEventListener('change', event => { activeDesigner = event.target.value || 'all'; loadGallery(); });
 byId('shop-clear-filters')?.addEventListener('click', () => {
   clearTimeout(searchTimer);
+  activeShopCategory = 'all';
+  byId('shop-category-filter').value = 'all';
+  syncShopSubcategories();
   activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = 'all';
   shopSearch = '';
   activeMeasurements = null;
@@ -2280,7 +2284,7 @@ byId('storefront-close')?.addEventListener('click', () => byId('designer-storefr
 
 // Decorative measuring tapes keep the native dropdowns fully usable.
 function unrollDropdownTape(select) {
-  if (!(select instanceof HTMLSelectElement)) return;
+  if (!(select instanceof HTMLSelectElement) || select.closest('.shop-nested-filters')) return;
   const window = select.closest('.shop-drop-window') || select.parentElement;
   if (!window) return;
   if (Date.now() - Number(window.dataset.tapePlayedAt || 0) < 250) return;

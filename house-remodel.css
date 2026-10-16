@@ -139,3 +139,13 @@ html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:repe
 html body.blackberry-house #shop .shop-filter-panel .shop-drop-window{min-height:0!important;padding:8px 12px!important;border:0!important;background:transparent!important}
 html body.blackberry-house #shop .shop-filter-panel select{min-width:0;max-width:100%}
 @media(max-width:560px){html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Plain controls isolate browsing from retired illustrated-window styles. */
+html body.blackberry-house #shop .shop-nested-filters{display:grid!important;width:100%!important;max-width:100%!important}
+.shop-filter-menu{border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgb(0 0 0 / .04)}
+.shop-filter-panel .shop-filter-field{display:grid;gap:7px;margin:14px 0;font:500 13px/1.5 Inter,Arial,sans-serif;color:var(--briar-ink)}
+.shop-filter-panel .shop-filter-field select{position:static!important;inset:auto!important;display:block!important;width:100%!important;min-height:46px!important;height:auto!important;max-height:none!important;opacity:1!important;appearance:auto!important;padding:10px 12px!important;border:1px solid var(--briar-line)!important;border-radius:8px!important;background:var(--briar-paper)!important;color:var(--briar-ink)!important;font:400 16px/1.5 Inter,Arial,sans-serif!important;box-sizing:border-box!important;cursor:pointer}
+.shop-filter-field select:focus-visible,.shop-filter-menu summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.shop-filter-help{margin:12px 0;color:var(--briar-muted);font:400 12px/1.6 Inter,Arial,sans-serif}
+.shop-filter-child .shop-filter-field{margin:0;padding:0 12px 12px}
+.shop-filter-child .shop-filter-field>span{display:none}
