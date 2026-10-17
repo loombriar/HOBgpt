@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {once}=require('node:events'),{createApp}=require('../server');
+const {once}=require('node:events'),{createApp,SELLER_TERMS_VERSION}=require('../server');
 
 test('designer bearer credential exchanges for an HttpOnly session and logout revokes it',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-session-'));
@@ -12,10 +12,12 @@ test('designer bearer credential exchanges for an HttpOnly session and logout re
   assert.match(setCookie,/hob_designer_session=/);assert.match(setCookie,/HttpOnly/i);assert.match(setCookie,/SameSite=Lax/i);assert.match(setCookie,/Path=\//i);
   const cookie=setCookie.split(';')[0];
   const profile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}});
-  assert.equal(profile.status,200);assert.equal((await profile.json()).designer.id,'maker');
+  assert.equal(profile.status,200);const designer=(await profile.json()).designer;assert.equal(designer.id,'maker');assert.equal(designer.sellerTermsVersion,SELLER_TERMS_VERSION);assert.equal(designer.sellerTermsAccepted,false);
   const crossSiteMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:'https://evil.example','Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-08-free-delivery'})});assert.equal(crossSiteMutation.status,403);
   const missingOriginMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-08-free-delivery'})});assert.equal(missingOriginMutation.status,403);
-  const sameOriginMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-08-free-delivery'})});assert.equal(sameOriginMutation.status,200);
+  const staleVersion=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:'2026-10-08-free-delivery'})});assert.equal(staleVersion.status,422);
+  const sameOriginMutation=await fetch(origin+'/api/my/seller-terms',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({accepted:true,termsVersion:SELLER_TERMS_VERSION})});assert.equal(sameOriginMutation.status,200);
+  const updatedProfile=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}});assert.equal((await updatedProfile.json()).designer.sellerTermsAccepted,true);
   const crossSiteLogout=await fetch(origin+'/api/session',{method:'DELETE',headers:{Cookie:cookie,Origin:'https://evil.example'}});assert.equal(crossSiteLogout.status,403);
   const stillSignedIn=await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:cookie}});assert.equal(stillSignedIn.status,200);
   const logout=await fetch(origin+'/api/session',{method:'DELETE',headers:{Cookie:cookie,Origin:origin}});assert.equal(logout.status,200);
