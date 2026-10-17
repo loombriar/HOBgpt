@@ -3971,6 +3971,15 @@ function createApp(options = {}) {
     const items=db.prepare("SELECT id,brand_name,display_name,status FROM designer_profiles ORDER BY COALESCE(brand_name,display_name),id").all();
     return res.json({items:items.map(d=>({id:d.id,name:d.brand_name||d.display_name,status:d.status}))});
   });
+  // Hide a verified designer account from all public designer routes without deleting records.
+  app.post('/api/admin/designers/suspend-by-email', authAdmin, (req,res)=>{
+    const email=String(req.body?.email||'').trim().toLowerCase();
+    if(!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return fail(res,400,'invalid_email','A valid designer email is required.');
+    const designer=db.prepare('SELECT id,email,status FROM designer_profiles WHERE lower(email)=?').get(email);
+    if(!designer)return fail(res,404,'designer_not_found','No designer account matches that email.');
+    if(designer.status!=='suspended')db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id=?").run(designer.id);
+    return res.set('Cache-Control','no-store').json({ok:true,designerId:designer.id,status:'suspended'});
+  });
   app.get('/api/admin/designer-messages', authAdmin, (_req,res)=>{
     const items=db.prepare("SELECT n.*,p.brand_name,p.display_name FROM designer_notifications n JOIN designer_profiles p ON p.id=n.designer_id WHERE n.source='admin' ORDER BY n.created_at DESC LIMIT 200").all();
     return res.json({items:items.map(n=>({id:n.id,designerId:n.designer_id,designerName:n.brand_name||n.display_name,type:n.type,priority:n.priority,title:n.title,body:n.body,listingId:n.listing_id,orderId:n.order_id,createdAt:n.created_at,readAt:n.read_at}))});
