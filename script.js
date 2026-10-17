@@ -1325,14 +1325,11 @@ async function handleSave(event) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ marketplaceRulesAccepted: true })
       });
-      if (payload.item.status === 'pending_review') {
-        setMessage(uploadMessage, 'Submitted for review. It will appear in the Shop after approval.', 'success');
-      } else {
-        setMessage(uploadMessage, 'Published to the Shop gallery.', 'success');
-      }
+      const confirmation=payload.item.status === 'pending_review' ? 'Submitted for review. It will appear in the Shop after approval.' : 'Published to the Shop gallery.';
       await loadDesignerListings();
       await loadGallery();
       resetListingForm();
+      setMessage(uploadMessage, confirmation, 'success');
       return;
     }
 
