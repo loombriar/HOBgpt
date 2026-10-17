@@ -1,5 +1,5 @@
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
@@ -28,8 +28,10 @@ function ThemeButton() {
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
+  const location = useLocation();
   const [helpOpen,setHelpOpen] = useState(false);
   const [helpQuestion,setHelpQuestion] = useState('');
+  useEffect(()=>setHelpOpen(false),[location.pathname,location.hash]);
 
   const headerRef = useRef<HTMLElement>(null);
   const [headerHeight, setHeaderHeight] = useState(124);
@@ -134,7 +136,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
         {helpOpen && <section id="house-help-chat" role="dialog" aria-label="House of Briar AI support" className="w-[min(23rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-3"><h2 className="font-serif text-xl">House support assistant</h2><button type="button" aria-label="Close support chat" onClick={()=>setHelpOpen(false)} className="min-h-11 min-w-11 rounded-full border border-border">×</button></div>
           <p className="mt-2 text-sm text-muted-foreground">Ask about House policies, designer registration, shipping, or orders. The AI assistant is available through your account and asks for consent before sharing information.</p>
-          <form onSubmit={event=>{event.preventDefault();if(!helpQuestion.trim())return;sessionStorage.setItem('hob-support-question',helpQuestion.trim());window.location.assign('/account#house-support-agent');}} className="mt-4 space-y-3">
+          <form onSubmit={event=>{event.preventDefault();if(!helpQuestion.trim())return;sessionStorage.setItem('hob-support-question',helpQuestion.trim());setHelpOpen(false);window.location.assign('/account#house-support-agent');}} className="mt-4 space-y-3">
             <label className="block text-sm">Your question<textarea value={helpQuestion} onChange={event=>setHelpQuestion(event.target.value)} required minLength={5} maxLength={1500} rows={3} className="mt-2 w-full rounded-xl border border-border bg-background p-3"/></label>
             <button type="submit" className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Continue to AI support</button>
           </form>
