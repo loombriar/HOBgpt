@@ -97,7 +97,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
             <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
             <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
-            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
+            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>{auth.isAuthenticated && <button type="button" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="inline-flex min-h-10 items-center rounded-full border border-border px-3 text-xs font-semibold hover:border-primary sm:text-sm">Sign out</button>}
             <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2 hover:border-primary">
               <img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
               <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
