@@ -1855,7 +1855,7 @@ if (designerSignupForm) designerSignupForm.addEventListener('submit',async event
   try{
     await requestDesignerCode('/api/designer-applications',{
       displayName:String(form.get('displayName')||'').trim(),brandName:String(form.get('brandName')||'').trim(),email:String(form.get('email')||'').trim(),
-      categories:String(form.get('categories')||'').split(',').map(v=>v.trim()).filter(Boolean),sellerTermsAccepted:form.get('sellerTermsAccepted')==='on',sellerTermsVersion:'2026-10-08-free-delivery'
+      categories:String(form.get('categories')||'').split(',').map(v=>v.trim()).filter(Boolean),sellerTermsAccepted:form.get('sellerTermsAccepted')==='on',sellerTermsVersion:'2026-10-17-live-postage'
     });
     setMessage(designerSignupMessage,'Check your email and enter the code above to finish joining.','success');
   }catch(error){setMessage(designerSignupMessage,error.message,'error');}finally{if(button)button.disabled=false;}
