@@ -5,17 +5,19 @@ const Database=require('better-sqlite3');
 const {once}=require('node:events');
 const {mountShippingLabels,safeLabelUrl}=require('../lib/shipping-labels');
 
-async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,refundResponse,mode='test',liveEnabled=false}={}) {
+async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,refundResponse,mode='test',liveEnabled=false,termsAccepted=true}={}) {
   const db=new Database(':memory:');
   db.exec(`CREATE TABLE orders (id TEXT,status TEXT,stripe_session_id TEXT,shipping_details_json TEXT,refund_status TEXT);
     CREATE TABLE order_items (order_id TEXT,designer_id TEXT,designer_amount_cents INTEGER);
     CREATE TABLE designer_transfers (order_id TEXT,designer_id TEXT,payout_in_flight INTEGER,status TEXT,tracking_verified_at TEXT,tracking_number TEXT,tracking_carrier TEXT,amount_cents INTEGER);
-    CREATE TABLE order_refunds (order_id TEXT,scope TEXT);`);
+    CREATE TABLE order_refunds (order_id TEXT,scope TEXT);
+    CREATE TABLE designer_terms_acceptances (designer_id TEXT,terms_version TEXT);`);
   db.prepare('INSERT INTO orders VALUES (?,?,?,?,NULL)').run('order','paid',session,JSON.stringify({name:'Test Buyer',address:{line1:'100 Test Street',city:'Columbus',state:'OH',postal_code:'43211',country:'US'}}));
   db.exec("INSERT INTO order_items VALUES ('order','seller',9100); INSERT INTO designer_transfers VALUES ('order','seller',0,'pending',NULL,NULL,NULL,9100)");
+  if(termsAccepted)db.prepare('INSERT INTO designer_terms_acceptances VALUES (?,?)').run('seller','2026-10-17-live-postage');
   const app=express();app.use(express.json());
   const calls=[];
-  mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key,SHIPPO_API_KEY:key,SHIPPO_LIVE_LABELS_ENABLED:String(liveEnabled)},authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
+  mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key,SHIPPO_API_KEY:key,SHIPPO_LIVE_LABELS_ENABLED:String(liveEnabled)},sellerTermsVersion:'2026-10-17-live-postage',authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
     calls.push({url,body:opts.body?JSON.parse(opts.body):null});
     if(!opts.body && readTransaction)return readTransaction(url);
     if(url.includes('/shipments/'))return Response.json({test:session.startsWith('cs_test_'),rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
@@ -231,4 +233,20 @@ test('payout and tracking changes after quote block purchase before any carrier 
    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,0);
   }finally{await f.close();}
  }
+});
+
+test('live purchase requires current Seller Terms before any Shippo transaction',async()=>{
+ const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true,termsAccepted:false,
+  transaction:()=>Response.json({test:false,status:'SUCCESS',object_id:'live-consent-tx',tracking_number:'LIVE123',label_url:'https://deliver.goshippo.com/live.pdf'})});
+ try{
+  const q=await quote(f);assert.equal(q.status,200);
+  const before=f.calls.length;
+  assert.equal((await buy(f,q)).status,409);
+  assert.equal(f.calls.length,before);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,0);
+  f.db.prepare('INSERT INTO designer_terms_acceptances VALUES (?,?)').run('seller','2026-10-08-free-delivery');
+  assert.equal((await buy(f,q)).status,409);
+  f.db.prepare('INSERT INTO designer_terms_acceptances VALUES (?,?)').run('seller','2026-10-17-live-postage');
+  assert.equal((await buy(f,q)).status,200);
+ }finally{await f.close();}
 });
