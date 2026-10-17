@@ -50,7 +50,7 @@ test('an uncertain sample label is recovered by checking status without another 
   expect(checks).toBe(1);
 });
 
-const {test,expect}=require('@playwright/test');
+
 for(const width of [1280])test(`designer confirms live postage and opens the saved label at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:900});
   const session=await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
