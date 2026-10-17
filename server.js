@@ -491,6 +491,7 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_designer ON designer_sessions(designer_id)');
+  db.exec('CREATE TABLE IF NOT EXISTS designer_account_activity (request_id TEXT PRIMARY KEY,designer_id TEXT NOT NULL,started_at TEXT NOT NULL)');
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_expiry ON designer_sessions(expires_at)');
   const hadSessionSource=db.prepare('PRAGMA table_info(designer_sessions)').all().some(c=>c.name==='credential_hash');
   ensureColumn('designer_sessions','credential_hash','TEXT');
@@ -1020,7 +1021,8 @@ function createApp(options = {}) {
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
       req.buyerSubject = profile.sub.trim();
       req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-      return requireDesignerRequestOrigin(req,res,next);
+      const designerId=profile.designerId||db.prepare('SELECT designer_id FROM designer_identities WHERE subject=?').get(req.buyerSubject)?.designer_id;
+      return requireDesignerRequestOrigin(req,res,()=>designerId?trackDesignerMutation(req,res,next,designerId):next());
     } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
 
@@ -1082,7 +1084,22 @@ function createApp(options = {}) {
     return next();
   }
 
-  async function authDesigner(req, res, next) {
+  function trackDesignerMutation(req,res,next,designerId){
+    if(!['POST','PUT','PATCH','DELETE'].includes(req.method)||req.designerActivityId)return next();
+    if(!db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(designerId))return fail(res,401,'unauthorized','Your designer session is no longer valid.');
+    const requestId=makeId();
+    db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run(requestId,designerId,new Date().toISOString());
+    req.designerActivityId=requestId;
+    let cleared=false;
+    const clear=()=>{if(cleared)return;cleared=true;if(res.statusCode>=500)return;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
+    // Finish tracks server work, including provider calls after a disconnected client.
+    res.once('finish',clear);
+    return next();
+  }
+  async function authDesigner(req,res,next){
+    return authenticateDesigner(req,res,()=>trackDesignerMutation(req,res,next,req.designerId));
+  }
+  async function authenticateDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
@@ -3971,6 +3988,7 @@ function createApp(options = {}) {
     const items=db.prepare("SELECT id,brand_name,display_name,status FROM designer_profiles ORDER BY COALESCE(brand_name,display_name),id").all();
     return res.json({items:items.map(d=>({id:d.id,name:d.brand_name||d.display_name,status:d.status}))});
   });
+  require('./designer-account-deletion').registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,trustedAppOrigin,clearDesignerSession,designerTokens,imagesDir});
   app.post('/api/admin/designers/suspend', authAdmin, (req,res)=>{
     const email=String(req.body?.email||'').trim().toLowerCase();
     if(!email)return fail(res,400,'email_required','Designer email is required.');
