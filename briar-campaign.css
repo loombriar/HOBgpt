@@ -117,3 +117,31 @@ html body.blackberry-house .fashion-cover.briar-cutout-hero .fashion-cover-copy{
 html body.blackberry-house .house-botanical-accent{height:120px;max-width:1100px;margin:12px auto 0;display:flex;justify-content:flex-end;padding:0 8%;box-sizing:border-box;overflow:hidden;pointer-events:none;user-select:none}
 html body.blackberry-house .house-botanical-accent img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;opacity:.3;mask-image:linear-gradient(to bottom,#000 75%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000 75%,transparent)}
 @media(max-width:700px){html body.blackberry-house .house-botanical-accent{height:90px;padding-inline:12%;margin-top:0}}
+
+
+/* The text-only home hero follows the selected House theme.
+   Explicit foregrounds prevent inherited dark-on-dark heading/button text. */
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero{
+  background:radial-gradient(ellipse at 50% 0%,#e4eadc 0%,transparent 65%),#f7f2e9!important;
+  color:#17251f!important;
+  border-bottom:1px solid #d6d1c4!important;
+}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy{
+  background:transparent!important;
+}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1{color:#17251f!important}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1 em,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1 em{color:#995b49!important}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy > p:not(.eyebrow),
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy > p:not(.eyebrow){color:#526056!important}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .primary-button,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .primary-button{background:#243a30!important;border-color:#243a30!important;color:#fffdf8!important}
+html[data-hob-theme="light"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button{background:transparent!important;border-color:#7e897e!important;color:#243a30!important}
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1{color:#f6f0e4!important}
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1 em{color:#d7a58f!important}
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy > p:not(.eyebrow){color:#d3c8bc!important}
+html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button{color:#faf6ee!important}
