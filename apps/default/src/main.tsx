@@ -63,8 +63,8 @@ function getThemeStorageKey(): string {
   } catch {
     // Fall back to the shared key rather than break theming.
   }
-  try { const preference = localStorage.getItem('house-of-briar-theme'); if (preference === 'dark' || preference === 'light') localStorage.setItem('theme', preference); } catch {}
-  return 'theme';
+  try { if (!localStorage.getItem('house-of-briar-theme')) { const previous=localStorage.getItem('theme'); if(previous==='dark'||previous==='light')localStorage.setItem('house-of-briar-theme',previous); } } catch {}
+  return 'house-of-briar-theme';
 }
 
 const themeStorageKey = getThemeStorageKey();
