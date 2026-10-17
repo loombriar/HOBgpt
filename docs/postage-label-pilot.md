@@ -86,3 +86,16 @@ rates**. The server re-reads the same transaction, requires it still be a matchi
 test ERROR, archives the failed attempt, and only then clears the active hold.
 Unknown, queued or successful transactions cannot use this action. Creating a
 new label still requires fresh rates and explicit sample-cost confirmation.
+
+## Carrier invoice adjustment review
+
+`postage_adjustments` records carrier invoice differences by unique adjustment ID, original Shippo transaction ID, signed cent difference, environment, and evidence source. `recordAdjustment` is an internal accounting primitive; no public import or automatic billing job is enabled. Duplicate identical evidence is idempotent; mismatched reuse of an ID is rejected. An unresolved adjustment blocks seller payout and is reported in the accounting summary, but does not change seller earnings or transfer amounts automatically. House staff must compare the carrier invoice to the transaction, check refund and payout history, and document a separately approved resolution before any financial correction. There is deliberately no automatic resolution or debit endpoint.
+
+### Manual settlement checklist
+
+1. Record the carrier invoice line ID, Shippo transaction, invoice date, billed currency and exact signed difference. Verify test/live mode and seller/order ownership.
+2. Verify whether a refund, carrier adjustment, customer refund, or transfer has already been recorded. Do not duplicate an existing charge or credit.
+3. Hold unresolved payouts; for an already fixed payout, escalate to House finance for a separately approved remedy rather than editing Stripe transfer amounts.
+4. Document reviewer, supporting invoice and transaction evidence, decision, and approval before introducing a resolution workflow. No automatic card charge, cross-order offset, or second transfer is authorized.
+
+Seller consent and exact-rate confirmation remain independent prerequisites; review the acceptance version and displayed rate before any authorized real-label pilot. This ledger is a partial safety improvement, not evidence that the production rollout is approved.
