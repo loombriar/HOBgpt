@@ -39,7 +39,7 @@ for(const signedIn of [false,true])test(`${signedIn?'signed-in':'guest'} mobile 
    expect((await page.request.post(origin+'/api/customer/verify-code',{headers:{Origin:origin},data:{requestId,code}})).ok()).toBeTruthy();
   }
   await page.goto(origin+'/shop/journey-piece');await page.getByRole('button',{name:'Add to cart',exact:true}).click();await noOverflow(page);
-  await page.goto(origin+'/cart');await expect(page.getByText('Mobile Journey Piece',{exact:true})).toBeVisible();await page.getByRole('link',{name:'Continue to checkout',exact:true}).click();await noOverflow(page);
+  await page.getByRole('link',{name:'Added · View cart',exact:true}).click();await expect(page.getByText('Mobile Journey Piece',{exact:true})).toBeVisible();await page.getByRole('link',{name:'Continue to checkout',exact:true}).click();await noOverflow(page);
   await expect(page.getByText('3–7 business days of preparation before shipment.',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Continue to secure checkout',exact:true}).click();await expect(page).toHaveURL(callback);
   await expect(page.getByRole('heading',{name:'Order confirmed',exact:true})).toHaveCount(1);await expect(page.getByText('Paid · Awaiting shipment',{exact:true})).toBeVisible();await noOverflow(page);
@@ -64,6 +64,17 @@ for(const signedIn of [false,true])test(`${signedIn?'signed-in':'guest'} mobile 
    await expect(page.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:houseofbriar26@gmail.com.*'+orderId));
    expect((await page.request.get(origin+'/api/my/purchases')).status()).toBe(401);
    await expect(page.getByText('Keep this receipt page',{exact:false})).toBeVisible();
+   const returningGuest=await browser.newContext({viewport:{width,height:844}});
+   try{
+    const receiptPage=await returningGuest.newPage();await receiptPage.goto(callback);
+    await expect(receiptPage.getByRole('heading',{name:'Order confirmed',exact:true})).toBeVisible();
+    await expect(receiptPage.getByText('Journey Atelier',{exact:true})).toBeVisible();
+    await expect(receiptPage.getByText('Sample tracking · No real shipment',{exact:true})).toBeVisible();
+    await expect(receiptPage.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:houseofbriar26@gmail.com.*'+orderId));
+    await noOverflow(receiptPage);
+    expect((await receiptPage.request.get(origin+'/api/my/purchases')).status()).toBe(401);
+   }finally{await returningGuest.close();}
+
   }
   expect(calls.filter(x=>x==='checkout/sessions')).toHaveLength(1);expect(calls.some(x=>x==='transfers'||x==='refunds')).toBe(false);
  }finally{
