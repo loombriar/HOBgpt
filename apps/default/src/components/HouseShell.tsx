@@ -11,6 +11,7 @@ function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(()=>{if(resolvedTheme==='dark'||resolvedTheme==='light')document.documentElement.dataset.hobTheme=resolvedTheme;},[resolvedTheme]);
   if (!mounted) return <span className="min-h-11 min-w-11" aria-hidden="true" />;
   const dark = resolvedTheme === 'dark';
   return (

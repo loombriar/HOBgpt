@@ -72,6 +72,7 @@
   let savedTheme = 'light';
   try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'light'; } catch {}
   document.documentElement.dataset.hobTheme = savedTheme === 'dark' ? 'dark' : 'light';
+  document.documentElement.classList.toggle('dark',savedTheme==='dark');
   const syncTheme = () => {
     const dark = document.documentElement.dataset.hobTheme === 'dark';
     const icon = document.getElementById('hob-theme-icon') || themeButton;
@@ -82,6 +83,7 @@
   themeButton.addEventListener('click', () => {
     const theme = document.documentElement.dataset.hobTheme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.hobTheme = theme;
+    document.documentElement.classList.toggle('dark',theme==='dark');
     try { localStorage.setItem('house-of-briar-theme', theme); localStorage.setItem('theme', theme); } catch {}
     syncTheme();
   });

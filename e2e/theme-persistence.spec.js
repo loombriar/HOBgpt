@@ -1,0 +1,20 @@
+const {test,expect}=require('@playwright/test');
+test('theme choice survives legacy and marketplace page changes in both directions',async({page})=>{
+ await page.goto('/');
+ await expect(page.locator('.house-botanical-accent')).toHaveCount(0);
+ await page.locator('#hob-theme-toggle').click();
+ await page.goto('/shop');
+ await expect(page.getByRole('button',{name:'Use light theme',exact:true})).toBeVisible();
+ await expect(page.locator('html')).toHaveClass(/dark/);
+ await page.getByRole('button',{name:'Use light theme',exact:true}).click();
+ await page.goto('/creative-house.html');
+ await expect(page.locator('html')).toHaveAttribute('data-hob-theme','light');
+ await page.locator('#hob-theme-toggle').click();
+ await page.goto('/shop');
+ await expect(page.getByRole('button',{name:'Use light theme',exact:true})).toBeVisible();
+ await page.reload();
+ await expect(page.locator('html')).toHaveClass(/dark/);
+ await page.getByRole('button',{name:'Use light theme',exact:true}).click();
+ await page.goto('/');
+ await expect(page.locator('html')).toHaveAttribute('data-hob-theme','light');
+});
