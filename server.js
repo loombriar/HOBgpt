@@ -491,6 +491,7 @@ function createApp(options = {}) {
     FOREIGN KEY(designer_id) REFERENCES designer_profiles(id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_designer ON designer_sessions(designer_id)');
+  db.exec('CREATE TABLE IF NOT EXISTS designer_account_activity (request_id TEXT PRIMARY KEY,designer_id TEXT NOT NULL,started_at TEXT NOT NULL)');
   db.exec('CREATE INDEX IF NOT EXISTS designer_sessions_expiry ON designer_sessions(expires_at)');
   const hadSessionSource=db.prepare('PRAGMA table_info(designer_sessions)').all().some(c=>c.name==='credential_hash');
   ensureColumn('designer_sessions','credential_hash','TEXT');
@@ -1082,7 +1083,20 @@ function createApp(options = {}) {
     return next();
   }
 
-  async function authDesigner(req, res, next) {
+  async function authDesigner(req,res,next){
+    return authenticateDesigner(req,res,()=>{
+      if(!['POST','PUT','PATCH','DELETE'].includes(req.method))return next();
+      const requestId=makeId();
+      db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run(requestId,req.designerId,new Date().toISOString());
+      req.designerActivityId=requestId;
+      let cleared=false;
+      const clear=()=>{if(cleared)return;cleared=true;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
+      // Finish tracks server work, including provider calls after a disconnected client.
+      res.once('finish',clear);
+      return next();
+    });
+  }
+  async function authenticateDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');

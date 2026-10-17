@@ -7,13 +7,14 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
   const quote=name=>'"'+name.replaceAll('"','""')+'"';
   // Only these private, non-financial records can be erased automatically.
   // Any new feature containing an account reference requires an explicit review.
-  const removable=new Set(['designer_access_tokens','designer_sessions','designer_identities','designer_terms_acceptances','designer_email_changes','founding_designers','designer_notifications','seller_tool_usage','designer_stories','buyer_favorites','house_ai_usage','support_agent_runs']);
+  const removable=new Set(['designer_access_tokens','designer_sessions','designer_identities','designer_terms_acceptances','designer_email_changes','founding_designers','designer_notifications','seller_tool_usage','designer_stories','buyer_favorites','house_ai_usage','support_agent_runs','designer_account_activity']);
   function origin(req,res,next){return isTrustedRequestOrigin(req,trustedAppOrigin(req))?next():fail(res,403,'invalid_origin','This request did not come from House of Briar.');}
-  function remove(id){
+  function remove(id,activityId){
     return db.transaction(()=>{
       const profile=db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(id);
       if(!profile)return {status:404,code:'designer_not_found',message:'Designer account not found.'};
       const blocked=()=>({status:409,code:'account_records_require_review',message:'Your account has listings, connected payouts, or shared records that need review before deletion. Contact thee.house.of.briar@gmail.com.'});
+      if(db.prepare('SELECT 1 FROM designer_account_activity WHERE designer_id=? AND request_id!=?').get(id,activityId||''))return blocked();
       if(profile.stripe_account_id||id==='house-of-briar'||Object.values(designerTokens).includes(id)||db.prepare('SELECT 1 FROM reviewer_credentials WHERE account_id=?').get(id))return blocked();
       if(db.prepare("SELECT 1 FROM designer_applications WHERE designer_id=? AND id!=COALESCE(?,'')").get(id,profile.application_id))return blocked();
       const subjects=[`designer:${id}`,...db.prepare('SELECT subject FROM designer_identities WHERE designer_id=?').all(id).map(r=>r.subject)];
@@ -46,7 +47,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
     }).immediate();
   }
   async function finish(req,res,id,self=false){
-    const result=remove(id);
+    const result=remove(id,self?req.designerActivityId:null);
     if(result.status)return fail(res,result.status,result.code,result.message);
     if(self)clearDesignerSession(req,res);
     for(const key of result.files){

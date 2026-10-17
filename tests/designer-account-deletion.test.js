@@ -65,3 +65,12 @@ test('legacy configured accounts cannot be removed and recreated by startup seed
  assert.equal(r.status,409);
  assert.ok(ctx.db.prepare('SELECT 1 FROM designer_profiles WHERE id=?').get('protected-maker'));
 }));
+test('in-flight and interrupted account work blocks deletion until reviewed',()=>fixture(async({ctx,signup,remove})=>{
+ const a=await signup('busy@example.test');
+ ctx.db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run('unfinished-request',a.id,new Date(Date.now()-86400000).toISOString());
+ assert.equal((await remove(a.cookie)).status,409);
+ assert.ok(ctx.db.prepare('SELECT 1 FROM designer_profiles WHERE id=?').get(a.id));
+ assert.ok(ctx.db.prepare('SELECT 1 FROM designer_account_activity WHERE request_id=?').get('unfinished-request'));
+ ctx.db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run('unfinished-request');
+ assert.equal((await remove(a.cookie)).status,200);
+}));
