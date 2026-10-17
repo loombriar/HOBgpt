@@ -8,7 +8,7 @@ for(const room of ['dashboard','standalone'])test(`designer onboarding opens the
  let pending=false;
  const items=()=>pending?[{id:'pending-piece',title:'Awaiting approval piece',status:'pending_review',moderationStatus:'pending',designerId:'maker',price:60,category:'apparel',productionType:'One of a Kind',images:[]}]:[];
  await page.route('**/api/my/listings',route=>route.fulfill({json:{items:items()}}));
- await page.route('**/api/my/studio',route=>route.fulfill({json:{items:items(),ordersCount:0,messages:0,views:{events:0}}}));
+ await page.route('**/api/my/studio',route=>route.fulfill({json:{items:items(),ordersCount:0,orders:[],counts:{Active:0,Draft:pending?1:0,Expired:0,'Sold Out':0,Inactive:0},messages:0,views:{events:0,sessions:0,days:30}}}));
  const url=room==='dashboard'?'/account#launch-title':'/designers/room';
  await page.goto(url);
  if(room==='dashboard'){
