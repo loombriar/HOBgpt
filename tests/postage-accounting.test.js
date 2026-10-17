@@ -45,3 +45,37 @@ test('another seller refund does not hold this seller; unresolved label creation
 });
 
 test('carrier adjustment creates a payout hold',async()=>{const f=await fixture();try{f.charge();const a={adjustmentId:'invoice-1',transactionId:'tx',deltaCents:125,testMode:false,source:'carrier_invoice'};f.accounting.recordAdjustment(a);f.accounting.recordAdjustment(a);assert.equal(f.accounting.summary('order','maker').carrierAdjustmentReviewCount,1);assert.equal((await f.release()).body.results[0].reason,'postage_review_required');assert.equal(f.calls.length,0);}finally{await f.close();}});
+
+test('carrier invoice evidence is idempotent, isolated, and cannot silently alter payout cents',async()=>{
+ const f=await fixture();try{
+  f.charge();
+  const before=f.accounting.summary('order','maker');
+  const evidence={adjustmentId:'invoice-unique',transactionId:'tx',deltaCents:125,testMode:false,source:'carrier_invoice'};
+  f.accounting.recordAdjustment(evidence);
+  f.accounting.recordAdjustment(evidence);
+  const after=f.accounting.summary('order','maker');
+  assert.equal(after.carrierAdjustmentReviewCount,1);
+  assert.equal(after.carrierAdjustmentReviewCents,125);
+  assert.equal(after.netEarningsCents,before.netEarningsCents);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM postage_adjustments').get().n,1);
+  assert.throws(()=>f.accounting.recordAdjustment({...evidence,deltaCents:250}),/conflicts/);
+  assert.throws(()=>f.accounting.recordAdjustment({...evidence,adjustmentId:'wrong-mode',testMode:true}),/environment/);
+  assert.throws(()=>f.accounting.recordAdjustment({...evidence,adjustmentId:'unknown',transactionId:'not-a-charge'}),/confirmed postage charge/);
+  assert.equal((await f.release()).body.results[0].reason,'postage_review_required');
+  assert.equal(f.calls.length,0);
+ }finally{await f.close();}
+});
+test('a carrier adjustment after payout is review-only and cannot cause a second transfer',async()=>{
+ const f=await fixture();try{
+  f.charge();
+  assert.equal((await f.release()).body.results[0].status,'paid');
+  f.accounting.recordAdjustment({adjustmentId:'late-invoice',transactionId:'tx',deltaCents:-75,testMode:false,source:'carrier_invoice'});
+  const summary=f.accounting.summary('order','maker');
+  assert.equal(summary.carrierAdjustmentReviewCount,1);
+  assert.equal(summary.carrierAdjustmentReviewCents,-75);
+  assert.equal(summary.payoutAmountCents,8490);
+  await f.release();
+  assert.equal(f.calls.filter(c=>c.endpoint==='transfers').length,1);
+  assert.equal(f.db.prepare("SELECT status FROM postage_adjustments WHERE adjustment_id='late-invoice'").get().status,'review_required');
+ }finally{await f.close();}
+});
