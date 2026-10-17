@@ -1325,18 +1325,16 @@ async function handleSave(event) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ marketplaceRulesAccepted: true })
       });
-      if (payload.item.status === 'pending_review') {
-        setMessage(uploadMessage, 'Submitted for review. It will appear in the Shop after approval.', 'success');
-      } else {
-        setMessage(uploadMessage, 'Published to the Shop gallery.', 'success');
-      }
+      const confirmation=payload.item.status === 'pending_review' ? 'Submitted for review. It will appear in the Shop after approval.' : 'Published to the Shop gallery.';
       await loadDesignerListings();
       await loadGallery();
       resetListingForm();
+      setMessage(uploadMessage, confirmation, 'success');
       return;
     }
 
-    setMessage(uploadMessage, 'Draft saved successfully.', 'success');
+    const failedPhotos=selectedImages.filter(image=>image.status==='failed');
+    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : 'Draft saved successfully.', failedPhotos.length ? 'error' : 'success');
     await loadDesignerListings();
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');
