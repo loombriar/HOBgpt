@@ -21,7 +21,7 @@ const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 const CHECKOUT_RESERVATION_MINUTES = 31;
 // Bump this version, the signup forms, and the published terms together when terms change.
-const SELLER_TERMS_VERSION = '2026-10-08-free-delivery';
+const SELLER_TERMS_VERSION = '2026-10-17-live-postage';
 const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
 const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'menswear', 'womenswear', 'unisex', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
@@ -534,7 +534,7 @@ function createApp(options = {}) {
   }
   // Previously accepted terms still govern fulfillment/payouts of existing orders.
   function payoutSellerTermsAcceptance(designerId) {
-    return db.prepare('SELECT terms_version,accepted_at FROM designer_terms_acceptances WHERE designer_id=? AND terms_version IN (?,?) ORDER BY accepted_at DESC LIMIT 1').get(designerId,SELLER_TERMS_VERSION,'2026-10-06');
+    return db.prepare('SELECT terms_version,accepted_at FROM designer_terms_acceptances WHERE designer_id=? AND terms_version IN (?,?,?) ORDER BY accepted_at DESC LIMIT 1').get(designerId,SELLER_TERMS_VERSION,'2026-10-08-free-delivery','2026-10-06');
   }
   function requireSellerTerms(designerId) {
     if (!sellerTermsAcceptance(designerId)) throw Object.assign(new Error('Review and accept the current House of Briar Seller Terms in your Designer’s Room before selling. The current policy includes free US delivery funded by the designer.'),{statusCode:409,code:'seller_terms_required'});
