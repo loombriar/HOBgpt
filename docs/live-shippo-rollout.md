@@ -36,3 +36,14 @@ Do not turn on live purchasing until these checks have been completed and review
 - Validate versioned Seller Terms acceptance and explicit exact-rate deduction consent for each live purchase.
 - Exercise restart and provider-response-loss recovery with one transaction per order/designer, no duplicate POST, and payout holds until review completes.
 - Record production-like evidence and a separately authorized capped real-label pilot before considering broader promotion. Keep live purchasing disabled otherwise.
+
+## Read-only reconciliation and manual settlement (no real sale required)
+
+1. Keep `SHIPPO_LIVE_LABELS_ENABLED=false`. Review the admin Operations postage review queue and compare its order/designer identifiers, outstanding adjustment count and signed cents with the internal `postage_adjustments` and `postage_charges` ledger. Do not modify production records to manufacture a case.
+2. Obtain the authentic Shippo transaction and carrier invoice or adjustment evidence from the provider account. Confirm invoice-line uniqueness, transaction ID, USD cents, test/live environment, order ownership, and whether the line has already been imported. The internal `recordAdjustment` primitive accepts verified evidence but **there is no automated provider invoice importer**; do not treat a manual spreadsheet or unverified webhook as confirmed billing.
+3. For each open item, compare charge status, cancellation/refund confirmation, customer refund, tracking, and Stripe transfer status. An unresolved adjustment holds an unfixed payout. If the payout was already fixed, do not mutate it, create a second transfer, or debit a payment card.
+4. Record the proposed resolution, original evidence, reviewer identity, approval, and communication/consent requirements in the House finance case system. A finance approver must authorize any future settlement implementation; the existing ledger deliberately has no automatic resolution endpoint. A documentation-only decision does not clear the database hold.
+5. Verify current versioned Seller Terms acceptance for the exact designer and explicit confirmation of the quoted rate on every live purchase. A stale or missing acceptance must fail before contacting Shippo. Test this with mocks, not production sales.
+6. Reconcile discrepancies and unresolved holds before enabling live labels. A controlled paid-order live pilot, if ever required, needs separate operator authorization and a spending cap.
+
+**Current limitations:** The ledger records adjustments and holds payouts, but it does not ingest invoices automatically, persist reviewer approvals, or resolve an adjustment. These remain release blockers; successful CI alone is not approval to enable live purchasing.
