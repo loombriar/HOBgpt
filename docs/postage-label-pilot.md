@@ -46,14 +46,11 @@ order or paid out a second time. Those cases require House reconciliation.
 
 ## Before enabling real postage
 
-Live label buying remains unavailable; `SHIPPO_LABELS_MODE=live` is unsupported.
-No endpoint accepts client-supplied live postage charges. The accounting module can
-apply a verified live charge once a future trusted live-label writer is enabled.
-Before that launch, finish the live purchase/transaction reconciliation path,
-carrier adjustment accounting, label tracking registration, and a versioned seller
-agreement with explicit consent for platform-funded postage deductions. Define the
-policy and admin settlement process for costs left after customer refunds and late
-carrier credits. Existing off-site backup and admin startup requirements still apply.
+Live label buying is implemented but **disabled by default**. Production requires `SHIPPO_LIVE_LABELS_ENABLED=true` **and** a `shippo_live_` API key for a non-test paid order. `SHIPPO_LABELS_MODE=live` does not enable it. Leave the production feature flag at `false` outside an explicitly authorized, controlled launch. Test fixtures and canceled orders are not eligible for a real label.
+
+Before any controlled real purchase, verify Shippo account billing and carrier eligibility, a legitimately paid unrefunded order, valid recipient and return addresses, packed weight/dimensions, and a fresh carrier quote. The designer must explicitly approve the exact cost. A pilot budget is a hard stop: if the full rate exceeds the authorized cap, do not purchase. Do not enable production or purchase postage merely to validate documentation. A successful label deducts the confirmed cost from that order's designer earnings, subject to payout and carrier verification holds.
+
+Real-label cancellation is a request, not an immediate credit. Keep the deduction until Shippo confirms a refund; uncertain requests must not be blindly retried. Reconcile carrier adjustments, late refunds, and customer-refund exceptions through the admin postage review process. Review operational evidence before revising versioned Seller Terms or requesting renewed acceptance.
 
 House of Briar pays the carrier account and deducts the exact confirmed postage
 from that designer's earnings. Buyers continue to receive free US delivery. If
