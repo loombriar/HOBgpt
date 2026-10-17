@@ -604,6 +604,8 @@ function createApp(options = {}) {
   ensureColumn('orders', 'shipping_required', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('orders', 'shipping_details_json', 'TEXT');
   ensureColumn('order_items', 'shipping_cents', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('order_items', 'handling_days_min', 'INTEGER');
+  ensureColumn('order_items', 'handling_days_max', 'INTEGER');
   recordMigration(9, 'checkout_shipping_and_private_fulfillment');
   ensureColumn('listings', 'sku', 'TEXT');
   ensureColumn('listings', 'stock_quantity', 'INTEGER NOT NULL DEFAULT 1');
@@ -2816,6 +2818,7 @@ function createApp(options = {}) {
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
         quote.items.forEach(item => stmt.run(makeId(), orderId, item.id, item.designerId, item.title, item.unitAmountCents, item.quantity, item.lineTotalCents, item.discountCents, item.promoCodeId, item.platformFeeCents, item.designerAmountCents, item.giftWrapSelected?1:0, item.giftWrapCents));
         for(const item of quote.items)db.prepare('UPDATE order_items SET shipping_cents=? WHERE order_id=? AND listing_id=?').run(item.shippingCents,orderId,item.id);
+        for(const item of quote.items)db.prepare('UPDATE order_items SET handling_days_min=?,handling_days_max=? WHERE order_id=? AND listing_id=?').run(item.handlingDaysMin,item.handlingDaysMax,orderId,item.id);
         for(const item of quote.items)db.prepare('UPDATE order_items SET gift_note=? WHERE order_id=? AND listing_id=?').run(item.giftNote,orderId,item.id);
         stripeOperations.claim('checkout',orderId,'checkout/sessions',{body:body.toString(),idempotencyKey:`hob-checkout-${orderId}`});
       }).immediate();
@@ -3918,18 +3921,17 @@ function createApp(options = {}) {
     return res.json({badges:rows.map(row=>({type:row.badge_type,awardedAt:row.awarded_at}))});
   });
 
+  function buyerOrderReceipt(order) {
+    const items=db.prepare(`SELECT oi.listing_id,oi.designer_id,oi.title,oi.quantity,oi.line_total_cents,oi.handling_days_min,oi.handling_days_max,
+      COALESCE(dp.brand_name,dp.display_name,oi.designer_id) designer_name,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at
+      FROM order_items oi LEFT JOIN designer_profiles dp ON dp.id=oi.designer_id
+      LEFT JOIN designer_transfers dt ON dt.order_id=oi.order_id AND dt.designer_id=oi.designer_id
+      WHERE oi.order_id=? ORDER BY oi.title`).all(order.id).map(row=>({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,handlingDaysMin:row.handling_days_min??null,handlingDaysMax:row.handling_days_max??null,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null}));
+    return {id:order.id,status:order.status,currency:order.currency,subtotalCents:order.subtotal_cents,createdAt:order.created_at,paidAt:order.paid_at,refundStatus:order.refund_status||null,refundedAt:order.refunded_at||null,items};
+  }
   app.get('/api/my/purchases', authBuyer, (req, res) => {
-    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.subtotal_cents,o.created_at,o.paid_at,o.refund_status,o.refunded_at,
-      oi.listing_id,oi.designer_id,oi.title,oi.quantity,oi.line_total_cents,
-      COALESCE(dp.brand_name,dp.display_name,oi.designer_id) designer_name,
-      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at
-      FROM orders o JOIN order_items oi ON oi.order_id=o.id
-      LEFT JOIN designer_profiles dp ON dp.id=oi.designer_id
-      LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
-      WHERE o.buyer_subject=? ORDER BY o.created_at DESC,oi.title`).all(req.buyerSubject);
-    const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id))map.set(row.order_id,{id:row.order_id,status:row.order_status,currency:row.currency,subtotalCents:row.subtotal_cents,createdAt:row.created_at,paidAt:row.paid_at,refundStatus:row.refund_status||null,refundedAt:row.refunded_at||null,items:[]});map.get(row.order_id).items.push({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null});}
-    return res.json({orders:[...map.values()]});
+    const orders=db.prepare('SELECT * FROM orders WHERE buyer_subject=? ORDER BY created_at DESC').all(req.buyerSubject);
+    return res.json({orders:orders.map(buyerOrderReceipt)});
   });
 
   app.get('/api/admin/designers', authAdmin, (_req,res)=>{
@@ -4125,7 +4127,7 @@ function createApp(options = {}) {
         await prepareDesignerTransfers(order.id);
         await notifySale(order.id);
       }
-      return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status });
+      return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status, ...(paid?{receipt:buyerOrderReceipt(db.prepare('SELECT * FROM orders WHERE id=?').get(order.id))}:{}) });
     } catch (error) { return next(error); }
   });
 

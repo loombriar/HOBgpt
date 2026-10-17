@@ -135,3 +135,20 @@ test('buyer confirmation requires verified payment, is queued once, and retries 
   row=ctx.db.prepare('SELECT * FROM email_outbox WHERE event_key=?').get(eventKey);
   assert.equal(row.status,'sent');assert.equal(row.attempts,2);assert.equal(confirmations().length,2);
 }, {failFirstBuyerEmail:true}));
+
+test('buyer receipts retain checkout preparation estimates and isolate signed-in purchase history',async()=>fixture(async({ctx,request})=>{
+  ctx.db.prepare("UPDATE listings SET handling_days_min=3,handling_days_max=7 WHERE id='a1'").run();
+  const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1}]},'sellerA');assert.equal(checkout.status,201);
+  const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(checkout.body.orderId);
+  ctx.db.prepare("UPDATE listings SET handling_days_min=30,handling_days_max=60 WHERE id='a1'").run();
+  const confirmed=await request('/api/checkout/session/'+order.stripe_session_id);assert.equal(confirmed.status,200);
+  assert.equal(confirmed.body.receipt.items[0].handlingDaysMin,3);assert.equal(confirmed.body.receipt.items[0].handlingDaysMax,7);
+  assert.ok(confirmed.body.receipt.items[0].designerName);assert.equal(confirmed.body.receipt.subtotalCents,6000);
+  assert.ok(!JSON.stringify(confirmed.body.receipt).includes('25 Test Street'));
+  assert.ok(!JSON.stringify(confirmed.body.receipt).includes('buyer_email'));
+  const own=await request('/api/my/purchases',null,'sellerA');assert.equal(own.status,200);assert.equal(own.body.orders.length,1);assert.equal(own.body.orders[0].items[0].handlingDaysMax,7);
+  const other=await request('/api/my/purchases',null,'sellerB');assert.equal(other.status,200);assert.equal(other.body.orders.length,0);
+  const anonymous=await request('/api/my/purchases');assert.equal(anonymous.status,401);
+  ctx.db.prepare('UPDATE order_items SET handling_days_min=NULL,handling_days_max=NULL WHERE order_id=?').run(order.id);
+  assert.equal((await request('/api/my/purchases',null,'sellerA')).body.orders[0].items[0].handlingDaysMax,null);
+}));
