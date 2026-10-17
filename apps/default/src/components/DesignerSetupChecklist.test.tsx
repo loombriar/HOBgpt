@@ -10,7 +10,7 @@ it('requires both current terms and verified payment setup for ready status',()=
  expect(renderToStaticMarkup(<DesignerSetupChecklist {...base} paymentReady={true}/>)).not.toContain('>Selling setup complete<');
  expect(renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted={true}/>)).not.toContain('>Selling setup complete<');
  const html=renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted={true} paymentReady={true} hasListing hasApprovedPiece/>);
- expect(html).toContain('>Selling setup complete<');expect(html).toContain('4 of 5');expect(html).toContain('stock is available');
+ expect(html).toContain('>Selling setup complete<');expect(html).toContain('4 of 4 required');expect(html).toContain('stock is available');
 });
 it('never claims readiness when verification fails or is still loading',()=>{
  const html=renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted={true} paymentReady={null} error="Please try again."/>);
@@ -19,5 +19,5 @@ it('never claims readiness when verification fails or is still loading',()=>{
 
 it('does not confuse an account ready for payments with an approved first piece',()=>{
  const html=renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted paymentReady hasListing hasPendingPiece/>);
- expect(html).toContain('Account ready');expect(html).toContain('awaiting review');expect(html).not.toContain('>Selling setup complete<');expect(html).toContain('3 of 5');
+ expect(html).toContain('Account ready');expect(html).toContain('awaiting review');expect(html).not.toContain('>Selling setup complete<');expect(html).toContain('3 of 4 required');
 });

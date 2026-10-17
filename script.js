@@ -1567,10 +1567,15 @@ function renderSellerReadiness(){
   const accountReady=accepted&&Boolean(stripe?.readyToSell);
   const payoutsReady=Boolean(stripe?.connected&&stripe?.onboardingComplete&&stripe?.payoutsEnabled&&stripe?.readyToSell);
   const listingReady=Array.isArray(listings)&&listings.some(item=>item.status==='published' && item.moderationStatus==='approved');
+  const hasListing=listings.some(item=>!['deleted','archived'].includes(item.status));
+  const pending=listings.some(item=>item.status==='pending_review');
+  const profileReady=Boolean(profile?.brandName?.trim()&&profile?.bio?.trim()&&profile?.location?.trim());
   const stages=[
-    {label:'1. Accept the delivery terms',done:accepted,hint:'Customers get free US delivery. You cover postage, so include it in your price.',action:'Review and accept terms',target:'seller-terms-form'},
-    {label:'2. Finish payment setup',done:payoutsReady,hint:'Stripe checks your details and sets up your bank account for designer earnings.',action:stripe?.connected?'Continue payment setup':'Set up payments',run:openStripeOnboarding},
-    {label:'Your pieces',done:listingReady,hint:'Save a draft any time. Submit a finished piece for review; drafts stay private.',action:'Manage listings',target:'product-form'}
+    {label:'1. Prepare your profile · recommended',optional:true,done:profileReady,hint:'Add your brand name, story and location. Recommended; this does not block selling.',action:'Edit designer profile',target:'designer-brand-form'},
+    {label:'2. Accept the delivery terms',done:accepted,hint:'Customers get free US delivery. You cover postage, so include it in your price.',action:'Review and accept terms',target:'seller-terms-form'},
+    {label:'3. Finish payment setup',done:payoutsReady,hint:'Stripe checks your details and sets up your bank account for designer earnings.',action:stripe?.connected?'Continue payment setup':'Set up payments',run:openStripeOnboarding},
+    {label:'4. Save your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
+    {label:'5. Submit for approval',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
   ];
   list.replaceChildren();
   for(const stage of stages){
@@ -1583,25 +1588,33 @@ function renderSellerReadiness(){
       action.addEventListener('click',()=>{
         if(stage.run){stage.run();return;}
         const target=stage.target||stages.find(item=>!item.done&&item.target)?.target;
-        if(target)byId(target)?.scrollIntoView({behavior:'smooth',block:'center'});
+        if(target)scrollRoomTarget(byId(target),{behavior:'smooth',block:'start'});
         else if(!payoutsReady)openStripeOnboarding();
       });
       copy.append(action);
     }
     row.append(mark,copy);list.append(row);
   }
-  const ready=accountReady;
+  const ready=accountReady&&listingReady;
   const setupPanel=byId('designer-setup-panel');
   if(setupPanel){
     const setupSummary=setupPanel.querySelector('summary');
-    if(setupSummary)setupSummary.textContent=ready?'Selling setup complete':'Finish your setup';
+    if(setupSummary)setupSummary.textContent=ready?'Selling setup complete':'Your path to selling';
     if(profile&&stripe&&setupPanel.dataset.ready!==String(ready)){
       setupPanel.open=!ready;
       setupPanel.dataset.ready=String(ready);
     }
   }
-  if(badge){badge.textContent=ready?'Ready to sell':!profile||!stripe?'Checking your setup…':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
-  if(summary)summary.textContent=ready?'Your account is ready. Approved pieces with available stock appear in the shop unless paused or you are on vacation.':'Your pieces stay in your dashboard. Accept the current delivery terms and finish payment setup before customers can buy them.';
+  if(badge){badge.textContent=ready?'Selling setup complete':!profile||!stripe?'Checking your setup…':accountReady?'Account ready · prepare your first approved piece':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
+  const complete=stages.filter(stage=>!stage.optional&&stage.done).length;
+  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. You can save private drafts while finishing setup.');
+  let next=byId('seller-next-action');
+  if(!next&&summary){next=document.createElement('div');next.id='seller-next-action';summary.after(next);}
+  if(next){
+    next.replaceChildren();
+    const stage=stages.find(stage=>!stage.optional&&!stage.done)||stages.find(stage=>!stage.done);
+    if(stage&&profile&&stripe){const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent=stage.action;button.addEventListener('click',()=>{if(stage.run)stage.run();else scrollRoomTarget(byId(stage.target),{behavior:'smooth',block:'start'});});next.append(button);}
+  }
 }
 async function refreshStripePayoutStatus() {
   const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
