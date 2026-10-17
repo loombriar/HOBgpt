@@ -1421,7 +1421,7 @@ async function loadDesignerListings() {
     }
 
     for (const listing of listings) {
-      const row = makeElement('div', 'designer-product-item');
+      const row = makeElement('div', 'designer-product-item');row.id=`listing-${listing.id}`;
       const images = getProductImages(listing);
       const preview = document.createElement('img');
       preview.alt = `${listing.title} preview`;
@@ -1453,9 +1453,12 @@ async function loadDesignerListings() {
       const group=designerListingGroup(listing);
       const badge = makeElement('span', 'status-badge', group === 'Other' ? listing.status === 'rejected' ? 'Changes requested' : listing.pausedByDesigner ? 'Paused' : listing.studioStatus || 'Unavailable' : group === 'Drafts' ? 'Draft' : group);
       actions.appendChild(badge);
+      if(listing.moderationReason)info.appendChild(makeElement('p','review-feedback',`Changes requested: ${listing.moderationReason}`));
+      if(listing.status==='pending_review')info.appendChild(makeElement('p','small-print','Your piece is awaiting review and is not public yet.'));
+      if(listing.status==='rejected')info.appendChild(makeElement('p','small-print','Edit your piece, save the changes, then submit it for review again.'));
       const edit = document.createElement('button');
       edit.type = 'button';
-      edit.textContent = 'Edit';
+      edit.textContent = listing.status === 'rejected' ? 'Edit & resubmit' : 'Edit';
       edit.className = 'text-button';
       edit.addEventListener('click', () => editListing(listing.id));
       if (['draft', 'rejected', 'published'].includes(listing.status)) actions.appendChild(edit);
@@ -1550,7 +1553,8 @@ async function editListing(listingId) {
       });
     }
     renderSelectedImages();
-    setMessage(uploadMessage, listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
+    scrollRoomTarget(byId('product-form'),{behavior:'smooth',block:'start'});
+    setMessage(uploadMessage, listing.moderationReason ? `Changes requested: ${listing.moderationReason}. Save your changes, then submit for review again.` : listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');
   }

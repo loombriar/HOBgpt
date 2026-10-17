@@ -3598,7 +3598,7 @@ function createApp(options = {}) {
       SET status = 'rejected', moderation_status = 'rejected', moderation_reason = ?, published_at = NULL, updated_at = ?, version = version + 1
       WHERE id = ?
     `).run(reason, timestamp, row.id);
-    notifyDesigner(row.designer_id,'listing_review','Changes requested',`${row.title} needs changes before it can be published. ${reason}`,{listingId:row.id,actionPath:'/account',priority:'important',source:'admin',adminLabel:'House of Briar'});
+    notifyDesigner(row.designer_id,'listing_review','Changes requested',`${row.title} needs changes before it can be published. ${reason}`,{listingId:row.id,actionPath:`/account#listing-${row.id}`,priority:'important',source:'admin',adminLabel:'House of Briar'});
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
