@@ -18,7 +18,7 @@ async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='
   mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key,SHIPPO_API_KEY:key,SHIPPO_LIVE_LABELS_ENABLED:String(liveEnabled)},authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
     calls.push({url,body:opts.body?JSON.parse(opts.body):null});
     if(!opts.body && readTransaction)return readTransaction(url);
-    if(url.includes('/shipments/'))return Response.json({test:true,rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
+    if(url.includes('/shipments/'))return Response.json({test:session.startsWith('cs_test_'),rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
     if(url.includes('/refunds/')&&refundResponse)return refundResponse();
     if(transaction)return transaction();
     return Response.json({test:true,status:'SUCCESS',object_id:'transaction',tracking_number:'TEST123',label_url:'https://deliver.goshippo.com/test.pdf'});
