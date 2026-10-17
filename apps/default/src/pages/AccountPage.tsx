@@ -411,5 +411,21 @@ function packGarmentDetails(description:string, details:Record<string,string>) {
   return lines.length ? `${description.trim()}\n\n[GARMENT DETAILS]\n${lines.join('\n')}\n[END GARMENT DETAILS]` : description.trim();
 }
 export default function AccountPage() {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash !== '#house-support') return;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scrollToSupport = () => {
+      const target = document.getElementById('house-support');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      if (++attempts < 12) timer = setTimeout(scrollToSupport, 200);
+    };
+    scrollToSupport();
+    return () => { if (timer) clearTimeout(timer); };
+  }, [location.hash]);
   return <HouseShell><StudioContent /></HouseShell>;
 }
