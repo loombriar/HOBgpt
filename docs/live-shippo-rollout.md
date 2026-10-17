@@ -1,6 +1,6 @@
 # Live Shippo labels — rollout gates
 
-Status: NOT ENABLED. The existing Shippo routes are test-only. Do not enable production purchasing by removing the test guards alone.
+Status: NOT ENABLED by default. Live Shippo routes are implemented behind `SHIPPO_LIVE_LABELS_ENABLED=true` and a validated `shippo_live_` credential. Implementation does not constitute production approval. Do not enable purchasing without the gates below.
 
 ## Required implementation
 
@@ -28,3 +28,11 @@ Status: NOT ENABLED. The existing Shippo routes are test-only. Do not enable pro
 - Production staging checkout and low-value live purchase with explicit operator approval
 
 Do not turn on live purchasing until these checks have been completed and reviewed.
+
+## Outstanding operational release blockers
+
+- Reconcile carrier billing adjustments (positive or negative) against provider transaction IDs in a durable, idempotent audit trail. Do not silently mutate an already-fixed transfer.
+- Approve a manual settlement policy for unrecovered postage, late credits, disputed adjustments, and customer refunds; identify an authorized reviewer and evidence requirements.
+- Validate versioned Seller Terms acceptance and explicit exact-rate deduction consent for each live purchase.
+- Exercise restart and provider-response-loss recovery with one transaction per order/designer, no duplicate POST, and payout holds until review completes.
+- Record production-like evidence and a separately authorized capped real-label pilot before considering broader promotion. Keep live purchasing disabled otherwise.
