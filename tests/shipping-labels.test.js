@@ -5,17 +5,17 @@ const Database=require('better-sqlite3');
 const {once}=require('node:events');
 const {mountShippingLabels,safeLabelUrl}=require('../lib/shipping-labels');
 
-async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,refundResponse,mode='test'}={}) {
+async function fixture({key='shippo_test_fixture',session='cs_test_order',cost='5.00',transaction,readTransaction,refundResponse,mode='test',liveEnabled=false}={}) {
   const db=new Database(':memory:');
   db.exec(`CREATE TABLE orders (id TEXT,status TEXT,stripe_session_id TEXT,shipping_details_json TEXT,refund_status TEXT);
     CREATE TABLE order_items (order_id TEXT,designer_id TEXT,designer_amount_cents INTEGER);
-    CREATE TABLE designer_transfers (order_id TEXT,designer_id TEXT,payout_in_flight INTEGER,status TEXT,tracking_verified_at TEXT,tracking_number TEXT,amount_cents INTEGER);
+    CREATE TABLE designer_transfers (order_id TEXT,designer_id TEXT,payout_in_flight INTEGER,status TEXT,tracking_verified_at TEXT,tracking_number TEXT,tracking_carrier TEXT,amount_cents INTEGER);
     CREATE TABLE order_refunds (order_id TEXT,scope TEXT);`);
   db.prepare('INSERT INTO orders VALUES (?,?,?,?,NULL)').run('order','paid',session,JSON.stringify({name:'Test Buyer',address:{line1:'100 Test Street',city:'Columbus',state:'OH',postal_code:'43211',country:'US'}}));
-  db.exec("INSERT INTO order_items VALUES ('order','seller',9100); INSERT INTO designer_transfers VALUES ('order','seller',0,'pending',NULL,NULL,9100)");
+  db.exec("INSERT INTO order_items VALUES ('order','seller',9100); INSERT INTO designer_transfers VALUES ('order','seller',0,'pending',NULL,NULL,NULL,9100)");
   const app=express();app.use(express.json());
   const calls=[];
-  mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key},authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
+  mountShippingLabels({app,db,env:{SHIPPO_LABELS_MODE:mode,SHIPPO_TEST_API_KEY:key,SHIPPO_API_KEY:key,SHIPPO_LIVE_LABELS_ENABLED:String(liveEnabled)},authDesigner:(req,res,next)=>{req.designerId=req.get('x-seller')||'seller';next();},fetch:async(url,opts)=>{
     calls.push({url,body:opts.body?JSON.parse(opts.body):null});
     if(!opts.body && readTransaction)return readTransaction(url);
     if(url.includes('/shipments/'))return Response.json({test:true,rates:[{object_id:'rate',currency:'USD',amount:cost,provider:'USPS',servicelevel:{name:'Ground'}}]});
@@ -150,4 +150,20 @@ test('unknown refund retains its deduction and carrier rejection restores charge
 });
 test('used labels, live or mismatched replies and other sellers cannot be cancelled',async()=>{
  for(const change of [{tracking_status:'TRANSIT'},{test:false},{metadata:'other'}]){let posts=0;const f=await fixture({readTransaction:()=>Response.json({test:true,status:'SUCCESS',object_id:'transaction',metadata:'hob-test:order:seller',rate:'rate',...change}),refundResponse:()=>{posts++;return Response.json({});}});try{const q=await quote(f);await buy(f,q);assert.equal((await f.call('/cancel',{confirmCancellation:true},'other')).status,404);assert.equal((await f.call('/cancel',{confirmCancellation:true})).status,409);assert.equal(posts,0);assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'charged');}finally{await f.close();}}
+});
+
+test('live label attaches tracking to its order without triggering payout, and allows existing label reconciliation',async()=>{
+  const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true,
+    transaction:()=>Response.json({test:false,status:'SUCCESS',object_id:'live-tx',tracking_number:'LIVE123',label_url:'https://deliver.goshippo.com/live.pdf'})});
+  try {
+    const q=await quote(f);assert.equal(q.status,200);
+    const label=await buy(f,q);assert.equal(label.status,200);
+    const transfer=f.db.prepare('SELECT * FROM designer_transfers').get();
+    assert.equal(transfer.tracking_number,'LIVE123');
+    assert.equal(transfer.tracking_carrier,'usps');
+    assert.equal(transfer.amount_cents,9100);
+    assert.equal(transfer.payout_in_flight,0);
+    assert.equal((await f.call('/reconcile',{})).body.label.status,'ready');
+    assert.equal(f.db.prepare('SELECT test_mode FROM postage_charges').get().test_mode,0);
+  } finally {await f.close();}
 });
