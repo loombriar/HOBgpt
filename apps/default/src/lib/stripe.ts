@@ -1,3 +1,4 @@
+import type {BuyerOrder} from '@/components/BuyerOrderCard';
 export type CheckoutItem = {
   id: string;
   name: string;
@@ -33,7 +34,7 @@ export async function cancelCheckoutOrder(orderId: string, cancelToken: string) 
 
 export async function verifyCheckoutSession(sessionId: string) {
   if (!sessionId.startsWith('cs_')) throw new Error('The checkout receipt reference is not valid.');
-  return api<{ paid: boolean; orderId: string; status: string }>(`/api/checkout/session/${encodeURIComponent(sessionId)}`);
+  return api<{ paid: boolean; orderId: string; status: string; receipt?:BuyerOrder }>(`/api/checkout/session/${encodeURIComponent(sessionId)}`);
 }
 
 export async function createDonationSession(amount: number, accessToken = '') {

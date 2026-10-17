@@ -20,6 +20,7 @@ for(const outcome of ['paid','unpaid','canceled'])test('server-generated '+outco
   throw new Error('Unexpected mock endpoint '+endpoint);
  }});
  readySeller(ctx.db,'maker');
+ ctx.db.prepare("UPDATE listings SET handling_days_min=2,handling_days_max=5 WHERE id='callback-piece'").run();
  const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
  const origin='http://127.0.0.1:'+server.address().port;
  try{
@@ -32,6 +33,9 @@ for(const outcome of ['paid','unpaid','canceled'])test('server-generated '+outco
   await expect(page).toHaveURL(callback);expect(new URL(callback).pathname).toBe('/checkout');
   if(outcome==='paid'){
    await expect(page.getByRole('heading',{name:'Order confirmed',exact:true})).toBeVisible();
+   await expect(page.getByRole('heading',{name:'Order confirmed',exact:true})).toHaveCount(1);
+   await expect(page.getByText('2–5 business days of preparation before shipment.',{exact:false})).toBeVisible();
+   await expect(page.getByText('Paid · Awaiting shipment',{exact:true})).toBeVisible();
    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('house-of-briar:cart')))).toEqual([]);
    expect(await page.evaluate(()=>localStorage.getItem('house-of-briar:checkout-pending'))).toBeNull();
    expect(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('paid');
