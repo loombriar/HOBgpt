@@ -236,7 +236,8 @@ test('payout and tracking changes after quote block purchase before any carrier 
 });
 
 test('live purchase requires current Seller Terms before any Shippo transaction',async()=>{
- const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true,termsAccepted:false});
+ const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true,termsAccepted:false,
+  transaction:()=>Response.json({test:false,status:'SUCCESS',object_id:'live-consent-tx',tracking_number:'LIVE123',label_url:'https://deliver.goshippo.com/live.pdf'})});
  try{
   const q=await quote(f);assert.equal(q.status,200);
   const before=f.calls.length;
