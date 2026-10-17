@@ -18,9 +18,9 @@ Photo enhancement uses local Sharp clarity cleanup, orientation correction and a
 
 ## Shipping checkout
 
-All new US orders include delivery in the listing price. Canonical quotes return zero delivery charges, regardless of legacy per-item rates or thresholds. Designers pay postage and packaging themselves and should price accordingly; the marketplace fee remains based on the sale price. The House does not reimburse or automatically purchase postage.
+All new US orders include delivery in the listing price. Canonical quotes return zero delivery charges, regardless of legacy per-item rates or thresholds. Designers pay postage and packaging themselves and should price accordingly; the marketplace fee remains based on the sale price. The House does not reimburse or automatically purchase postage. Eligible designers may explicitly approve a live in-app label purchase when enabled, with the confirmed postage deducted from their earnings.
 
-Seller Terms version `2026-10-08-free-delivery` requires explicit acceptance before new sales. No acceptance is backfilled. Prior `2026-10-06` acceptance still permits fulfillment/payouts of already-paid orders, without weakening tracking verification or refund holds. Historical order shipping charges, totals and refund amounts stay intact. Existing listing prices are never automatically increased.
+Seller Terms version `2026-10-17-live-postage` requires explicit acceptance before new sales. No acceptance is backfilled. Prior `2026-10-06` acceptance still permits fulfillment/payouts of already-paid orders, without weakening tracking verification or refund holds. Historical order shipping charges, totals and refund amounts stay intact. Existing listing prices are never automatically increased.
 
 US address collection, private seller-scoped fulfillment details, handling times and carrier tracking remain required. Delivery timing is separate from designer preparation. Automatic tax calculation is not enabled by this change.
 
