@@ -191,3 +191,17 @@ test('confirmed live postage refund releases only its own unverified tracking an
     assert.equal((await quote(f)).status,200);
   }finally{await f.close();}
 });
+
+
+test('live purchase rejects a payout state changed after quoting without contacting Shippo',async()=>{
+  const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true});
+  try {
+    const q=await quote(f);assert.equal(q.status,200);
+    const prior=f.calls.length;
+    f.db.exec("UPDATE designer_transfers SET payout_in_flight=1");
+    const response=await buy(f,q);
+    assert.equal(response.status,409);
+    assert.equal(f.calls.length,prior);
+    assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM shipping_labels').get().n,0);
+  }finally{await f.close();}
+});
