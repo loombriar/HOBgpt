@@ -5,7 +5,7 @@ import HouseShell from '@/components/HouseShell';
 import { MARKET_CATEGORIES } from '@/lib/marketplace';
 
 export default function SellPage() {
-  const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[],sellerTermsAccepted:false,sellerTermsVersion:'2026-10-08-free-delivery'});
+  const [form,setForm]=useState({email:'',displayName:'',brandName:'',categories:[] as string[],sellerTermsAccepted:false,sellerTermsVersion:'2026-10-17-live-postage'});
   const [message,setMessage]=useState('');
   const [requestId,setRequestId]=useState('');
   const [code,setCode]=useState('');
