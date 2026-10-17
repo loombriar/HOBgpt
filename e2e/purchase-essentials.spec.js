@@ -24,6 +24,14 @@ for (const width of [390, 1280]) {
       return Boolean(buy && el.compareDocumentPosition(buy) & Node.DOCUMENT_POSITION_FOLLOWING);
     })).toBe(true);
     await expect(essentials.getByRole('link', { name: 'Shipping policy', exact: true })).toHaveAttribute('href', '/shipping.html');
+    const customFit=essentials.locator('details');
+    await expect(customFit).not.toHaveAttribute('open');
+    await customFit.locator('summary').click();
+    await expect(customFit.getByRole('link',{name:'Ask about alterations',exact:true})).toBeVisible();
+    expect(await page.getByRole('region',{name:'About this piece',exact:true}).evaluate(el=>{
+      const buy=[...document.querySelectorAll('button')].find(button=>button.textContent.includes('Add to cart'));
+      return Boolean(buy&&buy.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
     await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Added · View cart', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
