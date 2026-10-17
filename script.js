@@ -2818,3 +2818,14 @@ byId('product-form')?.addEventListener('input',renderListingReadiness);
 byId('product-form')?.addEventListener('change',renderListingReadiness);
 byId('product-form')?.addEventListener('reset',()=>setTimeout(renderListingReadiness,0));
 renderListingReadiness();
+
+byId('designer-delete-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if(!window.confirm('Permanently delete your designer account? This cannot be undone.'))return;
+  const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/designer-account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:byId('designer-delete-confirmation').value})});
+    localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('hob-support-question');
+    window.location.replace('/');
+  }catch(error){setMessage(byId('designer-delete-message'),error.message||'Account could not be deleted.','error');if(button)button.disabled=false;}
+});

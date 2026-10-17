@@ -3971,6 +3971,7 @@ function createApp(options = {}) {
     const items=db.prepare("SELECT id,brand_name,display_name,status FROM designer_profiles ORDER BY COALESCE(brand_name,display_name),id").all();
     return res.json({items:items.map(d=>({id:d.id,name:d.brand_name||d.display_name,status:d.status}))});
   });
+  require('./designer-account-deletion').registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,trustedAppOrigin,clearDesignerSession,designerTokens,imagesDir});
   app.post('/api/admin/designers/suspend', authAdmin, (req,res)=>{
     const email=String(req.body?.email||'').trim().toLowerCase();
     if(!email)return fail(res,400,'email_required','Designer email is required.');
