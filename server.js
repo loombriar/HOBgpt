@@ -1091,7 +1091,7 @@ function createApp(options = {}) {
     db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run(requestId,designerId,new Date().toISOString());
     req.designerActivityId=requestId;
     let cleared=false;
-    const clear=()=>{if(cleared)return;cleared=true;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
+    const clear=()=>{if(cleared)return;cleared=true;if(res.statusCode>=500)return;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
     // Finish tracks server work, including provider calls after a disconnected client.
     res.once('finish',clear);
     return next();
