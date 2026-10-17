@@ -15,7 +15,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
       if(!profile)return {status:404,code:'designer_not_found',message:'Designer account not found.'};
       const blocked=()=>({status:409,code:'account_records_require_review',message:'Your account has listings, connected payouts, or shared records that need review before deletion. Contact thee.house.of.briar@gmail.com.'});
       if(db.prepare('SELECT 1 FROM designer_account_activity WHERE designer_id=? AND request_id!=?').get(id,activityId||''))return blocked();
-      if(profile.stripe_account_id||id==='house-of-briar'||Object.values(designerTokens).includes(id)||db.prepare('SELECT 1 FROM reviewer_credentials WHERE account_id=?').get(id))return blocked();
+      if(db.prepare('SELECT 1 FROM designer_identities WHERE designer_id=?').get(id)||profile.stripe_account_id||id==='house-of-briar'||Object.values(designerTokens).includes(id)||db.prepare('SELECT 1 FROM reviewer_credentials WHERE account_id=?').get(id))return blocked();
       if(db.prepare("SELECT 1 FROM designer_applications WHERE designer_id=? AND id!=COALESCE(?,'')").get(id,profile.application_id))return blocked();
       const subjects=[`designer:${id}`,...db.prepare('SELECT subject FROM designer_identities WHERE designer_id=?').all(id).map(r=>r.subject)];
       const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();

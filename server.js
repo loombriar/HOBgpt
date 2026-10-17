@@ -1021,7 +1021,8 @@ function createApp(options = {}) {
       if (!profile || typeof profile.sub !== 'string' || !profile.sub.trim()) return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.');
       req.buyerSubject = profile.sub.trim();
       req.buyerEmail = typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
-      return requireDesignerRequestOrigin(req,res,next);
+      const designerId=profile.designerId||db.prepare('SELECT designer_id FROM designer_identities WHERE subject=?').get(req.buyerSubject)?.designer_id;
+      return requireDesignerRequestOrigin(req,res,()=>designerId?trackDesignerMutation(req,res,next,designerId):next());
     } catch { return fail(res, 401, 'unauthorized', 'Your account session is no longer valid.'); }
   }
 
@@ -1083,18 +1084,20 @@ function createApp(options = {}) {
     return next();
   }
 
+  function trackDesignerMutation(req,res,next,designerId){
+    if(!['POST','PUT','PATCH','DELETE'].includes(req.method)||req.designerActivityId)return next();
+    if(!db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(designerId))return fail(res,401,'unauthorized','Your designer session is no longer valid.');
+    const requestId=makeId();
+    db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run(requestId,designerId,new Date().toISOString());
+    req.designerActivityId=requestId;
+    let cleared=false;
+    const clear=()=>{if(cleared)return;cleared=true;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
+    // Finish tracks server work, including provider calls after a disconnected client.
+    res.once('finish',clear);
+    return next();
+  }
   async function authDesigner(req,res,next){
-    return authenticateDesigner(req,res,()=>{
-      if(!['POST','PUT','PATCH','DELETE'].includes(req.method))return next();
-      const requestId=makeId();
-      db.prepare('INSERT INTO designer_account_activity VALUES (?,?,?)').run(requestId,req.designerId,new Date().toISOString());
-      req.designerActivityId=requestId;
-      let cleared=false;
-      const clear=()=>{if(cleared)return;cleared=true;db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run(requestId);};
-      // Finish tracks server work, including provider calls after a disconnected client.
-      res.once('finish',clear);
-      return next();
-    });
+    return authenticateDesigner(req,res,()=>trackDesignerMutation(req,res,next,req.designerId));
   }
   async function authenticateDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);

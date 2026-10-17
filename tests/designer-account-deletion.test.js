@@ -74,3 +74,10 @@ test('in-flight and interrupted account work blocks deletion until reviewed',()=
  ctx.db.prepare('DELETE FROM designer_account_activity WHERE request_id=?').run('unfinished-request');
  assert.equal((await remove(a.cookie)).status,200);
 }));
+test('externally linked identity requires review without silently leaving provider access',()=>fixture(async({ctx,signup,remove})=>{
+ const a=await signup('identity@example.test');
+ ctx.db.prepare('INSERT INTO designer_identities VALUES (?,?,?,?)').run('provider-subject',a.id,'identity@example.test',new Date().toISOString());
+ assert.equal((await remove(a.cookie)).status,409);
+ assert.ok(ctx.db.prepare('SELECT 1 FROM designer_identities WHERE designer_id=?').get(a.id));
+ assert.ok(ctx.db.prepare('SELECT 1 FROM designer_sessions WHERE designer_id=?').get(a.id));
+}));
