@@ -77,7 +77,7 @@ for(const width of [1280])test(`designer confirms live postage and opens the sav
   await expect(panel.getByText(/This purchases a real shipping label and deducts its cost from my payout/)).toBeVisible();
   await panel.getByRole('checkbox').check();await confirm.click();
   await expect(panel.getByRole('link',{name:'Open shipping label PDF to print ↗'})).toHaveAttribute('href','https://deliver.goshippo.com/live.pdf');
-  await expect(panel.getByText('Earnings after live postage: $86.00',{exact:true})).toBeVisible();
+  await expect(panel.getByText('Earnings after postage: $86.00',{exact:true})).toBeVisible();
   expect(confirmations).toBe(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.reload();
