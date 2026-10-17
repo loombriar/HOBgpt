@@ -37,7 +37,7 @@ export default function FashionPersonalityPage() {
       <p className="mx-auto mt-5 max-w-lg leading-8 text-muted-foreground">{results[result].detail}</p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Link to={`/shop?q=${encodeURIComponent(results[result].search)}`} className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground">Discover matching pieces</Link>
-        <Link to="/designers" className="rounded-full border border-border px-6 py-3 text-sm font-semibold">Meet the designers</Link>
+        
         <button type="button" onClick={()=>setAnswers([])} className="rounded-full border border-border px-6 py-3 text-sm">Try again</button>
       </div>
       <p className="mt-6 text-xs text-muted-foreground">Suggestions use a shop search; results depend on available listings.</p>
