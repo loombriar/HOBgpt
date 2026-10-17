@@ -1,12 +1,12 @@
 const {test,expect}=require('@playwright/test');
 test('mobile review loop delivers feedback, resubmission and approval alerts',async({page,browser})=>{
  test.setTimeout(90000);await page.setViewportSize({width:390,height:844});
- const creatorContext=await browser.newContext({baseURL:'http://127.0.0.1:4173',viewport:{width:390,height:844}}),creator=await creatorContext.newPage();
+ const creatorContext=await browser.newContext({baseURL:'http://127.0.0.1:4173',extraHTTPHeaders:{Origin:'http://127.0.0.1:4173'},viewport:{width:390,height:844}}),creator=await creatorContext.newPage();
  let id;
  try{
   expect((await creator.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
   const created=await creator.request.post('/api/listings',{data:{title:'Review Loop Dress',price:75,category:'apparel',description:'A sample handmade dress',productionType:'One of a Kind'}});
-  expect(created.ok()).toBeTruthy();id=(await created.json()).item.id;
+  expect(created.ok(),await created.text()).toBeTruthy();id=(await created.json()).item.id;
   const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#af4763'}}).png().toBuffer();
   expect((await creator.request.post(`/api/listings/${id}/images`,{multipart:{image:{name:'sample.png',mimeType:'image/png',buffer:image}}})).ok()).toBeTruthy();
   expect((await creator.request.post(`/api/listings/${id}/submit`,{data:{marketplaceRulesAccepted:true}})).ok()).toBeTruthy();
@@ -36,5 +36,5 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(true);
   await creator.reload();await expect(creator.locator('#listing-'+id)).toContainText('Live');
   for(const tab of [page,creator])expect(await tab.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
- }finally{if(id)await page.request.delete('/api/admin/listings/'+id);await creatorContext.close();}
+ }finally{if(id)await page.request.delete('/api/admin/listings/'+id,{headers:{Origin:'http://127.0.0.1:4173'}});await creatorContext.close();}
 });
