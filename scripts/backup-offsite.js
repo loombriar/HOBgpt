@@ -14,8 +14,10 @@ const config=()=>{
  const region=process.env.BACKUP_S3_REGION||'auto';
  const keepDays=Number(process.env.BACKUP_RETENTION_DAYS||30);
  if(!Number.isFinite(keepDays)||keepDays<1)throw new Error('BACKUP_RETENTION_DAYS must be a positive number');
+ const style=process.env.BACKUP_S3_URL_STYLE||'path';
+ if(!['path','virtual-host'].includes(style))throw new Error('BACKUP_S3_URL_STYLE must be path or virtual-host');
  const root=path.resolve(process.env.BACKUP_WORK_DIR||'.backups/offsite-work');
- return {endpoint,bucket,accessKey,secretKey,region,keepDays,root};
+ return {endpoint,bucket,accessKey,secretKey,region,keepDays,root,style};
 };
 const hash=(key,data)=>crypto.createHmac('sha256',key).update(data).digest();
 const sha=data=>crypto.createHash('sha256').update(data).digest('hex');
@@ -28,9 +30,12 @@ function canonicalQuery(query){
 }
 async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={}){
  query=canonicalQuery(query);
- const {endpoint,bucket,accessKey,secretKey,region}=config();
+ const {endpoint,bucket,accessKey,secretKey,region,style}=config();
  const now=new Date(),amz=now.toISOString().replace(/[:-]|\.\d{3}/g,''),date=amz.slice(0,8);
- const payloadHash=sha(body),host=endpoint.host,uri=objectPath(bucket,key);
+ const payloadHash=sha(body);
+ const target=new URL(endpoint);
+ if(style==='virtual-host')target.hostname=bucket+'.'+target.hostname;
+ const host=target.host,uri=style==='virtual-host'?'/'+(key?key.split('/').map(enc).join('/'):''):objectPath(bucket,key);
  const signed={'host':host,'x-amz-content-sha256':payloadHash,'x-amz-date':amz,...headers};
  const names=Object.keys(signed).map(x=>x.toLowerCase()).sort();
  const canonicalHeaders=names.map(n=>n+':'+String(signed[n]).trim()+'\n').join('');
@@ -40,7 +45,7 @@ async function request(method,key,{body=Buffer.alloc(0),query='',headers={}}={})
  const kDate=hash('AWS4'+secretKey,date),kRegion=hash(kDate,region),kService=hash(kRegion,'s3'),kSigning=hash(kService,'aws4_request');
  const signature=crypto.createHmac('sha256',kSigning).update(stringToSign).digest('hex');
  const authorization=`AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${names.join(';')}, Signature=${signature}`;
- const response=await fetch(new URL(uri+(query?'?'+query:''),endpoint),{method,headers:{...signed,Authorization:authorization},body:['GET','HEAD'].includes(method)?undefined:body});
+ const response=await fetch(new URL(uri+(query?'?'+query:''),target),{method,headers:{...signed,Authorization:authorization},body:['GET','HEAD'].includes(method)?undefined:body});
  if(!response.ok)throw new Error(`${method} ${key||bucket} failed: ${response.status} ${(await response.text()).slice(0,500)}`);
  return response;
 }
@@ -92,4 +97,4 @@ async function main(){
  fs.rmSync(root,{recursive:true,force:true});
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={listContents,list,canonicalQuery};
+module.exports={listContents,list,canonicalQuery,request};
