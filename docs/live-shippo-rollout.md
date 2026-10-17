@@ -47,3 +47,9 @@ Do not turn on live purchasing until these checks have been completed and review
 6. Reconcile discrepancies and unresolved holds before enabling live labels. A controlled paid-order live pilot, if ever required, needs separate operator authorization and a spending cap.
 
 **Current limitations:** The ledger records adjustments and holds payouts, but it does not ingest invoices automatically, persist reviewer approvals, or resolve an adjustment. These remain release blockers; successful CI alone is not approval to enable live purchasing.
+
+## Admin-only postage review API (draft implementation)
+
+Authenticated House administrators can inspect `GET /api/admin/postage-reviews` for up to 200 carrier adjustments, their original charges, transfer state and recorded review decisions. `POST /api/admin/postage-reviews/:adjustmentId/decision` accepts `decision` (`needs_evidence`, `disputed`, or `approved_for_manual_review`) and a substantive `reason` (12–2000 characters). The append-only decision history records the authenticated administrator identity and time. This is an internal API, **not yet a visual dashboard**.
+
+These decisions **do not** mark adjustments resolved, release payout holds, alter seller earnings, or call Stripe/Shippo. Invoice import automation and financial settlement remain deliberately unimplemented pending evidence validation and separately approved settlement rules. Never create fabricated production adjustments for testing. Keep live purchasing disabled.
