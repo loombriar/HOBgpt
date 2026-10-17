@@ -1,6 +1,12 @@
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 // This key is fixture-only; it encrypts disposable E2E data.
 process.env.MEASUREMENT_ENCRYPTION_KEY=require('node:crypto').randomBytes(32).toString('hex');
+// Stub only the external image-review provider inside this disposable test server.
+process.env.OPENAI_API_KEY='e2e-image-review-fixture';
+const realFetch=global.fetch;
+global.fetch=async(url,options)=>String(url)==='https://api.openai.com/v1/responses'
+ ? new Response(JSON.stringify({output_text:JSON.stringify({allow:true,needsHumanReview:false,reason:'Sample fixture image'})}),{status:200,headers:{'Content-Type':'application/json'}})
+ : realFetch(url,options);
 const { createApp,SELLER_TERMS_VERSION }=require('../server');
 const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-e2e-'));
 const designerCodes=new Map();

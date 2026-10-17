@@ -1336,7 +1336,8 @@ async function handleSave(event) {
       return;
     }
 
-    setMessage(uploadMessage, 'Draft saved successfully.', 'success');
+    const failedPhotos=selectedImages.filter(image=>image.status==='failed');
+    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : 'Draft saved successfully.', failedPhotos.length ? 'error' : 'success');
     await loadDesignerListings();
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');

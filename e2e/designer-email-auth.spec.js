@@ -46,6 +46,11 @@ test('marketplace mobile signup continues through a private draft and review sub
   await design.locator('#product-production-type').selectOption('One of a Kind');
   const photo=await require('sharp')({create:{width:32,height:32,channels:3,background:'#a37a4f'}}).png().toBuffer();
   await design.locator('#product-photos').setInputFiles({name:'sample-dress.png',mimeType:'image/png',buffer:photo});
+  const imageRoute='**/api/listings/*/images';
+  await page.route(imageRoute,route=>route.fulfill({status:503,json:{error:{message:'Image review temporarily unavailable.'}}}));
+  await design.getByRole('button',{name:'Save draft',exact:true}).click();
+  await expect(page.locator('#upload-message')).toContainText('Draft text saved, but some photos could not be uploaded.');
+  await page.unroute(imageRoute);
   await design.getByRole('button',{name:'Save draft',exact:true}).click();
   await expect(page.locator('#upload-message')).toHaveText('Draft saved successfully.');
   let mine=await(await page.request.get('/api/my/listings')).json();
