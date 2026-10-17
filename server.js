@@ -3723,6 +3723,39 @@ function createApp(options = {}) {
     return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews});
   });
 
+  // Admin-only evidence review. Decisions never change postage charges or Stripe payouts.
+  db.exec(`CREATE TABLE IF NOT EXISTS postage_review_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, adjustment_id TEXT NOT NULL,
+    decision TEXT NOT NULL CHECK(decision IN ('needs_evidence','disputed','approved_for_manual_review')),
+    reason TEXT NOT NULL, reviewer TEXT NOT NULL, created_at TEXT NOT NULL);`);
+  app.get('/api/admin/postage-reviews',authAdmin,(_req,res)=>{
+    const adjustments=db.prepare(`SELECT a.adjustment_id AS adjustmentId,a.transaction_id AS transactionId,
+      a.delta_cents AS deltaCents,a.test_mode AS testMode,a.source,a.status,a.created_at AS createdAt,
+      c.order_id AS orderId,c.designer_id AS designerId,c.cost_cents AS originalCostCents,
+      c.status AS chargeStatus,t.status AS transferStatus,t.amount_cents AS transferAmountCents
+      FROM postage_adjustments a JOIN postage_charges c ON c.transaction_id=a.transaction_id
+      LEFT JOIN designer_transfers t ON t.order_id=c.order_id AND t.designer_id=c.designer_id
+      ORDER BY a.created_at DESC LIMIT 200`).all();
+    const decisions=db.prepare('SELECT adjustment_id AS adjustmentId,decision,reason,reviewer,created_at AS createdAt FROM postage_review_decisions ORDER BY id DESC LIMIT 300').all();
+    res.set('Cache-Control','no-store');
+    return res.json({adjustments,decisions,notice:'Review decisions do not change seller balances, payout holds or Stripe transfers.'});
+  });
+  app.post('/api/admin/postage-reviews/:adjustmentId/decision',authAdmin,(req,res)=>{
+    const decision=req.body?.decision,reason=req.body?.reason;
+    if(!['needs_evidence','disputed','approved_for_manual_review'].includes(decision)||
+      typeof reason!=='string'||reason.trim().length<12||reason.length>2000)
+      return fail(res,422,'invalid_review_decision','Provide a valid review decision and reason (12–2000 characters).');
+    const adjustment=db.prepare('SELECT adjustment_id FROM postage_adjustments WHERE adjustment_id=?').get(req.params.adjustmentId);
+    if(!adjustment)return fail(res,404,'adjustment_not_found','Postage adjustment not found.');
+    const reviewer=String(req.admin?.id||req.admin?.email||'authenticated-admin');
+    const createdAt=new Date().toISOString();
+    db.prepare('INSERT INTO postage_review_decisions (adjustment_id,decision,reason,reviewer,created_at) VALUES (?,?,?,?,?)')
+      .run(adjustment.adjustment_id,decision,reason.trim(),reviewer,createdAt);
+    res.set('Cache-Control','no-store');
+    return res.status(201).json({adjustmentId:adjustment.adjustment_id,decision,createdAt,
+      financialEffect:false,notice:'Decision recorded for manual review; payout hold remains.'});
+  });
+
   app.get('/api/admin/orders/:orderId', authAdmin, (req,res)=>{
     const order=db.prepare('SELECT id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at,paid_at,refund_status,stripe_refund_id,refunded_at FROM orders WHERE id=?').get(req.params.orderId);
     if(!order)return fail(res,404,'order_not_found','Order not found.');
