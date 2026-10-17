@@ -20,7 +20,8 @@ test('mobile designer signup verifies email before opening the room',async({page
   const cookies=await page.context().cookies();expect(cookies.find(c=>c.name==='hob_designer_session').httpOnly).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('briarDesignerToken'))).toBeNull();
 });
-test('marketplace signup verifies email and returns to the signed-in designer room',async({page,request})=>{
+test('marketplace mobile signup continues through a private draft and review submission',async({page,request})=>{
+  test.setTimeout(60000);await page.setViewportSize({width:390,height:844});
   const email=`designer-sell-${Date.now()}@example.test`;
   await page.goto('/sell');
   const form=page.locator('#designer-signup form');
@@ -35,4 +36,31 @@ test('marketplace signup verifies email and returns to the signed-in designer ro
   await input.fill(code);await page.getByRole('button',{name:'Verify email and open my room'}).click();
   await expect(page).toHaveURL(/designers\/room/);
   await expect(page.locator('#designer-workspace')).toBeVisible();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  const design=page.locator('#product-form');
+  await design.getByLabel('Design name',{exact:true}).fill('First Mobile Dress');
+  await design.getByLabel('Price',{exact:true}).fill('75');
+  await design.locator('#product-style').selectOption({label:'Dress'});
+  await design.locator('#product-size').selectOption({label:'M'});
+  await design.locator('#product-aesthetic').selectOption({index:1});
+  await design.locator('#product-production-type').selectOption('One of a Kind');
+  const photo=await require('sharp')({create:{width:32,height:32,channels:3,background:'#a37a4f'}}).png().toBuffer();
+  await design.locator('#product-photos').setInputFiles({name:'sample-dress.png',mimeType:'image/png',buffer:photo});
+  await design.getByRole('button',{name:'Save draft',exact:true}).click();
+  await expect(page.locator('#upload-message')).toHaveText('Draft saved successfully.');
+  let mine=await(await page.request.get('/api/my/listings')).json();
+  const draft=mine.items.find(item=>item.title==='First Mobile Dress');expect(draft.status).toBe('draft');expect(draft.images.length).toBe(1);
+  expect((await(await page.request.get('/api/gallery')).json()).items.some(item=>item.id===draft.id)).toBe(false);
+  await page.reload();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Your listings',exact:true}).click();
+  await page.locator('#listing-'+draft.id).getByRole('button',{name:'Edit',exact:true}).click();
+  await expect(design.getByLabel('Design name',{exact:true})).toHaveValue('First Mobile Dress');
+  await design.locator('#marketplace-rules-accepted').check();
+  await design.getByRole('button',{name:'Submit listing',exact:true}).click();
+  await expect(page.locator('#upload-message')).toContainText('Submitted for review.');
+  mine=await(await page.request.get('/api/my/listings')).json();expect(mine.items.find(item=>item.id===draft.id).status).toBe('pending_review');
+  expect((await(await page.request.get('/api/gallery')).json()).items.some(item=>item.id===draft.id)).toBe(false);
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Your listings',exact:true}).click();
+  await expect(page.locator('#listing-'+draft.id)).toContainText('Pending approval');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
 });
