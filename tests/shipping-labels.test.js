@@ -167,3 +167,27 @@ test('live label attaches tracking to its order without triggering payout, and a
     assert.equal(f.db.prepare('SELECT test_mode FROM postage_charges').get().test_mode,0);
   } finally {await f.close();}
 });
+
+test('confirmed live postage refund releases only its own unverified tracking and credits once',async()=>{
+  let state='SUCCESS',posts=0;
+  const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true,
+    transaction:()=>Response.json({test:false,status:'SUCCESS',object_id:'live-tx',tracking_number:'LIVE123',label_url:'https://deliver.goshippo.com/live.pdf'}),
+    readTransaction:()=>Response.json({test:false,status:state,object_id:'live-tx',metadata:'hob-live:order:seller',rate:'rate',tracking_status:'PRE_TRANSIT'}),
+    refundResponse:()=>{posts++;state='REFUNDPENDING';return Response.json({object_id:'live-refund',transaction:'live-tx',status:'PENDING'});}
+  });
+  try{
+    const q=await quote(f);assert.equal((await buy(f,q)).status,200);
+    assert.equal(f.db.prepare('SELECT tracking_number FROM designer_transfers').get().tracking_number,'LIVE123');
+    assert.equal((await f.call('/cancel',{confirmCancellation:true})).status,200);
+    assert.equal(f.db.prepare('SELECT tracking_number FROM designer_transfers').get().tracking_number,'LIVE123');
+    assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refund_pending');
+    state='REFUNDED';
+    assert.equal((await f.call('/cancel/status',{})).status,200);
+    assert.equal(f.db.prepare('SELECT tracking_number,tracking_carrier FROM designer_transfers').get().tracking_number,null);
+    assert.equal(f.db.prepare('SELECT status FROM postage_charges').get().status,'refunded');
+    assert.equal((await f.call('/cancel/status',{})).status,200);
+    assert.equal(posts,1);
+    assert.equal((await f.call('/correct',{})).status,200);
+    assert.equal((await quote(f)).status,200);
+  }finally{await f.close();}
+});
