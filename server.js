@@ -3747,7 +3747,7 @@ function createApp(options = {}) {
       return fail(res,422,'invalid_review_decision','Provide a valid review decision and reason (12–2000 characters).');
     const adjustment=db.prepare('SELECT adjustment_id FROM postage_adjustments WHERE adjustment_id=?').get(req.params.adjustmentId);
     if(!adjustment)return fail(res,404,'adjustment_not_found','Postage adjustment not found.');
-    const reviewer=String(req.admin?.id||req.admin?.email||'authenticated-admin');
+    const reviewer=String(req.adminActor||'authenticated-admin');
     const createdAt=new Date().toISOString();
     db.prepare('INSERT INTO postage_review_decisions (adjustment_id,decision,reason,reviewer,created_at) VALUES (?,?,?,?,?)')
       .run(adjustment.adjustment_id,decision,reason.trim(),reviewer,createdAt);
