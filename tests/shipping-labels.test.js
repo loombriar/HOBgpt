@@ -205,3 +205,30 @@ test('live purchase rejects a payout state changed after quoting without contact
     assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM shipping_labels').get().n,0);
   }finally{await f.close();}
 });
+
+test('live purchase remains disabled without explicit flag and never contacts carrier',async()=>{
+ const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:false});
+ try{
+  const result=await quote(f);
+  assert.equal(result.status,409);
+  assert.equal(f.calls.length,0);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,0);
+ }finally{await f.close();}
+});
+test('payout and tracking changes after quote block purchase before any carrier POST',async()=>{
+ for(const sql of [
+  "UPDATE designer_transfers SET status='paid'",
+  "UPDATE designer_transfers SET tracking_verified_at='2026-10-17T00:00:00Z'",
+  "UPDATE designer_transfers SET tracking_number='EXISTING'"
+ ]){
+  const f=await fixture({key:'shippo_live_fixture',session:'cs_live_order',liveEnabled:true});
+  try{
+   const q=await quote(f);assert.equal(q.status,200);
+   const before=f.calls.length;
+   f.db.exec(sql);
+   assert.equal((await buy(f,q)).status,409);
+   assert.equal(f.calls.length,before);
+   assert.equal(f.db.prepare('SELECT COUNT(*) n FROM shipping_labels').get().n,0);
+  }finally{await f.close();}
+ }
+});
