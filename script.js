@@ -321,7 +321,7 @@ function createBadgePill(label, className = 'badge') {
     pill.prepend(artwork);
   }
   if (className.includes('founding-badge')) {
-    pill.title = 'One of the first 25 designers to join House of Briar.';
+    pill.title = 'A recognition of the designers helping shape the House.';
     const artwork = makeElement('img', 'supporter-badge-art');
     artwork.src = '/founding-designer-berry-v1.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
   }

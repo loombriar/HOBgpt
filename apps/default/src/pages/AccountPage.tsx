@@ -304,7 +304,7 @@ function StudioContent() {
   };
 
   if (!auth.isAuthenticated) {
-    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><LogIn className="mx-auto text-primary" size={28} /><h1 className="mt-5 font-serif text-4xl">Your private shopping room.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to see your favorites, purchase history and badges. Designer tools are available separately.</p><a href="/?visitors=signup" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Sign in or create customer account</a></div>;
+    return <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 text-center"><LogIn className="mx-auto text-primary" size={28} /><h1 className="mt-5 font-serif text-4xl">Your private shopping room.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to see your favorites, purchase history and badges. Designer tools are available separately.</p><a href="/?visitors=signup" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Sign in or create customer account</a><section id="house-support" className="mt-8 scroll-mt-36 border-t border-border pt-6 text-left"><div id="house-support-agent" className="scroll-mt-36"><h2 className="font-serif text-2xl">House support</h2><p className="mt-3 text-sm text-muted-foreground">You can contact us without an account, including for a guest order. Email your question and order reference if you have one. Please do not include payment details or passwords.</p><a href="mailto:thee.house.of.briar@gmail.com" className="mt-4 inline-flex min-h-11 items-center break-all text-sm underline">Email House support</a><p className="mt-3 text-sm text-muted-foreground">AI support requires a signed-in House account and your consent. Sign in above, or <a href="/designers/room" className="underline">sign in as a designer</a>, then return here to continue.</p></div></section></div>;
   }
 
   const saveListing = async (event: FormEvent) => {
@@ -355,7 +355,7 @@ function StudioContent() {
     const measurementProfilesSection=<MeasurementProfiles />;
 
   const accountBadges = [...badges, ...(houseProfile?.foundingBadge ? [houseProfile.foundingBadge] : [])];
-  const badgeStrip = accountBadges.length>0?<div className="mb-6 flex flex-wrap gap-2" aria-label="House of Briar account badges">{accountBadges.map(badge=><span key={badge.type} title={badge.type==='founding_designer'?'One of the first 25 designers to join House of Briar.':badge.type==='verified_buyer'?'Excellent taste. Receipt to prove it.':'You helped keep the House in stitches. Thank you.'} className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary">{badge.type==='founding_designer'?<img src="/founding-designer-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>:badge.type==='verified_buyer'?<img src="/verified-buyer-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>:<img src="/heart-of-the-house-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>}{badge.type==='founding_designer'?'Founding Designer':badge.type==='verified_buyer'?'Verified Buyer':'House Supporter'}</span>)}</div>:null;
+  const badgeStrip = accountBadges.length>0?<div className="mb-6 flex flex-wrap gap-2" aria-label="House of Briar account badges">{accountBadges.map(badge=><span key={badge.type} title={badge.type==='founding_designer'?'A recognition of the designers helping shape the House.':badge.type==='verified_buyer'?'Excellent taste. Receipt to prove it.':'You helped keep the House in stitches. Thank you.'} className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary">{badge.type==='founding_designer'?<img src="/founding-designer-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>:badge.type==='verified_buyer'?<img src="/verified-buyer-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>:<img src="/heart-of-the-house-berry-v1.webp" alt="" aria-hidden="true" className="size-10 rounded-full object-contain"/>}{badge.type==='founding_designer'?'Founding Designer':badge.type==='verified_buyer'?'Verified Buyer':'House Supporter'}</span>)}</div>:null;
 
   const donationsSection = donations.length>0?<section className="mb-8 rounded-3xl border border-border bg-card p-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Support history</p><h2 className="mt-2 font-serif text-3xl">Your House of Briar contributions</h2><div className="mt-5 divide-y divide-border">{donations.map(donation=><div key={donation.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-medium">{new Date(donation.createdAt).toLocaleDateString()}</p><p className="mt-1 text-xs text-muted-foreground">{donation.status==="paid"?(donation.badgeEligible?"Verified contribution · Supporter eligible":"Verified contribution"):"Payment "+donation.status}</p></div><p className="font-semibold">{"$"+(donation.amountCents/100).toFixed(2)}</p></div>)}</div></section>:null;
 
@@ -413,11 +413,11 @@ function packGarmentDetails(description:string, details:Record<string,string>) {
 export default function AccountPage() {
   const location = useLocation();
   useEffect(() => {
-    if (location.hash !== '#house-support') return;
+    if (!['#house-support', '#house-support-agent'].includes(location.hash)) return;
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const scrollToSupport = () => {
-      const target = document.getElementById('house-support');
+      const target = document.getElementById(location.hash.slice(1)) || document.getElementById('house-support');
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;

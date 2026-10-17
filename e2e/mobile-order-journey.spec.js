@@ -61,7 +61,7 @@ for(const signedIn of [false,true])test(`${signedIn?'signed-in':'guest'} mobile 
    await page.getByRole('textbox',{name:'How can we help?',exact:true}).fill('Please review a return request for this sample order.');await page.getByRole('button',{name:'Send to customer service',exact:true}).click();
    await expect(page.getByText('Sent. Customer service will review your message.',{exact:true})).toBeVisible();expect(ctx.db.prepare('SELECT order_id FROM support_messages').get().order_id).toBe(orderId);await noOverflow(page);
   }else{
-   await expect(page.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:houseofbriar26@gmail.com.*'+orderId));
+   await expect(page.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:thee.house.of.briar@gmail.com.*'+orderId));
    expect((await page.request.get(origin+'/api/my/purchases')).status()).toBe(401);
    await expect(page.getByText('Keep this receipt page',{exact:false})).toBeVisible();
    const returningGuest=await browser.newContext({viewport:{width,height:844}});
@@ -70,7 +70,7 @@ for(const signedIn of [false,true])test(`${signedIn?'signed-in':'guest'} mobile 
     await expect(receiptPage.getByRole('heading',{name:'Order confirmed',exact:true})).toBeVisible();
     await expect(receiptPage.getByText('Journey Atelier',{exact:true})).toBeVisible();
     await expect(receiptPage.getByText('Sample tracking · No real shipment',{exact:true})).toBeVisible();
-    await expect(receiptPage.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:houseofbriar26@gmail.com.*'+orderId));
+    await expect(receiptPage.getByRole('link',{name:'Get help with this order',exact:true})).toHaveAttribute('href',new RegExp('mailto:thee.house.of.briar@gmail.com.*'+orderId));
     await noOverflow(receiptPage);
     expect((await receiptPage.request.get(origin+'/api/my/purchases')).status()).toBe(401);
    }finally{await returningGuest.close();}
