@@ -71,7 +71,7 @@ export default function PostageLabel({orderId,earningsCents,onChanged}:{orderId:
       </>:<p role="status" className="mt-2">{label.status==='processing'?'Label request is processing. Refresh this order to check its status.':'Label outcome needs review. Check its status before trying again.'}</p>}
       {label.message&&<p className="mt-2 text-muted-foreground">{label.message}</p>}
       {!['ready','cancelled'].includes(label.status)&&<button type="button" disabled={busy} onClick={()=>void reconcile()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">{busy?'Checking existing label…':'Check existing label status'}</button>}
-      {label.status==='cancelled'&&<button type="button" disabled={busy} onClick={()=>void correct()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">Create a replacement label</button>}
+      {label.status==='cancelled'&&<button type="button" disabled={busy} onClick={()=>void correct()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">{sample?'Create a replacement sample label':'Create a replacement label'}</button>}
       {label.status==='provider_error'&&<button type="button" disabled={busy} onClick={()=>void correct()} className="mt-3 min-h-11 rounded-full border border-border px-5 font-semibold disabled:opacity-50">Correct details &amp; get fresh rates</button>}
     </div>:<>
     <form className="mt-4" onSubmit={getRates} onChange={()=>{setRates([]);setConfirmed(false);setSelected('');}}>
