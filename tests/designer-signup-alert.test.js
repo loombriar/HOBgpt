@@ -7,7 +7,7 @@ test('designer signup queues one admin email alert',async()=>{
  const ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{},signupAlertEmail:'owner@example.test',sendEmail:async email=>{sent.push(email);return true;}});
  const server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
  try{
-  const body={email:'maker@example.test',displayName:'Maker Name',brandName:'Moon Moss',categories:['apparel'],sellerTermsAccepted:true,sellerTermsVersion:'2026-10-08-free-delivery'};
+  const body={email:'maker@example.test',displayName:'Maker Name',brandName:'Moon Moss',categories:['apparel'],sellerTermsAccepted:true,sellerTermsVersion:'2026-10-17-live-postage'};
   const result=await verifiedSignup(origin,ctx.db,body);assert.equal(result.response.status,200);
   await new Promise(resolve=>setTimeout(resolve,20));
   assert.equal(sent.filter(m=>m.to==='owner@example.test').length,1);
