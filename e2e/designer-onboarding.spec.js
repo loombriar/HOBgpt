@@ -16,7 +16,7 @@ for(const room of ['dashboard','standalone'])test(`designer onboarding opens the
   const checklist=page.getByRole('region',{name:'Your path to selling',exact:true});
   await expect(checklist).toContainText('2 of 4 required selling steps complete.');
   await checklist.locator('[data-next-action]').getByRole('link',{name:'Create your first draft',exact:true}).click();
-  await expect(page.locator('#designer-listings')).toHaveAttribute('open','');await expect(page.getByRole('textbox',{name:'Piece name',exact:true})).toBeVisible();
+  await expect(page.locator('#designer-listings').locator('xpath=ancestor::details[1]')).toHaveAttribute('open','');await expect(page.getByRole('textbox',{name:'Piece name',exact:true})).toBeVisible();
  }else{
   await expect(page.locator('#seller-readiness-badge')).toHaveText('Account ready · prepare your first approved piece');
   await page.locator('#seller-next-action').getByRole('button',{name:'Create a draft',exact:true}).click();await expect(page.locator('#product-form')).toBeVisible();
