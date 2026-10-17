@@ -28,6 +28,9 @@ function ThemeButton() {
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
+  const [helpOpen,setHelpOpen] = useState(false);
+  const [helpQuestion,setHelpQuestion] = useState('');
+
   const headerRef = useRef<HTMLElement>(null);
   const [headerHeight, setHeaderHeight] = useState(124);
   useLayoutEffect(() => {
@@ -127,7 +130,18 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           </div>
         </div>
       </footer>
-      <Link to="/account#house-support" className="fixed bottom-5 right-5 z-40 rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold shadow-lg focus-visible:outline focus-visible:outline-2" aria-label="Get House of Briar support">Need help?</Link>
+      <div className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-3">
+        {helpOpen && <section id="house-help-chat" role="dialog" aria-label="House of Briar AI support" className="w-[min(23rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-4 shadow-2xl">
+          <div className="flex items-center justify-between gap-3"><h2 className="font-serif text-xl">House support assistant</h2><button type="button" aria-label="Close support chat" onClick={()=>setHelpOpen(false)} className="min-h-11 min-w-11 rounded-full border border-border">×</button></div>
+          <p className="mt-2 text-sm text-muted-foreground">Ask about House policies, designer registration, shipping, or orders. The AI assistant is available through your account and asks for consent before sharing information.</p>
+          <form onSubmit={event=>{event.preventDefault();if(!helpQuestion.trim())return;sessionStorage.setItem('hob-support-question',helpQuestion.trim());window.location.assign('/account#house-support-agent');}} className="mt-4 space-y-3">
+            <label className="block text-sm">Your question<textarea value={helpQuestion} onChange={event=>setHelpQuestion(event.target.value)} required minLength={5} maxLength={1500} rows={3} className="mt-2 w-full rounded-xl border border-border bg-background p-3"/></label>
+            <button type="submit" className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Continue to AI support</button>
+          </form>
+          <Link to="/account#house-support" onClick={()=>setHelpOpen(false)} className="mt-3 block text-center text-sm underline">Contact customer support</Link>
+        </section>}
+        <button type="button" aria-expanded={helpOpen} aria-controls="house-help-chat" onClick={()=>setHelpOpen(open=>!open)} className="rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold shadow-lg focus-visible:outline focus-visible:outline-2">Need help?</button>
+      </div>
     </div>
   );
 }
