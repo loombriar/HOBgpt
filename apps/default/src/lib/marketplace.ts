@@ -10,6 +10,8 @@ type GalleryItem = {
   category?: string;
   style?: string;
   aesthetic?: string;
+  pattern?: string;
+  presentation?: string;
   size?: string;
   designerId?: string;
   designerName?: string;
@@ -17,7 +19,7 @@ type GalleryItem = {
   images?: Array<{ url: string }>;
   seoTitle?: string; seoDescription?: string; seoTags?: string; shareImageUrl?: string;
   giftNoteAvailable?:boolean; shippingCostCents?: number|null; freeShippingThresholdCents?: number|null; handlingDaysMin?: number|null; handlingDaysMax?: number|null; internationalShipping?: boolean;
-  productionType?: 'One of a Kind'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; availableQuantity?: number|null; soldQuantity?: number; reservedQuantity?: number;
+  productionType?: 'One of a Kind'|'Upcycled'|'Made in Multiple'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; availableQuantity?: number|null; soldQuantity?: number; reservedQuantity?: number;
 };
 
 function galleryItemToGenesis(item: GalleryItem): GenesisNode {
@@ -32,6 +34,8 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@tagsx': [item.style, item.category].filter(Boolean).join(', ') || 'Independent design',
       '/attributes/@style': item.style || '',
       '/attributes/@aesth': item.aesthetic || '',
+      '/attributes/@patrn': item.pattern || '',
+      '/attributes/@presn': item.presentation || (['menswear','womenswear','unisex'].includes(item.category||'')?item.category:''),
       '/attributes/@sizex': item.size?.trim() || (item.productionType === 'Made to Order' ? 'Made to order · check measurements' : 'See measurements'),
       '/attributes/@desig': item.designerName || item.designerId || 'Independent designer',
       '/attributes/@desid': item.designerId || '',

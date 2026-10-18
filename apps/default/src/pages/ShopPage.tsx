@@ -1,3 +1,4 @@
+import taxonomy from '../../../../shared/taxonomy.json';
 import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -8,8 +9,9 @@ import VisualSearch from '@/components/VisualSearch';
 import { MARKET_STYLES, getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, isPublicProduct, getProductImages, getProductVisual, money, setPersistentFavorite } from '@/lib/marketplace';
 import { trackCommerceEvent } from '@/lib/analytics';
 
-const GARMENT_SUBCATEGORIES=['Dress','Skirt','Top','Set / Outfit','Jacket / Outerwear','Winter Wear','Pants / Shorts','Jumpsuit / Romper','Costume','Other clothing'];
-const ACCESSORY_SUBCATEGORIES=['Belt','Purse / Bag','Scarf / Wrap','Hat / Headwear','Gloves','Hair Accessory','Other accessory'];
+const GARMENT_SUBCATEGORIES=taxonomy.clothingTypes.map(item=>item.value);
+const ACCESSORY_SUBCATEGORIES=taxonomy.accessoryTypes.map(item=>item.value);
+const TYPE_LABELS=Object.fromEntries([...taxonomy.clothingTypes,...taxonomy.accessoryTypes].map(item=>[item.value,item.label]));
 const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories',menswear:'Masculine',womenswear:'Womenswear',unisex:'Unisex',costumes:'Costumes'};
 const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex','costumes'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
 
@@ -126,7 +128,10 @@ export default function ShopPage() {
     window.addEventListener('house-of-briar-saved-products', refreshSaved);
     return () => window.removeEventListener('house-of-briar-saved-products', refreshSaved);
   }, []);
-  const categories = ['All pieces', ...Object.keys(CATEGORY_LABELS)];
+  const categories = ['All pieces', ...taxonomy.departments.map(item=>item.value)];
+  const presentation=searchParams.get('presentation')||'all', pattern=searchParams.get('pattern')||'all', availability=searchParams.get('availability')||'all';
+  const availabilityMatches=(item:GenesisNode,value:string)=>value==='all'||(value==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(getFieldValue(item,'@ptype','Production Type')||''):getFieldValue(item,'@ptype','Production Type')===value);
+  const count=(field:string,value:string)=>products.filter(item=>(getFieldValue(item,field,'')||'')===value).length;
 
   const visible = products.filter((product) => {
     if ((!isPublicProduct(product) && getFieldValue(product,'@statx','Status') !== 'Sold Out') || (savedOnly && !savedIds.includes(product.id))) return false;
@@ -141,7 +146,7 @@ export default function ShopPage() {
     const productStyle = getFieldValue(product, '@style', 'Style') ?? '';
     const matchesStyle = style === 'All styles' || (getFieldValue(product,'@aesth','Aesthetic')||productStyle) === style;
     const matchesPrice = matchesPriceRange(price, priceRange);
-    return matchesQuery && matchesCategory && matchesSubcategory && matchesDesigner && matchesStyle && matchesPrice;
+    return matchesQuery && matchesCategory && matchesSubcategory && matchesDesigner && matchesStyle && matchesPrice && (presentation==='all'||getFieldValue(product,'@presn','Presentation')===presentation) && (pattern==='all'||getFieldValue(product,'@patrn','Pattern')===pattern) && availabilityMatches(product,availability);
   }).sort((a, b) => { const aPrice=getFieldNumber(a,'@price','Price')??0; const bPrice=getFieldNumber(b,'@price','Price')??0; const aName=getTitle(a,'Name')??''; const bName=getTitle(b,'Name')??''; if(sort==='price-low')return aPrice-bPrice; if(sort==='price-high')return bPrice-aPrice; if(sort==='name')return aName.localeCompare(bName); return 0; });
   const handleSave = (productId: string) => {
     const shouldSave=!savedIds.includes(productId);
@@ -166,7 +171,7 @@ export default function ShopPage() {
   const foundingCollection = !savedOnly && !searchParams.toString() && visible.length > 0 && visible.length <= 4;
   const noCatalogPieces = !catalogError && !savedOnly && !hasCatalogPieces;
   const invitation = <aside className="my-10 rounded-3xl border border-border bg-card px-6 py-9 text-center shadow-sm sm:px-12" aria-labelledby="house-invitation-title"><p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">An invitation from the House</p><h2 id="house-invitation-title" className="mt-3 font-serif text-3xl sm:text-4xl">The House is getting dressed</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">Our first pieces are only the beginning. We're welcoming independent designers to bring their own vision to the House.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/sell" className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Join as a designer</Link><a href="/#journal" className="inline-flex min-h-12 items-center justify-center rounded-full border border-border px-6 text-sm font-semibold hover:bg-accent">Get notified when pieces arrive</a></div></aside>;
-  const activeFilters = [category !== 'All pieces', subcategory !== 'All subcategories', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers'].filter(Boolean).length;
+  const activeFilters = [category !== 'All pieces', subcategory !== 'All subcategories', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers',presentation!=='all',pattern!=='all',availability!=='all'].filter(Boolean).length;
   return <HouseShell>
     <section className="house-shop mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="house-shop-heading">
@@ -183,10 +188,10 @@ export default function ShopPage() {
           <input value={query} onChange={event => { setQuery(event.target.value); updateFilter('q', event.target.value, ''); }} placeholder="Search pieces, designers, materials…" />
         </label>
         <details className="house-shop-filters min-w-0"><summary>Browse pieces · {CATEGORY_LABELS[category] || category}</summary><div className="house-filter-options">
-        <label className="house-filter-label" htmlFor="category-filter">Collection
-          <select id="category-filter" value={category} onChange={event => { const next=new URLSearchParams(searchParams);next.delete('subcategory');if(event.target.value==='All pieces')next.delete('category');else next.set('category',event.target.value);setSearchParams(next,{replace:true}); }}>{categories.map(item => <option key={item} value={item}>{CATEGORY_LABELS[item]||item}</option>)}</select>
+        <label className="house-filter-label" htmlFor="category-filter">Department
+          <select id="category-filter" value={category} onChange={event => { const next=new URLSearchParams(searchParams);next.delete('subcategory');if(event.target.value==='All pieces')next.delete('category');else next.set('category',event.target.value);setSearchParams(next,{replace:true}); }}>{categories.map(item => <option key={item} value={item}>{CATEGORY_LABELS[item]||item} ({products.filter(p=>categoryMatches(item,getFieldValue(p,'@categ','Category')||'',getFieldValue(p,'@style','Style')||'')).length})</option>)}</select>
         </label>
-        <label className="house-filter-label" htmlFor="subcategory-filter">Piece type<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item}>{item}</option>)}</select></label>
+        <label className="house-filter-label" htmlFor="subcategory-filter">Piece type<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item} value={item}>{TYPE_LABELS[item]||item} ({count('@style',item)})</option>)}</select></label>
         </div></details>
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>
@@ -196,8 +201,11 @@ export default function ShopPage() {
         <summary><SlidersHorizontal size={16}/> More filters {activeFilters > 0 && `(${activeFilters} active)`}</summary>
         <div className="house-filter-options">
 
+          <label className="house-filter-label" htmlFor="presentation-filter">Presentation<select id="presentation-filter" value={presentation} onChange={e=>updateFilter('presentation',e.target.value,'all')}><option value="all">All presentations</option>{taxonomy.presentation.map(item=><option key={item.value} value={item.value}>{item.label} ({count('@presn',item.value)})</option>)}</select></label>
+          <label className="house-filter-label" htmlFor="pattern-filter">Print / Pattern<select id="pattern-filter" value={pattern} onChange={e=>updateFilter('pattern',e.target.value,'all')}><option value="all">All prints</option>{taxonomy.patterns.filter(item=>count('@patrn',item)>0||item===pattern).map(item=><option key={item} value={item}>{item} ({count('@patrn',item)})</option>)}</select></label>
+          <label className="house-filter-label" htmlFor="availability-filter">Availability<select id="availability-filter" value={availability} onChange={e=>updateFilter('availability',e.target.value,'all')}><option value="all">All availability</option>{taxonomy.availability.map(item=><option key={item.value} value={item.value}>{item.label} ({products.filter(p=>availabilityMatches(p,item.value)).length})</option>)}</select></label>
           <label className="house-filter-label" htmlFor="price-filter">Price range<select id="price-filter" value={priceRange} onChange={event => { setPriceRange(event.target.value); updateFilter('price', event.target.value, 'all-prices'); }}>{PRICE_RANGES.map(range => <option key={range.value} value={range.value}>{range.label}</option>)}</select></label>
-          <label className="house-filter-label" htmlFor="style-filter">Style<select id="style-filter" value={style} onChange={event => { setStyle(event.target.value); updateFilter('style', event.target.value, 'All styles'); }}><option>All styles</option>{MARKET_STYLES.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="house-filter-label" htmlFor="style-filter">Aesthetic<select id="style-filter" value={style} onChange={event => { setStyle(event.target.value); updateFilter('style', event.target.value, 'All styles'); }}><option>All styles</option>{taxonomy.aesthetics.filter(item=>count('@aesth',item)>0||item===style).map(item => <option key={item} value={item}>{item} ({count('@aesth',item)})</option>)}</select></label>
         </div>
       </details>}
       {!noCatalogPieces && <div className="house-results-line"><p role="status">{visible.length} {visible.length === 1 ? 'piece' : 'pieces'}{savedOnly ? ' saved' : ' to discover'}</p>{(activeFilters > 0 || query) && <button type="button" onClick={() => { const next = new URLSearchParams(); if (savedOnly) next.set('saved', 'true'); setSearchParams(next); }}>Clear search &amp; filters</button>}</div>}

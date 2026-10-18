@@ -154,6 +154,7 @@ let activeAccessory = 'all';
 let selectedImages = [];
 let activeFilter = 'all';
 let activeShopCategory = 'all';
+let activePresentation='all', activeProductionType='all';
 let activeDesigner = 'all';
 let galleryRequest = 0;
 let activeMeasurements = null;
@@ -563,7 +564,7 @@ function renderGallery() {
   const items = galleryItems;
   if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
 
-  const browsingAll=[activeFilter,activeAccessory,activeShopCategory,activeAesthetic,activePattern,activeDesigner].every(value=>value==='all')&&!shopSearch.trim()&&!activeMeasurements&&!location.pathname.startsWith('/collections/');
+  const browsingAll=[activeFilter,activeAccessory,activeShopCategory,activePresentation,activeProductionType,activeAesthetic,activePattern,activeDesigner].every(value=>value==='all')&&!shopSearch.trim()&&!activeMeasurements&&!location.pathname.startsWith('/collections/');
   if(browsingAll&&items.length<=4){
     const welcome=makeElement('aside','house-shop-invitation');
     welcome.setAttribute('aria-labelledby','home-shop-invitation-title');
@@ -666,7 +667,7 @@ async function loadGallery() {
     else params.set('style', activeFilter);
   }
   if (activeShopCategory !== 'all') params.set('category', activeShopCategory);
-  for (const [key, value] of [['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
+  for (const [key, value] of [['presentation',activePresentation],['productionType',activeProductionType],['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
     if (value !== 'all') params.set(key, value);
   }
   if (shopSearch) params.set('q', shopSearch.slice(0, 200));
@@ -1182,7 +1183,8 @@ function readFormValues() {
     freeShippingThresholdCents: null,
     handlingDaysMin: byId('product-handling-min').value === '' ? null : Number(byId('product-handling-min').value),
     handlingDaysMax: byId('product-handling-max').value === '' ? null : Number(byId('product-handling-max').value),
-    category: 'apparel',
+    category: byId('product-category')?.value || 'apparel',
+    presentation: byId('product-presentation')?.value || '',
     style: byId('product-style')?.value || '',
     size: byId('product-size')?.value || '',
     fitMeasurements: readFitRanges(),
@@ -1506,7 +1508,8 @@ async function editListing(listingId) {
     byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
     byId('product-handling-min').value = listing.handlingDaysMin ?? '';
     byId('product-handling-max').value = listing.handlingDaysMax ?? '';
-    if (byId('product-category')) byId('product-category').value = 'apparel';
+    if (byId('product-category')) {byId('product-category').value = listing.category === 'accessories'?'accessories':'apparel'; syncSellerTypes();}
+    if(byId('product-presentation'))byId('product-presentation').value=listing.presentation||(['menswear','womenswear','unisex'].includes(listing.category)?listing.category:'');
     if (byId('product-style')) byId('product-style').value = listing.style || '';
     if (byId('product-size')) byId('product-size').value = listing.size || '';
     for (const key of ['bust','waist','hips','inseam']) for (const bound of ['min','max']) {
@@ -1704,8 +1707,8 @@ async function signOut() {
   location.replace('/designers/room');
 }
 
-const clothingSubcategories = [['Dress','Dresses'],['Skirt','Skirts'],['Top','Tops'],['Set / Outfit','Sets & Outfits'],['Jacket / Outerwear','Outerwear'],['Winter Wear','Winter Wear'],['Pants / Shorts','Pants & Shorts'],['Jumpsuit / Romper','Jumpsuits & Rompers'],['Costume','Costumes'],['Other clothing','Other clothing']];
-const accessorySubcategories = [['Belt','Belts'],['Purse / Bag','Purses & Bags'],['Scarf / Wrap','Scarves & Wraps'],['Hat / Headwear','Hats & Headwear'],['Gloves','Gloves'],['Hair Accessory','Hair Accessories'],['Other accessory','Other accessories']];
+const clothingSubcategories = window.HouseTaxonomy.clothingTypes.map(item=>[item.value,item.label]);
+const accessorySubcategories = window.HouseTaxonomy.accessoryTypes.map(item=>[item.value,item.label]);
 function syncShopSubcategories() {
   const select=byId('shop-garment-filter');if(!select)return;
   select.replaceChildren();
@@ -1784,13 +1787,13 @@ byId('shop-clear-filters')?.addEventListener('click', () => {
   activeShopCategory = 'all';
   byId('shop-category-filter').value = 'all';
   syncShopSubcategories();
-  activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = 'all';
+  activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = activePresentation = activeProductionType = 'all';
   shopSearch = '';
   activeMeasurements = null;
   byId('shop-fit-form')?.reset();
   setMessage(byId('shop-fit-message'), '', '');
   byId('shop-search-input').value = '';
-  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-designer-filter']) {
+  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-designer-filter','shop-presentation-filter','shop-availability-filter']) {
     const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
   }
   loadGallery();
@@ -2751,7 +2754,7 @@ prepareDesignerRoomPanels();
  const update=()=>{
   for(const menu of menus){
    const kind=menu.dataset.filterMenu;
-   const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='style'?['shop-aesthetic-filter','shop-pattern-filter']:['shop-designer-filter'];
+   const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='presentation'?['shop-presentation-filter']:kind==='aesthetic'?['shop-aesthetic-filter']:kind==='pattern'?['shop-pattern-filter']:kind==='availability'?['shop-availability-filter']:['shop-designer-filter'];
    const chosen=ids.filter(id=>value(id)!=='all').map(label);
    menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||(kind==='category'?'All pieces':kind==='style'?'All styles & prints':'All designers');
   }
@@ -2829,3 +2832,18 @@ byId('designer-delete-form')?.addEventListener('submit', async event => {
     window.location.replace('/');
   }catch(error){setMessage(byId('designer-delete-message'),error.message||'Account could not be deleted.','error');if(button)button.disabled=false;}
 });
+
+function taxonomyOptions(id,items,placeholder,value){const select=byId(id);if(!select)return;const old=value??select.value;select.replaceChildren(new Option(placeholder,id.startsWith('shop-')?'all':''));for(const item of items){const v=typeof item==='string'?item:item.value,label=typeof item==='string'?item:item.label;select.add(new Option(label,v));}if([...select.options].some(o=>o.value===old))select.value=old;}
+function syncSellerTypes(){taxonomyOptions('product-style',byId('product-category')?.value==='accessories'?window.HouseTaxonomy.accessoryTypes:window.HouseTaxonomy.clothingTypes,'Choose an item type');}
+{const t=window.HouseTaxonomy;syncSellerTypes();byId('product-category')?.addEventListener('change',()=>{syncSellerTypes();byId('product-style').value='';});taxonomyOptions('product-presentation',t.presentation,'Not specified');taxonomyOptions('product-production-type',t.availability,'Choose availability');taxonomyOptions('product-aesthetic',t.aesthetics,'Choose an aesthetic');taxonomyOptions('product-pattern',t.patterns,'Choose a print or pattern');taxonomyOptions('shop-presentation-filter',t.presentation,'All presentations');taxonomyOptions('shop-availability-filter',t.availability,'All availability');taxonomyOptions('shop-aesthetic-filter',t.aesthetics,'All aesthetics');taxonomyOptions('shop-pattern-filter',t.patterns,'All prints');}
+byId('shop-presentation-filter')?.addEventListener('change',e=>{activePresentation=e.target.value;loadGallery();});
+byId('shop-availability-filter')?.addEventListener('change',e=>{activeProductionType=e.target.value;loadGallery();});
+apiRequest('/api/gallery').then(data=>{const items=data.items||[];const matchers={
+ 'shop-category-filter':(i,v)=>v==='accessories'?i.category==='accessories':i.category!=='accessories',
+ 'shop-garment-filter':(i,v)=>i.style===v,
+ 'shop-presentation-filter':(i,v)=>(i.presentation||i.category)===v,
+ 'shop-availability-filter':(i,v)=>v==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(i.productionType):i.productionType===v,
+ 'shop-aesthetic-filter':(i,v)=>i.aesthetic===v,'shop-pattern-filter':(i,v)=>i.pattern===v};
+ function counts(){for(const [id,match]of Object.entries(matchers)){const select=byId(id);if(!select)continue;for(const option of select.options){const label=option.dataset.baseLabel||option.textContent.replace(/ \(\d+\)$/,'');option.dataset.baseLabel=label;const n=option.value==='all'?items.length:items.filter(i=>match(i,option.value)).length;option.textContent=label+' ('+n+')';option.hidden=['shop-aesthetic-filter','shop-pattern-filter'].includes(id)&&n===0&&option.value!=='all'&&option.value!==select.value;}}}
+ counts();byId('shop-category-filter')?.addEventListener('change',counts);
+}).catch(()=>{});
