@@ -43,7 +43,7 @@ export default function AdminPage(){
   const [catalog,setCatalog]=useState<any[]>([]); const [selectedListings,setSelectedListings]=useState<string[]>([]); const [bulkAvailability,setBulkAvailability]=useState(''); const [bulkStatus,setBulkStatus]=useState(''); const [bulkPrice,setBulkPrice]=useState('');
   const checkAuthenticator=async()=>{
     setMfaCheck('');
-    if(!token.trim()||!/^\\d{6}$/.test(code)){setMfaCheck('Enter your admin token for this environment and a current six-digit code.');return;}
+    if(!token.trim()||!/^[0-9]{6}$/.test(code)){setMfaCheck('Enter your admin token for this environment and a current six-digit code.');return;}
     setMfaChecking(true);
     try {
       const response=await fetch('/api/admin/totp-check',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{Authorization:`Bearer ${token}`,'X-Admin-TOTP':code}});
