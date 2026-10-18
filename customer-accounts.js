@@ -166,6 +166,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
     db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);
     db.prepare("DELETE FROM reviewer_sessions WHERE role='customer' AND EXISTS(SELECT 1 FROM reviewer_credentials WHERE role='customer' AND account_id=?)").run(identity.customerId);
     db.prepare("DELETE FROM reviewer_credentials WHERE role='customer' AND account_id=?").run(identity.customerId);
+    db.prepare("DELETE FROM passkey_sessions WHERE credential_id IN (SELECT id FROM account_passkeys WHERE kind='customer' AND account_id=?)").run(identity.customerId);
     db.prepare("DELETE FROM account_passkeys WHERE kind='customer' AND account_id=?").run(identity.customerId);
     db.prepare("DELETE FROM passkey_users WHERE kind='customer' AND account_id=?").run(identity.customerId);
     db.prepare("DELETE FROM passkey_challenges WHERE kind='customer' AND account_id=?").run(identity.customerId);

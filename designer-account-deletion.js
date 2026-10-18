@@ -41,6 +41,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
       db.prepare('DELETE FROM designer_email_auth_limits WHERE email_hash=?').run(crypto.createHash('sha256').update(profile.email.toLowerCase()).digest('hex'));
       // Remove queued/sent private email copies addressed to this account.
       db.prepare('DELETE FROM email_outbox WHERE lower(recipient)=? OR event_key=?').run(profile.email.toLowerCase(),`designer-signup:${profile.application_id}`);
+      db.prepare("DELETE FROM passkey_sessions WHERE credential_id IN (SELECT id FROM account_passkeys WHERE kind='designer' AND account_id=?)").run(id);
       for(const table of ['account_passkeys','passkey_users','passkey_challenges'])db.prepare("DELETE FROM "+quote(table)+" WHERE kind='designer' AND account_id=?").run(id);
       db.prepare('DELETE FROM designer_profiles WHERE id=?').run(id);
       if(profile.application_id)db.prepare('DELETE FROM designer_applications WHERE id=?').run(profile.application_id);

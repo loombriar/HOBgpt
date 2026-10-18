@@ -100,8 +100,14 @@ function registerPasskeys({app,db,fail,rateLimit,trustedAppOrigin,identity,issue
  });
  app.delete(route+'/:credentialId',kind,origin,limit,(req,res)=>{
   const a=account(req,res,true);if(!a)return;
-  const removed=db.prepare('DELETE FROM account_passkeys WHERE id=? AND kind=? AND account_id=?').run(req.params.credentialId,req.params.kind,a.id);
-  if(!removed.changes)return fail(res,404,'not_found','Passkey not found.');
+  const removed=db.transaction(()=>{
+   const key=db.prepare('SELECT id FROM account_passkeys WHERE id=? AND kind=? AND account_id=?').get(req.params.credentialId,req.params.kind,a.id);if(!key)return false;
+   const sessions=req.params.kind==='customer'?'customer_sessions':'designer_sessions';
+   db.prepare('DELETE FROM '+sessions+' WHERE session_hash IN (SELECT session_hash FROM passkey_sessions WHERE credential_id=?)').run(key.id);
+   db.prepare('DELETE FROM passkey_sessions WHERE credential_id=?').run(key.id);
+   db.prepare('DELETE FROM account_passkeys WHERE id=?').run(key.id);return true;
+  }).immediate();
+  if(!removed)return fail(res,404,'not_found','Passkey not found.');
   return res.json({ok:true});
  });
 }
