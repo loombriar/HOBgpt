@@ -78,9 +78,11 @@ function productionConfigurationErrors({adminEntries}) {
   if (!adminEntries.length) errors.push('Configure ADMIN_TOKENS_JSON or ADMIN_TOKEN before starting in production.');
   if (adminEntries.some(entry => entry.token.length < 32)) errors.push('Every production admin token must be at least 32 characters.');
   if (process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging' && process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
-  for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
-    if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
-  if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
+  if (process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging') {
+    for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
+      if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
+    if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
+  }
   return errors;
 }
 function makeId() {
@@ -4484,7 +4486,7 @@ function createApp(options = {}) {
     };
     const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
       ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
-    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (backupConfigured && !adminConfigurationErrors.length)));
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.RAILWAY_ENVIRONMENT_NAME === 'staging' || backupConfigured) && !adminConfigurationErrors.length));
     res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
     res.set('X-HOB-Database', database);
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
