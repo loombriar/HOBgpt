@@ -42,7 +42,14 @@ for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid',
    expect(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('paid');
    expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('sold');
   }else{
-   if(outcome==='unpaid')await expect(page.getByText('Stripe has not marked this payment as paid. Your cart is unchanged.',{exact:true})).toBeVisible();
+   if(outcome==='unpaid'){
+    const warning=page.getByRole('alert').filter({hasText:'Payment confirmation is not available yet.'});
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('Stripe has not marked this payment as paid. Your cart is unchanged.');
+    await expect(warning).toContainText('Do not start another payment until you check your receipt or contact support.');
+    expect(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('pending');
+    expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('reserved');
+   }
    else{
     await expect.poll(()=>ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('canceled');
     expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('released');
