@@ -21,14 +21,28 @@ sandbox. No production account, charge, postage purchase or payout was changed.
   Application HTTP logs show Stripe webhook deliveries returning HTTP 200 during
   the onboarding updates at approximately 13:49:27, 13:49:50 and 13:50:01 UTC.
 
-## Remaining webhook cleanup
+## Webhook cleanup completed at 14:00 UTC
 
 Two enabled Connect destinations target the same testing webhook URL. Each update
 also had a corresponding HTTP 400 delivery, and the newest account events still
 reported one pending webhook at the time of inspection. The accepted path is
 working, but duplicate-destination cleanup and confirmation that retries clear
-remain open. No endpoint was disabled during this check because the rejecting
-destination was not individually identified.
+were initially open. A subsequent controlled check identified the rejecting
+destination individually: temporary URL labels followed by a harmless sandbox
+account metadata update produced HTTP 400 from the older destination and HTTP 200
+from the newer readiness destination. Query labels were omitted by HTTP logs, so
+the final identification used the route's supported trailing-slash variant.
+
+The older duplicate Connect destination was disabled, and the working readiness
+destination's original URL was restored. Removing the temporary metadata probe
+generated a fresh real `account.updated` event at 14:00:11 UTC. Its single delivery
+returned HTTP 200 at 14:00:12 UTC, and Stripe reported `pending_webhooks:0` for
+that event. Read-back confirmed exactly one enabled Connect destination. The
+checkout/refund destination remained enabled. Seller payouts stayed enabled with
+no outstanding requirements. Temporary workers and credential references were
+removed. Older event records still showed historical pending counts; this is not
+a claim that every historical delivery counter has cleared. No production
+webhook was changed.
 
 ## Safeguards and limits
 
