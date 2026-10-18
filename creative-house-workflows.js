@@ -38,10 +38,10 @@
 (() => {
   const groups = {
     talent: ['event-creatives','creative-directory'],
-    profile: ['join-house','profile-start','event-profile-editor','your-profile','portfolio-controls','portfolio-preview'],
-    projects: ['fashion-events','project-start','post-event','opportunities','post','casting-commissioning','private-inquiries']
+    join: ['join-house','profile-start','event-profile-editor','your-profile','portfolio-controls','portfolio-preview','project-start','post-event','post','casting-commissioning','private-inquiries'],
+    opportunities: ['fashion-events','opportunities','collaboration-requests','designer-commissions']
   };
-  const menus = {'creative-talent-menu':'talent','creative-profile-menu':'profile','creative-project-menu':'projects'};
+  const menus = {'creative-talent-menu':'talent','creative-profile-menu':'join','creative-project-menu':'opportunities'};
   const sections = Object.values(groups).flat().map(id=>document.getElementById(id)).filter(Boolean);
   function show(view) {
     sections.forEach(section=>section.toggleAttribute('data-creative-view-hidden', !(groups[view]||[]).includes(section.id)));
@@ -57,6 +57,8 @@
     const id=link.getAttribute('href').slice(1);
     const view=menus[id]||Object.keys(groups).find(key=>groups[key].includes(id));
     if(view)show(view);
+    const kind=link.dataset.projectKind;
+    if(kind) {const select=document.querySelector('#project-request-form select[name=kind]');if(select)select.value=kind;}
   }));
   show('welcome');
   fromHash();
