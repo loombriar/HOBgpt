@@ -72,9 +72,23 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
   return res.set('Cache-Control','no-store').json({ok:true});
  });
  function cookie(req){const part=String(req.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(COOKIE+'='));return part?part.slice(COOKIE.length+1):'';}
- function authenticate(req){const token=cookie(req);if(!token)return null;const row=db.prepare('SELECT a.*,s.expires_at FROM customer_sessions s JOIN customer_accounts a ON a.id=s.customer_id WHERE s.session_hash=?').get(hash(token));return row&&row.expires_at>new Date().toISOString()&&require('./reviewer-auth').validReviewerSession(db,hash(token))?{sub:'customer:'+row.id,email:row.email,name:row.display_name,customerId:row.id,email_verified:true}:null;}
+ function authenticate(req){const token=cookie(req);if(!token)return null;const row=db.prepare('SELECT a.*,s.expires_at FROM customer_sessions s JOIN customer_accounts a ON a.id=s.customer_id WHERE s.session_hash=?').get(hash(token));return row&&row.expires_at>new Date().toISOString()&&require('./reviewer-auth').validReviewerSession(db,hash(token))&&require('./passkeys').sessionIsValid(db,hash(token))?{sub:'customer:'+row.id,email:row.email,name:row.display_name,customerId:row.id,email_verified:true}:null;}
  function origin(req,res,next){if(!isTrustedRequestOrigin(req,trustedAppOrigin(req)))return fail(res,403,'invalid_origin','This request did not come from House of Briar.');return next();}
  function clearSession(req,res){const token=cookie(req);if(!token)return;db.prepare('DELETE FROM customer_sessions WHERE session_hash=?').run(hash(token));res.cookie(COOKIE,'',{httpOnly:true,sameSite:'lax',secure:trustedAppOrigin(req).startsWith('https:'),path:'/',maxAge:0});}
+ function issuePasskeySession(req,res,accountId){
+  if(!db.prepare('SELECT 1 FROM customer_accounts WHERE id=?').get(accountId))return null;
+  clearDesignerSession(req,res);clearSession(req,res);
+  const token=crypto.randomBytes(32).toString('base64url'),sessionHash=hash(token),now=new Date().toISOString();
+  db.prepare('INSERT INTO customer_sessions VALUES (?,?,?,?)').run(sessionHash,accountId,now,new Date(Date.now()+7*86400000).toISOString());
+  res.cookie(COOKIE,token,{httpOnly:true,sameSite:'lax',secure:trustedAppOrigin(req).startsWith('https:'),path:'/',maxAge:7*86400000});
+  return sessionHash;
+ }
+ function passkeyIdentity(req){
+  const a=authenticate(req);if(!a)return null;const sessionHash=hash(cookie(req));
+  if(db.prepare('SELECT 1 FROM reviewer_sessions WHERE session_hash=?').get(sessionHash))return null;
+  const session=db.prepare('SELECT created_at FROM customer_sessions WHERE session_hash=?').get(sessionHash);
+  return {id:a.customerId,email:a.email,name:a.name,createdAt:session.created_at,sessionHash,verified:true};
+ }
  const consume=db.transaction((key,max)=>{const now=Date.now(),row=db.prepare('SELECT hits,reset_at FROM customer_auth_limits WHERE key=?').get(key);if(!row||row.reset_at<=now){db.prepare('INSERT INTO customer_auth_limits VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET hits=1,reset_at=excluded.reset_at').run(key,now+3600000);return true;}if(row.hits>=max)return false;db.prepare('UPDATE customer_auth_limits SET hits=hits+1 WHERE key=?').run(key);return true;});
  app.post('/api/customer/signin-code',origin,async(req,res,next)=>{
   const email=typeof req.body?.email==='string'?req.body.email.trim().toLowerCase():'';
@@ -152,6 +166,9 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
     db.prepare('DELETE FROM customer_login_challenges WHERE email=?').run(identity.email);
     db.prepare("DELETE FROM reviewer_sessions WHERE role='customer' AND EXISTS(SELECT 1 FROM reviewer_credentials WHERE role='customer' AND account_id=?)").run(identity.customerId);
     db.prepare("DELETE FROM reviewer_credentials WHERE role='customer' AND account_id=?").run(identity.customerId);
+    db.prepare("DELETE FROM account_passkeys WHERE kind='customer' AND account_id=?").run(identity.customerId);
+    db.prepare("DELETE FROM passkey_users WHERE kind='customer' AND account_id=?").run(identity.customerId);
+    db.prepare("DELETE FROM passkey_challenges WHERE kind='customer' AND account_id=?").run(identity.customerId);
     db.prepare('DELETE FROM customer_accounts WHERE id=?').run(identity.customerId);
   }).immediate();
   for(const image of portfolioFiles)if(imagesDir)require('node:fs').unlink(require('node:path').join(imagesDir,image.storage_key),()=>{});
@@ -165,6 +182,6 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
   const daily=calendar.daily.map(r=>({day:r.day,signups:r.views}));
   return res.set('Cache-Control','no-store').json({customers:{total:db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,today:calendar.today.views,last30Days:daily.reduce((sum,r)=>sum+r.signups,0),timeZone:calendar.timeZone,daily}});
  });
- return {authenticate,hasCookie:req=>Boolean(cookie(req)),clearSession,origin};
+ return {authenticate,hasCookie:req=>Boolean(cookie(req)),clearSession,origin,issuePasskeySession,passkeyIdentity};
 }
 module.exports={createCustomerAccounts};

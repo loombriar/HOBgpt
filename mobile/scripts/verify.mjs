@@ -15,3 +15,7 @@ const activity = readFileSync(new URL('../android/app/src/main/java/com/houseofb
 if (!activity.includes('EdgeToEdge.enable(this);')) throw new Error('Explicit Android edge-to-edge setup is missing');
 if (config.plugins?.SystemBars?.insetsHandling !== 'native') throw new Error('Native system-bar inset handling is required');
 console.log('Android edge-to-edge and safe system-bar insets verified');
+if (!activity.includes('WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)') || !activity.includes('WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP')) throw new Error('Guarded Android passkey support is missing');
+const passkeysGradle=readFileSync(new URL('../android/app/passkeys.gradle',import.meta.url),'utf8');
+if(!passkeysGradle.includes('androidx.webkit:webkit:1.14.0')||!passkeysGradle.includes('androidx.credentials:credentials:1.6.0'))throw new Error('Android passkey dependencies missing');
+console.log('Android passkey integration configured; verify Play app-signing association and test on a physical device.');

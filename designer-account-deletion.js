@@ -21,7 +21,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
       const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
       const matches=[];
       for(const {name} of tables){
-        if(['designer_profiles','designer_applications','designer_login_challenges','designer_email_auth_limits','email_outbox'].includes(name))continue;
+        if(['designer_profiles','designer_applications','designer_login_challenges','designer_email_auth_limits','email_outbox','account_passkeys','passkey_users','passkey_challenges'].includes(name))continue;
         const columns=db.prepare('PRAGMA table_info('+quote(name)+')').all().map(c=>c.name);
         const conditions=[],values=[];
         for(const col of new Set(['designer_id','owner_id','member_id','account_id',...db.prepare('PRAGMA foreign_key_list('+quote(name)+')').all().filter(fk=>fk.table==='designer_profiles').map(fk=>fk.from)]))if(columns.includes(col)){conditions.push(quote(col)+'=?');values.push(id);}
@@ -41,6 +41,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
       db.prepare('DELETE FROM designer_email_auth_limits WHERE email_hash=?').run(crypto.createHash('sha256').update(profile.email.toLowerCase()).digest('hex'));
       // Remove queued/sent private email copies addressed to this account.
       db.prepare('DELETE FROM email_outbox WHERE lower(recipient)=? OR event_key=?').run(profile.email.toLowerCase(),`designer-signup:${profile.application_id}`);
+      for(const table of ['account_passkeys','passkey_users','passkey_challenges'])db.prepare("DELETE FROM "+quote(table)+" WHERE kind='designer' AND account_id=?").run(id);
       db.prepare('DELETE FROM designer_profiles WHERE id=?').run(id);
       if(profile.application_id)db.prepare('DELETE FROM designer_applications WHERE id=?').run(profile.application_id);
       return {files};
