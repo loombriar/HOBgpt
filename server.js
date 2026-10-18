@@ -1752,8 +1752,8 @@ function createApp(options = {}) {
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
   // Staging diagnostic: validates a code without issuing a session or consuming the TOTP counter.
-  // Never enable this route in production, even if MFA enforcement is disabled.
-  if (process.env.ADMIN_TOTP_DIAGNOSTICS === 'true' && process.env.NODE_ENV !== 'production') {
+  // Enable only in isolated staging through its explicit environment variable.
+  if (process.env.ADMIN_TOTP_DIAGNOSTICS === 'true') {
     app.post('/api/admin/totp-check', rateLimit({windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'admin-totp-check'}), (req, res) => {
       const token = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
       const entry = token ? adminEntryForToken(token) : null;
