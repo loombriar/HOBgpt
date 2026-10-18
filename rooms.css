@@ -33,7 +33,7 @@
 .designer-room-page .stack-form :is(input[type=file]) { width:100%; padding:12px; border-style:dashed; background:#faf7fa; }
 .designer-room-page :is(.seller-terms-check,.check-row,.check-label,.rules-confirmation) { display:flex; align-items:flex-start; gap:10px; }
 .designer-room-page :is(.seller-terms-check,.check-row,.check-label,.rules-confirmation) input { margin-top:3px; }
-.designer-room-page .listing-form-group,.designer-room-page .listing-enhancements,.designer-room-page .fit-ranges { min-width:0; margin:12px 0; padding:20px; border:1px solid var(--room-border); border-radius:14px; background:#fcf9fb; }
+.designer-room-page .listing-form-group,.designer-room-page .listing-enhancements,.designer-room-page .fit-ranges { min-width:0; margin:12px 0; padding:20px; border:1px solid var(--room-border); border-radius:14px; background:var(--room-paper); color:var(--room-ink); }
 .designer-room-page legend { padding:0 8px; font:600 1rem/1.5 Inter,sans-serif; color:var(--room-accent); }
 .designer-room-page .listing-detail-fields { display:grid; gap:10px; }
 .designer-room-page .listing-detail-fields > label { margin-top:12px; }
