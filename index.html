@@ -105,6 +105,45 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 #header-signout-btn.header-signout-prominent:hover { background: #fff0b9; }
 #header-signout-btn.header-signout-prominent[hidden] { display: none !important; }
 </style>
+<style id="house-briar-editorial-backgrounds">
+/* Original House of Briar imagery: keep marketplace products readable. */
+body.blackberry-house {
+  background: #09090b url('/house-of-briar-dark-editorial-background.png') center top / cover fixed no-repeat;
+}
+body.blackberry-house .hero,
+body.blackberry-house .house-hero,
+body.blackberry-house .sewing-hero {
+  background-image: linear-gradient(rgba(8,8,11,.26),rgba(8,8,11,.46)),url('/house-of-briar-dark-editorial-background.png') !important;
+  background-position: center !important;
+  background-size: cover !important;
+}
+body.blackberry-house .designer-workspace,
+body.blackberry-house .designer-room,
+body.blackberry-house .designer-dashboard {
+  background-image: linear-gradient(rgba(8,8,11,.15),rgba(8,8,11,.4)),url('/house-of-briar-moonlit-rose-background.png');
+  background-position: center top;
+  background-size: cover;
+}
+body.blackberry-house .creative-house,
+body.blackberry-house #creative-house,
+body.blackberry-house .house-editorial {
+  background-image: linear-gradient(rgba(8,8,11,.1),rgba(8,8,11,.28)),url('/house-of-briar-blackberry-noir-background.png') !important;
+  background-position: center;
+  background-size: cover;
+}
+body.blackberry-house .house-collections,
+body.blackberry-house #house-collections {
+  background-image: linear-gradient(rgba(8,8,11,.16),rgba(8,8,11,.36)),url('/house-of-briar-berry-blossom-background.png') !important;
+  background-position: center;
+  background-size: cover;
+}
+@media (max-width: 720px) {
+  body.blackberry-house { background-attachment: scroll; }
+  body.blackberry-house .hero,
+  body.blackberry-house .house-hero,
+  body.blackberry-house .sewing-hero { background-position: center top !important; }
+}
+</style>
 </head>
   <body><div id="hob-global-nav" class="hob-global-nav" role="navigation" aria-label="House of Briar main navigation"><a class="hob-global-wordmark" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="Main links"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><a href="/creative-house.html">The Creative House</a><button type="button" id="hob-theme-toggle" aria-label="Switch to dark mode" aria-pressed="false" title="Switch theme"><span id="hob-theme-icon" aria-hidden="true">☾</span></button><a class="hob-global-cart-link" href="/?openCart=1" aria-label="Open shopping cart"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span></a></nav></div>
     <dialog id="house-tryon-dialog" aria-labelledby="house-tryon-title"><div class="dialog-header"><h2 id="house-tryon-title">Virtual styling preview</h2><button id="house-tryon-close" class="text-button" type="button">Close preview</button></div><form id="house-tryon-form" class="stack-form"><input id="house-tryon-listing" type="hidden" /><label for="house-tryon-photo">Upload a photo of yourself in ordinary clothing</label><input id="house-tryon-photo" type="file" accept="image/png,image/jpeg,image/webp" required /><label><input id="house-tryon-consent" type="checkbox" required /> I own this photo or have permission, and agree to send it and the listing image to OpenAI for this preview.</label><p class="small-print">AI visual preview only. Colors, garment details, body shape, and drape may change. Check the original listing and measurements before buying. House of Briar does not save your uploaded photo or preview.</p><button class="primary-button" type="submit">Create my try-on preview</button><p id="house-tryon-status" role="status"></p></form><div id="house-tryon-result"></div></dialog>
