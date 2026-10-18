@@ -34,6 +34,34 @@
   syncHash();
   window.addEventListener('hashchange', syncHash);
 })();
+// Keep one purpose visible at a time without changing form or access rules.
+(() => {
+  const groups = {
+    talent: ['event-creatives','creative-directory'],
+    profile: ['join-house','profile-start','event-profile-editor','your-profile','portfolio-controls','portfolio-preview'],
+    projects: ['fashion-events','project-start','post-event','opportunities','post','casting-commissioning','private-inquiries']
+  };
+  const menus = {'creative-talent-menu':'talent','creative-profile-menu':'profile','creative-project-menu':'projects'};
+  const sections = Object.values(groups).flat().map(id=>document.getElementById(id)).filter(Boolean);
+  function show(view) {
+    sections.forEach(section=>section.toggleAttribute('data-creative-view-hidden', !(groups[view]||[]).includes(section.id)));
+  }
+  function fromHash() {
+    const id=location.hash.slice(1);
+    const view=menus[id]||Object.keys(groups).find(key=>groups[key].includes(id));
+    if(view) show(view);
+    if(['portfolios','casting-coming-soon','creative-subscriptions'].includes(id)) document.getElementById('creative-subscriptions').open=true;
+  }
+  Object.entries(menus).forEach(([id,view])=>document.getElementById(id)?.addEventListener('toggle',event=>{if(event.target.open)show(view);}));
+  document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{
+    const id=link.getAttribute('href').slice(1);
+    const view=menus[id]||Object.keys(groups).find(key=>groups[key].includes(id));
+    if(view)show(view);
+  }));
+  show('welcome');
+  fromHash();
+  window.addEventListener('hashchange',fromHash);
+})();
 // Category links choose the matching directory branch before following its anchor.
 (() => {
   const menus = [...document.querySelectorAll('.creative-category-menu')];
