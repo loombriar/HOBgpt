@@ -1,10 +1,6 @@
 /* Load after the older campaign styles; target the actual page sections. */
 html body { --hob-art-veil:rgba(247,242,233,.88); }
 html[data-hob-theme="dark"] body { --hob-art-veil:rgba(8,8,11,.42); }
-html[data-hob-theme] body.blackberry-house,
-html:not([data-hob-theme]) body.blackberry-house {
-  background:#09090b url('/house-of-briar-dark-editorial-background.png') center top / cover no-repeat!important;
-}
 html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero,
 html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero {
   background:#09090b url('/house-of-briar-dark-editorial-background.png') center / cover no-repeat!important;
@@ -25,4 +21,11 @@ html body.blackberry-house #creative-house-feature {
 
 html body.creative-makeover main>.hero.briar-creative-hero.briar-text-hero {
   background:linear-gradient(rgba(8,8,11,.22),rgba(8,8,11,.38)),url('/house-of-briar-blackberry-noir-background.png') center / cover no-repeat!important;
+}
+
+html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button,
+html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button {
+  color:#faf6ee!important;
+  border-color:#d6c7b5!important;
+  background:rgba(8,8,11,.65)!important;
 }
