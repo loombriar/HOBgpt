@@ -1260,6 +1260,8 @@ function createApp(options = {}) {
     const entry = token ? adminEntryForToken(token) : null;
     if (!entry) return fail(res, token ? 403 : 401, token ? 'forbidden' : 'unauthorized', token ? 'Administrator access is required.' : 'Administrator authentication is required.');
     req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
+    // MFA-enforced deployments must not allow bearer credentials to bypass session verification.
+    if (process.env.ADMIN_TOTP_REQUIRED === 'true') return fail(res, 403, 'mfa_session_required', 'Sign in with administrator verification to access this resource.');
     // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
     return next();
   }
