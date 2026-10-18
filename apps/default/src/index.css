@@ -109,7 +109,7 @@
 .briar-house-link:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* Fashion editorial palette shared with the public storefront. */
-:root { --genesis-default-theme: light; --background: 40 27% 97%; --foreground: 0 3% 13%; --card: 40 25% 98%; --card-foreground: 0 3% 13%; --popover: 40 25% 98%; --popover-foreground: 0 3% 13%; --primary: 0 3% 13%; --primary-foreground: 40 27% 97%; --secondary: 18 23% 91%; --secondary-foreground: 0 3% 13%; --accent: 12 27% 90%; --accent-foreground: 0 3% 13%; --muted: 40 14% 91%; --muted-foreground: 0 2% 40%; --border: 30 9% 82%; --input: 30 9% 82%; --ring: 0 3% 30%; --radius: .2rem; }
+:root { --genesis-default-theme: dark; --background: 40 27% 97%; --foreground: 0 3% 13%; --card: 40 25% 98%; --card-foreground: 0 3% 13%; --popover: 40 25% 98%; --popover-foreground: 0 3% 13%; --primary: 0 3% 13%; --primary-foreground: 40 27% 97%; --secondary: 18 23% 91%; --secondary-foreground: 0 3% 13%; --accent: 12 27% 90%; --accent-foreground: 0 3% 13%; --muted: 40 14% 91%; --muted-foreground: 0 2% 40%; --border: 30 9% 82%; --input: 30 9% 82%; --ring: 0 3% 30%; --radius: .2rem; }
 .dark { --background: 0 3% 10%; --foreground: 40 27% 95%; --card: 0 3% 13%; --card-foreground: 40 27% 95%; --popover: 0 3% 13%; --popover-foreground: 40 27% 95%; --primary: 18 23% 85%; --primary-foreground: 0 3% 10%; --secondary: 0 3% 19%; --secondary-foreground: 40 27% 95%; --accent: 0 3% 21%; --accent-foreground: 40 27% 95%; --muted: 0 3% 18%; --muted-foreground: 30 8% 70%; --border: 0 2% 29%; --input: 0 2% 29%; --ring: 18 23% 85%; }
 .fashion-app :is(.rounded-2xl,.rounded-3xl,.rounded-full) { border-radius: 3px; }
 .fashion-app h1 { font-weight:400; letter-spacing:-.045em; }

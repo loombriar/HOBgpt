@@ -14,7 +14,6 @@ for (const width of [390, 1280]) {
     await nav.locator('#cart-btn').click();
     await expect(page.locator('#cart-dialog')).toBeVisible();
     await page.locator('#cart-dialog-close').click();
-    await nav.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
     await page.goto('/creative-house.html#your-profile');
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
