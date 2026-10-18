@@ -737,5 +737,15 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         </div>
       </footer>
 
-  </body>
+  <script>
+/* Keep the existing authenticated designer sign-out control outside
+   header stacking/overflow/transform contexts, without changing its listeners. */
+document.addEventListener('DOMContentLoaded', function () {
+  const button = document.getElementById('header-signout-btn');
+  if (button && button.parentElement !== document.body) {
+    document.body.appendChild(button);
+  }
+});
+</script>
+</body>
 </html>
