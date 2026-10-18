@@ -2,9 +2,6 @@ name: Backend safety suite
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
   push:
     branches:
       - main
@@ -14,6 +11,9 @@ permissions:
       - 'tests/**'
       - 'package*.json'
       - '.github/workflows/backend-safety.yml'
+
+permissions:
+  contents: read
 
 jobs:
   backend-tests:
