@@ -52,3 +52,9 @@ html body.creative-makeover main > .hero::after {
   background:none!important;
 }
 html body .house-botanical-accent { display:none!important; }
+
+/* Footer labels follow the theme now that its old solid fill is gone. */
+html[data-hob-theme] body.blackberry-house .site-footer,
+html[data-hob-theme] body.blackberry-house .site-footer :is(a,p,summary,button,h2,span) {
+  color:var(--briar-ink)!important;
+}
