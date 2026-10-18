@@ -2,8 +2,12 @@ name: Backend safety suite
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
   push:
     branches:
+      - main
       - fix/stripe-connect-accounts-v2
     paths:
       - 'server.js'
