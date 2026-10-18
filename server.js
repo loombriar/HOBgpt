@@ -1215,6 +1215,7 @@ function createApp(options = {}) {
       const offset=digest[digest.length-1]&15;
       const expected=String((digest.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,'0');
       if(safeEqual(String(code),expected)){
+        if (diagnostic) return true;
         const used=db.prepare('INSERT OR IGNORE INTO admin_totp_used(actor,counter,used_at) VALUES (?,?,?)').run(entry.label,counter,new Date().toISOString());
         return used.changes===1;
       }
@@ -1751,11 +1752,11 @@ function createApp(options = {}) {
     if (!verifyAdminTotp(entry,req.get('x-admin-totp'))) return fail(res,401,'mfa_required','A valid administrator verification code is required.');
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
-  // Staging diagnostic: validates a code without issuing a session or consuming the TOTP counter.
-  // Enable only in isolated staging through its explicit environment variable.
+  // Controlled rollout diagnostic: validates a code without issuing a session or consuming the TOTP counter.
+  // Enable explicitly only during enrollment verification, then disable after rollout.
   if (process.env.ADMIN_TOTP_DIAGNOSTICS === 'true') {
     app.post('/api/admin/totp-check', rateLimit({windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'admin-totp-check'}), (req, res) => {
-      const token = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+      const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
       const entry = token ? adminEntryForToken(token) : null;
       if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
       return requireAdminRequestOrigin(req, res, () => {
