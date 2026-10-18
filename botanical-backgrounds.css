@@ -3,24 +3,24 @@ html body { --hob-art-veil:rgba(247,242,233,.88); }
 html[data-hob-theme="dark"] body { --hob-art-veil:rgba(8,8,11,.42); }
 html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero,
 html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero {
-  background:#09090b url('/house-of-briar-dark-editorial-background.png') center / cover no-repeat!important;
+  background:linear-gradient(rgba(8,8,11,.5),rgba(8,8,11,.5)),url('/briar-seamless-background-v1.webp') center / 720px auto repeat!important;
 }
 html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy :is(h1,h1 em,p:not(.eyebrow),p.eyebrow),
 html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy :is(h1,h1 em,p:not(.eyebrow),p.eyebrow) {
   color:#faf6ee!important;
 }
 html body.blackberry-house #shop {
-  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/house-of-briar-berry-blossom-background.png') center / cover no-repeat!important;
+  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/briar-seamless-background-v1.webp') center / 720px auto repeat!important;
 }
 html body.blackberry-house #designer-modal {
-  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/house-of-briar-moonlit-rose-background.png') center top / cover no-repeat!important;
+  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/briar-seamless-background-v1.webp') center top / 720px auto repeat!important;
 }
 html body.blackberry-house #creative-house-feature {
-  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/house-of-briar-blackberry-noir-background.png') center / cover no-repeat!important;
+  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/briar-seamless-background-v1.webp') center / 720px auto repeat!important;
 }
 
 html body.creative-makeover main>.hero.briar-creative-hero.briar-text-hero {
-  background:linear-gradient(rgba(8,8,11,.22),rgba(8,8,11,.38)),url('/house-of-briar-blackberry-noir-background.png') center / cover no-repeat!important;
+  background:linear-gradient(rgba(8,8,11,.22),rgba(8,8,11,.38)),url('/briar-seamless-background-v1.webp') center / 720px auto repeat!important;
 }
 
 html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button,
