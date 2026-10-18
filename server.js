@@ -1189,6 +1189,37 @@ function createApp(options = {}) {
     const secure = trustedAppOrigin(req).startsWith('https://');
     res.cookie(ADMIN_SESSION_COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, path: '/', maxAge: maxAgeSeconds * 1000 });
   }
+  // Optional second factor for administrator session exchange. Enroll TOTP out of band.
+  const adminTotpSecrets = (() => {
+    try { const value=JSON.parse(process.env.ADMIN_TOTP_SECRETS_JSON || '{}'); return value && typeof value==='object' && !Array.isArray(value) ? value : {}; }
+    catch { return {}; }
+  })();
+  function verifyAdminTotp(entry, code) {
+    if (process.env.ADMIN_TOTP_REQUIRED !== 'true') return true;
+    const encoded=adminTotpSecrets[entry?.label];
+    if (!encoded || !/^[0-9]{6}$/.test(String(code || ''))) return false;
+    let key;
+    try {
+      const clean=String(encoded).toUpperCase().replace(/=+$/,'');
+      if (!/^[A-Z2-7]{16,}$/.test(clean)) return false;
+      let bits=0, value=0; const bytes=[];
+      for(const ch of clean){value=(value<<5)|'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(ch);bits+=5;if(bits>=8){bits-=8;bytes.push((value>>bits)&255);}}
+      key=Buffer.from(bytes); if(key.length<10)return false;
+    } catch {return false;}
+    const now=Math.floor(Date.now()/30000);
+    for(let delta=-1;delta<=1;delta++){
+      const counter=now+delta, message=Buffer.alloc(8);message.writeBigUInt64BE(BigInt(counter));
+      const digest=crypto.createHmac('sha1',key).update(message).digest();
+      const offset=digest[digest.length-1]&15;
+      const expected=String((digest.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,'0');
+      if(safeEqual(String(code),expected)){
+        const used=db.prepare('INSERT OR IGNORE INTO admin_totp_used(actor,counter,used_at) VALUES (?,?,?)').run(entry.label,counter,new Date().toISOString());
+        return used.changes===1;
+      }
+    }
+    return false;
+  }
+  db.exec('CREATE TABLE IF NOT EXISTS admin_totp_used (actor TEXT NOT NULL, counter INTEGER NOT NULL, used_at TEXT NOT NULL, PRIMARY KEY(actor,counter))');
   function issueAdminSession(req, res, entry) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
@@ -1713,6 +1744,7 @@ function createApp(options = {}) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const entry = token ? adminEntryForToken(token) : null;
     if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+    if (!verifyAdminTotp(entry,req.get('x-admin-totp'))) return fail(res,401,'mfa_required','A valid administrator verification code is required.');
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
