@@ -37,10 +37,10 @@ jobs:
         working-directory: mobile
         run: |
           set -euo pipefail
-          sed -i -E 's/versionCode [0-9]+/versionCode 5/; s/versionName "[^"]*"/versionName "1.0.5"/' android/app/build.gradle
-          grep -Eq 'versionCode 5\b' android/app/build.gradle
-          grep -Fq 'versionName "1.0.5"' android/app/build.gradle
-      - run: npm run android:verify && npx cap sync android
+          sed -i -E 's/versionCode [0-9]+/versionCode 6/; s/versionName "[^"]*"/versionName "1.0.6"/' android/app/build.gradle
+          grep -Eq 'versionCode 6\b' android/app/build.gradle
+          grep -Fq 'versionName "1.0.6"' android/app/build.gradle
+      - run: npx cap sync android && npm run android:verify
         working-directory: mobile
       - name: Configure signing from GitHub Actions secrets
         env:
