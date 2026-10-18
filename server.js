@@ -77,7 +77,7 @@ function productionConfigurationErrors({adminEntries}) {
   const errors = [];
   if (!adminEntries.length) errors.push('Configure ADMIN_TOKENS_JSON or ADMIN_TOKEN before starting in production.');
   if (adminEntries.some(entry => entry.token.length < 32)) errors.push('Every production admin token must be at least 32 characters.');
-  if (process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
+  if (process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging' && process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
   for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
     if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
   if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
