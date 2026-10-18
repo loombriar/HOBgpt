@@ -37,6 +37,7 @@ async function main({download=key=>request('GET',key)}={}){
  try{
   stage('download-and-verify');
   const manifestBytes=Buffer.from(await(await download(prefix+'manifest.json')).arrayBuffer());
+  stage('manifest-received');
   const manifest=JSON.parse(manifestBytes);const totalBytes=validateManifest(manifest);
   fs.mkdirSync(path.join(snapshot,'data'),{recursive:true});fs.writeFileSync(path.join(snapshot,'manifest.json'),manifestBytes,{flag:'wx'});
   for(const file of manifest.files){
@@ -89,5 +90,10 @@ async function main({download=key=>request('GET',key)}={}){
   fs.rmSync(root,{recursive:true,force:true});
  }
 }
-if(require.main===module)main().catch(()=>{console.error('RECOVERY_DRILL_FAILED: restore or isolated read checks did not pass; no production or bucket writes were attempted.');process.exitCode=1;});
+if(require.main===module)main().catch(error=>{
+ const safeMessages=['Invalid recovery manifest','Unsafe or duplicate backup path','Invalid backup file metadata','Missing database or oversized recovery','Downloaded backup checksum mismatch'];
+ const status=/^GET .* failed: (\d{3}) /.exec(error.message||'')?.[1];
+ const reason=safeMessages.includes(error.message)?error.message:(status?'backup-http-'+status:'isolated-check-failed');
+ console.error('RECOVERY_DRILL_FAILED '+reason+'; no production or bucket writes were attempted.');process.exitCode=1;
+});
 module.exports={validateEnvironment,validateManifest,main};
