@@ -1189,6 +1189,13 @@ function createApp(options = {}) {
     const secure = trustedAppOrigin(req).startsWith('https://');
     res.cookie(ADMIN_SESSION_COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, path: '/', maxAge: maxAgeSeconds * 1000 });
   }
+  // Enforce one configured credential per named operator before opting into identity mode.
+  // This does not replace MFA; it prevents ambiguous shared-token attribution.
+  function validateNamedAdminIdentity(entry) {
+    if (process.env.ADMIN_INDIVIDUAL_IDENTITIES_REQUIRED !== 'true') return true;
+    if (!entry || !entry.label || /^(legacy-admin|admin-\\d+|admin)$/.test(entry.label)) return false;
+    return adminEntries.filter(candidate => safeEqual(candidate.token, entry.token)).length === 1;
+  }
   function issueAdminSession(req, res, entry) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
@@ -1227,7 +1234,7 @@ function createApp(options = {}) {
     }
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const entry = token ? adminEntryForToken(token) : null;
-    if (!entry) return fail(res, token ? 403 : 401, token ? 'forbidden' : 'unauthorized', token ? 'Administrator access is required.' : 'Administrator authentication is required.');
+    if (!entry || !validateNamedAdminIdentity(entry)) return fail(res, token ? 403 : 401, token ? 'forbidden' : 'unauthorized', token ? 'Administrator access is required.' : 'Administrator authentication is required.');
     req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
     // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
     return next();
@@ -1712,7 +1719,7 @@ function createApp(options = {}) {
   app.post('/api/admin/session', rateLimit({windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'admin-login'}), (req, res) => {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const entry = token ? adminEntryForToken(token) : null;
-    if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+    if (!entry || !validateNamedAdminIdentity(entry)) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
