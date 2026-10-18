@@ -11,7 +11,7 @@
 
 // Browse saved specialties without changing private-directory access.
 (() => {
-  const suggestions={model:['Runway','Editorial','Commercial','Fit model'],photographer:['Fashion','Editorial','Product','Events'],designer:['Clothing','Costumes','Alterations'],dj:['House','Disco','Electronic','Open format'],venue:['Gallery','Studio','Loft','Outdoor']};
+  const suggestions=window.HouseTaxonomy.specialties;
   function connect(listId,prefix){
     const list=document.getElementById(listId),role=document.getElementById(prefix+'-role'),specialty=document.getElementById(prefix+'-specialty');
     if(!list||!role||!specialty)return;
@@ -30,3 +30,6 @@
   }
   connect('creative-directory-list','directory');connect('event-profiles-list','event-directory');
 })();
+
+// Shared role labels are used in profile forms and collaborator selectors.
+(()=>{const taxonomy=window.HouseTaxonomy;if(!taxonomy)return;const labels=Object.fromEntries([...taxonomy.creatorRoles,...taxonomy.collaboratorsNeeded].map(item=>[item.value,item.label]));for(const select of document.querySelectorAll('#directory-role,#event-directory-role,#profile-form select[name=role],#event-profile-form select[name=role]'))for(const option of select.options)if(labels[option.value])option.textContent=labels[option.value];})();

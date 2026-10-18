@@ -57,7 +57,7 @@ test('creative directories filter saved roles and specialties',async({page})=>{
   ]:[];
   return r.fulfill({json:{profiles,profile:null,opportunities:[],events:[],inquiries:[]}});
  });
- await page.goto('/creative-house.html');
+ await page.goto('/creative-house.html#creative-directory');
  await expect(page.locator('#creative-directory-list article')).toHaveCount(2);
  await page.locator('#directory-role').selectOption('model');await page.locator('#directory-specialty').selectOption('Runway');
  await expect(page.locator('#creative-directory-list article:visible')).toHaveCount(1);

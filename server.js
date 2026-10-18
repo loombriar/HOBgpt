@@ -1,3 +1,4 @@
+const HOUSE_TAXONOMY = require('./shared/taxonomy.json');
 const {trafficLocation}=require('./lib/traffic-location');
 const {clientAddress}=require('./lib/client-address');
 const {createIngressGate}=require('./lib/ingress-gate');
@@ -119,6 +120,7 @@ function validateListingInput(body = {}, existing = null) {
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const price = Number(body.price);
   const category = typeof body.category === 'string' ? body.category.trim().toLowerCase() : '';
+  const presentation = typeof body.presentation === 'string' ? body.presentation.trim() : '';
   const style = typeof body.style === 'string' ? body.style.trim() : '';
   const size = typeof body.size === 'string' ? body.size.trim() : '';
   const aesthetic = typeof body.aesthetic === 'string' ? body.aesthetic.trim() : '';
@@ -146,13 +148,14 @@ function validateListingInput(body = {}, existing = null) {
   if (description.length > 2000) return { error: 'Description must be 2,000 characters or fewer.' };
   if (!Number.isFinite(price) || price < 0 || price > 1000000) return { error: 'Enter a valid price between 0 and 1,000,000.' };
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
+  if (presentation && !HOUSE_TAXONOMY.presentation.some(item=>item.value===presentation)) return { error: 'Choose a supported presentation.' };
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
   if (pattern.length > 80) return { error: 'Print / Pattern must be 80 characters or fewer.' };
   if (materials.length > 500) return { error: 'Materials must be 500 characters or fewer.' };
   if (careInstructions.length > 1000) return { error: 'Care instructions must be 1,000 characters or fewer.' };
-  if (!['One of a Kind','Limited Quantity','Made to Order'].includes(productionType)) return { error: 'Choose one of a kind, limited quantity, or made to order.' };
+  if (![...HOUSE_TAXONOMY.availability.map(item=>item.value),'Limited Quantity','Made to Order'].includes(productionType)) return { error: 'Choose one of a kind, limited quantity, or made to order.' };
   if (!['floor','backstock'].includes(availability)) return { error: 'Choose floor or backstock availability.' };
   if (seoTitle.length > 70) return { error: 'SEO title must be 70 characters or fewer.' };
   if (seoDescription.length > 180) return { error: 'SEO description must be 180 characters or fewer.' };
@@ -170,7 +173,7 @@ function validateListingInput(body = {}, existing = null) {
   if (productionType === 'Made to Order' && stockQuantity !== 0) return { error: 'Made-to-order pieces do not use on-hand stock; set stock quantity to 0.' };
   if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 100000) return { error: 'Low-stock threshold must be a whole number between 0 and 100,000.' };
 
-  return { value: { fitMeasurements: fit.value, title, description, price, category, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
+  return { value: { fitMeasurements: fit.value, title, description, price, category, presentation, style, size, aesthetic, pattern, materials, careInstructions, productionType, availability, alterationsAvailable, takesRequests, seoTitle, seoDescription, seoTags, shareImageUrl, shippingCostCents, freeShippingThresholdCents, handlingDaysMin, handlingDaysMax, internationalShipping, sku, stockQuantity, lowStockThreshold } };
 }
 
 function createApp(options = {}) {
@@ -356,6 +359,7 @@ function createApp(options = {}) {
   ensureColumn('listings', 'style', 'TEXT');
   ensureColumn('listings', 'fit_measurements', 'TEXT');
   ensureColumn('listings', 'aesthetic', 'TEXT');
+  ensureColumn('listings', 'presentation', 'TEXT');
   ensureColumn('listings', 'pattern', 'TEXT');
   ensureColumn('listings', 'materials', 'TEXT');
   ensureColumn('listings', 'care_instructions', 'TEXT');
@@ -1311,6 +1315,7 @@ function createApp(options = {}) {
       description: row.description,
       price: Number(row.price),
       category: row.category,
+      presentation: row.presentation || (['menswear','womenswear','unisex'].includes(row.category)?row.category:''),
       style: row.style || '',
       size: row.size || '',
       fitMeasurements: (() => { try { return JSON.parse(row.fit_measurements || '{}'); } catch { return {}; } })(),
@@ -2960,7 +2965,7 @@ function createApp(options = {}) {
     }
     if (measurements !== undefined && !Object.keys(fitValues).length) return fail(res, 400, 'invalid_measurements', 'Enter at least one measurement.');
     const filters = {};
-    for (const key of ['category', 'style', 'aesthetic', 'pattern', 'designer', 'q', 'sort']) {
+    for (const key of ['category', 'presentation', 'productionType', 'style', 'aesthetic', 'pattern', 'designer', 'q', 'sort']) {
       const value = input[key];
       if (value !== undefined && (typeof value !== 'string' || value.length > (key === 'q' ? 200 : 100))) {
         return fail(res, 400, 'invalid_filter', 'Choose a valid shop filter.');
@@ -2973,6 +2978,8 @@ function createApp(options = {}) {
     if (filters.sort && !['all', 'new', 'low', 'high'].includes(filters.sort)) {
       return fail(res, 400, 'invalid_filter', 'Choose a supported sort order.');
     }
+    if (filters.presentation && !['all',...HOUSE_TAXONOMY.presentation.map(item=>item.value)].includes(filters.presentation)) return fail(res,400,'invalid_filter','Choose a supported presentation.');
+    if (filters.productionType && !['all',...HOUSE_TAXONOMY.availability.map(item=>item.value)].includes(filters.productionType)) return fail(res,400,'invalid_filter','Choose a supported availability.');
     const conditions = ["l.status = 'published'", "l.moderation_status = 'approved'"];
     const values = [];
     for (const key of ['category', 'style', 'aesthetic', 'pattern']) {
@@ -2980,6 +2987,11 @@ function createApp(options = {}) {
         if(key==='category' && filters[key]==='apparel'){conditions.push("LOWER(TRIM(l.category)) IN ('apparel','menswear','womenswear','unisex','costumes')");}
         else {conditions.push(`LOWER(TRIM(l.${key})) = LOWER(?)`);values.push(filters[key]);}
       }
+    }
+    if(filters.presentation && filters.presentation!=='all'){conditions.push("COALESCE(NULLIF(l.presentation,''),l.category)=?");values.push(filters.presentation);}
+    if(filters.productionType && filters.productionType!=='all'){
+      if(filters.productionType==='Made in Multiple'){conditions.push("l.production_type IN ('Made in Multiple','Limited Quantity','Made to Order')");}
+      else {conditions.push('l.production_type=?');values.push(filters.productionType);}
     }
     if (filters.designer && filters.designer !== 'all') {
       conditions.push('l.designer_id = ?');
@@ -3218,6 +3230,7 @@ function createApp(options = {}) {
       timestamp
     );
 
+    db.prepare('UPDATE listings SET presentation=? WHERE id=?').run(validation.value.presentation || null,id);
     return res.status(201).json({ item: serializeListing(getListing(id), 'private'), reused: false });
   });
 
@@ -3235,6 +3248,7 @@ function createApp(options = {}) {
       if (!['draft','rejected','published'].includes(row.status))
         return { error: [409, 'not_editable', 'Only draft, rejected, or published listings can be edited.'] };
       const input = { ...req.body,
+        presentation: req.body?.presentation ?? row.presentation ?? '',
         productionType: req.body?.productionType ?? row.production_type ?? 'One of a Kind',
         stockQuantity: req.body?.stockQuantity ?? row.stock_quantity,
         lowStockThreshold: req.body?.lowStockThreshold ?? row.low_stock_threshold };
@@ -3289,6 +3303,7 @@ function createApp(options = {}) {
         row.id
       );
 
+      db.prepare('UPDATE listings SET presentation=? WHERE id=?').run(validation.value.presentation || null,row.id);
       if (validation.value.stockQuantity !== Number(row.stock_quantity)) {
         const adjustmentId=makeId(), previousInventory=listingInventory(row);
         db.prepare(`INSERT INTO inventory_adjustments(id,listing_id,delta,quantity_after,reason,actor_type,actor_id,created_at)
@@ -4573,6 +4588,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
+  app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'briar-seamless-background-v1.webp',
     'briar-portrait-green-v2.webp', 'briar-portrait-green-v2-mobile.webp',
