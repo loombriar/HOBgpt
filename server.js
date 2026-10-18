@@ -1196,8 +1196,8 @@ function createApp(options = {}) {
     try { const value=JSON.parse(process.env.ADMIN_TOTP_SECRETS_JSON || '{}'); return value && typeof value==='object' && !Array.isArray(value) ? value : {}; }
     catch { return {}; }
   })();
-  function verifyAdminTotp(entry, code) {
-    if (process.env.ADMIN_TOTP_REQUIRED !== 'true') return true;
+  function verifyAdminTotp(entry, code, { diagnostic = false } = {}) {
+    if (!diagnostic && process.env.ADMIN_TOTP_REQUIRED !== 'true') return true;
     const encoded=adminTotpSecrets[entry?.label];
     if (!encoded || !/^[0-9]{6}$/.test(String(code || ''))) return false;
     let key;
@@ -1751,6 +1751,19 @@ function createApp(options = {}) {
     if (!verifyAdminTotp(entry,req.get('x-admin-totp'))) return fail(res,401,'mfa_required','A valid administrator verification code is required.');
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
+  // Staging diagnostic: validates a code without issuing a session or consuming the TOTP counter.
+  // Never enable this route in production, even if MFA enforcement is disabled.
+  if (process.env.ADMIN_TOTP_DIAGNOSTICS === 'true' && process.env.NODE_ENV !== 'production') {
+    app.post('/api/admin/totp-check', rateLimit({windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'admin-totp-check'}), (req, res) => {
+      const token = req.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+      const entry = token ? adminEntryForToken(token) : null;
+      if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+      return requireAdminRequestOrigin(req, res, () => {
+        res.set('Cache-Control', 'no-store');
+        return res.json({ valid: verifyAdminTotp(entry, req.get('x-admin-totp'), { diagnostic: true }) });
+      });
+    });
+  }
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
