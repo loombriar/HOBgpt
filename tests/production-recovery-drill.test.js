@@ -10,7 +10,8 @@ test('recovery refuses live mode, credentials, live service and unselected backu
 test('recovery rejects traversal, duplicate paths and invalid metadata before writing data',()=>{
  const file={path:'catalog.sqlite',size:10,sha256:'a'.repeat(64)};
  const manifest={version:2,database:'catalog.sqlite',files:[file]};assert.equal(validateManifest(manifest),10);
- for(const files of [[{...file,path:'../catalog.sqlite'}],[file,file],[{...file,size:-1}],[{...file,sha256:'bad'}],[{...file,path:'images/other.webp'}]])assert.throws(()=>validateManifest({...manifest,files}));
+ assert.equal(validateManifest({...manifest,files:[file,{...file,path:'metadata/state.json'}]}),20);
+ for(const files of [[{...file,path:'/catalog.sqlite'}],[{...file,path:'images/./photo.webp'}],[{...file,path:'images//photo.webp'}],[{...file,path:'../catalog.sqlite'}],[file,file],[{...file,size:-1}],[{...file,sha256:'bad'}],[{...file,path:'images/other.webp'}]])assert.throws(()=>validateManifest({...manifest,files}));
 });
 test('downloaded snapshot restores records and serves real images through an isolated app',async()=>{
  const {createApp}=require('../server');
@@ -21,6 +22,7 @@ test('downloaded snapshot restores records and serves real images through an iso
  fs.writeFileSync(path.join(ctx.imagesDir,'photo.webp'),image);
  ctx.db.prepare("INSERT INTO listing_images(id,listing_id,client_image_key,storage_key,position,mime_type,size_bytes,width,height,checksum,upload_status,created_at) VALUES ('photo','piece','client','photo.webp',0,'image/webp',?,10,10,'fixture','ready',?)").run(image.length,new Date().toISOString());
  ctx.db.prepare("INSERT INTO orders(id,status,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at) VALUES ('order','canceled',2000,180,1820,?)").run(new Date().toISOString());
+ fs.writeFileSync(path.join(data,'recovery-state.json'),'{}');
  ctx.analyticsIngest.close();ctx.db.close();
  const backup=spawnSync(process.execPath,['scripts/backup-data.js','--output',snapshot],{env:{...process.env,DATA_DIR:data},encoding:'utf8'});assert.equal(backup.status,0,backup.stderr);
  const old={};const keys=new Set([...Object.keys(env),...Object.keys(process.env).filter(k=>/^(STRIPE_|SHIPPO_|SMTP_|SENDGRID_|RESEND_|PAYPAL_)/.test(k)), 'OPENAI_API_KEY','ADMIN_TOKEN','ADMIN_TOKENS','ADMIN_TOKENS_JSON','DESIGNER_TOKENS_JSON','DESIGNER_IDENTITY_MAP_JSON','RAILWAY_SERVICE_NAME','OFFSITE_BACKUP_ENABLED']);
