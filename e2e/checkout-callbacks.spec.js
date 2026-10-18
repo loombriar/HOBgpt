@@ -4,7 +4,7 @@ const {once}=require('node:events');
 const {createApp}=require('../server');
 const readySeller=require('../tests/helpers/ready-seller');
 
-for(const outcome of ['paid','unpaid','canceled'])test('server-generated '+outcome+' callback runs checkout verification and cart recovery',async({page})=>{
+for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid','canceled'])test(entry+' server-generated '+outcome+' callback runs checkout verification and cart recovery',async({page})=>{
  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-callback-browser-'));
  const sessions=new Map();let callback;
  const ctx=createApp({dataDir,seedProducts:[{id:'callback-piece',designerId:'maker',title:'Callback Piece',price:50,shippingCostCents:0}],sendEmail:async()=>true,stripeApi:async(endpoint,request={})=>{
@@ -26,9 +26,10 @@ for(const outcome of ['paid','unpaid','canceled'])test('server-generated '+outco
  try{
   await page.goto(origin+'/shop');
   await page.evaluate(()=>localStorage.setItem('house-of-briar:cart',JSON.stringify(['callback-piece'])));
-  await page.goto(origin+'/checkout');
+  await page.goto(origin+(entry==='react'?'/checkout':'/'));
+  if(entry==='storefront')await page.getByRole('button',{name:'Cart, 1 item',exact:true}).click();
   const responsePromise=page.waitForResponse(response=>response.url().endsWith('/api/checkout/session')&&response.request().method()==='POST');
-  await page.getByRole('button',{name:'Continue to secure checkout',exact:true}).click();
+  await page.getByRole('button',{name:entry==='react'?'Continue to secure checkout':'Pay by card / bank',exact:true}).click();
   const response=await responsePromise;expect(response.status()).toBe(201);const orderId=sessions.get('cs_callback_mock').metadata.order_id;
   await expect(page).toHaveURL(callback);expect(new URL(callback).pathname).toBe('/checkout');
   if(outcome==='paid'){
@@ -41,7 +42,14 @@ for(const outcome of ['paid','unpaid','canceled'])test('server-generated '+outco
    expect(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('paid');
    expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('sold');
   }else{
-   if(outcome==='unpaid')await expect(page.getByText('Stripe has not marked this payment as paid. Your cart is unchanged.',{exact:true})).toBeVisible();
+   if(outcome==='unpaid'){
+    const warning=page.getByRole('alert').filter({hasText:'Payment confirmation is not available yet.'});
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('Stripe has not marked this payment as paid. Your cart is unchanged.');
+    await expect(warning).toContainText('Do not start another payment until you check your receipt or contact support.');
+    expect(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('pending');
+    expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('reserved');
+   }
    else{
     await expect.poll(()=>ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status).toBe('canceled');
     expect(ctx.db.prepare('SELECT status FROM inventory_reservations WHERE order_id=?').get(orderId).status).toBe('released');

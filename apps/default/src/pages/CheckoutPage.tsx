@@ -122,7 +122,9 @@ export default function CheckoutPage() {
         setReceipt(result.receipt??null);
         setPaymentState('paid');
         trackCommerceEvent({ event: 'purchase', orderId: sessionId, value: snapshot?.subtotal, currency: 'USD', itemCount: snapshot?.items.length });
-        const purchasedIds = snapshot?.ids ?? [];
+        // Homepage checkout has no React checkout snapshot. Use the verified
+        // receipt so both entry points remove only the pieces actually bought.
+        const purchasedIds = result.receipt?.items.map((item) => item.listingId) ?? snapshot?.ids ?? [];
         const remaining = readCartIds().filter((id) => !purchasedIds.includes(id));
         window.localStorage.setItem(CART_KEY, JSON.stringify(remaining));
         window.localStorage.removeItem(PENDING_KEY);
