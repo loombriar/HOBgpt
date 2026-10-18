@@ -4,6 +4,8 @@ for (const width of [390, 1280]) {
   test(`dark mode keeps creative descriptions and activity buttons readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/creative-house.html');
+    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
     const contrast = () => page.locator('.creative-category-heading>p:last-child, #creative-workflow-help, .creative-workflow-options button, .creative-path small').evaluateAll(elements => {
@@ -58,6 +60,8 @@ for(const width of [390,1280]) {
   test(`dark customer, product and cart headers and controls are readable at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:844});
     await page.goto('/');
+    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
     await expectReadable(page.locator('.sewing-hero-actions .primary-button,.hob-customer-access button'));
@@ -80,6 +84,8 @@ for (const width of [393,1280]) {
     const asset = await page.request.get(stylesheet);
     expect(asset.status()).toBe(200);
     expect(asset.headers()['content-type']).toContain('text/css');
+    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
     const text=page.locator('.fashion-cover-footnote,.briar-invite p,.briar-invite strong,.menswear-window-title,.menswear-window-subtitle,.feature-bar span,.feature-bar strong,.founder-announcement p,.founder-announcement a,.story-grid h2,.story-grid p,.story-grid a,.hob-door-content strong,.hob-door-content span,.hob-door-number,.product-card .badge,.product-card .card-description,.product-card .favorite-button,.house-styling button,.atelier-spotlight button');
