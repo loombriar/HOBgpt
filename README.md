@@ -2,6 +2,10 @@
 
 A full-stack storefront prototype with a designer portal, validated multi-photo uploads, and a published-only gallery. The shop loads directly from the same SQLite-backed listing store used by the designer workspace, so a second gallery index is not required.
 
+## Current release evidence
+
+See [the release acceptance evidence](docs/release-acceptance-evidence.md) for the October 17, 2026 assessed commit, CI links, deployment observations and incomplete provider/device gates. Normal browser authentication now uses HttpOnly sessions; saved customer measurement profiles are encrypted and persistent. Off-site upload has been observed, while a production-backup restore drill remains unverified. Automated tests and a successful deployment do not constitute full launch signoff.
+
 ## Designer Studio options
 
 The authenticated studio overview offers Active, Draft, Expired, Sold Out and Inactive filters with mutually exclusive counts, seller-scoped orders/request counts, and 30-day product-view event/session totals. View events are analytics, not verified people. Listings expire only when their designer explicitly ends them; no automatic listing lifetime is assumed. Reserved pieces cannot expire, and renewal creates a draft that must follow normal moderation before going live.

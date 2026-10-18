@@ -1,9 +1,12 @@
 # Production hardening roadmap
 
 ## Authentication
-Move designer authentication to server-managed Secure, HttpOnly, SameSite cookies. Existing bearer-token authentication is a temporary compatibility path while the legacy storefront and React Studio are migrated. New frontend code must not add additional persistent bearer credentials. The migration is complete when designer sign-in, sign-out, Studio, account, listings, shipping, support and AI routes no longer read a designer credential from localStorage.
 
-Admin authentication should follow the same direction, with named administrator accounts and MFA or passkeys before broad production use.
+Status checked against application commit `6834dd0` on October 17, 2026. The normal browser migration is implemented: the legacy storefront and React House authentication use server-managed HttpOnly, SameSite session cookies, Secure on HTTPS. The storefront clears old stored designer credentials; new frontend code must not persist bearer credentials. Email-code verification, sign-out revocation and isolation have backend/browser regression coverage. See [current release evidence](release-acceptance-evidence.md) for the distinction between automated and live acceptance.
+
+Backend compatibility still accepts configured/issued legacy bearer credentials, and an explicit older-token sign-in option remains. That is a remaining retirement task, not evidence that the normal UI still stores tokens. Inventory clients and configured legacy identities before disabling compatibility.
+
+Admin token exchange also produces a revocable HttpOnly cookie and clears the typed token after successful sign-in. Named individual administrator identities with MFA or passkeys remain a hardening requirement before broad production use; labelled/shared access tokens are not equivalent to that identity model.
 
 ## Backend boundaries
 Do not add new unrelated route families directly to server.js. Extract new work behind modules grouped as auth, commerce, integrations, marketplace, support and analytics. Commerce state transitions must remain transactional and covered by regression tests.
@@ -24,4 +27,4 @@ The backup command uses SQLite's online backup API for `catalog.sqlite`, so a ru
 
 Every backup writes a SHA-256 manifest. Run `npm run verify:backup -- <backup-directory>` before accepting a backup; verification checks every recorded file and runs SQLite `PRAGMA integrity_check` against the snapshot.
 
-Production still needs an off-host copy and a periodic restore drill. A backup stored only on the same Railway volume does not protect against volume loss.
+Production off-site upload and file/SQLite verification were observed successfully on October 17, 2026; see the timestamped release evidence. Automated tests also restore an isolated WAL-backed database and media and reject corrupted backups or destination overwrite. A restore drill using a recent downloaded production backup is still not verified. Follow [the restore runbook](backup-restore.md) in an isolated environment; never overwrite the running production volume. Configuration and successful upload alone are not restore evidence.
