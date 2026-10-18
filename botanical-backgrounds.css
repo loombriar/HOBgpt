@@ -29,3 +29,26 @@ html:not([data-hob-theme]) body.blackberry-house .hero.sewing-hero.fashion-cover
   border-color:#d6c7b5!important;
   background:rgba(8,8,11,.65)!important;
 }
+
+/* One continuous backdrop from the opening view through the footer. */
+html[data-hob-theme] body.blackberry-house,
+html:not([data-hob-theme]) body.blackberry-house,
+html body.creative-makeover {
+  background:linear-gradient(var(--hob-art-veil),var(--hob-art-veil)),url('/briar-seamless-background-v1.webp') center top / 720px auto repeat!important;
+}
+html[data-hob-theme] body.blackberry-house .page-shell,
+html[data-hob-theme] body.blackberry-house #top,
+html[data-hob-theme] body.blackberry-house #top > :is(section:not(.hero),.house-shopping-promises),
+html[data-hob-theme] body.blackberry-house .site-footer,
+html body.creative-makeover main > section:not(.hero) {
+  background:transparent!important;
+}
+/* Retire the old isolated SVG vines and decorative thorn borders. */
+html[data-hob-theme] body.blackberry-house :is(.fashion-cover-copy,.briar-invitation,.briar-editorial-poster,#support,#journal,.designer-callout-section,.site-footer)::before,
+html[data-hob-theme] body.blackberry-house :is(.fashion-cover-copy,.briar-invitation,.briar-editorial-poster,#support,#journal,.designer-callout-section,.site-footer)::after,
+html body.creative-makeover main > .hero::after {
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+html body .house-botanical-accent { display:none!important; }
