@@ -615,6 +615,9 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         <form id="admin-login-form" class="stack-form">
           <label for="admin-token">Administrator code</label>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="admin-token" type="password" autocomplete="current-password" required /><button type="button" class="secondary-button" aria-controls="admin-token" aria-pressed="false">Show password</button></div>
+          <label for="admin-authenticator-code">Authenticator code</label>
+          <input id="admin-authenticator-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-describedby="admin-authenticator-help" />
+          <p id="admin-authenticator-help" class="small-print">Enter a fresh six-digit code from House of Briar – Production when two-step verification is enabled.</p>
           <button class="primary-button" type="submit">Open admin panel</button>
         </form>
       </section>

@@ -2093,12 +2093,14 @@ adminLoginForm?.addEventListener('submit', async (event) => {
   const token = adminTokenInput?.value.trim() || '';
   if (!token) return;
   try {
-    const response = await fetch('/api/admin/session', {method:'POST',headers:{Authorization:`Bearer ${token}`}});
+    const code = byId('admin-authenticator-code')?.value.trim() || '';
+    const response = await fetch('/api/admin/session', {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-Admin-TOTP':code}});
     const payload = await response.json().catch(()=>({}));
     if (!response.ok) throw new Error(payload?.error?.message || 'Administrator sign in failed.');
     adminSessionActive = true;
     sessionStorage.removeItem('briarAdminToken');
     if (adminTokenInput) adminTokenInput.value = '';
+    if (byId('admin-authenticator-code')) byId('admin-authenticator-code').value = '';
     await renderAdminQueue();
   } catch (error) { setMessage(adminReviewMessage,error.message,'error'); }
 });
