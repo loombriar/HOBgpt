@@ -4,7 +4,7 @@ A full-stack storefront prototype with a designer portal, validated multi-photo 
 
 ## Current release evidence
 
-See [the release acceptance evidence](docs/release-acceptance-evidence.md) for the October 17, 2026 assessed commit, CI links, deployment observations and incomplete provider/device gates. Normal browser authentication now uses HttpOnly sessions; saved customer measurement profiles are encrypted and persistent. Off-site upload has been observed, while a production-backup restore drill remains unverified. Automated tests and a successful deployment do not constitute full launch signoff.
+See [the release acceptance evidence](docs/release-acceptance-evidence.md) for the October 17, 2026 assessed commit, CI links, deployment observations and incomplete provider/device gates. Normal browser authentication now uses HttpOnly sessions; saved customer measurement profiles are encrypted and persistent. A downloaded production off-site backup passed an isolated restore drill on October 18, 2026, including database, order and photo checks. Automated tests and a successful deployment do not constitute full launch signoff.
 
 ## Designer Studio options
 
