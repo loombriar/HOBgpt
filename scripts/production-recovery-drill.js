@@ -18,7 +18,7 @@ function validateManifest(manifest){
  if(manifest.version!==2||manifest.database!=='catalog.sqlite'||!Array.isArray(manifest.files)||!manifest.files.length||manifest.files.length>10000)throw Error('Invalid recovery manifest');
  const names=new Set();let total=0;
  for(const file of manifest.files){
-  if(typeof file.path!=='string'||!/^[a-zA-Z0-9._/-]+$/.test(file.path)||file.path.split('/').some(part=>!part||part==='.'||part==='..')||names.has(file.path))throw Error('Unsafe or duplicate backup path');
+  if(typeof file.path!=='string'||file.path.length>4096||path.posix.isAbsolute(file.path)||path.win32.isAbsolute(file.path)||/[\x00-\x1f\\]/.test(file.path)||file.path.split('/').some(part=>!part||part==='.'||part==='..')||names.has(file.path))throw Error('Unsafe or duplicate backup path');
   names.add(file.path);
   if(!Number.isSafeInteger(file.size)||file.size<0||file.size>250*1024*1024||!/^\w{64}$/.test(file.sha256)||!/^[a-f0-9]{64}$/.test(file.sha256))throw Error('Invalid backup file metadata');
   total+=file.size;
