@@ -42,6 +42,9 @@ checked and are not claimed as cleared by this change.
   422. Confirmation, shipping and refund email inbox delivery must be repeated with
   a controlled test recipient; Resend documents `delivered@resend.dev` for simulated
   successful delivery. Existing operator-reported email evidence is separate.
+  A later [controlled email check](email-delivery-evidence-2026-10-18.md) verified
+  inbox delivery for sign-in and marked transaction-template tests; it also found
+  a malformed House-domain DKIM record that still needs repair.
 - No new Connect onboarding, carrier-verified live shipment, transfer release or
   reversal, purchased postage label, physical Android journey, subscription renewal
   or Play Console review was performed. This is partial release evidence.
