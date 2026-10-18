@@ -1055,6 +1055,7 @@ function createApp(options = {}) {
   }
   function validDesignerSession(session) {
     if(!session || session.expires_at<=new Date().toISOString())return false;
+    if(!require('./passkeys').sessionIsValid(db,session.session_hash))return false;
     if(!require('./reviewer-auth').validReviewerSession(db,session.session_hash))return false;
     if(!session.credential_hash)return true; // Mailbox-verified sign-in has no bootstrap dependency.
     const id=session.designer_id;
@@ -1972,6 +1973,23 @@ function createApp(options = {}) {
     }
     return quote;
   }
+
+  require('./passkeys').registerPasskeys({app,db,fail,rateLimit,trustedAppOrigin,
+    identity(req,kind){
+      if(kind==='customer')return customerAccounts.passkeyIdentity(req);
+      const token=cookieValue(req,DESIGNER_SESSION_COOKIE);if(!token)return null;
+      const sessionHash=crypto.createHash('sha256').update(token).digest('hex');
+      const session=db.prepare('SELECT * FROM designer_sessions WHERE session_hash=?').get(sessionHash);
+      if(!validDesignerSession(session)||db.prepare('SELECT 1 FROM reviewer_sessions WHERE session_hash=?').get(sessionHash))return null;
+      const p=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(session.designer_id);if(!p)return null;
+      return {id:p.id,email:p.email,name:p.brand_name||p.display_name,createdAt:session.created_at,sessionHash,verified:Boolean(p.email_verified_at)&&!session.credential_hash};
+    },
+    issueSession(req,res,kind,id){
+      if(kind==='customer')return customerAccounts.issuePasskeySession(req,res,id);
+      if(!db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active' AND email_verified_at IS NOT NULL").get(id))return null;
+      clearDesignerSession(req,res);return issueDesignerSession(req,res,id);
+    }
+  });
 
   app.post('/api/session', authDesigner, (req, res) => {
     if(req.designerAuthMethod!=='session'){
@@ -4606,6 +4624,11 @@ function createApp(options = {}) {
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
   for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','customer-edit.css','house-remodel.css','briar-campaign.css','briar-thorn-vine.svg','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
+  app.get('/.well-known/assetlinks.json',(_req,res)=>{
+    res.set('Cache-Control','public, max-age=300').json(require('./android-passkey-association').statement());
+  });
+  app.get('/passkey-vendor.js',(_req,res)=>res.sendFile(path.join(path.dirname(require.resolve('@simplewebauthn/browser')),'../dist/bundle/index.umd.min.js')));
+  app.get('/passkey-client.js',(_req,res)=>res.sendFile(path.join(rootDir,'passkey-client.js')));
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
     res.sendFile(path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png'))

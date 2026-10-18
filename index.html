@@ -29,6 +29,8 @@
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
     <script src="/script.js?v=admin-priorities-20261016" defer></script>
+    <script src="/passkey-vendor.js" defer></script>
+    <script src="/passkey-client.js" defer></script>
     <script type="module" src="/native-back.js"></script>
     <link rel="stylesheet" href="/atelier.css?v=header-4" />
     <link rel="stylesheet" href="/fashion.css?v=hero-wide-20261011" />
@@ -296,8 +298,9 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 <button type="button" class="secondary-button" data-customer-section="measurement-profile-name">Save my measurements</button>
 <button type="button" class="secondary-button" data-customer-section="visitor-favorites-title">See my favorites</button>
 <button type="button" class="secondary-button" data-customer-section="visitor-account-settings">Account settings</button>
-</nav><details id="visitor-account-settings" class="visitor-panel visitor-settings"><summary>Account settings</summary><div class="visitor-panel-content"><p>Your House account uses a six-digit email code. There is no password to manage.</p><a href="/account">Open full account settings ↗</a><h4>Delete account</h4><p class="small-print">Deleting your account removes your profile and saved favorites. Orders, donations, or messages may require a privacy review first. This cannot be undone.</p><button id="customer-delete-account" type="button" class="secondary-button" style="color:#a63838;border-color:#a63838">Delete account permanently</button></div></details> <button id="customer-signout" type="button" class="secondary-button">Sign out of customer account</button></div>
+</nav><details id="visitor-account-settings" class="visitor-panel visitor-settings"><summary>Account settings</summary><div class="visitor-panel-content"><p>Your House account uses a six-digit email code. There is no password to manage.</p><a href="/account">Open full account settings ↗</a><div data-passkey-manage="customer"></div><h4>Delete account</h4><p class="small-print">Deleting your account removes your profile and saved favorites. Orders, donations, or messages may require a privacy review first. This cannot be undone.</p><button id="customer-delete-account" type="button" class="secondary-button" style="color:#a63838;border-color:#a63838">Delete account permanently</button></div></details> <button id="customer-signout" type="button" class="secondary-button">Sign out of customer account</button></div>
         <p><a href="/reviewer-login">Google Play reviewer sign-in</a></p>
+        <button type="button" class="secondary-button" data-passkey-signin="customer" data-passkey-status="customer-signup-status" hidden>Sign in with a passkey</button>
         <form id="customer-signup-form" class="stack-form">
           <label>Your name <span class="small-print">(optional)</span><input id="customer-signup-name" maxlength="80" autocomplete="given-name" /></label>
           <label>Email<input id="customer-signup-email" type="email" maxlength="254" autocomplete="email" required /></label>
@@ -344,6 +347,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         <h3>Returning designer? Sign in</h3>
         <p>Enter your designer email to receive a six-digit sign-in code. If you were given an older access token, you can use the option below. New to the House? Use the Create designer account form.</p>
         <p><a href="/reviewer-login">Google Play reviewer sign-in</a></p>
+        <button type="button" class="secondary-button" data-passkey-signin="designer" data-passkey-status="designer-auth-message" hidden>Sign in with a passkey</button>
         <form id="designer-email-login-form" class="stack-form">
           <label for="designer-login-email">Designer email</label>
           <input id="designer-login-email" type="email" autocomplete="email" required />
@@ -380,6 +384,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         </div>
       </section>
       <section id="designer-workspace" class="hidden" aria-label="Your designer workspace">
+        <div data-passkey-manage="designer"></div>
         <nav class="room-navigation" aria-label="Designer room sections">
           <button type="button" data-room-target="designer-attention">Needs attention</button>
           <button type="button" data-room-target="seller-readiness-title">Getting started</button>

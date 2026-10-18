@@ -2544,6 +2544,7 @@ async function refreshCustomerAccount() {
     void refreshCustomerPurchases();
     if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
+    for(const button of document.querySelectorAll('[data-passkey-signin=customer]'))button.hidden=customerSignedIn||!window.HousePasskeys?.supported();
     byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
     byId('customer-code-form').hidden=true;
     await refreshMeasurementProfiles(customerSignedIn);
