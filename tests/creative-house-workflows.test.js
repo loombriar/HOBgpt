@@ -7,9 +7,10 @@ test('Creative House keeps complete task sections in sync with forms and categor
   const ids = ['profile-form', 'event-profile-form', 'event-form', 'post-form', 'project-request-form', 'creative-inquiry-form'];
   const sectionIds = ['your-profile', 'event-profile-editor', 'post-event', 'post', 'casting-commissioning', 'private-inquiries'];
   const nodes = new Map();
-  const sections = sectionIds.map(id => ({ id, hidden: false, contains: form => form.section.id === id }));
+  const sections = sectionIds.map(id => ({ id, hidden: false, toggleAttribute(name,value){this.viewHidden=value;}, contains: form => form.section.id === id }));
+  sections.forEach(section=>nodes.set(section.id,section));
   ids.forEach((id, i) => nodes.set(id, { id, section: sections[i], hidden: false, closest() { return this.section; }, scrollIntoView() {} }));
-  nodes.set('profile-start', { hidden: false });
+  nodes.set('profile-start', { id:'profile-start',hidden: false,toggleAttribute(name,value){this.viewHidden=value;} });
   nodes.set('creative-workflow-help', { textContent: '' });
   const buttons = ['browse', 'profile', 'event', 'casting', 'request', 'inquiry'].map(kind => ({
     dataset: { creativeWorkflow: kind }, attributes: {},
@@ -20,16 +21,18 @@ test('Creative House keeps complete task sections in sync with forms and categor
   const location = { hash: '' };
   vm.runInNewContext(readFileSync('creative-house-workflows.js', 'utf8'), {
     document: { getElementById: id => nodes.get(id), addEventListener() {}, querySelectorAll: selector => selector === '[data-creative-workflow]' ? buttons : [] },
-    location, window: { matchMedia: () => ({ matches: false }), addEventListener: (type, fn) => { listeners[type] = fn; } },
+    location, window: { matchMedia: () => ({ matches: false }), addEventListener: (type, fn) => { const previous=listeners[type];listeners[type]=previous?(event)=>{previous(event);fn(event);}:fn; } },
   });
   assert.ok(sections.slice(0, 5).every(section => section.hidden));
-  assert.equal(sections[5].hidden, false, 'incoming inquiries stay available');
+  assert.equal(sections[5].hidden, false, 'the workflow layer preserves incoming inquiries');
+  assert.equal(sections[5].viewHidden,true,'inquiries wait for a contribution path');
   buttons[2].click();
   assert.equal(sections[2].hidden, false);
   assert.equal(nodes.get('event-form').hidden, false);
   assert.equal(sections[0].hidden, true);
   location.hash = '#your-profile'; listeners.hashchange();
   assert.equal(sections[0].hidden, false);
+  assert.equal(sections[0].viewHidden,false,'profile path reveals its complete section');
   assert.equal(sections[1].hidden, true);
   location.hash = '#event-profile-editor'; listeners.hashchange();
   assert.equal(sections[0].hidden, true);

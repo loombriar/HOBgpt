@@ -285,11 +285,12 @@ test('editorial storefront retains accessible native category filters and their 
   assert.match(html, /<option value="Costume">Costumes<\/option>/);
   assert.doesNotMatch(html, /class="fashion-hero-side"/);
   assert.doesNotMatch(html, /class="shop-drop-window menswear-window"/);
-  assert.equal((html.match(/class="shop-filter-menu"/g) || []).length, 2);
+  for(const kind of ['category','presentation','aesthetic','pattern','availability'])assert.ok(html.includes('data-filter-menu="'+kind+'"'));
   assert.match(html, /data-filter-menu="category"/);
-  assert.match(html, /data-filter-menu="style"/);
+  assert.doesNotMatch(html, /data-filter-menu="style"/);
   assert.match(html, /id="shop-subcategory-menu"/);
-  assert.match(html, /<option value="menswear">Masculine<\/option>/);
+  assert.match(html, /id="shop-presentation-filter"/);
+  const taxonomyScript=await (await fetch(`${baseUrl}/house-taxonomy.js`)).text();assert.match(taxonomyScript,/Masculine/);
   assert.doesNotMatch(html, /data-filter-menu="designer"/);
   assert.doesNotMatch(html, /class="fashion-category-links"/);
   assert.match(html, /href="\/shop\?category=menswear"/);
