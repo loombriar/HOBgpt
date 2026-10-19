@@ -60,6 +60,7 @@
     const kind=link.dataset.projectKind;
     if(kind) {const select=document.querySelector('#project-request-form select[name=kind]');if(select)select.value=kind;}
   }));
+  document.querySelectorAll('[data-creative-workflow]').forEach(button => button.addEventListener('click', () => show('join')));
   show('welcome');
   fromHash();
   window.addEventListener('hashchange',fromHash);
