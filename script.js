@@ -2766,6 +2766,8 @@ prepareDesignerRoomPanels();
    const chosen=ids.filter(id=>value(id)!=='all').map(label);
    menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||(kind==='category'?'All pieces':kind==='style'?'All styles & prints':'All designers');
   }
+  const subcategorySelection=document.querySelector('#shop-subcategory-menu > summary .shop-filter-selection');
+  if(subcategorySelection)subcategorySelection.textContent=value('shop-garment-filter')!=='all'?label('shop-garment-filter'):'All piece types';
  };
  menus.forEach(menu=>{
   menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});

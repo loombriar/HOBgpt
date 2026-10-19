@@ -3,19 +3,23 @@ for(const width of [390,1280]) {
  test(`House windows and rooms fit a ${width}px screen`,async({page})=>{
   await page.setViewportSize({width,height:850});
   await page.goto('/');
-  const groups=page.locator('.shop-choice-buttons');
-  await expect(groups).toHaveCount(2);
+  const menus=page.locator('.shop-filter-menu');
+  await expect(menus).toHaveCount(5);
   await expect(page.locator('#shop-designer-filter')).not.toBeVisible();
-  for(const group of await groups.all()) {
-   await expect(group).toBeVisible();
-   for(const button of await group.locator('button').all()) {
-    const box=await button.boundingBox();
-    expect(box.height).toBeGreaterThanOrEqual(38);
+  for(const menu of await menus.all()) {
+   await menu.locator(':scope > summary').click();
+   for(const child of await menu.locator('.shop-filter-child').all()) {
+    await child.locator(':scope > summary').click();
+   }
+   for(const select of await menu.locator('select').all()) {
+    await expect(select).toBeVisible();
+    const box=await select.boundingBox();
+    expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x+box.width).toBeLessThanOrEqual(width);
    }
   }
-  await page.locator('.shop-quick-browse').scrollIntoViewIfNeeded();
+  await page.locator('.shop-drop-windows').scrollIntoViewIfNeeded();
   await page.screenshot({path:`/tmp/hob-windows-${width}.png`});
   await page.goto('/designers/room');
   await page.getByText('Have an older access token?',{exact:true}).click();
