@@ -5,10 +5,10 @@ function mountPatternCommerce({app,db,dataDir,authDesigner,authBuyer,authAdmin,o
  CREATE TABLE IF NOT EXISTS order_pattern_files(order_id TEXT NOT NULL,listing_id TEXT NOT NULL,designer_id TEXT NOT NULL,storage_key TEXT NOT NULL,file_name TEXT NOT NULL,PRIMARY KEY(order_id,listing_id));`);
  const digital=row=>row?.category==='patterns'&&row.style==='PDF pattern';
  const describe=row=>row.category==='patterns'?{patternFormat:digital(row)?'pdf':'paper',patternFileReady:!digital(row)||!!db.prepare('SELECT 1 FROM pattern_files WHERE listing_id=?').get(row.id)}:{};
- const ready=row=>{if(!digital(row))return true;const f=db.prepare('SELECT storage_key FROM pattern_files WHERE listing_id=?').get(row.id);return !!f&&fs.existsSync(path.join(directory,f.storage_key));};
+ const ready=row=>!digital(row);
  app.get('/api/admin/listings/:id/pattern-file',authAdmin,(req,res)=>{const file=db.prepare('SELECT * FROM pattern_files WHERE listing_id=?').get(req.params.id);if(!file)return res.status(404).end();res.set({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});res.download(path.join(directory,file.storage_key),file.file_name);});
  const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:1,fields:2}});
- app.put('/api/my/pattern-files/:id',origin,authDesigner,limiter,upload.single('file'),(req,res,next)=>{try{
+ app.put('/api/my/pattern-files/:id',origin,authDesigner,limiter,(_req,res)=>res.status(410).json({error:{message:'PDF pattern uploads are not available yet.'}}),upload.single('file'),(req,res,next)=>{try{
   const row=db.prepare("SELECT * FROM listings WHERE id=? AND designer_id=? AND status IN ('draft','rejected','published')").get(req.params.id,req.designerId);
   if(!digital(row))return res.status(422).json({error:{message:'Choose a draft PDF pattern listing first.'}});
   if(req.body.rightsConfirmed!=='true')return res.status(422).json({error:{message:'Confirm you own or have permission to sell this pattern.'}});

@@ -1,3 +1,7 @@
+## Current scope
+
+PDF pattern sales and uploads are deferred. Only mailed paper patterns are available in the listing taxonomy. Digital purchase paths remain unavailable; existing entitlement handling is retained for future review.
+
 # Sewing services and pattern sales
 
 Staging review: Custom wedding-dress service flags appear on designer storefronts and the designer directory. Seamstress/tailor profiles have a separate, opt-in public directory; existing private talent directories keep their access rules. Quote requests share the requester's verified account email only with the selected provider. Agree price, lead time, shipping costs, and return arrangements before sending clothing. Service quotes do not create payments or bookings.

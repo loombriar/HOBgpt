@@ -151,7 +151,7 @@ function validateListingInput(body = {}, existing = null) {
   if (!Number.isFinite(price) || price < 0 || price > 1000000) return { error: 'Enter a valid price between 0 and 1,000,000.' };
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
   if (presentation && !HOUSE_TAXONOMY.presentation.some(item=>item.value===presentation)) return { error: 'Choose a supported presentation.' };
-  if(category==='patterns'&&!HOUSE_TAXONOMY.patternTypes.some(x=>x.value===style))return {error:'Choose PDF pattern or Paper pattern.'};
+  if(category==='patterns'&&!HOUSE_TAXONOMY.patternTypes.some(x=>x.value===style))return {error:'Choose Paper pattern. PDF downloads are not available yet.'};
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };

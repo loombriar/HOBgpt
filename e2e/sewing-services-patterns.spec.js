@@ -7,8 +7,6 @@ test('sewing directory filters service and opens a private request for that prov
  await page.locator('#service-filter').selectOption('repairs');await page.getByRole('button',{name:'Request sewing help',exact:true}).click();
  const form=page.locator('#service-request-form');await form.getByLabel('Project title',{exact:true}).fill('Repair my coat');await form.getByLabel('What needs doing?',{exact:true}).fill('Please repair the torn lining and damaged seam on my coat.');await form.getByRole('button',{name:'Send private request',exact:true}).click();await expect(form.getByRole('status')).toHaveText('Request sent privately.');
 });
-test('pattern studio lists PDF drafts and sends the private upload',async({page})=>{
- await page.route('**/api/my/listings',route=>route.fulfill({json:{items:[{id:'pdf-draft',title:'Dress PDF',category:'patterns',style:'PDF pattern'},{id:'paper-draft',title:'Paper pattern',category:'patterns',style:'Paper pattern'}]}}));
- await page.route('**/api/my/pattern-files/pdf-draft',route=>route.fulfill({json:{message:'PDF saved privately.'}}));
- await page.goto('/pattern-studio.html');const form=page.locator('#pattern-upload-form');await expect(form.locator('select option')).toHaveCount(2);await form.getByLabel('PDF pattern draft',{exact:true}).selectOption('pdf-draft');await form.getByLabel('Pattern PDF (up to 20 MB)',{exact:true}).setInputFiles({name:'pattern.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7\nPattern test')});await form.locator('[name=rightsConfirmed]').check();await form.getByRole('button',{name:'Save private PDF',exact:true}).click();await expect(form.getByRole('status')).toHaveText('PDF saved privately.');
+test('pattern studio explains mailed paper patterns without a PDF uploader',async({page})=>{
+ await page.goto('/pattern-studio.html');await expect(page.getByRole('heading',{name:'Your pattern studio'})).toBeVisible();await expect(page.locator('main')).toContainText('Mail purchased paper patterns with tracking.');await expect(page.locator('#pattern-upload-form')).toHaveCount(0);
 });

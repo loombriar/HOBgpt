@@ -288,10 +288,6 @@
   ],
   "patternTypes": [
     {
-      "value": "PDF pattern",
-      "label": "PDF downloads"
-    },
-    {
       "value": "Paper pattern",
       "label": "Paper patterns"
     }
