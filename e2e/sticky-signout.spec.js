@@ -9,6 +9,7 @@ for(const kind of ['customer','designer']) for(const path of ['/','/creative-hou
    return route.fulfill({status:signedIn&&kind==='customer'?200:401,json:signedIn&&kind==='customer'?{customer:{id:'nav-test',email:'nav@example.test'}}:{error:{message:'Sign in'}}});
   });
   await page.route('**/api/session',route=>{if(route.request().method()==='DELETE'){deleted.push('designer');signedIn=false;}return route.fulfill({json:{ok:true}});});
+  await page.route('**/api/listings',route=>route.fulfill({json:{items:[]}}));
   await page.goto(path);
   const signout=page.locator('#hob-global-nav').getByRole('button',{name:'Sign out of House of Briar',exact:true});
   await expect(signout).toBeVisible();await expect(signout).toBeInViewport();
