@@ -4,7 +4,7 @@ for(const width of [390,1280]) {
   await page.setViewportSize({width,height:850});
   await page.goto('/');
   const menus=page.locator('.shop-filter-menu');
-  await expect(menus).toHaveCount(2);
+  await expect(menus).toHaveCount(5);
   await expect(page.locator('#shop-designer-filter')).not.toBeVisible();
   for(const menu of await menus.all()) {
    await menu.locator(':scope > summary').click();
