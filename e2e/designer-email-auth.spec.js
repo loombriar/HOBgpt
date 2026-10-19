@@ -40,7 +40,7 @@ test('marketplace mobile signup continues through a private draft and review sub
   const design=page.locator('#product-form');
   await design.getByLabel('Design name',{exact:true}).fill('First Mobile Dress');
   await design.getByLabel('Price',{exact:true}).fill('75');
-  await design.locator('#product-style').selectOption({label:'Dress'});
+  await design.locator('#product-style').selectOption('Dress');
   await design.locator('#product-size').selectOption({label:'M'});
   await design.locator('#product-aesthetic').selectOption({index:1});
   await design.locator('#product-production-type').selectOption('One of a Kind');
