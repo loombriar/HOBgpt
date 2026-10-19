@@ -155,7 +155,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               <div class="shop-search-controls">
                 <p class="shop-discovery-links"><a href="/shop">Explore all pieces ↗</a><a href="/shop#visual-search-title">Search by photo ↗</a></p><label class="shop-search" for="shop-search-input"><span>Search the collection</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select><div class="shop-drop-windows shop-nested-filters" aria-label="Shop filters">
-<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Select a category to see its types.</p><div id="shop-category-buttons" class="shop-choice-buttons" role="group" aria-label="Shop categories"></div><label class="shop-filter-field shop-native-select"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><div id="shop-type-buttons" class="shop-choice-buttons" role="group" aria-label="Piece types"></div><label class="shop-filter-field shop-native-select" class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
+<section class="shop-quick-browse" aria-label="Browse by category"><h3>Shop by category</h3><div id="shop-category-buttons" class="shop-choice-buttons" role="group" aria-label="Shop categories"></div><label class="shop-filter-field shop-native-select"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><div id="shop-type-buttons" class="shop-choice-buttons" role="group" aria-label="Piece types"></div><label class="shop-filter-field shop-native-select"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
                       <option value="all">All pieces</option>
                       <option value="apparel">All clothing</option>
                       <option value="menswear">Masculine — suits, tailoring &amp; more</option>
@@ -169,8 +169,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Jumpsuit / Romper">Jumpsuits &amp; Rompers</option>
                       <option value="Costume">Costumes</option>
                       <option value="Other clothing">Other</option>
-                    </select></label></div></div></details>
-<details class="shop-filter-menu" data-filter-menu="presentation"><summary>Presentation <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Presentation</span><select id="shop-presentation-filter" aria-label="Filter by presentation"><option value="all">All</option></select></label></div></details><details class="shop-filter-menu" data-filter-menu="aesthetic"><summary>Aesthetic <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
+                    </select></label></div></section>
+<details class="shop-refine-menu"><summary>Refine by presentation, aesthetic or print</summary><div class="shop-refine-fields"><details class="shop-filter-menu" data-filter-menu="presentation"><summary>Presentation <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Presentation</span><select id="shop-presentation-filter" aria-label="Filter by presentation"><option value="all">All</option></select></label></div></details><details class="shop-filter-menu" data-filter-menu="aesthetic"><summary>Aesthetic <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
                       <option value="all">All aesthetics</option>
                       <option value="Feminine">Feminine</option>
                       <option value="Masculine">Masculine</option>
@@ -192,7 +192,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Plaid / Tartan">Plaid / Tartan</option><option value="Stripes">Stripes</option><option value="Polka Dot">Polka Dot</option><option value="Geometric">Geometric</option>
                       <option value="Paisley">Paisley</option><option value="Abstract">Abstract</option><option value="Botanical">Botanical</option><option value="Novelty">Novelty</option>
                       <option value="Tie-Dye">Tie-Dye</option><option value="Color Block">Color Block</option><option value="Mixed Print">Mixed Print</option><option value="Other">Other</option>
-                    </select></label></div></details><details class="shop-filter-menu" data-filter-menu="availability"><summary>Availability <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Availability</span><select id="shop-availability-filter" aria-label="Filter by availability"><option value="all">All</option></select></label></div></details>
+                    </select></label></div></details></div></details><details class="shop-filter-menu" data-filter-menu="availability"><summary>Availability <span class="shop-filter-selection">All</span></summary><div class="shop-filter-panel"><label class="shop-filter-field"><span>Availability</span><select id="shop-availability-filter" aria-label="Filter by availability"><option value="all">All</option></select></label></div></details>
 <div hidden aria-hidden="true"><label class="shop-drop-window illustrated-select designers-window">
                     <svg class="category-window-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 5h8v5l8 5-5 12 3 8H14l3-8-5-12 8-5Z"/><path d="M17 27h14M24 35v8M16 43h16M22 2h4"/></svg>
                     <span class="category-window-title" aria-hidden="true">Designers</span>
@@ -788,5 +788,18 @@ document.addEventListener('DOMContentLoaded',function(){
  refresh();
 });
 </script>
+
+<style>
+.shop-quick-browse{width:100%;padding:18px 0 8px;flex:1 0 100%;min-width:0}
+.shop-quick-browse h3{font-size:1.1rem;letter-spacing:.045em;margin:0 0 12px;color:#f1d7a5}
+.shop-quick-browse .shop-choice-buttons{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.shop-quick-browse .shop-choice-buttons button{min-height:44px;padding:11px 18px;border-radius:7px;border:1px solid #88775f;background:#1c211d;color:#f8e9d5;cursor:pointer;font:inherit}
+.shop-quick-browse .shop-choice-buttons button[aria-pressed="true"]{background:#e7c990;color:#172019;border-color:#e7c990;font-weight:700}
+.shop-quick-browse .shop-choice-buttons button:focus-visible{outline:2px solid #e7c990;outline-offset:3px}
+.shop-refine-menu{flex:1 0 100%;width:100%;border-top:1px solid #78634c;padding:12px 0}
+.shop-refine-menu>summary{cursor:pointer;color:#f1d7a5;font-weight:600}
+.shop-refine-fields{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+.shop-refine-fields>.shop-filter-menu{flex:1 1 180px;min-width:180px}
+</style>
 </body>
 </html>
