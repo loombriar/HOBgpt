@@ -413,15 +413,14 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         </div>
       </section>
       <section id="designer-workspace" class="hidden" aria-label="Your designer workspace">
-        <div data-passkey-manage="designer"></div>
         <nav class="room-navigation" aria-label="Designer room sections">
           <button type="button" data-room-target="designer-attention">Needs attention</button>
           <button type="button" data-room-target="seller-readiness-title">Getting started</button>
           <button type="button" data-room-target="designer-products">Your listings</button>
           <button type="button" data-room-target="product-form">Create a piece</button>
           <button type="button" data-room-target="designer-brand-form">Brand &amp; profile</button>
-          <button type="button" data-room-target="designer-settings">Settings</button>
           <a href="/account#orders">Orders &amp; messages ↗</a>
+          <button type="button" data-room-target="designer-settings">Settings</button>
         </nav>
         <section id="designer-attention" class="room-card designer-attention" aria-labelledby="designer-attention-title">
           <div class="designer-attention-heading"><div><p class="eyebrow">Start here</p><h3 id="designer-attention-title">Orders needing attention</h3></div><button id="designer-attention-refresh" class="text-button" type="button">Refresh orders</button></div>
@@ -618,7 +617,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
         </section>
         <details id="designer-settings" class="designer-settings-card">
-          <summary>Designer settings</summary><p><a href="/sewing-services.html#designer-services">Manage custom wedding dresses &amp; other designer services ↗</a> · <a href="/pattern-studio.html">Sell sewing patterns ↗</a></p>
+          <summary>Designer settings</summary><div data-passkey-manage="designer"></div><p><a href="/sewing-services.html#designer-services">Manage custom wedding dresses &amp; other designer services ↗</a> · <a href="/pattern-studio.html">Sell sewing patterns ↗</a></p>
           <form id="designer-settings-form" class="stack-form">
             <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
             <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
