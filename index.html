@@ -84,10 +84,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 </style><link rel="stylesheet" href="/briar-makeover.css?v=dark-contrast-20261012"><link rel="stylesheet" href="/customer-edit.css?v=house-remodel-20261015"><link rel="stylesheet" href="/house-remodel.css?v=nested-shop-filters-20261015"><link rel="stylesheet" href="/briar-campaign.css?v=faint-lower-20261016"><style id="prominent-header-signout-style">
 /* Persistent, thumb-sized sign-out action for signed-in designers and Play reviewers. */
 #header-signout-btn.header-signout-prominent:not([hidden]) {
-  position: fixed !important;
-  top: max(8px, env(safe-area-inset-top, 0px)) !important;
-  right: max(8px, env(safe-area-inset-right, 0px)) !important;
-  z-index: 2147483647 !important;
+  position: static !important;
+  z-index: auto !important;
   visibility: visible !important;
   display: inline-flex !important;
   align-items: center;
