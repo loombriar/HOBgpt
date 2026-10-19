@@ -2857,3 +2857,40 @@ apiRequest('/api/gallery').then(data=>{const items=data.items||[];const matchers
 }).catch(()=>{});
 
 function setExistingTaxonomyValue(id,value){const select=byId(id);if(!select)return;if(value&&![...select.options].some(option=>option.value===value))select.add(new Option(value+' (existing listing)',value));select.value=value;}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const category = byId('shop-category-filter');
+  const type = byId('shop-garment-filter');
+  const categories = byId('shop-category-buttons');
+  const types = byId('shop-type-buttons');
+  if (!category || !type || !categories || !types) return;
+  let lastTypeOptions = '';
+  function renderButtons(select, target) {
+    target.replaceChildren();
+    Array.from(select.options)
+      .filter(option => !option.disabled && !option.hidden && option.style.display !== 'none')
+      .forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = option.textContent;
+        button.setAttribute('aria-pressed', String(select.value === option.value));
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          refresh();
+        });
+        target.appendChild(button);
+      });
+  }
+  function refresh() {
+    renderButtons(category, categories);
+    renderButtons(type, types);
+    lastTypeOptions = type.innerHTML;
+  }
+  category.addEventListener('change', () => { refresh(); setTimeout(refresh, 0); });
+  type.addEventListener('change', refresh);
+  new MutationObserver(() => {
+    if (type.innerHTML !== lastTypeOptions) refresh();
+  }).observe(type, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'disabled'] });
+  refresh();
+});

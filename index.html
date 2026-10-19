@@ -155,7 +155,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               <div class="shop-search-controls">
                 <p class="shop-discovery-links"><a href="/shop">Explore all pieces ↗</a><a href="/shop#visual-search-title">Search by photo ↗</a></p><label class="shop-search" for="shop-search-input"><span>Search the collection</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select><div class="shop-filter-controls" aria-label="Shop filters">
-<section class="shop-quick-browse" aria-label="Browse by category"><h3>Shop by category</h3><div id="shop-category-buttons" class="shop-choice-buttons" role="group" aria-label="Shop categories"></div><label class="shop-filter-field shop-native-select"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><div id="shop-type-buttons" class="shop-choice-buttons" role="group" aria-label="Piece types"></div><label class="shop-filter-field shop-native-select"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
+<section class="shop-quick-browse" data-filter-menu="category" aria-label="Browse by category"><h3>Shop by category</h3><div id="shop-category-buttons" class="shop-choice-buttons" role="group" aria-label="Shop categories"></div><label class="shop-filter-field shop-native-select"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><div id="shop-type-buttons" class="shop-choice-buttons" role="group" aria-label="Piece types"></div><label class="shop-filter-field shop-native-select"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
                       <option value="all">All pieces</option>
                       <option value="apparel">All clothing</option>
                       <option value="menswear">Masculine — suits, tailoring &amp; more</option>
@@ -170,7 +170,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Costume">Costumes</option>
                       <option value="Other clothing">Other</option>
                     </select></label></div></section>
-<details class="shop-refine-menu"><summary>Refine by presentation, aesthetic or print</summary><div class="shop-refine-fields"><div class="shop-refine-field"><label class="shop-filter-field"><span>Presentation</span><select id="shop-presentation-filter" aria-label="Filter by presentation"><option value="all">All</option></select></label></div><div class="shop-refine-field"><label class="shop-filter-field"><span>Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
+<details class="shop-refine-menu"><summary>Refine by presentation, aesthetic or print</summary><div class="shop-refine-fields"><div class="shop-refine-field" data-filter-menu="presentation"><label class="shop-filter-field"><span>Presentation</span><select id="shop-presentation-filter" aria-label="Filter by presentation"><option value="all">All</option></select></label></div><div class="shop-refine-field" data-filter-menu="aesthetic"><label class="shop-filter-field"><span>Aesthetic</span><select id="shop-aesthetic-filter" aria-label="Filter by aesthetic style">
                       <option value="all">All aesthetics</option>
                       <option value="Feminine">Feminine</option>
                       <option value="Masculine">Masculine</option>
@@ -186,7 +186,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                       <option value="Minimalist">Minimalist</option>
                       <option value="Western">Western</option>
                       <option value="Punk / Alternative">Punk / Alternative</option>
-                    </select></label></div><div class="shop-refine-field"><label class="shop-filter-field"><span>Print / pattern</span><select id="shop-pattern-filter" aria-label="Filter by print or pattern">
+                    </select></label></div><div class="shop-refine-field" data-filter-menu="pattern"><label class="shop-filter-field"><span>Print / pattern</span><select id="shop-pattern-filter" aria-label="Filter by print or pattern">
                       <option value="all">All prints</option>
                       <option value="Solid">Solid</option><option value="Floral">Floral</option><option value="Leopard">Leopard</option><option value="Other Animal Print">Other Animal Print</option>
                       <option value="Plaid / Tartan">Plaid / Tartan</option><option value="Stripes">Stripes</option><option value="Polka Dot">Polka Dot</option><option value="Geometric">Geometric</option>
@@ -753,41 +753,23 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script>
-document.addEventListener('DOMContentLoaded',function(){
- const category=document.getElementById('shop-category-filter'),type=document.getElementById('shop-garment-filter');
- const categories=document.getElementById('shop-category-buttons'),types=document.getElementById('shop-type-buttons');
- if(!category||!type||!categories||!types)return;
- let lastTypeOptions='';
- function renderButtons(select,target){
-  target.replaceChildren();
-  Array.from(select.options).filter(option=>!option.disabled&&!option.hidden&&option.style.display!=='none').forEach(option=>{
-   const button=document.createElement('button');button.type='button';button.textContent=option.textContent;
-   button.setAttribute('aria-pressed',String(select.value===option.value));
-   button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refresh();});
-   target.appendChild(button);
-  });
- }
- function refresh(){renderButtons(category,categories);renderButtons(type,types);lastTypeOptions=type.innerHTML;}
- category.addEventListener('change',()=>{refresh();setTimeout(refresh,0)});
- type.addEventListener('change',refresh);
- new MutationObserver(()=>{if(type.innerHTML!==lastTypeOptions)refresh();}).observe(type,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','style','disabled']});
- refresh();
-});
-</script>
-
 <style>
 .shop-native-select{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important}
-.shop-quick-browse{width:100%;min-width:0;padding:14px 0}
-.shop-quick-browse h3{font-size:1.1rem;letter-spacing:.045em;margin:0 0 12px;color:#f1d7a5}
-.shop-choice-buttons{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
-.shop-choice-buttons button{min-height:44px;padding:11px 18px;border-radius:7px;border:1px solid #88775f;background:#1c211d;color:#f8e9d5;cursor:pointer;font:inherit}
-.shop-choice-buttons button[aria-pressed="true"]{background:#e7c990;color:#172019;border-color:#e7c990;font-weight:700}
+.shop-quick-browse{width:100%;min-width:0;padding:14px 0 12px}
+.shop-quick-browse h3{margin:0 0 12px;color:#f1d7a5;font:600 .78rem/1.2 Inter,Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.shop-choice-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0}
+.shop-choice-buttons button{min-width:0;min-height:42px;padding:9px 12px;border:1px solid #74654f;border-radius:999px;background:#242a27;color:#f8e9d5;cursor:pointer;font:600 .88rem/1.2 Inter,Arial,sans-serif;transition:background .15s ease,border-color .15s ease,transform .15s ease}
+.shop-choice-buttons button:hover{border-color:#e7c990;transform:translateY(-1px)}
+.shop-choice-buttons button[aria-pressed="true"]{background:#e7c990;color:#172019;border-color:#e7c990}
 .shop-choice-buttons button:focus-visible{outline:2px solid #e7c990;outline-offset:3px}
+.shop-filter-child{margin-top:12px;padding-top:12px;border-top:1px solid rgba(231,201,144,.3)}
+.shop-filter-child .shop-choice-buttons{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.shop-filter-child .shop-choice-buttons button{min-height:38px;padding:8px 10px;font-size:.8rem;font-weight:500}
 .shop-refine-menu{width:100%;border-top:1px solid #78634c;padding:12px 0}
 .shop-refine-menu>summary{cursor:pointer;color:#f1d7a5;font-weight:600}
 .shop-refine-fields{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
 .shop-refine-field{flex:1 1 180px;min-width:180px}
+@media(max-width:620px){.shop-choice-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}.shop-filter-child .shop-choice-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </body>
 </html>
