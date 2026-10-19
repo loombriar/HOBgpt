@@ -155,7 +155,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               <div class="shop-search-controls">
                 <p class="shop-discovery-links"><a href="/shop">Explore all pieces ↗</a><a href="/shop#visual-search-title">Search by photo ↗</a></p><label class="shop-search" for="shop-search-input"><span>Search the collection</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
                 <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select><div class="shop-drop-windows shop-nested-filters" aria-label="Shop filters">
-<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Choose Clothing, Accessories, or Sewing Patterns. Types are listed directly below.</p><label class="shop-filter-field"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><label class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
+<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Select a category to see its types.</p><div id="shop-category-buttons" class="shop-choice-buttons" role="group" aria-label="Shop categories"></div><label class="shop-filter-field shop-native-select"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><div class="shop-filter-child" id="shop-subcategory-menu"><div id="shop-type-buttons" class="shop-choice-buttons" role="group" aria-label="Piece types"></div><label class="shop-filter-field shop-native-select" class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
                       <option value="all">All pieces</option>
                       <option value="apparel">All clothing</option>
                       <option value="menswear">Masculine — suits, tailoring &amp; more</option>
@@ -756,6 +756,36 @@ document.addEventListener('DOMContentLoaded', function () {
   if (button && button.parentElement !== document.body) {
     document.body.appendChild(button);
   }
+});
+</script>
+
+<style>
+.shop-native-select{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important}
+.shop-choice-buttons{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0 16px}
+.shop-choice-buttons button{padding:10px 15px;border:1px solid #806f5c;border-radius:999px;background:#201f1d;color:#f6e8d1;font:inherit;cursor:pointer;min-height:42px}
+.shop-choice-buttons button[aria-pressed="true"]{background:#ead19c;color:#1c201b;border-color:#ead19c;font-weight:700}
+.shop-choice-buttons button:focus-visible{outline:2px solid #ead19c;outline-offset:3px}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+ const category=document.getElementById('shop-category-filter'),type=document.getElementById('shop-garment-filter');
+ const categories=document.getElementById('shop-category-buttons'),types=document.getElementById('shop-type-buttons');
+ if(!category||!type||!categories||!types)return;
+ let lastTypeOptions='';
+ function renderButtons(select,target){
+  target.replaceChildren();
+  Array.from(select.options).filter(option=>!option.disabled&&!option.hidden&&option.style.display!=='none').forEach(option=>{
+   const button=document.createElement('button');button.type='button';button.textContent=option.textContent;
+   button.setAttribute('aria-pressed',String(select.value===option.value));
+   button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refresh();});
+   target.appendChild(button);
+  });
+ }
+ function refresh(){renderButtons(category,categories);renderButtons(type,types);lastTypeOptions=type.innerHTML;}
+ category.addEventListener('change',()=>{refresh();setTimeout(refresh,0)});
+ type.addEventListener('change',refresh);
+ new MutationObserver(()=>{if(type.innerHTML!==lastTypeOptions)refresh();}).observe(type,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','style','disabled']});
+ refresh();
 });
 </script>
 </body>
