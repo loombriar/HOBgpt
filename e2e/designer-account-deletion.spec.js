@@ -17,6 +17,9 @@ test('mobile empty designer deletion requires confirmation and ends the session'
  await page.locator('#designer-code-form button[type=submit]').click();
  await expect(page.locator('#designer-workspace')).toBeVisible();
  await page.getByRole('button',{name:'Settings',exact:true}).click();
+ await expect(page.locator('#designer-workspace > #designer-settings')).toBeVisible();
+ expect(await page.locator('#designer-workspace').evaluate(el=>el.lastElementChild.id)).toBe('designer-settings');
+ await expect(page.locator('#designer-settings #designer-delete-form')).toBeVisible();
  await page.locator('#designer-delete-confirmation').fill('DELETE');
  page.once('dialog',dialog=>dialog.accept());
  await page.getByRole('button',{name:'Delete designer account permanently',exact:true}).click();

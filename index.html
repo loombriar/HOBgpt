@@ -583,25 +583,6 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
           <p id="designer-brand-message" role="status" class="form-message"></p>
         </form>
-        <details id="designer-settings" class="designer-settings-card">
-          <summary>Designer settings</summary>
-          <form id="designer-settings-form" class="stack-form">
-            <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
-            <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
-            <label for="designer-account-email">House account email</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required aria-describedby="house-email-help" />
-            <p id="house-email-help" class="small-print">Used for House of Briar seller messages. A change only takes effect after you verify the code sent to the new address. Your sign-in provider stays separate.</p>
-            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Use “Review Stripe payout setup” above to review those details.</p>
-            <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
-            <p id="designer-settings-message" role="status" class="form-message"></p>
-          </form>
-          <form id="designer-email-verify-form" class="stack-form hidden">
-            <p id="designer-pending-email" class="small-print"></p>
-            <label for="designer-email-code">Email verification code</label><input id="designer-email-code" autocomplete="off" maxlength="43" required />
-            <button class="primary-button" type="submit">Verify new House email</button>
-            <p id="designer-email-verify-message" role="status"></p>
-          </form>
-        </details>
-        <section class="room-card" aria-labelledby="designer-delete-title"><h3 id="designer-delete-title">Delete designer account</h3><p>Empty accounts can be permanently deleted after a fresh email-code sign-in. Listings, connected payouts, linked sign-in providers, and shared records require review first. This cannot be undone.</p><form id="designer-delete-form" class="stack-form"><label for="designer-delete-confirmation">Type DELETE to confirm</label><input id="designer-delete-confirmation" autocomplete="off" required pattern="DELETE"/><button type="submit" class="secondary-button">Delete designer account permanently</button><p id="designer-delete-message" role="status"></p></form><a href="mailto:thee.house.of.briar@gmail.com">Request account deletion review</a></section>
         <details class="designer-size-reference room-card" aria-labelledby="us-size-reference-title">
           <summary id="us-size-reference-title">US size reference</summary>
           <p class="eyebrow">Fit reference</p>
@@ -636,6 +617,26 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
           <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
         </section>
+        <details id="designer-settings" class="designer-settings-card">
+          <summary>Designer settings</summary>
+          <form id="designer-settings-form" class="stack-form">
+            <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
+            <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
+            <label for="designer-account-email">House account email</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required aria-describedby="house-email-help" />
+            <p id="house-email-help" class="small-print">Used for House of Briar seller messages. A change only takes effect after you verify the code sent to the new address. Your sign-in provider stays separate.</p>
+            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Use “Review Stripe payout setup” above to review those details.</p>
+            <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
+            <p id="designer-settings-message" role="status" class="form-message"></p>
+          </form>
+          <form id="designer-email-verify-form" class="stack-form hidden">
+            <p id="designer-pending-email" class="small-print"></p>
+            <label for="designer-email-code">Email verification code</label><input id="designer-email-code" autocomplete="off" maxlength="43" required />
+            <button class="primary-button" type="submit">Verify new House email</button>
+            <p id="designer-email-verify-message" role="status"></p>
+          </form>
+
+          <section class="room-card" aria-labelledby="designer-delete-title"><h3 id="designer-delete-title">Delete designer account</h3><p>Empty accounts can be permanently deleted after a fresh email-code sign-in. Listings, connected payouts, linked sign-in providers, and shared records require review first. This cannot be undone.</p><form id="designer-delete-form" class="stack-form"><label for="designer-delete-confirmation">Type DELETE to confirm</label><input id="designer-delete-confirmation" autocomplete="off" required pattern="DELETE"/><button type="submit" class="secondary-button">Delete designer account permanently</button><p id="designer-delete-message" role="status"></p></form><a href="mailto:thee.house.of.briar@gmail.com">Request account deletion review</a></section>
+        </details>
       </section>
     </section>
 

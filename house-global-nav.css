@@ -93,3 +93,11 @@ html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
 #hob-global-nav .hob-mailbox-panel{display:block}
 #hob-global-nav .hob-mailbox-panel>.hob-mailbox-note{display:block;position:static;isolation:auto;padding-bottom:6px}
 #hob-global-nav .hob-mailbox-panel>.hob-mailbox-read{position:relative!important;inset:auto!important;z-index:1!important;display:flex!important;width:100%;min-height:44px;margin:0 0 12px!important;box-sizing:border-box;transform:none!important;pointer-events:auto!important;align-items:center;justify-content:center}
+
+/* Sign out belongs in the shared sticky menu on every legacy page. */
+#hob-global-nav .hob-global-signout{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 10px;border:1px solid currentColor;border-radius:6px;background:transparent;color:inherit;font:600 12px/1.3 Arial,sans-serif;white-space:nowrap;cursor:pointer;flex-shrink:0}
+#hob-global-nav .hob-global-signout[hidden]{display:none!important}
+@media(max-width:700px){
+ html body #hob-global-nav.hob-global-nav:has(.hob-global-signout:not([hidden])){grid-template-rows:44px auto}
+ html body #hob-global-nav.hob-global-nav:has(.hob-global-signout:not([hidden]))>nav{height:auto;min-height:44px;flex-wrap:wrap!important;gap:4px 12px!important}
+}
