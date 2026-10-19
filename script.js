@@ -989,7 +989,7 @@ function openProductDetails(item) {
 }
 
 function resetListingForm() {
-  if (productForm) productForm.reset();
+  if (productForm) {productForm.reset();syncSellerTypes();}
   currentListingId = '';
   currentIdempotencyKey = '';
   if (productIdInput) productIdInput.value = '';
@@ -1510,16 +1510,16 @@ async function editListing(listingId) {
     byId('product-handling-max').value = listing.handlingDaysMax ?? '';
     if (byId('product-category')) {byId('product-category').value = listing.category === 'accessories'?'accessories':'apparel'; syncSellerTypes();}
     if(byId('product-presentation'))byId('product-presentation').value=listing.presentation||(['menswear','womenswear','unisex'].includes(listing.category)?listing.category:'');
-    if (byId('product-style')) byId('product-style').value = listing.style || '';
+    setExistingTaxonomyValue('product-style',listing.style || '');
     if (byId('product-size')) byId('product-size').value = listing.size || '';
     for (const key of ['bust','waist','hips','inseam']) for (const bound of ['min','max']) {
       const input = byId(`product-fit-${key}-${bound}`); if (input) input.value = listing.fitMeasurements?.[key]?.[bound] ?? '';
     }
-    if (byId('product-aesthetic')) byId('product-aesthetic').value = listing.aesthetic || '';
-    if (byId('product-pattern')) byId('product-pattern').value = listing.pattern || '';
+    setExistingTaxonomyValue('product-aesthetic',listing.aesthetic || '');
+    setExistingTaxonomyValue('product-pattern',listing.pattern || '');
     if (byId('product-materials')) byId('product-materials').value = listing.materials || '';
     if (byId('product-care')) byId('product-care').value = listing.careInstructions || '';
-    if (byId('product-production-type')) byId('product-production-type').value = listing.productionType || '';
+    setExistingTaxonomyValue('product-production-type',listing.productionType || '');
     if (byId('product-alterations')) byId('product-alterations').checked = Boolean(listing.alterationsAvailable);
     if (byId('product-requests')) byId('product-requests').checked = Boolean(listing.takesRequests);
     if (byId('product-gift-wrap')) byId('product-gift-wrap').checked = Boolean(listing.giftWrapAvailable);
@@ -2847,3 +2847,5 @@ apiRequest('/api/gallery').then(data=>{const items=data.items||[];const matchers
  function counts(){for(const [id,match]of Object.entries(matchers)){const select=byId(id);if(!select)continue;for(const option of select.options){const label=option.dataset.baseLabel||option.textContent.replace(/ \(\d+\)$/,'');option.dataset.baseLabel=label;const n=option.value==='all'?items.length:items.filter(i=>match(i,option.value)).length;option.textContent=label+' ('+n+')';option.hidden=['shop-aesthetic-filter','shop-pattern-filter'].includes(id)&&n===0&&option.value!=='all'&&option.value!==select.value;}}}
  counts();byId('shop-category-filter')?.addEventListener('change',counts);
 }).catch(()=>{});
+
+function setExistingTaxonomyValue(id,value){const select=byId(id);if(!select)return;if(value&&![...select.options].some(option=>option.value===value))select.add(new Option(value+' (existing listing)',value));select.value=value;}
