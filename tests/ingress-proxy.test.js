@@ -35,3 +35,40 @@ test('proxy signs socket identity, ignores forged headers, and preserves raw web
     assert.deepEqual(await accepted.json(),{ip:'127.0.0.1',body:'{"a":1}'});
   }finally{await close(proxy);await close(backend);}
 });
+
+test('signed ingress nonce cannot be replayed',async()=>{
+ const crypto=require('node:crypto');
+ const gate=createIngressGate({secret});
+ const backend=http.createServer((req,res)=>{
+  const wrapped={method:req.method,url:req.url,originalUrl:req.url,get:n=>req.headers[n]};
+  gate(wrapped,{status(code){res.statusCode=code;return this;},json(body){res.end(JSON.stringify(body));}},()=>res.end('authorized'));
+ });
+ const port=await listen(backend);
+ try{
+  const timestamp=String(Date.now()),nonce='b'.repeat(32),ip='127.0.0.1',target='/api/my/designer-profile';
+  const signature=crypto.createHmac('sha256',secret).update([timestamp,nonce,'GET',target,ip].join('\n')).digest('hex');
+  const headers={'x-hob-ingress-timestamp':timestamp,'x-hob-ingress-nonce':nonce,'x-hob-ingress-client-ip':ip,'x-hob-ingress-signature':signature};
+  const first=await fetch('http://127.0.0.1:'+port+target,{headers});
+  assert.equal(first.status,200);
+  const replay=await fetch('http://127.0.0.1:'+port+target,{headers});
+  assert.equal(replay.status,403);
+  assert.deepEqual(await replay.json(),{error:'replayed_ingress'});
+ }finally{await close(backend);}
+});
+
+test('direct backend access cannot bypass authenticated ingress, including forged signatures',async()=>{
+ const gate=createIngressGate({secret});
+ const backend=http.createServer((req,res)=>{
+  const wrapped={method:req.method,url:req.url,originalUrl:req.url,get:n=>req.headers[n]};
+  gate(wrapped,{status(code){res.statusCode=code;return this;},json(body){res.end(JSON.stringify(body));}},()=>res.end('authorized'));
+ });
+ const port=await listen(backend);
+ try{
+  const url=`http://127.0.0.1:${port}/api/my/designer-profile`;
+  for(const headers of [{},{'x-hob-ingress-signature':'0'.repeat(64)},{'x-real-ip':'127.0.0.1','x-forwarded-for':'127.0.0.1'}]){
+   const response=await fetch(url,{headers});
+   assert.equal(response.status,403);
+   assert.deepEqual(await response.json(),{error:'untrusted_ingress'});
+  }
+ }finally{await close(backend);}
+});

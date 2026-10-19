@@ -35,3 +35,18 @@ test('installed geolocation database supports public IPv4 and IPv6 with the audi
   assert.equal(trafficLocation(request(ip),{railway:false}).country,'US');
  }
 });
+
+// Issue #323: a Railway flag must never authorize a forwarded address by itself.
+test('proxy identity requires an exact socket peer match, not a subnet or header claim',()=>{
+ const {clientAddress}=require('../lib/client-address');
+ const req=request('10.42.1.7','203.0.113.9');
+ for(const peers of ['', '10.42.1.0/24', '10.42.1.8', '203.0.113.9'])
+  assert.equal(clientAddress(req,{railway:true,trustedProxyIps:peers}),'10.42.1.7');
+ assert.equal(clientAddress(req,{railway:false,trustedProxyIps:'10.42.1.7'}),'10.42.1.7');
+ assert.equal(clientAddress(req,{railway:true,trustedProxyIps:'10.42.1.7'}),'203.0.113.9');
+});
+test('proxy forwarding rejects malformed and multi-hop X-Real-IP values',()=>{
+ const {clientAddress}=require('../lib/client-address');
+ for(const header of ['203.0.113.9, 198.51.100.4','203.0.113.9:80','evil',''])
+  assert.equal(clientAddress(request('10.42.1.7',header),{railway:true,trustedProxyIps:'10.42.1.7'}),'10.42.1.7');
+});

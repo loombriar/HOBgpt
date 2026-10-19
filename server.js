@@ -2416,7 +2416,8 @@ function createApp(options = {}) {
     for(const [brandName,profile] of Object.entries(configuredBrandProfiles)){
       if(!brandName||!profile||typeof profile!=='object')continue;
       const matches=db.prepare("SELECT id,brand_defaults_initialized FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
-      if(matches.length!==1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
+      if(matches.length===0)continue; // Brand defaults are optional in fresh or isolated databases.
+      if(matches.length>1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
       if(matches[0].brand_defaults_initialized)continue;
       const bio=String(profile.bio||'').trim().slice(0,2000);
       const categories=Array.isArray(profile.categories)?profile.categories.map(v=>String(v).trim()).filter(Boolean).slice(0,12):[];
