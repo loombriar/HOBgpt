@@ -12,6 +12,7 @@ type GalleryItem = {
   aesthetic?: string;
   pattern?: string;
   presentation?: string;
+  patternFormat?: 'pdf'|'paper'|null;
   size?: string;
   designerId?: string;
   designerName?: string;
@@ -53,6 +54,7 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
       '/attributes/@handl': item.handlingDaysMin == null ? '' : String(item.handlingDaysMin),
       '/attributes/@handx': item.handlingDaysMax == null ? '' : String(item.handlingDaysMax),
       '/attributes/@intl': item.internationalShipping ? 'yes' : 'no',
+      '/attributes/@pfmt': item.patternFormat || '',
       '/attributes/@ptype': item.productionType || 'One of a Kind',
       '/attributes/@stock': String(item.availableQuantity ?? item.stockQuantity ?? (item.productionType === 'Made to Order' ? 0 : 1)),
     },

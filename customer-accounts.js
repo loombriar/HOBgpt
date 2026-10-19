@@ -142,21 +142,23 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
   const subject='customer:'+identity.customerId;
   if(db.prepare("SELECT 1 FROM portfolio_billing WHERE owner_subject=? AND (subscription_id IS NOT NULL OR checkout_id IS NOT NULL)").get(subject))return fail(res,409,'subscription_requires_review','Cancel your subscription and contact House support to close billing records before deleting your account.');
   // Financial and correspondence records must be reviewed rather than silently orphaned.
-  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries'];
+  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries','sewing_service_requests'];
   for(const table of protectedTables){
     const columns=db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name);
     const conditions=[];const values=[];
-    for(const col of ['buyer_subject','sender_subject','recipient_subject'])if(columns.includes(col)){conditions.push(col+'=?');values.push(subject);}
+    for(const col of ['buyer_subject','sender_subject','recipient_subject','requester_subject'])if(columns.includes(col)){conditions.push(col+'=?');values.push(subject);}
     for(const col of ['buyer_email'])if(columns.includes(col)){conditions.push(col+'=?');values.push(identity.email);}
     if(conditions.length&&db.prepare('SELECT 1 FROM '+table+' WHERE '+conditions.join(' OR ')+' LIMIT 1').get(...values))
       return fail(res,409,'account_records_require_review','Your account has orders, donations, or messages that need a privacy review before deletion. Contact House of Briar support.');
   }
+  if(db.prepare('SELECT 1 FROM sewing_service_requests WHERE provider_id IN (SELECT id FROM sewing_service_profiles WHERE owner_subject=?)').get(subject))return fail(res,409,'account_records_require_review','Your sewing service requests need a privacy review before deletion. Contact House support.');
   const portfolioFiles=db.prepare('SELECT storage_key FROM portfolio_images WHERE owner_subject=?').all(subject);
   db.transaction(()=>{
     db.prepare('DELETE FROM portfolio_images WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_settings WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_views WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_billing WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM sewing_service_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_event_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);

@@ -1,3 +1,4 @@
+import {Capacitor} from '@capacitor/core';
 import type {BuyerOrder} from '@/components/BuyerOrderCard';
 export type CheckoutItem = {
   id: string;
@@ -10,7 +11,7 @@ export type CheckoutItem = {
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...(Capacitor.getPlatform()==='android'?{'X-House-Client':'android'}:{}), ...(init?.headers || {}) },
   });
   const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
   if (!response.ok) throw new Error(payload.error?.message || 'Checkout could not be completed.');

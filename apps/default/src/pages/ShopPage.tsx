@@ -11,8 +11,8 @@ import { trackCommerceEvent } from '@/lib/analytics';
 
 const GARMENT_SUBCATEGORIES=taxonomy.clothingTypes.map(item=>item.value);
 const ACCESSORY_SUBCATEGORIES=taxonomy.accessoryTypes.map(item=>item.value);
-const TYPE_LABELS=Object.fromEntries([...taxonomy.clothingTypes,...taxonomy.accessoryTypes].map(item=>[item.value,item.label]));
-const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories'};
+const TYPE_LABELS=Object.fromEntries([...taxonomy.clothingTypes,...taxonomy.accessoryTypes,...taxonomy.patternTypes].map(item=>[item.value,item.label]));
+const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories',patterns:'Sewing Patterns'};
 const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex','costumes'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
 
 const LIKED_PRODUCTS_KEY = 'house-of-briar:liked-products';
@@ -118,7 +118,7 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const savedOnly = searchParams.get('saved') === 'true' || searchParams.get('liked') === 'true';
   const subcategory=searchParams.get('subcategory')??'All subcategories';
-  const subcategories=category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
+  const subcategories=category==='patterns'?taxonomy.patternTypes.map(x=>x.value):category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES,...taxonomy.patternTypes.map(x=>x.value)]:GARMENT_SUBCATEGORIES;
   const designerFilter = searchParams.get('designer') ?? 'All designers';
   useEffect(() => { setQuery(searchParams.get('q') ?? ''); setCategory(searchParams.get('category') ?? 'All pieces'); setPriceRange(searchParams.get('price') ?? 'all-prices'); setSort(searchParams.get('sort') ?? 'newest'); setStyle(searchParams.get('style') ?? 'All styles'); }, [searchParams]);
   const updateFilter = (key: string, value: string, defaultValue: string) => { const next = new URLSearchParams(searchParams); if (!value || value === defaultValue) next.delete(key); else next.set(key, value); setSearchParams(next, { replace: true }); };
