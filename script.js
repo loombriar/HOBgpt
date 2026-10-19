@@ -1641,6 +1641,13 @@ byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
 byId('welcome-stripe-setup')?.addEventListener('click',openStripeOnboarding);
 byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
 
+function syncHeaderDesignerAuth() {
+  const signout = byId('header-signout-btn');
+  const customerAuth = byId('header-customer-auth-btn');
+  if (signout) signout.hidden = !designerToken;
+  if (customerAuth) customerAuth.hidden = Boolean(designerToken);
+}
+
 async function signIn(tokenValue) {
   const token = tokenValue.trim();
   if (!token) {
@@ -1655,7 +1662,7 @@ async function signIn(tokenValue) {
     sessionStorage.removeItem('house-of-briar:designer-signed-out');
     localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
-    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    syncHeaderDesignerAuth();
     if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
@@ -1700,7 +1707,7 @@ async function signOut() {
   clearDesignerListImagePreviews();
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
-  if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  syncHeaderDesignerAuth();
   if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=false;
   // Prevent an in-flight session restore or stale navigation from reopening private data.
   sessionStorage.setItem('house-of-briar:designer-signed-out','1');
@@ -1884,7 +1891,7 @@ if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.
 byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
-if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+syncHeaderDesignerAuth();
 if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=!!designerToken;
 // Legacy bearer-token removal in another tab is a migration event, not a logout signal.
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
@@ -1940,7 +1947,7 @@ async function restoreDesignerSession() {
     designerToken=COOKIE_SESSION_MARKER;
     if(loginPanel)loginPanel.classList.add('hidden');
     if(designerWorkspace)designerWorkspace.classList.remove('hidden');
-    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    syncHeaderDesignerAuth();
     if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     await loadDesignerListings();await loadDesignerBrand();await refreshStripePayoutStatus();
   }catch{}
