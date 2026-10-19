@@ -78,10 +78,12 @@ function productionConfigurationErrors({adminEntries}) {
   const errors = [];
   if (!adminEntries.length) errors.push('Configure ADMIN_TOKENS_JSON or ADMIN_TOKEN before starting in production.');
   if (adminEntries.some(entry => entry.token.length < 32)) errors.push('Every production admin token must be at least 32 characters.');
-  if (process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
-  for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
-    if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
-  if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
+  if (process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging' && process.env.OFFSITE_BACKUP_ENABLED !== 'true') errors.push('Set OFFSITE_BACKUP_ENABLED=true before starting in production.');
+  if (process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging') {
+    for (const name of ['BACKUP_S3_ENDPOINT', 'BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY_ID', 'BACKUP_S3_SECRET_ACCESS_KEY'])
+      if (!process.env[name]) errors.push(`Configure ${name} before starting in production.`);
+    if (process.env.BACKUP_S3_ENDPOINT && !/^https:\/\//i.test(process.env.BACKUP_S3_ENDPOINT)) errors.push('BACKUP_S3_ENDPOINT must use HTTPS.');
+  }
   return errors;
 }
 function makeId() {
@@ -1057,6 +1059,7 @@ function createApp(options = {}) {
   }
   function validDesignerSession(session) {
     if(!session || session.expires_at<=new Date().toISOString())return false;
+    if(!require('./passkeys').sessionIsValid(db,session.session_hash))return false;
     if(!require('./reviewer-auth').validReviewerSession(db,session.session_hash))return false;
     if(!session.credential_hash)return true; // Mailbox-verified sign-in has no bootstrap dependency.
     const id=session.designer_id;
@@ -1193,6 +1196,38 @@ function createApp(options = {}) {
     const secure = trustedAppOrigin(req).startsWith('https://');
     res.cookie(ADMIN_SESSION_COOKIE, token, { httpOnly: true, sameSite: 'strict', secure, path: '/', maxAge: maxAgeSeconds * 1000 });
   }
+  // Optional second factor for administrator session exchange. Enroll TOTP out of band.
+  const adminTotpSecrets = (() => {
+    try { const value=JSON.parse(process.env.ADMIN_TOTP_SECRETS_JSON || '{}'); return value && typeof value==='object' && !Array.isArray(value) ? value : {}; }
+    catch { return {}; }
+  })();
+  function verifyAdminTotp(entry, code, { diagnostic = false } = {}) {
+    if (!diagnostic && process.env.ADMIN_TOTP_REQUIRED !== 'true') return true;
+    const encoded=adminTotpSecrets[entry?.label];
+    if (!encoded || !/^[0-9]{6}$/.test(String(code || ''))) return false;
+    let key;
+    try {
+      const clean=String(encoded).toUpperCase().replace(/=+$/,'');
+      if (!/^[A-Z2-7]{16,}$/.test(clean)) return false;
+      let bits=0, value=0; const bytes=[];
+      for(const ch of clean){value=(value<<5)|'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(ch);bits+=5;if(bits>=8){bits-=8;bytes.push((value>>bits)&255);}}
+      key=Buffer.from(bytes); if(key.length<10)return false;
+    } catch {return false;}
+    const now=Math.floor(Date.now()/30000);
+    for(let delta=-1;delta<=1;delta++){
+      const counter=now+delta, message=Buffer.alloc(8);message.writeBigUInt64BE(BigInt(counter));
+      const digest=crypto.createHmac('sha1',key).update(message).digest();
+      const offset=digest[digest.length-1]&15;
+      const expected=String((digest.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,'0');
+      if(safeEqual(String(code),expected)){
+        if (diagnostic) return true;
+        const used=db.prepare('INSERT OR IGNORE INTO admin_totp_used(actor,counter,used_at) VALUES (?,?,?)').run(entry.label,counter,new Date().toISOString());
+        return used.changes===1;
+      }
+    }
+    return false;
+  }
+  db.exec('CREATE TABLE IF NOT EXISTS admin_totp_used (actor TEXT NOT NULL, counter INTEGER NOT NULL, used_at TEXT NOT NULL, PRIMARY KEY(actor,counter))');
   function issueAdminSession(req, res, entry) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
@@ -1233,6 +1268,8 @@ function createApp(options = {}) {
     const entry = token ? adminEntryForToken(token) : null;
     if (!entry) return fail(res, token ? 403 : 401, token ? 'forbidden' : 'unauthorized', token ? 'Administrator access is required.' : 'Administrator authentication is required.');
     req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
+    // MFA-enforced deployments must not allow bearer credentials to bypass session verification.
+    if (process.env.ADMIN_TOTP_REQUIRED === 'true') return fail(res, 403, 'mfa_session_required', 'Sign in with administrator verification to access this resource.');
     // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
     return next();
   }
@@ -1718,8 +1755,22 @@ function createApp(options = {}) {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const entry = token ? adminEntryForToken(token) : null;
     if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+    if (!verifyAdminTotp(entry,req.get('x-admin-totp'))) return fail(res,401,'mfa_required','A valid administrator verification code is required.');
     return requireAdminRequestOrigin(req, res, () => { const previous = cookieValue(req, ADMIN_SESSION_COOKIE); if (previous) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(crypto.createHash('sha256').update(previous).digest('hex')); issueAdminSession(req, res, entry); req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res); return res.json({ ok: true, admin: { label: entry.label, role: entry.role } }); });
   });
+  // Controlled rollout diagnostic: validates a code without issuing a session or consuming the TOTP counter.
+  // Enable explicitly only during enrollment verification, then disable after rollout.
+  if (process.env.ADMIN_TOTP_DIAGNOSTICS === 'true') {
+    app.post('/api/admin/totp-check', rateLimit({windowMs: 15 * 60 * 1000, max: 5, keyPrefix: 'admin-totp-check'}), (req, res) => {
+      const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+      const entry = token ? adminEntryForToken(token) : null;
+      if (!entry) return fail(res, 401, 'unauthorized', 'Administrator authentication is required.');
+      return requireAdminRequestOrigin(req, res, () => {
+        res.set('Cache-Control', 'no-store');
+        return res.json({ valid: verifyAdminTotp(entry, req.get('x-admin-totp'), { diagnostic: true }) });
+      });
+    });
+  }
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -1927,6 +1978,23 @@ function createApp(options = {}) {
     }
     return quote;
   }
+
+  require('./passkeys').registerPasskeys({app,db,fail,rateLimit,trustedAppOrigin,
+    identity(req,kind){
+      if(kind==='customer')return customerAccounts.passkeyIdentity(req);
+      const token=cookieValue(req,DESIGNER_SESSION_COOKIE);if(!token)return null;
+      const sessionHash=crypto.createHash('sha256').update(token).digest('hex');
+      const session=db.prepare('SELECT * FROM designer_sessions WHERE session_hash=?').get(sessionHash);
+      if(!validDesignerSession(session)||db.prepare('SELECT 1 FROM reviewer_sessions WHERE session_hash=?').get(sessionHash))return null;
+      const p=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(session.designer_id);if(!p)return null;
+      return {id:p.id,email:p.email,name:p.brand_name||p.display_name,createdAt:session.created_at,sessionHash,verified:Boolean(p.email_verified_at)&&!session.credential_hash};
+    },
+    issueSession(req,res,kind,id){
+      if(kind==='customer')return customerAccounts.issuePasskeySession(req,res,id);
+      if(!db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active' AND email_verified_at IS NOT NULL").get(id))return null;
+      clearDesignerSession(req,res);return issueDesignerSession(req,res,id);
+    }
+  });
 
   app.post('/api/session', authDesigner, (req, res) => {
     if(req.designerAuthMethod!=='session'){
@@ -4465,7 +4533,7 @@ function createApp(options = {}) {
     };
     const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
       ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
-    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (backupConfigured && !adminConfigurationErrors.length)));
+    const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.RAILWAY_ENVIRONMENT_NAME === 'staging' || backupConfigured) && !adminConfigurationErrors.length));
     res.set('X-HOB-Readiness', ready ? 'ok' : 'degraded');
     res.set('X-HOB-Database', database);
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
@@ -4571,6 +4639,11 @@ function createApp(options = {}) {
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
   for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','customer-edit.css','house-remodel.css','briar-campaign.css','botanical-backgrounds.css','house-of-briar-dark-editorial-background.png','house-of-briar-moonlit-rose-background.png','house-of-briar-blackberry-noir-background.png','house-of-briar-berry-blossom-background.png','briar-thorn-vine.svg','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
+  app.get('/.well-known/assetlinks.json',(_req,res)=>{
+    res.set('Cache-Control','public, max-age=300').json(require('./android-passkey-association').statement());
+  });
+  app.get('/passkey-vendor.js',(_req,res)=>res.sendFile(path.join(path.dirname(require.resolve('@simplewebauthn/browser')),'../dist/bundle/index.umd.min.js')));
+  app.get('/passkey-client.js',(_req,res)=>res.sendFile(path.join(rootDir,'passkey-client.js')));
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
     res.sendFile(path.join(rootDir, '369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png'))
