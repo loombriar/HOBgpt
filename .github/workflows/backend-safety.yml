@@ -2,18 +2,25 @@ name: Backend safety suite
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
-  push:
-    branches:
-      - main
-      - fix/stripe-connect-accounts-v2
+  pull_request:
     paths:
       - 'server.js'
       - 'tests/**'
       - 'package*.json'
       - '.github/workflows/backend-safety.yml'
+  push:
+    branches:
+      - main
+      - 'security/admin-mfa-*'
+      - 'security/admin-totp-*'
+    paths:
+      - 'server.js'
+      - 'tests/**'
+      - 'package*.json'
+      - '.github/workflows/backend-safety.yml'
+
+permissions:
+  contents: read
 
 jobs:
   backend-tests:
