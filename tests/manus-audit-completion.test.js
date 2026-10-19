@@ -133,3 +133,16 @@ test('rotating admin and legacy designer credentials revokes old cookies across 
   assert.equal((await fetch(origin+'/api/admin/designers',{headers:{Authorization:'Bearer admin-new'}})).status,200);
  }finally{await stop();fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+// Fresh isolated databases do not necessarily contain the configured Loom Briar designer.
+test('absent configured brand profile is a quiet no-op and is not auto-created',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-brand-absence-'));
+ const errors=[];const originalError=console.error;
+ let ctx;
+ try{
+  console.error=(...args)=>{errors.push(args.map(String).join(' '));};
+  ctx=createApp({dataDir:dir,seedProducts:[],adminToken:'admin'});
+  assert.equal(ctx.db.prepare("SELECT count(*) AS n FROM designer_profiles WHERE lower(trim(brand_name))='loom briar'").get().n,0);
+  assert.equal(errors.some(line=>line.includes('designer_profile_mapping_not_unique')),false);
+ }finally{console.error=originalError;ctx?.db.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
