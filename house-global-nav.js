@@ -98,6 +98,53 @@
     if (control) actions.appendChild(control);
   }
   nav.appendChild(actions);
+  // The legacy shop and Creative House use this menu, not the React shell.
+  const signout = document.createElement('button');
+  signout.id = 'hob-global-signout';
+  signout.type = 'button';
+  signout.className = 'hob-global-signout';
+  signout.textContent = 'Sign out';
+  signout.hidden = true;
+  signout.setAttribute('aria-label', 'Sign out of House of Briar');
+  links.appendChild(signout);
+  const sessionEndpoints = ['/api/my/designer-profile', '/api/customer/session'];
+  let sessionCheckBusy = false;
+  async function refreshSignout() {
+    if (sessionCheckBusy || document.visibilityState === 'hidden') return;
+    sessionCheckBusy = true;
+    try {
+      const responses = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
+      if (responses.some(response => response.ok)) signout.hidden = false;
+      else if (responses.every(response => [401,403,404].includes(response.status))) signout.hidden = true;
+    } catch {} finally { sessionCheckBusy = false; }
+  }
+  signout.addEventListener('click', async () => {
+    signout.disabled = true;
+    signout.textContent = 'Signing out…';
+    try {
+      for (const url of ['/api/session', '/api/customer/session']) {
+        const response = await fetch(url, {method:'DELETE',credentials:'same-origin',cache:'no-store'});
+        if (!response.ok) throw new Error('Sign out did not complete. Please try again.');
+      }
+      const checks = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
+      if (!checks.every(response => response.status === 401)) throw new Error('Sign out did not complete. Please try again.');
+      for (const storage of [localStorage, sessionStorage]) {
+        storage.removeItem('briarDesignerToken');
+        storage.removeItem('house-of-briar:cart');
+      }
+      window.location.replace('/');
+    } catch (error) {
+      signout.disabled = false;
+      signout.textContent = 'Sign out';
+      window.alert(error.message || 'Sign out did not complete. Please try again.');
+    }
+  });
+  void refreshSignout();
+  setInterval(() => void refreshSignout(), 30000);
+  window.addEventListener('focus', () => void refreshSignout());
+  document.addEventListener('visibilitychange', () => void refreshSignout());
+  if (account) new MutationObserver(() => void refreshSignout()).observe(account, {childList:true,subtree:true,characterData:true});
+
   // Persistent designer mailbox uses the existing private notification/read-state API.
   const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=true;
   const mailbox=document.createElement('button');mailbox.type='button';mailbox.className='hob-mailbox';
@@ -141,7 +188,7 @@
   void refreshMailbox();setInterval(()=>void refreshMailbox(),30000);
   document.addEventListener('visibilitychange',()=>void refreshMailbox());
   const workspace=document.getElementById('designer-workspace');
-  if(workspace)new MutationObserver(()=>void refreshMailbox()).observe(workspace,{attributes:true,attributeFilter:['class']});
+  if(workspace)new MutationObserver(()=>{void refreshMailbox();void refreshSignout();}).observe(workspace,{attributes:true,attributeFilter:['class']});
 
   if (header) header.classList.add('hob-original-header');
   const setOffset = () => {
