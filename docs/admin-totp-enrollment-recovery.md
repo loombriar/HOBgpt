@@ -21,3 +21,35 @@
 - Turning off `ADMIN_TOTP_REQUIRED` restores legacy bearer compatibility; treat this as a security downgrade and an incident-level action, not routine recovery.
 - TOTP is vulnerable to phishing. Follow up with individual identities, passkeys, revocable session assurance, scoped machine credentials, and complete role enforcement.
 - This runbook does not itself implement self-service enrollment, backup codes, or automatic session revocation.
+
+## Staging acceptance record (required before production enforcement)
+
+Use a **dedicated staging administrator identity and unique staging-only TOTP secret**. Do not copy or retrieve a production secret into staging. Confirm that staging and production have separate data stores and administrator credentials before testing.
+
+Record only PASS/FAIL, tester, date, deployment commit, environment and redacted request identifiers; never record bearer tokens, TOTP codes, cookies or shared secrets.
+
+| Gate | Acceptance evidence | Result |
+| --- | --- | --- |
+| Identity inventory | Authorized owner confirms each administrator has a distinct label, token and TOTP secret; no generic/shared identities | Pending operator |
+| Staging configuration | `ADMIN_TOTP_SECRETS_JSON` contains a secret for the staging administrator, `ADMIN_TOTP_REQUIRED=true`, and `ADMIN_TOTP_DIAGNOSTICS` is disabled after enrollment | Pending operator |
+| Enrollment | Each administrator completes a new authenticator enrollment and successful staging sign-in | Pending operator |
+| Bearer bypass | With MFA required, bearer-only request to a protected admin endpoint is denied (HTTP 403) | Pending operator |
+| Cookie session | Authenticated admin session accesses an authorized route; logout revokes it; stale cookie is rejected | Pending operator |
+| Role and audit | Least-privilege role is denied unauthorized actions; authorized actions show correct named actor in audit | Pending operator |
+| Replay | Previously used TOTP code cannot create another session | Pending operator |
+| Recovery | Two designated maintainers rehearse lost-device identity verification, session revocation, secret rotation and fresh sign-in | Pending operator |
+| Incident readiness | Rollback approver, deployment owner, alerting and time-limited emergency procedure documented | Pending operator |
+| CI and deployment | Backend safety and Node CI pass on the integrated commit; staging smoke tests repeated | Pending |
+
+**Stop conditions:** Any shared credential, unknown recovery owner, missing staging-only secret, failing audit attribution or bearer bypass prevents production enforcement. Do not enable diagnostic TOTP checking on the public production service as a substitute for real enrollment.
+
+### Safe automated coverage versus operator signoff
+
+The `tests/admin-mfa.test.js` suite exercises bearer-only denial, code replay, and session authorization. A follow-up regression test additionally covers logout revocation. These tests use synthetic secrets and an isolated local database; they do not establish that the real administrator has enrolled or can recover from a lost device.
+
+### Configuration inventory (October 19, 2026)
+
+- Railway payment-testing service: `ADMIN_TOKEN` is present; `ADMIN_TOTP_REQUIRED` and `ADMIN_TOTP_SECRETS_JSON` are absent. Staging acceptance cannot yet run.
+- Railway production service: `ADMIN_TOKEN`, `ADMIN_TOTP_REQUIRED`, `ADMIN_TOTP_SECRETS_JSON` and `ADMIN_TOTP_DIAGNOSTICS` variable names are present. Values are redacted, so their enforcement status and contents are **not verified**.
+- No production or staging variables were modified during this inventory.
+
