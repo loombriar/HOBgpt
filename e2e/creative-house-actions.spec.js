@@ -71,7 +71,7 @@ test('activity selection hides unrelated sections while keeping browsing and inb
   for (const id of ['your-profile', 'event-profile-editor', 'post-event', 'post', 'casting-commissioning']) {
     await expect(page.locator('#' + id)).toBeHidden();
   }
-  await expect(page.locator('#private-inquiries .inquiry-inbox')).toBeVisible();
+  await expect(page.locator('#private-inquiries .inquiry-inbox')).toBeHidden();
   await page.locator('[data-creative-workflow="event"]').click();
   await expect(page.locator('#post-event')).toBeVisible();
   await expect(page.locator('#post')).toBeHidden();
