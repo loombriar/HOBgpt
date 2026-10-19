@@ -25,4 +25,5 @@ COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-# Launch the authenticated ingress directly; ENTRYPOINT drops to UID 1000.\nCMD ["node","scripts/start-ingress.js"]
+# Launch the authenticated ingress directly; ENTRYPOINT drops to UID 1000.
+CMD ["node","scripts/start-ingress.js"]
