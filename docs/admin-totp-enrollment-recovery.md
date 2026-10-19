@@ -49,7 +49,8 @@ The `tests/admin-mfa.test.js` suite exercises bearer-only denial, code replay, a
 
 ### Configuration inventory (October 19, 2026)
 
-- Railway payment-testing service: `ADMIN_TOKEN` is present; `ADMIN_TOTP_REQUIRED` and `ADMIN_TOTP_SECRETS_JSON` are absent. Staging acceptance cannot yet run.
+- **Actual House of Briar staging** (project `ee0334a1-0623-4805-8af2-0a4cf0836106`, environment `staging`): `ADMIN_TOKEN`, `ADMIN_TOTP_REQUIRED`, `ADMIN_TOTP_SECRETS_JSON`, and `ADMIN_TOTP_DIAGNOSTICS` variable names are present. Operator reports `ADMIN_TOTP_REQUIRED=true` and `ADMIN_TOTP_DIAGNOSTICS=false`; values are redacted in Railway API. Operator confirmed successful token + authenticator sign-in and logout access denial. Live bearer-only, role authorization, audit, and recovery acceptance remain open.
+- **Separate House of Briar Payment Tests / testing** environment has `ADMIN_TOKEN` but is not the real House of Briar staging environment; do not use its variable inventory to assess staging MFA readiness.
 - Railway production service: `ADMIN_TOKEN`, `ADMIN_TOTP_REQUIRED`, `ADMIN_TOTP_SECRETS_JSON` and `ADMIN_TOTP_DIAGNOSTICS` variable names are present. Values are redacted, so their enforcement status and contents are **not verified**.
 - No production or staging variables were modified during this inventory.
 
