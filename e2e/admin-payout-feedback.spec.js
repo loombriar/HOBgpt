@@ -12,7 +12,10 @@ test('held payout explains the result and a refund refreshes the order summary',
   await page.route('**/api/admin/orders/feedback-order/designers/maker/release',route=>route.fulfill({json:{results:[{designer_id:'maker',status:'pending',reason:'carrier_verification_required'}]}}));
   await page.route('**/api/admin/orders/feedback-order',route=>route.fulfill({json:{order:{...order,refund_status:refunded?'succeeded':null},items:[],refunds:refunded?[{scope:'full',amount_cents:500,status:'succeeded'}]:[]}}));
   await page.route('**/api/admin/orders/feedback-order/refund',route=>{refunded=true;return route.fulfill({json:{status:'succeeded',amountCents:500,refundId:'re_feedback'}});});
-  expect((await page.request.post('/api/admin/session',{headers:{Authorization:'Bearer e2e-admin-token',Origin:'http://127.0.0.1:4173'}})).status()).toBe(200);
+  // This test exercises UI feedback with mocked operations, not authentication.
+  // Keep required companion responses isolated too; real login/revocation is covered separately.
+  await page.route('**/api/admin/listings/review-queue',route=>route.fulfill({json:{items:[]}}));
+  await page.route('**/api/admin/support',route=>route.fulfill({json:{messages:[],templates:[]}}));
   await page.goto('/admin');
   await expect(page.getByRole('heading',{name:'Needs Attention'})).toBeVisible();
   await page.getByRole('button',{name:'Release payout',exact:true}).click();
