@@ -18,7 +18,7 @@
       form?.scrollIntoView({behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'center'});
     }
   };
-  buttons.forEach(button => button.addEventListener('click', () => { reveal(button.dataset.creativeWorkflow, true); document.dispatchEvent(new CustomEvent('creative-workflow-selected')); }));
+  buttons.forEach(button => button.addEventListener('click', () => { reveal(button.dataset.creativeWorkflow, true); document.dispatchEvent?.(new CustomEvent('creative-workflow-selected')); }));
   const bySection = {'#your-profile':'profile','#event-profile-editor':'profile','#post-event':'event','#post':'casting','#casting-commissioning':'request','#private-inquiries':'inquiry'};
   const syncHash = () => {
     if (location.hash === '#event-profile-editor') profileFormId = 'event-profile-form';
