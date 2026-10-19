@@ -46,7 +46,7 @@ test('signed ingress nonce cannot be replayed',async()=>{
  const port=await listen(backend);
  try{
   const timestamp=String(Date.now()),nonce='b'.repeat(32),ip='127.0.0.1',target='/api/my/designer-profile';
-  const signature=crypto.createHmac('sha256',secret).update([timestamp,nonce,'GET',target,ip].join('\\n')).digest('hex');
+  const signature=crypto.createHmac('sha256',secret).update([timestamp,nonce,'GET',target,ip].join('\n')).digest('hex');
   const headers={'x-hob-ingress-timestamp':timestamp,'x-hob-ingress-nonce':nonce,'x-hob-ingress-client-ip':ip,'x-hob-ingress-signature':signature};
   const first=await fetch('http://127.0.0.1:'+port+target,{headers});
   assert.equal(first.status,200);
