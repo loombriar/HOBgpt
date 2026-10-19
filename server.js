@@ -3831,7 +3831,10 @@ function createApp(options = {}) {
     const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
     const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state!='applied' ORDER BY updated_at DESC LIMIT 100").all();
-    const postageReviews=db.prepare('SELECT DISTINCT order_id,designer_id FROM postage_charges').all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
+    // An uncertain purchase can hold payout before a confirmed charge exists.
+    // Include those labels so the review queue cannot hide the held order.
+    const postageReviews=db.prepare(`SELECT order_id,designer_id FROM postage_charges
+      UNION SELECT order_id,designer_id FROM shipping_labels WHERE status IN ('processing','review_required')`).all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
     return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews});
   });
 
