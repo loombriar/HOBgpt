@@ -24,7 +24,7 @@ const CHECKOUT_RESERVATION_MINUTES = 31;
 // Bump this version, the signup forms, and the published terms together when terms change.
 const SELLER_TERMS_VERSION = '2026-10-17-live-postage';
 const EMAIL_CHANGE_TTL_MS = 30 * 60 * 1000;
-const ALLOWED_CATEGORIES = new Set(['home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'menswear', 'womenswear', 'unisex', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
+const ALLOWED_CATEGORIES = new Set(['patterns', 'home', 'wellness', 'gift', 'apparel', 'accessories', 'costumes', 'menswear', 'womenswear', 'unisex', 'other', 'one-of-a-kind', 'upcycled', 'vintage-inspired', 'handmade', 'botanical', 'limited edition', 'statement piece']);
 
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -129,7 +129,7 @@ function validateListingInput(body = {}, existing = null) {
   const pattern = typeof body.pattern === 'string' ? body.pattern.trim() : '';
   const materials = typeof body.materials === 'string' ? body.materials.trim() : '';
   const careInstructions = typeof body.careInstructions === 'string' ? body.careInstructions.trim() : '';
-  const productionType = typeof body.productionType === 'string' ? body.productionType.trim() : 'One of a Kind';
+  const productionType = category==='patterns'&&style==='PDF pattern'?'Made to Order':typeof body.productionType === 'string' ? body.productionType.trim() : 'One of a Kind';
   const availability = typeof body.availability === 'string' ? body.availability.trim() : 'floor';
   const alterationsAvailable = body.alterationsAvailable === true;
   const takesRequests = body.takesRequests === true;
@@ -151,6 +151,7 @@ function validateListingInput(body = {}, existing = null) {
   if (!Number.isFinite(price) || price < 0 || price > 1000000) return { error: 'Enter a valid price between 0 and 1,000,000.' };
   if (!ALLOWED_CATEGORIES.has(category)) return { error: 'Choose a supported product category.' };
   if (presentation && !HOUSE_TAXONOMY.presentation.some(item=>item.value===presentation)) return { error: 'Choose a supported presentation.' };
+  if(category==='patterns'&&!HOUSE_TAXONOMY.patternTypes.some(x=>x.value===style))return {error:'Choose PDF pattern or Paper pattern.'};
   if (style.length > 80) return { error: 'Style must be 80 characters or fewer.' };
   if (size.length > 40) return { error: 'Size must be 40 characters or fewer.' };
   if (aesthetic.length > 80) return { error: 'Aesthetic style must be 80 characters or fewer.' };
@@ -1324,6 +1325,7 @@ function createApp(options = {}) {
 
   function customerListingVisible(row) {
     if (!row || row.status !== 'published' || row.moderation_status !== 'approved') return false;
+    if(!patterns.ready(row))return false;
     const designer = db.prepare('SELECT * FROM designer_profiles WHERE id=?').get(row.designer_id);
     if (!designer || designer.status !== 'active') return false;
     // Sold work remains a public portfolio, never a new purchase opportunity.
@@ -1352,6 +1354,7 @@ function createApp(options = {}) {
       description: row.description,
       price: Number(row.price),
       category: row.category,
+      ...patterns.describe(row),
       presentation: row.presentation || (['menswear','womenswear','unisex'].includes(row.category)?row.category:''),
       style: row.style || '',
       size: row.size || '',
@@ -1721,6 +1724,7 @@ function createApp(options = {}) {
             if (badgeSubject) awardBadge(badgeSubject,'verified_buyer','order',order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
+            await patterns.releaseDigital(order.id);
             await notifySale(order.id);
           }
         }
@@ -2329,7 +2333,7 @@ function createApp(options = {}) {
     }else if(operation.kind==='payout') {
       const transfer=db.prepare('SELECT * FROM designer_transfers WHERE id=?').get(operation.reference_id);
       if(!result.id.startsWith('tr_') || !transfer || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.destination!==undefined && result.destination!==body.get('destination')) || (result.currency!==undefined && result.currency!==body.get('currency')))throw new Error('Payout operation mismatch.');
-      db.prepare("UPDATE designer_transfers SET stripe_transfer_id=?,status='paid',payout_in_flight=0,error_message=NULL,paid_at=COALESCE(paid_at,?),release_reason='tracking_verified' WHERE id=?").run(result.id,new Date().toISOString(),transfer.id);
+      db.prepare("UPDATE designer_transfers SET stripe_transfer_id=?,status='paid',payout_in_flight=0,error_message=NULL,paid_at=COALESCE(paid_at,?),release_reason=? WHERE id=?").run(result.id,new Date().toISOString(),patterns.groupReady(transfer.order_id,transfer.designer_id)?'digital_pattern_delivered':'tracking_verified',transfer.id);
       await notifyPayout(transfer.id,'paid');
     }else if(operation.kind==='deposit_refund') {
       validateDepositRefund(db.prepare('SELECT * FROM special_order_offers WHERE id=?').get(operation.reference_id),result);
@@ -2510,7 +2514,7 @@ function createApp(options = {}) {
       if (existing?.payout_in_flight) { results.push({designer_id:group.designer_id,status:'pending',reason:'transfer_processing'}); continue; }
       if (existing?.status === 'paid') { results.push(existing); continue; }
       if (!existing) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'transfer_not_prepared' }); continue; }
-      if (!existing.tracking_number || !existing.tracking_verified_at || !new Set(['transit','in_transit','out_for_delivery','delivered','available_for_pickup']).has(String(existing.tracking_status||'').toLowerCase()) || /^SHIPPO_(TRANSIT|DELIVERED|FAILURE|UNKNOWN|PRE_TRANSIT|OUT_FOR_DELIVERY)$/i.test(existing.tracking_number) || String(existing.tracking_status||'').startsWith('test_')) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'carrier_verification_required' }); continue; }
+      if (!patterns.groupReady(orderId,group.designer_id) && (!existing.tracking_number || !existing.tracking_verified_at || !new Set(['transit','in_transit','out_for_delivery','delivered','available_for_pickup']).has(String(existing.tracking_status||'').toLowerCase()) || /^SHIPPO_(TRANSIT|DELIVERED|FAILURE|UNKNOWN|PRE_TRANSIT|OUT_FOR_DELIVERY)$/i.test(existing.tracking_number) || String(existing.tracking_status||'').startsWith('test_'))) { results.push({ designer_id: group.designer_id, status: 'pending', reason: 'carrier_verification_required' }); continue; }
       const accountId = designerStripeAccount(group.designer_id);
       if (typeof accountId !== 'string' || !accountId.startsWith('acct_')) {
         results.push({ designer_id: group.designer_id, status: 'pending', reason: 'connect_account_missing' });
@@ -2731,6 +2735,7 @@ function createApp(options = {}) {
           db.prepare("UPDATE orders SET status = 'paid', paid_at = COALESCE(paid_at, ?), buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ? AND status = 'pending'").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
           markOrderInventorySold(order.id);
           await prepareDesignerTransfers(order.id);
+            await patterns.releaseDigital(order.id);
           await notifySale(order.id);
           results.paid += 1;
         } else if (session.status === 'expired') {
@@ -2763,6 +2768,8 @@ function createApp(options = {}) {
     const rows = [];
     for (const [id, quantity] of quantities) {
       const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 AND dp.stripe_account_id IS NOT NULL AND dp.stripe_account_id!='' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
+      if(listing&&!patterns.ready(listing))throw Object.assign(new Error('This PDF pattern is not ready for sale.'),{statusCode:409});
+      if(listing&&patterns.digital(listing)&&(quantity!==1||giftWrapSelections.get(id)||giftNotes.get(id)))throw Object.assign(new Error('PDF downloads are purchased once without gift wrapping or notes.'),{statusCode:422});
       if (!listing) throw Object.assign(new Error('One or more pieces are currently unavailable.'), { statusCode: 409 });
       if ((listing.production_type || 'One of a Kind') === 'One of a Kind' && quantity !== 1) throw Object.assign(new Error('One-of-a-kind pieces can only be purchased one at a time.'), { statusCode: 409 });
       const giftNote=giftNotes.get(id)||null;
@@ -2784,7 +2791,7 @@ function createApp(options = {}) {
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
       const platformFeeCents = Math.round(lineTotalCents * 0.09);
-      rows.push({ giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
+      rows.push({ patternFormat:listing.category==='patterns'?(patterns.digital(listing)?'pdf':'paper'):null, giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
     const shipping=applyShipping(rows);
@@ -2792,7 +2799,7 @@ function createApp(options = {}) {
     if(subtotalCents<50) throw Object.assign(new Error('Order total is too small to process.'),{statusCode:422});
     const discountCents=rows.reduce((sum,item)=>sum+item.discountCents,0);
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
-    return { currency:'usd',items:rows,merchandiseCents,subtotalCents,totalBeforeTaxCents:shipping.shippingReady?subtotalCents:null,...shipping,discountCents,platformFeeCents,designerAmountCents:subtotalCents-platformFeeCents };
+    return { shippingRequired:rows.some(item=>item.patternFormat!=='pdf'), currency:'usd',items:rows,merchandiseCents,subtotalCents,totalBeforeTaxCents:shipping.shippingReady?subtotalCents:null,...shipping,discountCents,platformFeeCents,designerAmountCents:subtotalCents-platformFeeCents };
   }
   app.post('/api/checkout/quote', checkoutLimiter, async (req, res) => {
     try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); await requireQuoteSellersReady(quote); return res.json(quote); }
@@ -2883,7 +2890,7 @@ function createApp(options = {}) {
         'payment_intent_data[metadata][order_id]': orderId,
         allow_promotion_codes: 'false'
       });
-      body.set('shipping_address_collection[allowed_countries][0]', 'US');
+      if(quote.shippingRequired)body.set('shipping_address_collection[allowed_countries][0]', 'US');
       let stripeLineIndex=0;
       const addExactLine = (name,totalCents,quantity) => {
         // Charge the complete line once; division would lose remainder cents after discounts.
@@ -2902,7 +2909,8 @@ function createApp(options = {}) {
       // If another buyer already holds the piece, this transaction fails before Stripe is called.
       db.transaction(() => {
         db.prepare(`INSERT INTO orders (id, cancel_token_hash, buyer_subject, buyer_email, status, currency, subtotal_cents, discount_cents, platform_fee_cents, designer_amount_cents, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`).run(orderId, cancelTokenHash, buyerSubject, buyerEmail, quote.currency, quote.subtotalCents, quote.discountCents, quote.platformFeeCents, quote.designerAmountCents, now);
-        db.prepare('UPDATE orders SET shipping_cents=?,shipping_required=1 WHERE id=?').run(quote.shippingCents,orderId);
+        db.prepare('UPDATE orders SET shipping_cents=?,shipping_required=? WHERE id=?').run(quote.shippingCents,quote.shippingRequired?1:0,orderId);
+        patterns.snapshot(orderId,quote.items);
         reservePromotions(orderId, quote.items, now);
         reserveInventory(orderId, quote.items, now);
         const stmt = db.prepare(`INSERT INTO order_items (id, order_id, listing_id, designer_id, title, unit_amount_cents, quantity, line_total_cents, discount_cents, promo_code_id, platform_fee_cents, designer_amount_cents, gift_wrap_selected, gift_wrap_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -3127,7 +3135,7 @@ function createApp(options = {}) {
       const pieces=db.prepare('SELECT * FROM listings WHERE designer_id=?').all(d.id).filter(customerListingVisible);
       const sold=pieces.filter(row=>listingInventory(row).soldQuantity>0);
       const available=pieces.filter(row=>listingInventory(row).availableQuantity===null || listingInventory(row).availableQuantity>0);
-      return {id:d.id,displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:pieces.length,soldCount:sold.length,availableCount:available.length};
+      return {id:d.id,...sewingServices.designerServices(d.id),displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:pieces.length,soldCount:sold.length,availableCount:available.length};
     })});
   });
 
@@ -3150,7 +3158,7 @@ function createApp(options = {}) {
     const items=rows.filter(customerListingVisible).map(row=>serializeListing(row,'public'));
     const currentItems=items.filter(item=>item.availableQuantity===null||item.availableQuantity>0);
     const soldItems=items.filter(item=>item.soldQuantity>0);
-    return res.json({designer:{id:designer.id,displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
+    return res.json({designer:{id:designer.id,...sewingServices.designerServices(designer.id),displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
   });
 
   app.post('/api/my/designer-profile/portrait', authDesigner, imageUploadLimiter, upload.single('image'), async (req,res,next)=>{
@@ -3554,6 +3562,7 @@ function createApp(options = {}) {
     if (!row || row.designer_id !== req.designerId || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
     if (!['draft', 'rejected'].includes(row.status)) return res.json({ item: serializeListing(row, 'private'), reused: true });
 
+    if(!patterns.ready(row))return fail(res,422,'pattern_file_required','Attach the private PDF before submitting or approving this pattern.');
     const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
     if (imageCount < 1) return fail(res, 422, 'images_required', 'Add at least one ready image before submitting.');
     if (req.body?.marketplaceRulesAccepted !== true) return fail(res, 422, 'marketplace_rules_required', 'Confirm that this listing follows House of Briar marketplace rules before submitting.');
@@ -3669,6 +3678,7 @@ function createApp(options = {}) {
     if (!row || row.status === 'deleted') return fail(res, 404, 'not_found', 'Listing not found.');
     if (row.status !== 'pending_review') return fail(res, 409, 'invalid_state', 'Only pending listings can be approved.');
 
+    if(!patterns.ready(row))return fail(res,422,'pattern_file_required','Attach the private PDF before submitting or approving this pattern.');
     const imageCount = db.prepare("SELECT COUNT(*) AS count FROM listing_images WHERE listing_id = ? AND upload_status = 'ready'").get(row.id).count;
     if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
     await requireStripeSellerReady(row.designer_id);
@@ -4054,17 +4064,17 @@ function createApp(options = {}) {
     return res.json({badges:rows.map(row=>({type:row.badge_type,awardedAt:row.awarded_at}))});
   });
 
-  function buyerOrderReceipt(order) {
+  function buyerOrderReceipt(order,guest=false) {
     const items=db.prepare(`SELECT oi.listing_id,oi.designer_id,oi.title,oi.quantity,oi.line_total_cents,oi.handling_days_min,oi.handling_days_max,
       COALESCE(dp.brand_name,dp.display_name,oi.designer_id) designer_name,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at
       FROM order_items oi LEFT JOIN designer_profiles dp ON dp.id=oi.designer_id
       LEFT JOIN designer_transfers dt ON dt.order_id=oi.order_id AND dt.designer_id=oi.designer_id
-      WHERE oi.order_id=? ORDER BY oi.title`).all(order.id).map(row=>({listingId:row.listing_id,title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,handlingDaysMin:row.handling_days_min??null,handlingDaysMax:row.handling_days_max??null,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null}));
+      WHERE oi.order_id=? ORDER BY oi.title`).all(order.id).map(row=>({listingId:row.listing_id,downloadUrl:patterns.downloadUrl(order,row.listing_id,guest),title:row.title,designerId:row.designer_id,designerName:row.designer_name,designerUrl:`/designers/${encodeURIComponent(row.designer_id)}`,quantity:row.quantity,lineTotalCents:row.line_total_cents,handlingDaysMin:row.handling_days_min??null,handlingDaysMax:row.handling_days_max??null,trackingCarrier:row.tracking_carrier||null,trackingNumber:row.tracking_number||null,trackingStatus:row.tracking_status||null,trackingVerifiedAt:row.tracking_verified_at||null}));
     return {id:order.id,status:order.status,currency:order.currency,subtotalCents:order.subtotal_cents,createdAt:order.created_at,paidAt:order.paid_at,refundStatus:order.refund_status||null,refundedAt:order.refunded_at||null,items};
   }
   app.get('/api/my/purchases', authBuyer, (req, res) => {
     const orders=db.prepare('SELECT * FROM orders WHERE buyer_subject=? ORDER BY created_at DESC').all(req.buyerSubject);
-    return res.json({orders:orders.map(buyerOrderReceipt)});
+    return res.json({orders:orders.map(order=>buyerOrderReceipt(order))});
   });
 
   app.get('/api/admin/designers', authAdmin, (_req,res)=>{
@@ -4267,9 +4277,10 @@ function createApp(options = {}) {
         if (order.status !== 'paid') db.prepare("UPDATE orders SET status = 'paid', paid_at = ?, buyer_email = COALESCE(?, buyer_email), stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id) WHERE id = ?").run(new Date().toISOString(), session.customer_details?.email || session.customer_email || null, session.payment_intent || null, order.id);
         markOrderInventorySold(order.id);
         await prepareDesignerTransfers(order.id);
+            await patterns.releaseDigital(order.id);
         await notifySale(order.id);
       }
-      return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status, ...(paid?{receipt:buyerOrderReceipt(db.prepare('SELECT * FROM orders WHERE id=?').get(order.id))}:{}) });
+      return res.json({ orderId: order.id, paid, status: paid ? 'paid' : order.status, ...(paid?{receipt:buyerOrderReceipt(db.prepare('SELECT * FROM orders WHERE id=?').get(order.id),true)}:{}) });
     } catch (error) { return next(error); }
   });
 
@@ -4355,6 +4366,8 @@ function createApp(options = {}) {
     const profiles=db.prepare('SELECT slug,display_name,role,location,bio,specialties FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
     res.json({profiles});
   });
+  const patterns=require('./pattern-commerce').mountPatternCommerce({app,db,dataDir,authBuyer,authDesigner,authAdmin,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter,releaseTransfer:processDesignerTransfers});
+  const sewingServices=require('./sewing-services').mountSewingServices({app,db,authBuyer,authDesigner,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter});
   // Public project-intake forms do not expose talent portfolios or contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_project_requests (
     id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('hire-talent','commission-designer')),
@@ -4661,6 +4674,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
+  for(const asset of ['sewing-services.html','sewing-services-ui.js','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
   app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'briar-seamless-background-v1.webp',

@@ -663,7 +663,7 @@ async function loadGallery() {
     params.set('category', 'accessories');
     if (activeAccessory !== 'accessories') params.set('style', activeAccessory);
   } else if (activeFilter !== 'all') {
-    if (['apparel','menswear','womenswear','unisex','costumes'].includes(activeFilter)) params.set('category', activeFilter);
+    if (['apparel','patterns','menswear','womenswear','unisex','costumes'].includes(activeFilter)) params.set('category', activeFilter);
     else params.set('style', activeFilter);
   }
   if (activeShopCategory !== 'all') params.set('category', activeShopCategory);
@@ -1508,7 +1508,7 @@ async function editListing(listingId) {
     byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
     byId('product-handling-min').value = listing.handlingDaysMin ?? '';
     byId('product-handling-max').value = listing.handlingDaysMax ?? '';
-    if (byId('product-category')) {byId('product-category').value = listing.category === 'accessories'?'accessories':'apparel'; syncSellerTypes();}
+    if (byId('product-category')) {byId('product-category').value = listing.category === 'patterns'?'patterns':listing.category === 'accessories'?'accessories':'apparel'; syncSellerTypes();}
     if(byId('product-presentation'))byId('product-presentation').value=listing.presentation||(['menswear','womenswear','unisex'].includes(listing.category)?listing.category:'');
     setExistingTaxonomyValue('product-style',listing.style || '');
     if (byId('product-size')) byId('product-size').value = listing.size || '';
@@ -1714,7 +1714,7 @@ function syncShopSubcategories() {
   select.replaceChildren();
   const add=(parent,value,label)=>{const option=makeElement('option','',label);option.value=value;parent.appendChild(option);};
   add(select,'all',activeShopCategory==='accessories'?'All accessories':activeShopCategory==='costumes'?'All costumes':'All piece types');
-  const groups=activeShopCategory==='costumes'?[['Costumes',[['Costume','Costumes']]]]:activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories]]:[['Clothing',clothingSubcategories]];
+  const groups=activeShopCategory==='patterns'?[['Sewing Patterns',window.HouseTaxonomy.patternTypes.map(x=>[x.value,x.label])]]:activeShopCategory==='costumes'?[['Costumes',[['Costume','Costumes']]]]:activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories],['Sewing Patterns',window.HouseTaxonomy.patternTypes.map(x=>[x.value,x.label])]]:[['Clothing',clothingSubcategories]];
   for(const [name,items] of groups){const group=document.createElement('optgroup');group.label=name;for(const [value,label] of items)add(group,value,label);select.appendChild(group);}
   select.dispatchEvent(new Event('shop-caption'));
 }
@@ -2005,6 +2005,7 @@ async function renderAdminQueue() {
       body.append(makeElement('h3', '', item.title));
       body.append(makeElement('p', 'admin-review-meta', `${item.designerName || item.designerId || 'Designer'} · $${Number(item.price).toFixed(2)} · ${categoryLabel(item.category)}`));
       body.append(makeElement('p', '', item.description || 'No description provided.'));
+      if(item.patternFormat==='pdf'){const reviewFile=makeElement('a','secondary-button','Download submitted PDF for review');reviewFile.href='/api/admin/listings/'+encodeURIComponent(item.id)+'/pattern-file';body.append(reviewFile);}
       const reason = document.createElement('textarea');
       reason.rows = 2; reason.maxLength = 1000; reason.placeholder = 'Reason required only if rejecting';
       reason.setAttribute('aria-label', `Rejection reason for ${item.title}`);
@@ -2492,6 +2493,7 @@ refreshShopFitProfiles();
 function customerShipmentLabel(item, paid) {
   if(!paid)return 'Payment not confirmed';
   if(item.trackingStatus?.startsWith('test_') || /^SHIPPO_/i.test(item.trackingNumber||''))return 'Simulated tracking · test order';
+  if(item.downloadUrl)return 'PDF pattern · Download ready';
   if(!item.trackingNumber)return 'Paid · Awaiting shipment';
   return ({delivered:'Delivered',out_for_delivery:'Out for delivery',in_transit:'Shipped · In transit',pre_transit:'Tracking added · Awaiting carrier pickup',failure:'Delivery needs attention',return_to_sender:'Returning to sender',cancelled:'Shipment cancelled',canceled:'Shipment cancelled'})[item.trackingStatus] || 'Tracking added · Waiting for a carrier update';
 }
@@ -2524,6 +2526,7 @@ async function refreshCustomerPurchases() {
       for(const item of order.items||[]){
         const row=makeElement('div','visitor-order-item');
         row.append(makeElement('strong','',item.title),makeElement('p','small-print',`Quantity ${item.quantity} · ${item.designerName || 'Independent designer'}`),makeElement('p','',customerShipmentLabel(item,order.status==='paid')));
+        if(item.downloadUrl){const link=makeElement('a','visitor-tracking-link','Download PDF pattern');link.href=item.downloadUrl;row.append(link);}
         if(item.trackingNumber)row.append(makeElement('p','visitor-tracking-number',`Tracking: ${item.trackingCarrier||''} ${item.trackingNumber}`));
         const url=customerTrackingLink(item,order.status==='paid');
         if(url){const link=makeElement('a','visitor-tracking-link',`Track with ${item.trackingCarrier}`);link.href=url;link.target='_blank';link.rel='noopener noreferrer';row.append(link);}
@@ -2837,12 +2840,12 @@ byId('designer-delete-form')?.addEventListener('submit', async event => {
 });
 
 function taxonomyOptions(id,items,placeholder,value){const select=byId(id);if(!select)return;const old=value??select.value;select.replaceChildren(new Option(placeholder,id.startsWith('shop-')?'all':''));for(const item of items){const v=typeof item==='string'?item:item.value,label=typeof item==='string'?item:item.label;select.add(new Option(label,v));}if([...select.options].some(o=>o.value===old))select.value=old;}
-function syncSellerTypes(){taxonomyOptions('product-style',byId('product-category')?.value==='accessories'?window.HouseTaxonomy.accessoryTypes:window.HouseTaxonomy.clothingTypes,'Choose an item type');}
+function syncSellerTypes(){taxonomyOptions('product-style',byId('product-category')?.value==='patterns'?window.HouseTaxonomy.patternTypes:byId('product-category')?.value==='accessories'?window.HouseTaxonomy.accessoryTypes:window.HouseTaxonomy.clothingTypes,'Choose an item type');const isPattern=byId('product-category')?.value==='patterns';if(byId('product-aesthetic'))byId('product-aesthetic').required=!isPattern;if(byId('product-size'))byId('product-size').required=!isPattern;}
 {const t=window.HouseTaxonomy;syncSellerTypes();byId('product-category')?.addEventListener('change',()=>{syncSellerTypes();byId('product-style').value='';});taxonomyOptions('product-presentation',t.presentation,'Not specified');taxonomyOptions('product-production-type',t.availability,'Choose availability');taxonomyOptions('product-aesthetic',t.aesthetics,'Choose an aesthetic');taxonomyOptions('product-pattern',t.patterns,'Choose a print or pattern');taxonomyOptions('shop-presentation-filter',t.presentation,'All presentations');taxonomyOptions('shop-availability-filter',t.availability,'All availability');taxonomyOptions('shop-aesthetic-filter',t.aesthetics,'All aesthetics');taxonomyOptions('shop-pattern-filter',t.patterns,'All prints');}
 byId('shop-presentation-filter')?.addEventListener('change',e=>{activePresentation=e.target.value;loadGallery();});
 byId('shop-availability-filter')?.addEventListener('change',e=>{activeProductionType=e.target.value;loadGallery();});
 apiRequest('/api/gallery').then(data=>{const items=data.items||[];const matchers={
- 'shop-category-filter':(i,v)=>v==='accessories'?i.category==='accessories':i.category!=='accessories',
+ 'shop-category-filter':(i,v)=>v==='apparel'?!['accessories','patterns'].includes(i.category):i.category===v,
  'shop-garment-filter':(i,v)=>i.style===v,
  'shop-presentation-filter':(i,v)=>(i.presentation||i.category)===v,
  'shop-availability-filter':(i,v)=>v==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(i.productionType):i.productionType===v,

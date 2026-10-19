@@ -154,8 +154,8 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               </div>
               <div class="shop-search-controls">
                 <p class="shop-discovery-links"><a href="/shop">Explore all pieces ↗</a><a href="/shop#visual-search-title">Search by photo ↗</a></p><label class="shop-search" for="shop-search-input"><span>Search the collection</span><input id="shop-search-input" type="search" placeholder="Try “purple corset”, “velvet”, or “cottagecore”" /></label>
-                <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option></select><div class="shop-drop-windows shop-nested-filters" aria-label="Shop filters">
-<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Choose Clothing or Accessories, then choose a type.</p><label class="shop-filter-field"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option></select></label><details class="shop-filter-child" id="shop-subcategory-menu"><summary>Piece type</summary><label class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
+                <select id="shop-accessory-filter" hidden aria-label="Legacy accessory filter"><option value="all">All</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select><div class="shop-drop-windows shop-nested-filters" aria-label="Shop filters">
+<details class="shop-filter-menu" data-filter-menu="category"><summary>Browse pieces <span class="shop-filter-selection">All pieces</span></summary><div class="shop-filter-panel"><p class="shop-filter-help">Choose a department, then choose a type.</p><label class="shop-filter-field"><span>Department</span><select id="shop-category-filter" aria-label="Filter by category"><option value="all">All pieces</option><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select></label><details class="shop-filter-child" id="shop-subcategory-menu"><summary>Piece type</summary><label class="shop-filter-field"><span>Piece type</span><select id="shop-garment-filter" aria-label="Filter by subcategory">
                       <option value="all">All pieces</option>
                       <option value="apparel">All clothing</option>
                       <option value="menswear">Masculine — suits, tailoring &amp; more</option>
@@ -486,7 +486,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 <div id="pricing-estimate" class="small-print" aria-live="polite">Enter a price to see your estimate.</div><p class="small-print">Private estimate for one piece, before discounts, payment-processing fees, taxes, refunds, and other costs. Materials and labor are separate; enter only materials in the materials field. Blank costs count as $0. These estimates are not saved or published, and do not change your price or customer delivery charges.</p></section>
 
             <fieldset class="listing-form-group"><legend>Details &amp; fit</legend><div class="listing-detail-fields">
-              <label for="product-category">Department</label><select id="product-category" name="category"><option value="apparel">Clothing</option><option value="accessories">Accessories</option></select><label for="product-presentation">Presentation (optional)</label><select id="product-presentation" name="presentation"><option value="">Not specified</option></select><label for="product-style">Item type</label>
+              <p class="small-print">Selling patterns? Choose Sewing Patterns below. <a href="/pattern-studio.html">PDF file upload &amp; pattern listing guide ↗</a></p><label for="product-category">Department</label><select id="product-category" name="category"><option value="apparel">Clothing</option><option value="accessories">Accessories</option><option value="patterns">Sewing Patterns</option></select><label for="product-presentation">Presentation (optional)</label><select id="product-presentation" name="presentation"><option value="">Not specified</option></select><label for="product-style">Item type</label>
               <select id="product-style" name="style" required>
                 <option value="">Choose a garment type</option>
                 <option value="Dress">Dress</option><option value="Skirt">Skirt</option><option value="Top">Top</option>
@@ -618,7 +618,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
         </section>
         <details id="designer-settings" class="designer-settings-card">
-          <summary>Designer settings</summary>
+          <summary>Designer settings</summary><p><a href="/sewing-services.html#designer-services">Manage custom wedding dresses &amp; other designer services ↗</a> · <a href="/pattern-studio.html">Sell sewing patterns ↗</a></p>
           <form id="designer-settings-form" class="stack-form">
             <p class="small-print">Private account information. This is separate from the public designer identity shoppers see.</p>
             <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />

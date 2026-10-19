@@ -27,9 +27,9 @@ test('seller terms, paid Stripe order, and refund holds remain prerequisites', (
 });
 
 test('payout gate behavior: admin override and simulated tracking never reach Stripe', () => {
-  const match = fn.match(/if \((!existing\.tracking_number[\s\S]*?)\) \{ results\.push\(\{ designer_id: group\.designer_id, status: 'pending', reason: 'carrier_verification_required' \}\); continue; \}/);
+  const match = fn.match(/if \((!patterns\.groupReady[\s\S]*?!existing\.tracking_number[\s\S]*?)\) \{ results\.push\(\{ designer_id: group\.designer_id, status: 'pending', reason: 'carrier_verification_required' \}\); continue; \}/);
   assert.ok(match, 'expected payout safety gate');
-  const blocked = new Function('existing', 'return Boolean(' + match[1] + ')');
+  const blocked = new Function('existing', 'patterns', 'orderId', 'group', 'return Boolean(' + match[1] + ')');
   const valid = {tracking_number:'1Z999AA10123456784',tracking_verified_at:'2026-10-10T00:00:00Z',tracking_status:'in_transit'};
   const scenarios = [
     ['real verified carrier event', valid, false],
@@ -42,7 +42,7 @@ test('payout gate behavior: admin override and simulated tracking never reach St
     ['unverified delivery', {...valid,tracking_status:'unknown'}, true]
   ];
   for (const [name, transfer, expected] of scenarios) {
-    assert.equal(blocked(transfer),expected,name);
+    assert.equal(blocked(transfer,{groupReady:()=>false},'physical-order',{designer_id:'maker'}),expected,name);
   }
   assert.match(fn, /admin_override|releaseReason/);
   assert.ok(fn.indexOf('carrier_verification_required') < fn.indexOf("stripeOperations.request('payout',transferId,'transfers'"));

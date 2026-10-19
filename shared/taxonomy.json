@@ -7,6 +7,10 @@
     {
       "value": "accessories",
       "label": "Accessories"
+    },
+    {
+      "value": "patterns",
+      "label": "Sewing Patterns"
     }
   ],
   "clothingTypes": [
@@ -161,6 +165,10 @@
     {
       "value": "venue",
       "label": "Venues"
+    },
+    {
+      "value": "seamstress-tailor",
+      "label": "Seamstresses & Tailors"
     }
   ],
   "specialties": {
@@ -192,6 +200,14 @@
       "Studio",
       "Loft",
       "Outdoor"
+    ],
+    "seamstress-tailor": [
+      "Clothing repairs",
+      "Alterations & fitting",
+      "Wedding dress alterations",
+      "Sample making",
+      "Sewing for designers",
+      "Pattern cutting & grading"
     ]
   },
   "collaboratorsNeeded": [
@@ -214,6 +230,70 @@
     {
       "value": "producer",
       "label": "Production"
+    }
+  ],
+  "sewingServices": [
+    {
+      "value": "repairs",
+      "label": "Clothing repairs"
+    },
+    {
+      "value": "alterations",
+      "label": "Alterations & fitting"
+    },
+    {
+      "value": "bridal-alterations",
+      "label": "Wedding dress alterations"
+    },
+    {
+      "value": "sample-making",
+      "label": "Sample making"
+    },
+    {
+      "value": "production-sewing",
+      "label": "Sewing for designers"
+    },
+    {
+      "value": "pattern-cutting",
+      "label": "Pattern cutting & grading"
+    }
+  ],
+  "serviceModes": [
+    {
+      "value": "local",
+      "label": "Local fittings & drop-off"
+    },
+    {
+      "value": "mail-in",
+      "label": "Mail-in clothing repairs"
+    },
+    {
+      "value": "designer-work",
+      "label": "Work with designers"
+    }
+  ],
+  "designerServices": [
+    {
+      "value": "custom-wedding-dresses",
+      "label": "Custom wedding dresses"
+    },
+    {
+      "value": "custom-clothing",
+      "label": "Custom clothing"
+    },
+    {
+      "value": "bridal-alterations",
+      "label": "Wedding dress alterations"
+    }
+  ],
+  "patternTypes": [
+    {
+      "value": "PDF pattern",
+      "label": "PDF downloads"
+    },
+    {
+      "value": "Paper pattern",
+      "label": "Paper patterns"
     }
   ]
 }
