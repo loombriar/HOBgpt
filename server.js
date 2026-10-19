@@ -2801,8 +2801,9 @@ function createApp(options = {}) {
     const platformFeeCents = rows.reduce((sum, item) => sum + item.platformFeeCents, 0);
     return { shippingRequired:rows.some(item=>item.patternFormat!=='pdf'), currency:'usd',items:rows,merchandiseCents,subtotalCents,totalBeforeTaxCents:shipping.shippingReady?subtotalCents:null,...shipping,discountCents,platformFeeCents,designerAmountCents:subtotalCents-platformFeeCents };
   }
+  function requirePatternPaymentClient(req,quote){const native=req.get('X-House-Client')==='android'||/;\s*wv\)|\bHouseOfBriarAndroid\b/i.test(req.get('user-agent')||'');if(native&&quote.items.some(item=>item.patternFormat==='pdf')&&process.env.ANDROID_DIGITAL_PATTERNS_ENABLED!=='true')throw Object.assign(new Error('PDF pattern purchases are not available in the Android app yet.'),{statusCode:409,code:'android_digital_billing_unavailable'});}
   app.post('/api/checkout/quote', checkoutLimiter, async (req, res) => {
-    try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); await requireQuoteSellersReady(quote); return res.json(quote); }
+    try { const quote=buildCheckoutQuote(req.body?.items,req.body?.promoCodes); requirePatternPaymentClient(req,quote); await requireQuoteSellersReady(quote); return res.json(quote); }
     catch (error) { return fail(res, error.statusCode || 422, error.code || 'invalid_cart', error.message); }
   });
 
@@ -2872,6 +2873,7 @@ function createApp(options = {}) {
     }
     try {
       const quote = buildCheckoutQuote(req.body?.items,req.body?.promoCodes);
+      requirePatternPaymentClient(req,quote);
       await requireQuoteSellersReady(quote);
       if (!quote.shippingReady) throw Object.assign(new Error('A designer must set a US shipping price before these pieces can be purchased.'), { statusCode: 409 });
       if (req.body?.shippingCountry && req.body.shippingCountry !== 'US') throw Object.assign(new Error('Checkout currently supports US delivery only.'), { statusCode: 422 });

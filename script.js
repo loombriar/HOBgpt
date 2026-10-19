@@ -530,6 +530,8 @@ function clearDesignerListImagePreviews() {
 }
 
 async function apiRequest(url, options = {}) {
+  if(window.Capacitor?.getPlatform?.()==='android'){options={...options,headers:{...options.headers,'X-House-Client':'android'}};}
+
   const response = await fetch(url, {
     ...options,
     headers: authorizationHeaders(options.headers || {})
