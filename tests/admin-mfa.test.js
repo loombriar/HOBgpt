@@ -68,6 +68,10 @@ test('required admin MFA rejects missing, replayed, and bearer-bypass credential
     assert.equal((await login(code)).status,401);
     assert.equal((await fetch(origin+'/api/admin/designers',{headers:{Authorization:'Bearer legacy-admin-test-token'}})).status,403);
     assert.equal((await fetch(origin+'/api/admin/designers',{headers:{Cookie:cookie}})).status,200);
+    // Attribute the MFA-backed request to its actual administrator identity and role.
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const audit=ctx.db.prepare("SELECT actor,role,method,path,status_code FROM admin_audit_log WHERE path='/api/admin/designers' ORDER BY created_at DESC LIMIT 1").get();
+    assert.deepEqual(audit,{actor:'legacy-admin',role:'operator',method:'GET',path:'/api/admin/designers',status_code:200});
     // MFA-backed sessions must be revocable; a previously valid cookie cannot survive logout.
     const logout=await fetch(origin+'/api/admin/session',{method:'DELETE',headers:{Cookie:cookie,Origin:origin}});
     assert.equal(logout.status,200);
