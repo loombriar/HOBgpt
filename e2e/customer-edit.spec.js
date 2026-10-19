@@ -5,9 +5,7 @@ for (const width of [390, 1280]) {
     await page.goto('/');
     await expect(page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true})).toBeVisible();
     expect(await page.locator('#shop').evaluate(element => Boolean(element.compareDocumentPosition(document.querySelector('#creative-house-feature')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
-    const height=await page.locator('.shop-drop-window').first().evaluate(element=>element.getBoundingClientRect().height);
-    // Allow the label plus the full 44px native touch target and spacing.
-    expect(height).toBeLessThanOrEqual(120);
+    await expect(page.locator('.shop-quick-browse')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
     await page.locator('#shop-search-input').fill('no matching garment xyz');
     await expect(page.locator('#shop-status')).toContainText('0 pieces');

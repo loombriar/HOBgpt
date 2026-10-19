@@ -19,22 +19,18 @@ test('mobile navigation stays compact and keeps account and cart usable',async({
 test('homepage category changes reset subcategories and retain the chosen branch',async({page})=>{
  await page.goto('/');
  const categoryMenu=page.locator('[data-filter-menu="category"]');
- await categoryMenu.locator(':scope > summary').click();
  await page.getByLabel('Filter by category',{exact:true}).selectOption('accessories');
  const sub=page.getByLabel('Filter by subcategory',{exact:true});
  await expect(sub.locator('option[value="Belt"]')).toHaveCount(1);
  await expect(sub.locator('option[value="Dress"]')).toHaveCount(0);
  const request=page.waitForRequest(r=>r.url().includes('/api/gallery?')&&new URL(r.url()).searchParams.get('style')==='Belt');
  await sub.selectOption('Belt');const url=new URL((await request).url());expect(url.searchParams.get('category')).toBe('accessories');
- await expect(categoryMenu).not.toHaveAttribute('open');
- await expect(categoryMenu.locator('.shop-filter-selection')).toContainText('Belts');
- await categoryMenu.locator(':scope > summary').click();
+ await expect(categoryMenu.locator('#shop-category-buttons button[aria-pressed="true"]')).toContainText('Accessories');
  await page.getByLabel('Filter by category',{exact:true}).selectOption('apparel');
  await expect(sub).toHaveValue('all');await expect(sub.locator('option[value="Dress"]')).toHaveCount(1);
  await expect(sub.locator('option[value="Belt"]')).toHaveCount(0);
  await page.locator('#shop-clear-filters').click();await expect(page.locator('#shop-category-filter')).toHaveValue('all');
- await expect(categoryMenu).not.toHaveAttribute('open');
- await expect(categoryMenu.locator('.shop-filter-selection')).toHaveText('All pieces');
+ await expect(categoryMenu.locator('#shop-category-buttons button[aria-pressed="true"]')).toContainText('All pieces');
 });
 
 test('shop page category and subcategory filters compose and reset together',async({page})=>{
