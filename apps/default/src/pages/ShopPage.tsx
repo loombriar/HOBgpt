@@ -12,7 +12,7 @@ import { trackCommerceEvent } from '@/lib/analytics';
 const GARMENT_SUBCATEGORIES=taxonomy.clothingTypes.map(item=>item.value);
 const ACCESSORY_SUBCATEGORIES=taxonomy.accessoryTypes.map(item=>item.value);
 const TYPE_LABELS=Object.fromEntries([...taxonomy.clothingTypes,...taxonomy.accessoryTypes].map(item=>[item.value,item.label]));
-const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories',menswear:'Masculine',womenswear:'Womenswear',unisex:'Unisex',costumes:'Costumes'};
+const CATEGORY_LABELS:Record<string,string>={apparel:'Clothing',accessories:'Accessories'};
 const categoryMatches=(group:string,value:string,garment:string)=>group==='All pieces'||(group==='apparel'?['apparel','menswear','womenswear','unisex','costumes'].includes(value.toLowerCase())||GARMENT_SUBCATEGORIES.includes(garment):value.toLowerCase()===group.toLowerCase());
 
 const LIKED_PRODUCTS_KEY = 'house-of-briar:liked-products';
@@ -118,7 +118,7 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const savedOnly = searchParams.get('saved') === 'true' || searchParams.get('liked') === 'true';
   const subcategory=searchParams.get('subcategory')??'All subcategories';
-  const subcategories=category==='costumes'?['Costume']:category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
+  const subcategories=category==='accessories'?ACCESSORY_SUBCATEGORIES:category==='All pieces'?[...GARMENT_SUBCATEGORIES,...ACCESSORY_SUBCATEGORIES]:GARMENT_SUBCATEGORIES;
   const designerFilter = searchParams.get('designer') ?? 'All designers';
   useEffect(() => { setQuery(searchParams.get('q') ?? ''); setCategory(searchParams.get('category') ?? 'All pieces'); setPriceRange(searchParams.get('price') ?? 'all-prices'); setSort(searchParams.get('sort') ?? 'newest'); setStyle(searchParams.get('style') ?? 'All styles'); }, [searchParams]);
   const updateFilter = (key: string, value: string, defaultValue: string) => { const next = new URLSearchParams(searchParams); if (!value || value === defaultValue) next.delete(key); else next.set(key, value); setSearchParams(next, { replace: true }); };
@@ -191,7 +191,7 @@ export default function ShopPage() {
         <label className="house-filter-label" htmlFor="category-filter">Department
           <select id="category-filter" value={category} onChange={event => { const next=new URLSearchParams(searchParams);next.delete('subcategory');if(event.target.value==='All pieces')next.delete('category');else next.set('category',event.target.value);setSearchParams(next,{replace:true}); }}>{categories.map(item => <option key={item} value={item}>{CATEGORY_LABELS[item]||item} ({products.filter(p=>categoryMatches(item,getFieldValue(p,'@categ','Category')||'',getFieldValue(p,'@style','Style')||'')).length})</option>)}</select>
         </label>
-        <label className="house-filter-label" htmlFor="subcategory-filter">Piece type<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item} value={item}>{TYPE_LABELS[item]||item} ({count('@style',item)})</option>)}</select></label>
+        <label className="house-filter-label" htmlFor="subcategory-filter">Clothing / accessory type<select id="subcategory-filter" value={subcategory} onChange={event=>updateFilter('subcategory',event.target.value,'All subcategories')}><option>All subcategories</option>{subcategories.map(item=><option key={item} value={item}>{TYPE_LABELS[item]||item} ({count('@style',item)})</option>)}</select></label>
         </div></details>
         <label className="house-filter-label" htmlFor="sort-filter">Sort by
           <select aria-label="Sort by" id="sort-filter" value={sort} onChange={event => { setSort(event.target.value); updateFilter('sort', event.target.value, 'newest'); }}><option value="newest">Newest</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A to Z</option></select>

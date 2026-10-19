@@ -18,7 +18,7 @@
       form?.scrollIntoView({behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'center'});
     }
   };
-  buttons.forEach(button => button.addEventListener('click', () => reveal(button.dataset.creativeWorkflow, true)));
+  buttons.forEach(button => button.addEventListener('click', () => { reveal(button.dataset.creativeWorkflow, true); document.dispatchEvent?.(new CustomEvent('creative-workflow-selected', { detail: { kind: button.dataset.creativeWorkflow } })); }));
   const bySection = {'#your-profile':'profile','#event-profile-editor':'profile','#post-event':'event','#post':'casting','#casting-commissioning':'request','#private-inquiries':'inquiry'};
   const syncHash = () => {
     if (location.hash === '#event-profile-editor') profileFormId = 'event-profile-form';
@@ -60,6 +60,7 @@
     const kind=link.dataset.projectKind;
     if(kind) {const select=document.querySelector('#project-request-form select[name=kind]');if(select)select.value=kind;}
   }));
+  document.addEventListener('creative-workflow-selected', event => show(event.detail?.kind === 'browse' ? 'opportunities' : 'join'));
   show('welcome');
   fromHash();
   window.addEventListener('hashchange',fromHash);
