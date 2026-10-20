@@ -541,6 +541,9 @@ async function apiRequest(url, options = {}) {
   try { payload = await response.json(); } catch {}
 
   if (!response.ok) {
+    if (response.status === 401 && designerToken && url.startsWith('/api/my/')) {
+      expireDesignerSession();
+    }
     const message = payload?.error?.message || `Request failed (${response.status})`;
     const error = new Error(message);
     error.status = response.status;
@@ -1648,6 +1651,22 @@ function syncHeaderDesignerAuth() {
   const customerAuth = byId('header-customer-auth-btn');
   if (signout) signout.hidden = !designerToken;
   if (customerAuth) customerAuth.hidden = Boolean(designerToken);
+}
+
+function expireDesignerSession() {
+  designerToken = '';
+  ++designerListingsLoad;
+  ++designerAttentionRequest;
+  designerReadinessState = {profile:null,listings:[],stripe:null};
+  clearDesignerListImagePreviews();
+  designerProductsContainer?.replaceChildren();
+  loginPanel?.classList.remove('hidden');
+  designerWorkspace?.classList.add('hidden');
+  syncHeaderDesignerAuth();
+  setMessage(designerAuthMessage, 'Your designer session is no longer active. Sign in again to continue. Any unsaved form stays on this page.', 'error');
+  // Stop an older restore response from reopening the workspace after a rejection.
+  sessionStorage.setItem('house-of-briar:designer-signed-out','1');
+  if (location.pathname === DESIGNER_ROOM_PATH) designerAuthMessage?.scrollIntoView({block:'center'});
 }
 
 async function signIn(tokenValue) {

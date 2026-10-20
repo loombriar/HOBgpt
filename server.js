@@ -1109,6 +1109,7 @@ function createApp(options = {}) {
   }
   async function authenticateDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
+    let sessionFailure = sessionToken ? 'unknown_session' : 'missing_cookie';
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session=db.prepare("SELECT s.session_hash,s.designer_id,p.status,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
@@ -1117,10 +1118,19 @@ function createApp(options = {}) {
         req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
         return requireDesignerRequestOrigin(req,res,next);
       }
-      if(session)db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
+      if(session) {
+        sessionFailure = session.expires_at <= new Date().toISOString() ? 'expired_session' : 'invalid_session';
+        db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
+      }
     }
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+    if (!token) {
+      if (['/api/my/stripe-status','/api/my/stripe-onboarding'].includes(req.path)) {
+        // Fixed enums only: never log cookies, credentials, account IDs or provider URLs.
+        console.warn('Designer payout authentication rejected:', JSON.stringify({reason:sessionFailure}));
+      }
+      return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+    }
     const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
     const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL").get(tokenHash,new Date().toISOString());
     if(issued){
