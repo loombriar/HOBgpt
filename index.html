@@ -464,6 +464,26 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         <form id="product-form" class="stack-form room-card" novalidate>
           <input id="product-id" name="listingId" type="hidden" />
           <h3 id="listing-form-title">Add a design</h3>
+          <div class="upload-heading">
+            <div>
+              <label for="product-photos">Design photos</label>
+              <aside class="listing-photo-guide" aria-label="Photo guide"><strong>Four useful views</strong><ul><li><b>Front:</b> the whole piece, clearly lit—ideal for your cover.</li><li><b>Back:</b> show the shape and closures.</li><li><b>Detail:</b> fabric, stitching, texture, and any imperfections.</li><li><b>Fit:</b> on a person, mannequin, or styled flat to show proportion.</li></ul><p class="small-print">Use a simple background and natural light. Keep colors true to the piece. These are suggestions, not four required uploads. Add left/right views for a fuller angle gallery.</p></aside>
+              <p>JPEG, PNG, or WebP · up to 10 images · 10 MiB each · first image is the cover. iPhone HEIC/HEIF photos must be exported as JPEG before upload.</p>
+            </div>
+          </div>
+          <input id="product-photos" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+          <p id="upload-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="photo-preview" class="photo-preview" aria-label="Selected design images"></div>
+          <section class="listing-form-group" aria-labelledby="photo-draft-title">
+            <h4 id="photo-draft-title">Start with a photo</h4>
+            <p>Choose your design photos above, then get suggested details to review and edit. You can fill in the form yourself instead.</p>
+            <label><input id="photo-draft-consent" type="checkbox" /> Send my first new listing photo and current listing notes to OpenAI for suggestions.</label>
+            <button id="photo-draft-analyze" class="secondary-button" type="button">Suggest details from photo</button>
+            <p id="photo-draft-status" role="status" aria-live="polite"></p>
+            <div id="photo-draft-results" hidden></div>
+            <p class="small-print">Suggestions never publish a listing. Confirm the title and visible details. Price, measurements, materials, condition and shipping stay yours to complete.</p>
+          </section>
+
           <label for="product-name">Design name</label>
           <input id="product-name" name="title" maxlength="120" required />
           <label for="product-description">Description</label>
@@ -546,16 +566,6 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
             <input id="product-video-movement" type="url" inputmode="url" placeholder="https://… direct MP4 or WebM clip" />
             <p class="small-print">Use a direct HTTPS MP4 or WebM link. Short clips work best and play inside the product gallery.</p>
           </fieldset>
-          <div class="upload-heading">
-            <div>
-              <label for="product-photos">Design photos</label>
-              <aside class="listing-photo-guide" aria-label="Photo guide"><strong>Four useful views</strong><ul><li><b>Front:</b> the whole piece, clearly lit—ideal for your cover.</li><li><b>Back:</b> show the shape and closures.</li><li><b>Detail:</b> fabric, stitching, texture, and any imperfections.</li><li><b>Fit:</b> on a person, mannequin, or styled flat to show proportion.</li></ul><p class="small-print">Use a simple background and natural light. Keep colors true to the piece. These are suggestions, not four required uploads. Add left/right views for a fuller angle gallery.</p></aside>
-              <p>JPEG, PNG, or WebP · up to 10 images · 10 MiB each · first image is the cover. iPhone HEIC/HEIF photos must be exported as JPEG before upload.</p>
-            </div>
-          </div>
-          <input id="product-photos" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple />
-          <p id="upload-message" class="form-message" role="status" aria-live="polite"></p>
-          <div id="photo-preview" class="photo-preview" aria-label="Selected design images"></div>
           <aside id="listing-readiness" class="listing-submission-guide" aria-label="Listing readiness"></aside>
           <details id="listing-preview" class="listing-draft-preview"><summary>Preview your piece</summary><div id="listing-preview-content"></div></details>
           <label class="rules-confirmation">
