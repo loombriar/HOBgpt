@@ -2922,3 +2922,49 @@ document.addEventListener('DOMContentLoaded', () => {
   }).observe(type, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'disabled'] });
   refresh();
 });
+
+
+// Photo suggestions are reviewed in the editor; this flow never saves or submits a listing.
+(() => {
+  const form=byId('product-form'),button=byId('photo-draft-analyze'),consent=byId('photo-draft-consent'),results=byId('photo-draft-results'),status=byId('photo-draft-status');
+  if(!form||!button||!consent||!results||!status)return;
+  let version=0;
+  const firstPhoto=()=>selectedImages.find(image=>image.file)?.file;
+  const clear=()=>{version++;results.replaceChildren();results.hidden=true;status.textContent='';};
+  form.addEventListener('input',clear);
+  form.addEventListener('change',clear);
+  form.addEventListener('reset',clear);
+  button.addEventListener('click',async()=>{
+    const photo=firstPhoto();
+    if(!photo){status.textContent='Choose a design photo above first.';return;}
+    if(!consent.checked){status.textContent='Agree to send your photo to OpenAI before requesting suggestions.';return;}
+    const attempt=++version,listingId=currentListingId;
+    const current=()=>attempt===version&&consent.checked&&firstPhoto()===photo&&currentListingId===listingId;
+    button.disabled=true;results.replaceChildren();results.hidden=true;status.textContent='Examining your garment…';
+    try{
+      const body=new FormData();body.append('image',photo);body.append('consent','true');
+      for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type'}))body.append(field,byId(id)?.value||'');
+      const data=await apiRequest('/api/my/studio/photo-listing',{method:'POST',body,credentials:'same-origin'});
+      if(!current())return;
+      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Tags',(data.tags||[]).join(', ')]]){
+        const paragraph=makeElement('p','',label+': '+String(value||''));results.append(paragraph);
+      }
+      for(const note of data.reviewNotes||[])results.append(makeElement('p','small-print',String(note)));
+      results.append(makeElement('p','small-print','Using these details replaces the title and description. Available category, item type and aesthetic choices are filled only on an exact match. Review and edit the form before saving.'));
+      const apply=makeElement('button','secondary-button','Use these details');apply.type='button';
+      apply.addEventListener('click',()=>{
+        if(!current()){clear();return;}
+        byId('product-name').value=data.title;byId('product-description').value=data.description;
+        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic]]){
+          const input=byId(id),option=Array.from(input?.options||[]).find(option=>option.value&&option.value.toLowerCase()===String(value||'').trim().toLowerCase());
+          if(option)input.value=option.value;
+        }
+        form.dispatchEvent(new Event('input',{bubbles:true}));
+        status.textContent='Details added. Edit anything that needs correcting, complete the remaining fields, then save your private draft.';
+        scrollRoomTarget(byId('product-name'),{behavior:'smooth',block:'center'});
+      });
+      results.append(apply);results.hidden=false;status.textContent='Suggestions ready. Review them before using them.';
+    }catch(error){if(current())status.textContent=error.message||'Suggestions are unavailable. You can fill in your listing yourself.';}
+    finally{button.disabled=false;}
+  });
+})();

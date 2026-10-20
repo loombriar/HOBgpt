@@ -105,7 +105,7 @@ export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,tok
           {photos.map((photo, index) => {
             const isHeic = /\.(heic|heif)$/i.test(photo.name) || photo.file?.type === 'image/heic' || photo.file?.type === 'image/heif';
             return (
-              <li key={photo.key} className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background p-2">
+              <li key={photo.key} className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl sm:flex-nowrap border border-border bg-background p-2">
                 {isHeic ? (
                   <span className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><ImagePlus size={20} /></span>
                 ) : (
@@ -115,7 +115,7 @@ export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,tok
                   <p className="truncate text-sm font-medium">{photo.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{index === 0 ? 'Cover photo' : `Photo ${index + 1}`}{photo.file ? ' · Ready to upload' : ' · Saved photo'}</p>{token&&<SellerPhotoEnhance photo={photo} token={token} full={photos.length>=MAX_STUDIO_IMAGES} onAdd={enhanced=>setPhotos(current=>current.length<MAX_STUDIO_IMAGES?[...current,enhanced]:current)}/>}
                 </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                <div className="flex w-full shrink-0 flex-wrap justify-end gap-1 sm:w-auto">
                   <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} aria-label={`Move ${photo.name} up`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-primary disabled:opacity-40">Move up</button>
                   <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === photos.length - 1} aria-label={`Move ${photo.name} down`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-primary disabled:opacity-40">Move down</button>
                   <button type="button" onClick={() => removePhoto(index)} aria-label={`Remove ${photo.name}`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">Remove</button>
