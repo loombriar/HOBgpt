@@ -14,7 +14,7 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   });
   page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/listings')writes++;});
   await page.goto(room==='dashboard'?'/account#designer-listings':'/designers/room');
-  if(room==='standalone')await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create or edit a piece',exact:true}).click();
+  if(room==='standalone')await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
   const form=page.locator(room==='dashboard'?'#designer-listings':'#product-form');
   const upload=room==='dashboard'?form.locator('input[type=file]').first():page.locator('#product-photos');
   const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#9b4359'}}).png().toBuffer();
