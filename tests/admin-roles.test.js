@@ -19,7 +19,7 @@ test('named administrator roles enforce cookie and bearer permissions and audit 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hob-admin-roles-'));
   let ctx, server, providerCalls = 0;
   try {
-    ctx = createApp({ dataDir, seedProducts: [], adminToken: 'operator-test-token',
+    ctx = createApp({ dataDir, seedProducts: [], adminToken: 'operator-test-token', designerTokens: { maker: 'maker-role-test-token' },
       fetch: async () => { providerCalls++; throw new Error('Unexpected provider request'); } });
     server = ctx.app.listen(0, '127.0.0.1');
     await once(server, 'listening');
@@ -44,6 +44,23 @@ test('named administrator roles enforce cookie and bearer permissions and audit 
     assert.equal((await request('/api/admin/listings', 'GET', support)).status, 403);
     // Reaching validation (404 for a nonexistent listing) proves a permitted write passes the role boundary.
     assert.equal((await request('/api/admin/listings/missing/approve', 'POST', reviewer)).status, 404);
+    const created = await fetch(origin + '/api/listings', {
+      method: 'POST', headers: { Authorization: 'Bearer maker-role-test-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Role review fixture', price: 75, category: 'apparel',
+        description: 'A handmade review fixture', productionType: 'One of a Kind' })
+    });
+    assert.equal(created.status, 201);
+    const listingId = (await created.json()).item.id;
+    // Prepare a review fixture without requiring image uploads or contacting a payment provider.
+    ctx.db.prepare("UPDATE listings SET status='pending_review' WHERE id=?").run(listingId);
+    const rejected = await fetch(origin + '/api/admin/listings/' + listingId + '/reject', {
+      method: 'POST', headers: { ...reviewer, Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'Please add garment measurements.' })
+    });
+    assert.equal(rejected.status, 200);
+    assert.equal(ctx.db.prepare('SELECT status FROM listings WHERE id=?').get(listingId).status, 'rejected');
+    assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM admin_audit_log WHERE actor=? AND role=? AND path=? AND status_code=200')
+      .get('reviewPerson', 'reviewer', '/api/admin/listings/' + listingId + '/reject').n, 1);
     const protectedWrites = [
       ['/api/admin/orders/missing/refund', 'POST'],
       ['/api/admin/orders/missing/designers/missing/release', 'POST'],
