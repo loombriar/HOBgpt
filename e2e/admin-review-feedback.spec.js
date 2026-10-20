@@ -25,7 +25,7 @@ test('mobile change requests require specific feedback and validate the full mes
   await expect(page.getByRole('alert')).toHaveText('Choose a reason before requesting changes.');
   const category='Needs clearer product details';
   await card.getByRole('combobox').selectOption({label:category});
-  const detail=card.getByLabel('Additional details',{exact:true});
+  const detail=card.getByRole('textbox');
   await detail.fill('   ');
   await send.click();
   await expect(page.getByRole('alert')).toHaveText('Explain what the designer needs to change.');
