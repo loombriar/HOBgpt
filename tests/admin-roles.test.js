@@ -37,6 +37,12 @@ test('named administrator roles enforce cookie and bearer permissions and audit 
       method, headers: { Origin: origin, ...headers }
     });
     const reviewer = { Cookie: reviewerCookie };
+    const identity=await request('/api/admin/session','GET',reviewer);
+    assert.equal(identity.status,200);
+    assert.equal(identity.headers.get('cache-control'),'no-store');
+    assert.deepEqual(await identity.json(),{admin:{label:'reviewPerson',role:'reviewer'}});
+    assert.equal((await request('/api/admin/session','GET',{})).status,401);
+    assert.equal((await request('/api/admin/session','GET',{Authorization:'Bearer unknown-person-test-token'})).status,403);
     const support = { Cookie: supportCookie };
     assert.equal((await request('/api/admin/listings', 'GET', reviewer)).status, 200);
     assert.equal((await request('/api/admin/support', 'GET', support)).status, 200);

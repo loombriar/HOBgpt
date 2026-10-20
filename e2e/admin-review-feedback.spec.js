@@ -5,6 +5,7 @@ test('mobile change requests require specific feedback and validate the full mes
   const item={id:'review-feedback',title:'Feedback fixture dress',description:'A handmade dress',price:75,category:'apparel',designerId:'maker',status:'pending_review',moderationStatus:'pending',images:[]};
   let submitted=false;
   const requests=[];
+  await page.route('**/api/admin/session',route=>route.fulfill({json:{admin:{label:'owner-fixture',role:'owner'}}}));
   await page.route('**/api/admin/operations',route=>route.fulfill({json:{
     summary:{paidOrders:0,refundedOrders:0,pendingOrders:0,heldPayouts:0,failedPayouts:0,releasedPayouts:0,reversedPayouts:0,activeReservations:0},
     orders:[],payouts:[],inventory:[],emails:{configured:true,counts:{pending:0,failed:0,sent:0},messages:[]}
