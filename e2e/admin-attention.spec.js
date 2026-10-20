@@ -2,6 +2,7 @@ const {test,expect}=require('@playwright/test');
 for(const width of [390,1280]){
  test(`Admin room puts actionable queues ahead of analytics at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:850});
+  await page.route('**/api/admin/session',route=>route.fulfill({json:{admin:{label:'owner-fixture',role:'owner'}}}));
   await page.route('**/api/admin/operations',route=>route.fulfill({json:{summary:{},orders:[{id:'paid-order',status:'paid'}],payouts:[{order_id:'paid-order',status:'pending'},{order_id:'problem',status:'failed'}],emails:{configured:true,counts:{pending:0,failed:0,sent:0},messages:[]}}}));
   await page.route('**/api/admin/support',route=>route.fulfill({json:{messages:[{id:'support-one',status:'auto_replied',category:'shipping',message:'Where is my order?'}],templates:[]}}));
   await page.goto('/');

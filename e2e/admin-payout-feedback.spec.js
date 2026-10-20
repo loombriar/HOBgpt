@@ -3,6 +3,7 @@ const {test,expect}=require('@playwright/test');
 test('held payout explains the result and a refund refreshes the order summary',async({page})=>{
   let refunded=false;
   const order={id:'feedback-order',status:'paid',subtotal_cents:500,platform_fee_cents:45,designer_amount_cents:455,item_count:1};
+  await page.route('**/api/admin/session',route=>route.fulfill({json:{admin:{label:'owner-fixture',role:'owner'}}}));
   await page.route('**/api/admin/operations',route=>route.fulfill({json:{
     summary:{paidOrders:refunded?0:1,refundedOrders:refunded?1:0,heldPayouts:1},
     orders:[{...order,status:refunded?'refunded':'paid',refund_status:refunded?'succeeded':null}],

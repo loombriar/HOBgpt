@@ -1281,6 +1281,8 @@ function createApp(options = {}) {
       /^\/api\/admin\/listings\/[^/]+\/(approve|reject)$/.test(route) ||
       /^\/api\/admin\/listing-reports\/[^/]+\/resolve$/.test(route)
     );
+    const sessionRead = method === 'GET' && route === '/api/admin/session';
+    if (sessionRead && ['reviewer','support'].includes(role)) return next();
     const supportRead = method === 'GET' && route === '/api/admin/support';
     const supportWrite = method === 'POST' && /^\/api\/admin\/support\/[^/]+\/reply$/.test(route);
     if ((role === 'reviewer' && (reviewRead || reviewWrite)) ||
@@ -1807,6 +1809,10 @@ function createApp(options = {}) {
       });
     });
   }
+  app.get('/api/admin/session', authAdmin, (req,res) => {
+    res.set('Cache-Control','no-store');
+    return res.json({admin:{label:req.adminActor,role:req.adminRole}});
+  });
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });

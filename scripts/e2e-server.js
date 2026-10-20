@@ -7,6 +7,7 @@ const realFetch=global.fetch;
 global.fetch=async(url,options)=>String(url)==='https://api.openai.com/v1/responses'
  ? new Response(JSON.stringify({output_text:JSON.stringify({allow:true,needsHumanReview:false,reason:'Sample fixture image'})}),{status:200,headers:{'Content-Type':'application/json'}})
  : realFetch(url,options);
+process.env.ADMIN_TOKENS_JSON=JSON.stringify({reviewFixture:{token:'e2e-reviewer-fixture-token',role:'reviewer'},supportFixture:{token:'e2e-support-fixture-token',role:'support'}});
 const { createApp,SELLER_TERMS_VERSION }=require('../server');
 const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-e2e-'));
 const designerCodes=new Map();
