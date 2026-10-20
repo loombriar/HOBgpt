@@ -21,3 +21,17 @@ it('does not confuse an account ready for payments with an approved first piece'
  const html=renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted paymentReady hasListing hasPendingPiece/>);
  expect(html).toContain('Account ready');expect(html).toContain('awaiting review');expect(html).not.toContain('>Selling setup complete<');expect(html).toContain('3 of 4 required');
 });
+
+it('groups setup into four milestones while preserving both required payout checks',()=>{
+ const html=renderToStaticMarkup(<DesignerSetupChecklist {...base}/>);
+ expect((html.match(/<h3 /g)||[])).toHaveLength(4);
+ expect(html).toContain('2. Connect your payouts');
+ expect(html).toContain('3. List your first piece');
+ expect(html).toContain('4. Get ready to sell');
+ expect(html).toContain('Delivery terms: Action needed');
+ expect(html).toContain('Stripe verification: Action needed');
+ const verified=renderToStaticMarkup(<DesignerSetupChecklist {...base} paymentReady/>);
+ expect(verified).toContain('Delivery terms: Action needed');
+ expect(verified).toContain('Stripe verification: Complete');
+ expect(verified).not.toContain('>Selling setup complete<');
+});
