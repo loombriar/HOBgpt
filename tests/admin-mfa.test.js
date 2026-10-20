@@ -87,3 +87,54 @@ test('required admin MFA rejects missing, replayed, and bearer-bypass credential
     if(oldSecrets===undefined)delete process.env.ADMIN_TOTP_SECRETS_JSON;else process.env.ADMIN_TOTP_SECRETS_JSON=oldSecrets;
   }
 });
+
+
+test('named MFA identities cannot authenticate with another administrator\'s TOTP code', async () => {
+  const names = ['ADMIN_TOKENS_JSON', 'ADMIN_TOTP_REQUIRED', 'ADMIN_TOTP_SECRETS_JSON'];
+  const previous = names.map(name => process.env[name]);
+  const aliceSecret = Buffer.from('12345678901234567890');
+  const bobSecret = Buffer.from('abcdefghijabcdefghij');
+  process.env.ADMIN_TOKENS_JSON = JSON.stringify({
+    alice: { token: 'alice-mfa-test-token', role: 'reviewer' },
+    bob: { token: 'bob-mfa-test-token', role: 'support' }
+  });
+  process.env.ADMIN_TOTP_REQUIRED = 'true';
+  process.env.ADMIN_TOTP_SECRETS_JSON = JSON.stringify({
+    alice: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',
+    bob: 'MFRGGZDFMZTWQ2LMMFRGGZDFMZTWQ2LM'
+  });
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hob-named-mfa-'));
+  let ctx, server;
+  try {
+    ctx = createApp({ dataDir, seedProducts: [], adminToken: 'legacy-mfa-test-token' });
+    server = ctx.app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const origin = 'http://127.0.0.1:' + server.address().port;
+    const counter = Math.floor(Date.now() / 30000);
+    const aliceCode = totp(aliceSecret, counter);
+    const bobCode = totp(bobSecret, counter);
+    const login = (token, code) => fetch(origin + '/api/admin/session', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, Origin: origin, 'X-Admin-TOTP': code }
+    });
+    assert.equal((await login('alice-mfa-test-token', bobCode)).status, 401);
+    assert.equal((await login('bob-mfa-test-token', aliceCode)).status, 401);
+    const alice = await login('alice-mfa-test-token', aliceCode);
+    assert.equal(alice.status, 200);
+    const aliceCookie = alice.headers.get('set-cookie').split(';')[0];
+    assert.equal((await login('alice-mfa-test-token', aliceCode)).status, 401);
+    const bob = await login('bob-mfa-test-token', bobCode);
+    assert.equal(bob.status, 200);
+    const bobCookie = bob.headers.get('set-cookie').split(';')[0];
+    assert.equal((await fetch(origin + '/api/admin/listings', { headers: { Cookie: aliceCookie } })).status, 200);
+    assert.equal((await fetch(origin + '/api/admin/support', { headers: { Cookie: aliceCookie } })).status, 403);
+    assert.equal((await fetch(origin + '/api/admin/support', { headers: { Cookie: bobCookie } })).status, 200);
+    assert.equal((await fetch(origin + '/api/admin/listings', { headers: { Cookie: bobCookie } })).status, 403);
+  } finally {
+    if (server) await new Promise(resolve => server.close(resolve));
+    if (ctx) ctx.db.close();
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    names.forEach((name, i) => {
+      if (previous[i] === undefined) delete process.env[name]; else process.env[name] = previous[i];
+    });
+  }
+});
