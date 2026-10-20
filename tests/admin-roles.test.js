@@ -19,7 +19,7 @@ test('named administrator roles enforce cookie and bearer permissions and audit 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hob-admin-roles-'));
   let ctx, server, providerCalls = 0;
   try {
-    ctx = createApp({ dataDir, seedProducts: [], adminToken: 'operator-test-token', designerTokens: { maker: 'maker-role-test-token' },
+    ctx = createApp({ dataDir, seedProducts: [], adminToken: 'operator-test-token', designerTokens: { 'maker-role-test-token': 'maker' },
       fetch: async () => { providerCalls++; throw new Error('Unexpected provider request'); } });
     server = ctx.app.listen(0, '127.0.0.1');
     await once(server, 'listening');
