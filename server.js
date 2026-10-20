@@ -1265,13 +1265,35 @@ function createApp(options = {}) {
     if (!origin && !fetchSite) return fail(res, 403, 'invalid_origin', 'A trusted request origin is required.');
     return next();
   }
+  // All privileged handlers share this boundary, including handlers mounted by modules.
+  // Keep the existing operator role compatible; additional roles have explicit allowlists.
+  function authorizeAdminRole(req, res, next) {
+    const role = req.adminRole;
+    const route = req.originalUrl.split('?')[0];
+    const method = req.method === 'HEAD' ? 'GET' : req.method;
+    if (role === 'operator' || role === 'owner') return next();
+    const reviewRead = method === 'GET' && (
+      route === '/api/admin/listings' || route === '/api/admin/listings/review-queue' ||
+      route === '/api/admin/listing-reports' ||
+      /^\/api\/admin\/listings\/[^/]+\/images\/[^/]+\/content$/.test(route)
+    );
+    const reviewWrite = method === 'POST' && (
+      /^\/api\/admin\/listings\/[^/]+\/(approve|reject)$/.test(route) ||
+      /^\/api\/admin\/listing-reports\/[^/]+\/resolve$/.test(route)
+    );
+    const supportRead = method === 'GET' && route === '/api/admin/support';
+    const supportWrite = method === 'POST' && /^\/api\/admin\/support\/[^/]+\/reply$/.test(route);
+    if ((role === 'reviewer' && (reviewRead || reviewWrite)) ||
+        (role === 'support' && (supportRead || supportWrite))) return next();
+    return fail(res, 403, 'admin_role_forbidden', 'Your administrator role does not permit this action.');
+  }
   function authAdmin(req, res, next) {
     const sessionToken = cookieValue(req, ADMIN_SESSION_COOKIE);
     if (sessionToken) {
       const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session = db.prepare('SELECT actor,role,expires_at,credential_hash FROM admin_sessions WHERE session_hash=?').get(sessionHash);
       if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && crypto.createHash('sha256').update(entry.token).digest('hex')===session.credential_hash)) {
-        req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return requireAdminRequestOrigin(req, res, next);
+        req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return authorizeAdminRole(req, res, () => requireAdminRequestOrigin(req, res, next));
       }
       if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);
     }
@@ -1281,8 +1303,8 @@ function createApp(options = {}) {
     req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
     // MFA-enforced deployments must not allow bearer credentials to bypass session verification.
     if (process.env.ADMIN_TOTP_REQUIRED === 'true') return fail(res, 403, 'mfa_session_required', 'Sign in with administrator verification to access this resource.');
-    // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
-    return next();
+    // Legacy bearer callers retain authentication compatibility, but must satisfy the same role policy.
+    return authorizeAdminRole(req, res, next);
   }
 
   function getListing(id) {
