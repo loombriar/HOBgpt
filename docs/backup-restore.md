@@ -43,3 +43,5 @@ with restart policy `NEVER`. Check the terminal deployment status and the PASS
 report, preserve its manifest hash and aggregate results, then delete the
 disposable service and its credential references. Independently verify the live
 app remains healthy and its deployment/configuration was unchanged.
+
+Off-site backup snapshots use a unique system temporary directory by default so the non-root runtime does not need to write into `/app`. `BACKUP_WORK_DIR` can override this location; an override must be writable by the runtime user and dedicated to this job, since its contents are replaced. Successful uploads remove the temporary snapshot.

@@ -1,5 +1,6 @@
 const fs=require('node:fs');
 const path=require('node:path');
+const os=require('node:os');
 const crypto=require('node:crypto');
 const { spawnSync }=require('node:child_process');
 
@@ -16,7 +17,7 @@ const config=()=>{
  if(!Number.isFinite(keepDays)||keepDays<1)throw new Error('BACKUP_RETENTION_DAYS must be a positive number');
  const style=process.env.BACKUP_S3_URL_STYLE||'path';
  if(!['path','virtual-host'].includes(style))throw new Error('BACKUP_S3_URL_STYLE must be path or virtual-host');
- const root=path.resolve(process.env.BACKUP_WORK_DIR||'.backups/offsite-work');
+ const root=process.env.BACKUP_WORK_DIR?path.resolve(process.env.BACKUP_WORK_DIR):null;
  return {endpoint,bucket,accessKey,secretKey,region,keepDays,root,style};
 };
 const hash=(key,data)=>crypto.createHmac('sha256',key).update(data).digest();
@@ -77,9 +78,16 @@ async function list(){
  }while(token);
  return objects;
 }
-async function main(){
- const {root,bucket,keepDays}=config();
+function prepareWorkDirectory(root){
+ // The application directory can be read-only under the non-root runtime.
+ // Unique temporary directories also keep concurrent backups from deleting each other's work.
+ if(!root)return fs.mkdtempSync(path.join(os.tmpdir(),'house-of-briar-offsite-'));
  fs.rmSync(root,{recursive:true,force:true});fs.mkdirSync(root,{recursive:true});
+ return root;
+}
+async function main(){
+ const {root:configuredRoot,bucket,keepDays}=config();
+ const root=prepareWorkDirectory(configuredRoot);
  const local=path.join(root,'snapshot');
  const backup=spawnSync(process.execPath,[path.join(__dirname,'backup-data.js'),'--output',local],{stdio:'inherit',env:process.env});
  if(backup.status!==0)throw new Error('Local backup failed');
@@ -97,4 +105,4 @@ async function main(){
  fs.rmSync(root,{recursive:true,force:true});
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={listContents,list,canonicalQuery,request};
+module.exports={listContents,list,canonicalQuery,request,prepareWorkDirectory};
