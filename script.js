@@ -1582,16 +1582,16 @@ function renderSellerReadiness(){
   const profileReady=Boolean(profile?.brandName?.trim()&&profile?.bio?.trim()&&profile?.location?.trim());
   const stages=[
     {label:'1. Prepare your profile · recommended',optional:true,done:profileReady,hint:'Add your brand name, story and location. Recommended; this does not block selling.',action:'Edit designer profile',target:'designer-brand-form'},
-    {label:'2. Accept the delivery terms',done:accepted,hint:'Customers get free US delivery. You cover postage, so include it in your price.',action:'Review and accept terms',target:'seller-terms-form'},
-    {label:'3. Finish payment setup',done:payoutsReady,hint:'Stripe checks your details and sets up your bank account for designer earnings.',action:stripe?.connected?'Continue payment setup':'Set up payments',run:openStripeOnboarding},
-    {label:'4. Save your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
-    {label:'5. Submit for approval',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
+    {label:'2. Connect your payouts',done:accepted&&payoutsReady,hint:'Accept the delivery terms, then finish Stripe verification. Customers get free US delivery; include postage and packaging in your price.',detail:'Delivery terms: '+(accepted?'Complete':'Action needed')+' · Stripe verification: '+(!stripe?'Checking…':payoutsReady?'Complete':'Action needed'),action:!accepted?'Review and accept terms':stripe?.connected?'Continue payment setup':'Set up payments',target:!accepted?'seller-terms-form':null,run:accepted?openStripeOnboarding:null},
+    {label:'3. List your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
+    {label:'4. Get ready to sell',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
   ];
   list.replaceChildren();
   for(const stage of stages){
     const row=document.createElement('div');row.className='seller-readiness-item '+(stage.done?'is-complete':'is-pending');
     const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=stage.done?'✓':'○';mark.setAttribute('aria-hidden','true');
     const copy=document.createElement('div');copy.append(makeElement('strong','',stage.label));
+    if(stage.detail)copy.append(makeElement('span','seller-readiness-hint',stage.detail));
     if(!stage.done){
       copy.append(makeElement('span','seller-readiness-hint',stage.hint));
       const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';action.textContent=stage.action;
@@ -1616,8 +1616,8 @@ function renderSellerReadiness(){
     }
   }
   if(badge){badge.textContent=ready?'Selling setup complete':!profile||!stripe?'Checking your setup…':accountReady?'Account ready · prepare your first approved piece':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
-  const complete=stages.filter(stage=>!stage.optional&&stage.done).length;
-  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. You can save private drafts while finishing setup.');
+  const complete=Number(accepted)+Number(payoutsReady)+Number(hasListing)+Number(listingReady);
+  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. Delivery terms, Stripe verification, a saved piece and approval are required. You can save private drafts while finishing setup.');
   let next=byId('seller-next-action');
   if(!next&&summary){next=document.createElement('div');next.id='seller-next-action';summary.after(next);}
   if(next){
