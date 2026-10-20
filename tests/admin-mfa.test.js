@@ -101,7 +101,7 @@ test('named MFA identities cannot authenticate with another administrator\'s TOT
   process.env.ADMIN_TOTP_REQUIRED = 'true';
   process.env.ADMIN_TOTP_SECRETS_JSON = JSON.stringify({
     alice: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',
-    bob: 'MFRGGZDFMZTWQ2LMMFRGGZDFMZTWQ2LM'
+    bob: 'MFRGGZDFMZTWQ2LKMFRGGZDFMZTWQ2LK'
   });
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hob-named-mfa-'));
   let ctx, server;
