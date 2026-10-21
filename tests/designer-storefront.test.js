@@ -26,6 +26,10 @@ test('public storefront aggregates saved likes, linked badges, available pieces 
   const server=ctx.app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
   const base=`http://127.0.0.1:${server.address().port}`;
   try{
+    db.prepare("UPDATE designer_profiles SET portrait_storage_key='portrait.webp',logo_storage_key='logo.webp' WHERE id='storefront-designer'").run();
+    const privateProfile=await (await fetch(base+'/api/my/designer-profile',{headers:{Authorization:'Bearer test'}})).json();
+    assert.equal(privateProfile.designer.portraitUrl,'/media/designers/storefront-designer/portrait');
+    assert.equal(privateProfile.designer.logoUrl,'/media/designers/storefront-designer/logo');
     const res=await fetch(base+'/api/designers/storefront-designer');assert.equal(res.status,200);const body=await res.json();
     assert.equal(body.designer.totalLikes,3);assert.equal(body.designer.soldCount,3);assert.equal(body.designer.currentListingCount,2);
     assert.deepEqual(body.currentItems.map(i=>i.id).sort(),['sf-current','sf-partial']);assert.deepEqual(body.soldItems.map(i=>i.id).sort(),['sf-partial','sf-sold']);
