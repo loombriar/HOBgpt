@@ -33,3 +33,12 @@ test('rejects invalid fee input',()=>{
   assert.throws(()=>platformCommissionCents(100,900));
   assert.throws(()=>platformCommissionCents(1.5,500));
 });
+
+test('student rate is standard after expiration even if account stays active',()=>{
+ const db={prepare:sql=>({get:()=>sql.includes('founding_school_commissions')?{assigned_at:'2025-01-01T00:00:00Z'}:undefined})};
+ assert.equal(commissionBasisPoints(db,'student','2026-01-01T00:00:00Z'),700);
+});
+test('founder assignment overrides expired student discount',()=>{
+ const db={prepare:sql=>({get:()=>sql.includes('founding_creator_assignments')?{founder_number:12}:{assigned_at:'2020-01-01T00:00:00Z'}})};
+ assert.equal(commissionBasisPoints(db,'both','2030-01-01T00:00:00Z'),500);
+});
