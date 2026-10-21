@@ -93,3 +93,5 @@ html[data-hob-theme=dark] .creative-category-menu,html[data-hob-theme=dark] .cre
 @media(max-width:760px){.creative-category-menus{grid-template-columns:1fr}.creative-category-menu>summary{min-height:72px;padding-block:14px}.creative-directory-filters{grid-template-columns:minmax(0,1fr)}}
 
 .creative-specialty-menu>summary{position:relative;padding-right:36px}.creative-specialty-menu>summary::before,.creative-specialty-menu[open]>summary::before{content:none}.creative-specialty-menu>summary::after{content:'+';position:absolute;right:12px;top:10px;font-size:20px}.creative-specialty-menu[open]>summary::after{content:'−'}
+/* Networking preferences use readable, touch-friendly opt-in controls. */
+.network-open-to label{display:flex;align-items:center;gap:10px;min-height:44px;margin:0}.network-open-to input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:0 0 18px;padding:0}.network-open-to{display:grid;gap:8px}.network-open-to p{margin-top:0}.inquiry-inbox .opportunity button{min-height:44px;margin:8px 8px 0 0}
