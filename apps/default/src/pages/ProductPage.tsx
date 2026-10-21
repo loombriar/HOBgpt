@@ -1,3 +1,4 @@
+import { readCartIds } from '@/lib/cart-storage';
 import PurchaseEssentials from '@/components/PurchaseEssentials';
 import { dispatchEstimate } from '@/lib/shipping';
 import { useEffect, useState } from 'react';
@@ -51,8 +52,8 @@ export default function ProductPage() {
   useEffect(() => {
     const refreshCart = () => {
       try {
-        const value = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
-        setInCart(Array.isArray(value) && Boolean(resolvedProductId) && value.includes(resolvedProductId));
+        const value = readCartIds();
+        setInCart(Boolean(resolvedProductId) && value.includes(resolvedProductId!));
       } catch { setInCart(false); }
     };
     refreshCart();
@@ -138,8 +139,7 @@ export default function ProductPage() {
   const RecommendationCard=({item}:{item:GenesisNode})=>{const itemName=getTitle(item,'Name')??'Untitled piece';const itemImage=getProductImages(getFieldValue(item,'@image','Image URL'),getFieldValue(item,'@gally','Gallery URLs'))[0];return <Link to={`/shop/${item.id}`} className="group block"><div className="aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-muted">{itemImage?<img src={itemImage} alt={itemName} className="size-full object-cover transition duration-300 group-hover:scale-105"/>:null}</div><p className="mt-3 font-serif text-xl">{itemName}</p><p className="mt-1 text-sm text-muted-foreground">{money.format(getFieldNumber(item,'@price','Price')??0)}</p></Link>};
 
   const addToCart = () => {
-    const raw = window.localStorage.getItem('house-of-briar:cart');
-    const items: string[] = raw ? JSON.parse(raw) : [];
+    const items = readCartIds();
     if (!items.includes(product.id)) items.push(product.id);
     window.localStorage.setItem('house-of-briar:cart', JSON.stringify(items));
     setInCart(true);
