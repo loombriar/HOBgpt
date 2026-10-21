@@ -51,6 +51,11 @@ test('application review and assignment enforce roles and recheck graduation win
    const response=await fetch(base+path,{method:'POST',headers,body:JSON.stringify(body)});
    return {status:response.status,data:await response.json()};
   };
+  const listApplications=async(role)=>{const response=await fetch(base+'/admin/applications',{headers:role?{'x-test-role':role}:{}});return response.status;};
+  assert.equal(await listApplications(null),401);
+  assert.equal(await listApplications('viewer'),403);
+  assert.equal(await listApplications('operator'),200);
+  assert.equal(await listApplications('owner'),200);
   const applied=await request('/applications',null,{kind:'student',name:'Recent Graduate',email:'grad@example.com',school:'Art College',academicStatus:'graduate',graduationDate:new Date().toISOString().slice(0,10)});
   assert.equal(applied.status,201);
   const id=applied.data.applicationId;
