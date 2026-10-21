@@ -24,8 +24,8 @@ export default function FoundingSchoolsPage() {
       <h1 style={{fontSize:'clamp(2.2rem,6vw,4rem)',lineHeight:1.1}}>Founding Schools Initiative</h1>
       <p style={{fontSize:19,lineHeight:1.6}}>A place for emerging fashion designers, artists, and makers to build independent creative businesses.</p>
       <section style={{border:'1px solid #94794e',borderRadius:16,padding:24,margin:'2rem 0'}}>
-        <h2 style={{fontSize:32,margin:'0 0 8px'}}>5% permanent creator commission</h2>
-        <p>For approved current students and graduates within 24 months of graduation. Payment processing fees are separate. Creators manage their own inventory, customer service, and shipping.</p>
+        <h2 style={{fontSize:32,margin:'0 0 8px'}}>5% commission for your first year</h2>
+        <p>Approved current students and graduates within 24 months of graduation pay 5% for their first 12 months after creator activation, then the standard 7% rate applies automatically. Payment processing fees are separate. Creators manage their own inventory, customer service, and shipping.</p>
         <p>No listing fees, monthly membership charges, or required advertising. School partnerships are free and optional. Standard creator commission is 7%.</p>
       </section>
       <div role="group" aria-label="Application type" style={{display:'flex',gap:12,marginBottom:20}}>
