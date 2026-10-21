@@ -44,3 +44,10 @@ audit_events(id, actor_id, action, target_type, target_id, created_at, details_j
 - Order totals with shipping/tax/discounts compute correct platform and processor fees.
 - Admin can review and approve applications with an audit trail.
 - No live rollout before passing automated and staging end-to-end tests.
+
+## Early-launch privacy policy
+- Do not publicly display creator, student, school, or application signup counts, pending/approved totals, waitlist sizes, or signup rankings.
+- Do not advertise numerical scarcity or disclose how many creators have joined.
+- Application statistics are internal and accessible only to authorized administrators.
+- Public pages may show approved creator profiles and participating schools without aggregate signup metrics.
+- Do not add public aggregate count endpoints, and test future public pages for count leakage.
