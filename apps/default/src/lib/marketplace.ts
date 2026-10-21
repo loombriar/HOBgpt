@@ -137,7 +137,8 @@ export async function getPersistentFavoriteIds(accessToken?: string | null) {
   if (!accessToken) return getSavedProductIds();
   const guestIds = getSavedProductIds();
   if (guestIds.length) {
-    await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    const mergeResponse=await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    if(!mergeResponse.ok) throw new Error('Saved pieces could not be transferred. Please try again.');
   }
   const response=await fetch('/api/my/favorites',{headers:{...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}),Accept:'application/json'}});
   if(!response.ok) throw new Error('Saved pieces could not be loaded.');
