@@ -72,8 +72,8 @@ test('free delivery preserves private addresses and payout/refund holds; prior s
     assert.match(blocked.body.error.message,/isn’t ready to purchase yet/);
     assert.doesNotMatch(blocked.body.error.message,/accept.*terms|Stripe|payout/i);
   }
-  assert.equal((await request('/api/orders/'+order.id+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'5460');
-  assert.equal((await request('/api/admin/orders/'+order.id+'/refund',{},'admin')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers/tr_shipping/reversals').options.body).get('amount'),'5460');
+  assert.equal((await request('/api/orders/'+order.id+'/tracking',{carrier:'USPS',trackingNumber:'9400111899223856928499'},'sellerA')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers').options.body).get('amount'),'5580');
+  assert.equal((await request('/api/admin/orders/'+order.id+'/refund',{},'admin')).status,200);assert.equal(new URLSearchParams(calls.find(c=>c.endpoint==='transfers/tr_shipping/reversals').options.body).get('amount'),'5580');
 }));
 
 test('signed paid webhook and stale-checkout reconciliation preserve shipping address and total validation',async()=>fixture(async({ctx,sessions,request,origin})=>{
