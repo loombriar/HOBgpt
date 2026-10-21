@@ -68,3 +68,40 @@ test('named admin login exchanges the bootstrap credential for an HttpOnly sessi
   const audit = ctx.db.prepare('SELECT actor,role,method,path FROM admin_audit_log ORDER BY created_at').all();
   assert.ok(audit.some(row => row.actor === 'legacy-admin' && row.method === 'GET' && row.path === '/api/admin/designers'));
 }));
+
+test('admin session cookie cannot be reused after logout across repeated protected requests', async () => fixture(async ({ ctx, origin }) => {
+  const login = await fetch(origin + '/api/admin/session', {
+    method: 'POST', headers: { Authorization: 'Bearer legacy-admin-test-token', Origin: origin },
+  });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  for (let i = 0; i < 3; i++) {
+    assert.equal((await fetch(origin + '/api/admin/designers', { headers: { Cookie: cookie } })).status, 200);
+  }
+  assert.equal((await fetch(origin + '/api/admin/session', {
+    method: 'DELETE', headers: { Cookie: cookie, Origin: origin },
+  })).status, 200);
+  for (const route of ['/api/admin/designers', '/api/admin/listings', '/api/admin/support']) {
+    const response = await fetch(origin + route, { headers: { Cookie: cookie } });
+    assert.equal(response.status, 401, route);
+  }
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM admin_sessions').get().n, 0);
+}));
+
+test('cross-origin logout cannot revoke an otherwise valid admin session', async () => fixture(async ({ origin }) => {
+  const login = await fetch(origin + '/api/admin/session', {
+    method: 'POST', headers: { Authorization: 'Bearer legacy-admin-test-token', Origin: origin },
+  });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  for (const originHeader of ['https://evil.example', 'null']) {
+    const response = await fetch(origin + '/api/admin/session', {
+      method: 'DELETE', headers: { Cookie: cookie, Origin: originHeader },
+    });
+    assert.equal(response.status, 403);
+    assert.equal((await fetch(origin + '/api/admin/designers', { headers: { Cookie: cookie } })).status, 200);
+  }
+  assert.equal((await fetch(origin + '/api/admin/session', {
+    method: 'DELETE', headers: { Cookie: cookie, Origin: origin },
+  })).status, 200);
+}));
