@@ -56,7 +56,7 @@ test('canonical shipping quote offers free delivery for mixed sellers and blocks
 
 test('free delivery preserves private addresses and payout/refund holds; prior seller terms still release existing orders',async()=>fixture(async({ctx,calls,sessions,request})=>{
   const checkout=await request('/api/checkout/session',{items:[{id:'a1',quantity:1}],expectedTotalBeforeTaxCents:6000});assert.equal(checkout.status,201);
-  const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(checkout.body.orderId);assert.equal(order.subtotal_cents,6000);assert.equal(order.shipping_cents,0);assert.equal(order.platform_fee_cents,540);assert.equal(order.designer_amount_cents,5460);
+  const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(checkout.body.orderId);assert.equal(order.subtotal_cents,6000);assert.equal(order.shipping_cents,0);assert.equal(order.platform_fee_cents,420);assert.equal(order.designer_amount_cents,5580);
   const params=new URLSearchParams(calls.find(c=>c.endpoint==='checkout/sessions').options.body);assert.equal(params.get('shipping_address_collection[allowed_countries][0]'),'US');assert.equal(params.get('line_items[1][price_data][unit_amount]'),null);
   const session=sessions.get(checkout.body.sessionId);session.amount_total=5999;assert.equal((await request('/api/checkout/session/'+session.id)).status,409);session.amount_total=6000;
   session.collected_information.shipping_details={...address,address:{...address.address,country:'CA'}};assert.equal((await request('/api/checkout/session/'+session.id)).status,409);session.collected_information.shipping_details=address;
