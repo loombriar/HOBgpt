@@ -2946,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', () => {
       for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type'}))body.append(field,byId(id)?.value||'');
       const data=await apiRequest('/api/my/studio/photo-listing',{method:'POST',body,credentials:'same-origin'});
       if(!current())return;
-      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Tags',(data.tags||[]).join(', ')]]){
+      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Print / Pattern',data.pattern],['Tags',(data.tags||[]).join(', ')]]){
         const paragraph=makeElement('p','',label+': '+String(value||''));results.append(paragraph);
       }
       for(const note of data.reviewNotes||[])results.append(makeElement('p','small-print',String(note)));
@@ -2955,7 +2955,9 @@ document.addEventListener('DOMContentLoaded', () => {
       apply.addEventListener('click',()=>{
         if(!current()){clear();return;}
         byId('product-name').value=data.title;byId('product-description').value=data.description;
-        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic]]){
+        const department=byId('product-category');
+        if(Array.from(department.options).some(option=>option.value===data.category)){department.value=data.category;syncSellerTypes();}
+        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic],['product-pattern',data.pattern]]){
           const input=byId(id),option=Array.from(input?.options||[]).find(option=>option.value&&option.value.toLowerCase()===String(value||'').trim().toLowerCase());
           if(option)input.value=option.value;
         }
