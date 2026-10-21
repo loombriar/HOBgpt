@@ -238,6 +238,12 @@ test('Stripe line totals preserve remainder cents, gift wrap, and fully discount
       const response=await fetch(origin+'/api/checkout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[{id:'exact-piece',quantity:3,giftWrap:true}],promoCodes:['EXACT']})});assert.equal(response.status,201);
       const {orderId}=await response.json();const order=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);const session=sessions.get(order.stripe_session_id);
       assert.equal(order.subtotal_cents,fullyDiscounted?300:602);assert.equal(session.amount_total,order.subtotal_cents);
+      const merchandiseCents=order.subtotal_cents-300;
+      assert.equal(order.platform_fee_cents,Math.round(merchandiseCents*0.07),'standard 7% applies to discounted merchandise, not gift wrap');
+      assert.equal(order.designer_amount_cents,order.subtotal_cents-order.platform_fee_cents);
+      const item=ctx.db.prepare('SELECT platform_fee_cents,designer_amount_cents,line_total_cents FROM order_items WHERE order_id=?').get(orderId);
+      assert.equal(item.platform_fee_cents,order.platform_fee_cents);
+      assert.equal(item.designer_amount_cents,item.line_total_cents-item.platform_fee_cents);
       const paid=await fetch(origin+'/api/checkout/session/'+session.id);assert.equal(paid.status,200);assert.equal((await paid.json()).paid,true);
       assert.equal(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status,'paid');
     }
