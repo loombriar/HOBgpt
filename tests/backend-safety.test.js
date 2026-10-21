@@ -128,3 +128,41 @@ test('payout retries queue one failure notification and preserve email delivery 
   assert.equal(ctx.db.prepare('SELECT status FROM email_outbox WHERE event_key=?').get(eventKey).status,'sent');
 }));
 
+
+test('concurrent payout release requests never create duplicate Stripe transfers',()=>fixture(async({call,setHandler,calls,ctx})=>{
+  let entered,finish;
+  const waiting=new Promise(resolve=>{entered=resolve;});
+  const gate=new Promise(resolve=>{finish=resolve;});
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers'){entered();await gate;return {id:'tr_concurrent'};}
+    throw new Error('Unexpected provider call: '+endpoint);
+  });
+  const first=call(release);
+  await waiting;
+  try{
+    const second=await call(release);
+    assert.ok([200,409].includes(second.status));
+    assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  }finally{finish();}
+  assert.equal((await first).status,200);
+  await call(release);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM designer_transfers WHERE order_id='order' AND designer_id='maker'").get().n,1);
+}));
+
+test('partial refund webhook replay does not duplicate refund or reverse unrelated seller payout',()=>fixture(async({ctx,call,webhook,setHandler,calls})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:endpoint==='transfers'?{id:'tr_other'}:{id:'trr_test'});
+  assert.equal((await call(partial)).status,200);
+  const live={id:'re_test',status:'succeeded',payment_intent:'pi_test',currency:'usd',amount:4000};
+  setHandler(async(endpoint)=>endpoint.startsWith('refunds/')?live:endpoint==='transfers'?{id:'tr_other'}:live);
+  assert.equal((await webhook('evt_partial_final')).status,200);
+  const count=ctx.db.prepare("SELECT COUNT(*) AS n FROM order_refunds WHERE order_id='order' AND scope='maker'").get().n;
+  assert.equal(count,1);
+  const n=calls.length;
+  assert.equal((await webhook('evt_partial_final')).status,200);
+  assert.equal(calls.length,n);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM order_refunds WHERE order_id='order' AND scope='maker'").get().n,1);
+  const other=await call('/api/admin/orders/order/designers/other/release');
+  assert.equal(other.status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+}));
