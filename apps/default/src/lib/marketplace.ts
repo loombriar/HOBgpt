@@ -1,3 +1,4 @@
+import { readProductIds } from './product-id-storage';
 import { type GenesisNode } from '@/lib/genesis-data';
 
 export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
@@ -117,14 +118,7 @@ export function getProductImages(imageUrl?: string | null, galleryUrls?: string 
 export const SAVED_PRODUCTS_KEY = 'house-of-briar:saved-products';
 
 export function getSavedProductIds() {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(SAVED_PRODUCTS_KEY);
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readProductIds(SAVED_PRODUCTS_KEY);
 }
 
 export function setSavedProductIds(ids: string[]) {

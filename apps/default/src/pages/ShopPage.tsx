@@ -1,3 +1,4 @@
+import { readProductIds } from '@/lib/product-id-storage';
 import taxonomy from '../../../../shared/taxonomy.json';
 import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
@@ -51,13 +52,7 @@ function matchesPriceRange(price: number, range: string) {
 }
 
 function getLikedProductIds() {
-  const raw = window.localStorage.getItem(LIKED_PRODUCTS_KEY);
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readProductIds(LIKED_PRODUCTS_KEY);
 }
 
 function setLikedProductIds(ids: string[]) {
