@@ -1,12 +1,12 @@
 # Founding Schools Initiative — implementation specification
 
-Status: proposed, not deployed. Keep production unchanged until tests and legal review.
+Status: proposed, not deployed. Keep production unchanged until tests and legal review. The implementation does not yet include official school badges, dedicated school pages, school referral caps, or the proposed audit trail. The checkout change from the existing 9% commission to a proposed standard 7% is a financial policy change requiring explicit approval and staging verification.
 
 ## Commission eligibility
 - Founding individual creators: first 50 approved and activated, permanent 5% platform commission.
-- School-program creators: enrolled students or graduates within 24 calendar months of graduation at application approval; permanent 5% while eligible account remains in good standing. Separate allocation from first 50.
+- School-program creators: enrolled students or graduates within 24 calendar months of graduation at application approval; 5% for the first 12 months after creator activation, then 7%. Separate allocation from first 50.
 - Other creators: 7% platform commission.
-- Commission applies to discounted merchandise subtotal, excluding separately itemized shipping and sales tax.
+- Commission applies to discounted merchandise subtotal, excluding separately itemized shipping, sales tax, and gift-wrap charges under the proposed new policy. Confirm treatment of gift-wrap revenue before rollout.
 - Creators pay processor fees separately. Display actual provider fee schedule before account activation.
 - No retroactive fee changes. Store immutable commission-rate assignment with source and timestamp.
 - Initial school referral allocation: 10 approved students per school, configurable, with explicit waitlist handling. Independent verified student applications may be accepted without school partnership.
@@ -40,7 +40,7 @@ audit_events(id, actor_id, action, target_type, target_id, created_at, details_j
 ## Acceptance criteria
 - 50 general founder slots unaffected by school-program approvals.
 - Student graduating exactly 24 months before approval is eligible; 24 months plus one day is not.
-- Approved student retains 5% after graduation; later school partnership termination does not change existing assignment.
+- Approved student retains the 5% rate until the 12-month anniversary of activation regardless of graduation or later school partnership termination; subsequent orders use 7%.
 - Creator cannot modify commission through browser/API.
 - Concurrent approvals do not overallocate school referral cap or general founder slots.
 - Order totals with shipping/tax/discounts compute correct platform and processor fees.
