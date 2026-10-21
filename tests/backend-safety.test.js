@@ -206,13 +206,14 @@ test('pending refund survives process restart and replay keeps a single provider
   assert.equal((await call(full)).status,200);
   const before=ctx.db.prepare("SELECT id,status FROM order_refunds WHERE order_id='order' AND scope='full'").get();
   assert.equal(before.status,'pending');
-  const reopened=createApp(options);
+  let reopened;
+  try{reopened=createApp(options);}catch(error){throw new Error('reopen failed: '+error.message,{cause:error});}
   try{
     const after=reopened.db.prepare("SELECT id,status FROM order_refunds WHERE order_id='order' AND scope='full'").get();
     assert.deepEqual(after,before);
     assert.equal(reopened.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get().status,'pending');
-  }finally{reopened.db.close();}
-  assert.equal((await call(full)).status,200);
+  }catch(error){throw new Error('restart assertion failed: '+error.message,{cause:error});}finally{reopened.db.close();}
+  const retry=await call(full);assert.equal(retry.status,200,JSON.stringify(retry.body));
   assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
   assert.equal((await call(release)).body.results[0].reason,'refund_hold');
 }));
