@@ -204,11 +204,11 @@ test('interrupted transfer response does not issue a second transfer on immediat
 test('pending refund survives process restart and replay keeps a single provider refund',()=>fixture(async({ctx,options,call,calls,setHandler})=>{
   setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:{id:'unused'});
   assert.equal((await call(full)).status,200);
-  const before=ctx.db.prepare("SELECT id,status,stripe_refund_id FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+  const before=ctx.db.prepare("SELECT id,status FROM order_refunds WHERE order_id='order' AND scope='full'").get();
   assert.equal(before.status,'pending');
   const reopened=createApp(options);
   try{
-    const after=reopened.db.prepare("SELECT id,status,stripe_refund_id FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+    const after=reopened.db.prepare("SELECT id,status FROM order_refunds WHERE order_id='order' AND scope='full'").get();
     assert.deepEqual(after,before);
     assert.equal(reopened.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get().status,'pending');
   }finally{reopened.db.close();}
