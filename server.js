@@ -15,6 +15,7 @@ const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
+const creatorCommissions = require('./lib/creator-commissions');
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -2831,7 +2832,7 @@ function createApp(options = {}) {
       }
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
-      const platformFeeCents = Math.round(lineTotalCents * 0.09);
+      const platformFeeCents = creatorCommissions.platformCommissionCents(merchandiseTotalCents, creatorCommissions.commissionBasisPoints(db, listing.designer_id));
       rows.push({ patternFormat:listing.category==='patterns'?(patterns.digital(listing)?'pdf':'paper'):null, giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
