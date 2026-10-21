@@ -160,6 +160,9 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
     db.prepare('DELETE FROM portfolio_billing WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM sewing_service_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM creative_network_preferences WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM creative_inquiry_blocks WHERE recipient_subject=?').run(subject);
+    db.prepare('DELETE FROM creative_inquiry_reports WHERE recipient_subject=?').run(subject);
     db.prepare('DELETE FROM creative_event_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM buyer_favorites WHERE buyer_subject=?').run(subject);
     db.prepare('DELETE FROM customer_measurement_profiles WHERE customer_id=?').run(identity.customerId);
