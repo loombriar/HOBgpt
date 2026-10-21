@@ -1,3 +1,4 @@
+import { readCartIds } from '@/lib/cart-storage';
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
@@ -79,8 +80,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   };
   useEffect(() => {
     const refresh = () => {
-      const stored = window.localStorage.getItem('house-of-briar:cart');
-      try { const items = stored ? JSON.parse(stored) : []; setCartCount(Array.isArray(items) ? items.length : 0); } catch { setCartCount(0); }
+      setCartCount(readCartIds().length);
     };
     refresh();
     window.addEventListener('storage', refresh);
