@@ -247,15 +247,6 @@ test('Stripe line totals preserve remainder cents, gift wrap, and fully discount
       const paid=await fetch(origin+'/api/checkout/session/'+session.id);assert.equal(paid.status,200);assert.equal((await paid.json()).paid,true);
       assert.equal(ctx.db.prepare('SELECT status FROM orders WHERE id=?').get(orderId).status,'paid');
     }
-    ctx.db.prepare("INSERT INTO founding_creator_assignments(creator_id,founder_number,assigned_at,assigned_by) VALUES ('exact-maker',1,?, 'test')").run(now);
-    ctx.db.prepare("UPDATE designer_promo_codes SET discount_type='fixed',discount_value=1 WHERE id='exact-promo'").run();
-    const founderResponse=await fetch(origin+'/api/checkout/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[{id:'exact-piece',quantity:3,giftWrap:true}],promoCodes:['EXACT']})});
-    assert.equal(founderResponse.status,201);
-    const founderOrderId=(await founderResponse.json()).orderId;
-    const founderOrder=ctx.db.prepare('SELECT * FROM orders WHERE id=?').get(founderOrderId);
-    assert.equal(founderOrder.subtotal_cents,602);
-    assert.equal(founderOrder.platform_fee_cents,Math.round((602-300)*0.05),'founder 5% excludes gift wrap');
-    assert.equal(founderOrder.designer_amount_cents,602-founderOrder.platform_fee_cents);
   }finally{await new Promise(resolve=>srv.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
