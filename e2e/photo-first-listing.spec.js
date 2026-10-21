@@ -2,7 +2,8 @@ const {test,expect}=require('@playwright/test');
 for(const room of ['dashboard','standalone'])test('photo-first details are reviewed and editable in '+room,async({page})=>{
   await page.setViewportSize({width:390,height:844});
   expect((await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
-  const suggestions={title:'Rose wrap dress',category:'apparel',style:'Dress',description:'A wrap dress with a visible floral print.',tags:['floral','wrap dress'],aesthetic:'Romantic',reviewNotes:['Confirm measurements and materials.'],draftOnly:true};
+  const suggestions={title:'Rose wrap dress',category:'apparel',style:'Dress',description:'A wrap dress with a visible floral print.',tags:['floral','wrap dress'],aesthetic:'Romantic',pattern:'Floral',reviewNotes:['Confirm measurements and materials.'],draftOnly:true};
+  if(room==='standalone')Object.assign(suggestions,{title:'Floral bag',category:'accessories',style:'Purse / Bag'});
   let calls=0,writes=0;
   await page.route('**/api/my/studio/photo-listing',async route=>{
     calls++;
@@ -36,6 +37,7 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   await expect(title).toHaveValue(suggestions.title);
   await expect(description).toHaveValue(suggestions.description);
   await expect(price).toHaveValue('123');
+  if(room==='standalone'){await expect(page.locator('#product-style')).toHaveValue('Purse / Bag');await expect(page.locator('#product-category')).toHaveValue('accessories');await expect(page.locator('#product-pattern')).toHaveValue('Floral');}
   await title.fill('My edited rose dress');
   await description.fill('Designer-checked description.');
   await expect(title).toHaveValue('My edited rose dress');
