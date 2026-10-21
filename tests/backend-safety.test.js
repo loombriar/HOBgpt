@@ -166,3 +166,37 @@ test('partial refund webhook replay does not duplicate refund or reverse unrelat
   assert.equal(other.status,200);
   assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
 }));
+
+test('refund after completed seller payout reverses only the refunded seller transfer',()=>fixture(async({ctx,call,calls,setHandler})=>{
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers')return {id:'tr_maker_paid'};
+    if(endpoint==='transfers/tr_maker_paid/reversals')return {id:'trr_maker'};
+    if(endpoint==='refunds')return {id:'re_test',status:'succeeded'};
+    throw Error('Unexpected provider endpoint '+endpoint);
+  });
+  assert.equal((await call(release)).status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  assert.equal((await call(partial)).status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers/tr_maker_paid/reversals').length,1);
+  assert.equal(calls.filter(c=>c.endpoint.includes('transfer_other/reversals')).length,0);
+  await call(partial);
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers/tr_maker_paid/reversals').length,1);
+}));
+
+test('interrupted transfer response does not issue a second transfer on immediate retry',()=>fixture(async({call,calls,setHandler,ctx})=>{
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers')throw new Error('Stripe transfer response lost');
+    throw Error('Unexpected provider endpoint '+endpoint);
+  });
+  await call(release);
+  const first=calls.filter(c=>c.endpoint==='transfers');
+  assert.equal(first.length,1);
+  await call(release);
+  const attempts=calls.filter(c=>c.endpoint==='transfers');
+  if(attempts.length>1)assert.equal(attempts[0].request.idempotencyKey,attempts[1].request.idempotencyKey);
+  assert.ok(attempts.length<=2);
+  const row=ctx.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get();
+  assert.ok(row);
+}));
