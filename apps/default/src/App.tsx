@@ -15,6 +15,7 @@ const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
 const SellPage = lazy(() => import('@/pages/SellPage'));
+const FoundingSchoolsPage = lazy(() => import('@/pages/FoundingSchoolsPage'));
 const FashionPersonalityPage = lazy(() => import('@/pages/FashionPersonalityPage'));
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
@@ -47,6 +48,7 @@ function AppRoutes() {
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
       <Route path="/fashion-personality" element={<Section name="Fashion personality"><FashionPersonalityPage /></Section>} />
       <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
+      <Route path="/founding-schools" element={<Section name="Founding Schools"><FoundingSchoolsPage /></Section>} />
       <Route path="*" element={<main style={{ minHeight: "60vh", padding: "5rem 1.5rem", textAlign: "center" }}><h1>Page not found</h1><p>That page does not exist or may have moved.</p><a href="/shop">Explore the shop</a></main>} />
     </Routes>
   </BrowserRouter>;
