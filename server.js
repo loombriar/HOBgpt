@@ -2737,7 +2737,8 @@ function createApp(options = {}) {
           }
         }
       }
-      if(results.checked)log('info','donation_badges_reconciled',results);
+      results.paypal = await paypalDonationRecovery.reconcile();
+      if(results.checked || results.paypal.checked)log('info','donation_badges_reconciled',results);
       return results;
     }finally{donationReconciliationRunning=false;}
   }
@@ -2871,12 +2872,13 @@ function createApp(options = {}) {
     if(paypalTokenCache.token && Date.now()<paypalTokenCache.expiresAt-60000)return paypalTokenCache.token;
     const clientId=process.env.PAYPAL_CLIENT_ID,secret=process.env.PAYPAL_CLIENT_SECRET;
     if(!clientId||!secret)throw Object.assign(new Error('PayPal is not configured.'),{statusCode:503});
-    const response=await fetch(paypalBaseUrl()+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+Buffer.from(clientId+':'+secret).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
+    const response=await fetch(paypalBaseUrl()+'/v1/oauth2/token',{signal:AbortSignal.timeout(30000),method:'POST',headers:{Authorization:'Basic '+Buffer.from(clientId+':'+secret).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
     const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_auth_failed',{status:response.status,providerMessage:String(data?.error_description||'').slice(0,300)});throw Object.assign(new Error('Payment provider authentication failed.'),{statusCode:502,code:'payment_provider_unavailable'});}
     paypalTokenCache={token:data.access_token,expiresAt:Date.now()+Number(data.expires_in||300)*1000};return data.access_token;
   }
   async function paypalApi(path,{method='GET',body,idempotencyKey}={}){
-    const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
+    if (options.paypalApi) return options.paypalApi(path,{method,body,idempotencyKey});
+    const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{signal:AbortSignal.timeout(30000),method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
     const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_api_failed',{path,status:response.status,providerMessage:String(data?.details?.[0]?.description||data?.message||'').slice(0,300)});throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});}return data;
   }
   function paypalApprovalUrl(order){return order?.links?.find(link=>link.rel==='payer-action'||link.rel==='approve')?.href||null;}
@@ -2887,7 +2889,7 @@ function createApp(options = {}) {
     return {buyerSubject,buyerEmail};
   }
   function paypalExperience(origin,kind,id){
-    const success=kind==='donation'?origin+'/?donation=paypal-success&paypal_order_id='+encodeURIComponent(id):origin+'/?checkout=paypal-success&paypal_order_id='+encodeURIComponent(id);
+    const success=kind==='donation'?origin+'/?donation=paypal-success':origin+'/?checkout=paypal-success&paypal_order_id='+encodeURIComponent(id);
     const cancel=kind==='donation'?origin+'/?donation=canceled':origin+'/?checkout=canceled';
     return {brand_name:'House of Briar',user_action:'PAY_NOW',return_url:success,cancel_url:cancel,shipping_preference:kind==='order'?'GET_FROM_FILE':'NO_SHIPPING'};
   }
@@ -2899,8 +2901,10 @@ function createApp(options = {}) {
     try{const amountCents=Math.round(Number(req.body?.amount)*100);if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');const {buyerSubject,buyerEmail}=await paypalBuyerIdentity(req);const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);db.prepare("INSERT INTO donations (id,buyer_subject,buyer_email,amount_cents,currency,status,created_at,payment_provider) VALUES (?,?,?,?,'usd','pending',?,'paypal')").run(id,buyerSubject,buyerEmail,amountCents,now);
       const pp=await paypalApi('/v2/checkout/orders',{method:'POST',idempotencyKey:'hob-paypal-donation-'+id,body:{intent:'CAPTURE',purchase_units:[{reference_id:id,custom_id:id,description:'Support House of Briar',amount:{currency_code:'USD',value:(amountCents/100).toFixed(2)}}],payment_source:{paypal:{experience_context:paypalExperience(origin,'donation',id)}}}});db.prepare('UPDATE donations SET paypal_order_id=? WHERE id=?').run(pp.id,id);return res.status(201).json({donationId:id,paypalOrderId:pp.id,url:paypalApprovalUrl(pp)});}catch(error){next(error);}
   });
+  const paypalDonationRecovery = require('./paypal-donation-recovery').registerPayPalDonationRecovery({app,db,paypalApi,donationBadgeSubject,awardBadge});
   app.post('/api/paypal/donations/capture',requireDesignerRequestOrigin,checkoutLimiter,async(req,res,next)=>{
-    try{const paypalOrderId=String(req.body?.paypalOrderId||'');const donation=db.prepare("SELECT * FROM donations WHERE paypal_order_id=? AND payment_provider='paypal'").get(paypalOrderId);if(!donation)return fail(res,404,'not_found','PayPal donation not found.');const pp=await paypalApi('/v2/checkout/orders/'+encodeURIComponent(paypalOrderId)+'/capture',{method:'POST',idempotencyKey:'hob-paypal-donation-capture-'+donation.id});const capture=pp.purchase_units?.[0]?.payments?.captures?.[0],amount=capture?.amount||pp.purchase_units?.[0]?.amount,cents=Math.round(Number(amount?.value)*100);if(pp.status!=='COMPLETED'||String(amount?.currency_code||'').toLowerCase()!=='usd'||cents!==donation.amount_cents)throw Object.assign(new Error('PayPal donation payment does not match.'),{statusCode:409});if(donation.status!=='paid'){const email=paypalPayerEmail(pp);db.prepare("UPDATE donations SET status='paid',paid_at=?,buyer_email=COALESCE(buyer_email,?),paypal_capture_id=? WHERE id=?").run(new Date().toISOString(),email,capture?.id||null,donation.id);const subject=donationBadgeSubject(donation,email);if(subject&&donation.amount_cents>=500)awardBadge(subject,'supporter','donation',donation.id);}return res.json({status:'paid'});}catch(error){next(error);}
+    try { return res.json(await paypalDonationRecovery.recover(String(req.body?.paypalOrderId||''))); }
+    catch(error) { next(error); }
   });
 
   app.post('/api/checkout/session', requireDesignerRequestOrigin, checkoutLimiter, async (req, res, next) => {

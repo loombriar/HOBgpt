@@ -57,11 +57,12 @@ function showCheckoutReturnStatus() {
   if (checkout === 'success') notice.textContent = 'Thank you. Your payment was submitted. Bank payments may remain pending until Stripe confirms they have cleared.';
   else if (checkout === 'canceled') notice.textContent = 'Checkout was canceled. Your payment was not completed.';
   else if (donation === 'success') notice.textContent = 'Thank you for supporting House of Briar. Bank donations may remain pending until Stripe confirms they have cleared.';
+  else if (donation === 'pending' || donation === 'paypal-success') notice.textContent = 'Your PayPal donation is awaiting confirmation. Please do not pay again; we will check its status automatically.';
   else notice.textContent = 'Your donation checkout was canceled.';
   document.body.prepend(notice);
   history.replaceState({}, '', window.location.pathname + window.location.hash);
 }
-window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
+window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('token')||params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{const result=await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation',result.status==='paid'?'success':'pending');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
 
 const byId = (id) => document.getElementById(id);
 const year = byId('year');
