@@ -1,3 +1,4 @@
+import { readCheckoutSnapshot as readSnapshot, type CheckoutSnapshot } from '@/lib/checkout-snapshot';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
 import ShippingSummary from '@/components/ShippingSummary';
 import { useShippingQuote } from '@/lib/shipping';
@@ -11,9 +12,6 @@ import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 import { trackCommerceEvent } from '@/lib/analytics';
 
-type SnapshotItem = { id: string; name: string; amount: number; quantity: number };
-type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number };
-
 const CART_KEY = 'house-of-briar:cart';
 const PENDING_KEY = 'house-of-briar:checkout-pending';
 
@@ -23,15 +21,6 @@ function readCartIds(): string[] {
     return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
-  }
-}
-
-function readSnapshot(): CheckoutSnapshot | null {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(PENDING_KEY) ?? 'null') as CheckoutSnapshot | null;
-    return value && Array.isArray(value.ids) && Array.isArray(value.items) ? value : null;
-  } catch {
-    return null;
   }
 }
 
