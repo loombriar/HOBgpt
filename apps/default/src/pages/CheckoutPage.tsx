@@ -1,3 +1,4 @@
+import { readCartIds } from '@/lib/cart-storage';
 import { readCheckoutSnapshot as readSnapshot, type CheckoutSnapshot } from '@/lib/checkout-snapshot';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
 import ShippingSummary from '@/components/ShippingSummary';
@@ -14,15 +15,6 @@ import { trackCommerceEvent } from '@/lib/analytics';
 
 const CART_KEY = 'house-of-briar:cart';
 const PENDING_KEY = 'house-of-briar:checkout-pending';
-
-function readCartIds(): string[] {
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(CART_KEY) ?? '[]');
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
 
 export default function CheckoutPage() {
   const auth = useAuth();

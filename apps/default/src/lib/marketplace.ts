@@ -1,3 +1,4 @@
+import { readProductIds } from './product-id-storage';
 import { type GenesisNode } from '@/lib/genesis-data';
 
 export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
@@ -117,14 +118,7 @@ export function getProductImages(imageUrl?: string | null, galleryUrls?: string 
 export const SAVED_PRODUCTS_KEY = 'house-of-briar:saved-products';
 
 export function getSavedProductIds() {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(SAVED_PRODUCTS_KEY);
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readProductIds(SAVED_PRODUCTS_KEY);
 }
 
 export function setSavedProductIds(ids: string[]) {
@@ -137,7 +131,8 @@ export async function getPersistentFavoriteIds(accessToken?: string | null) {
   if (!accessToken) return getSavedProductIds();
   const guestIds = getSavedProductIds();
   if (guestIds.length) {
-    await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    const mergeResponse=await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    if(!mergeResponse.ok) throw new Error('Saved pieces could not be transferred. Please try again.');
   }
   const response=await fetch('/api/my/favorites',{headers:{...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}),Accept:'application/json'}});
   if(!response.ok) throw new Error('Saved pieces could not be loaded.');
