@@ -53,7 +53,7 @@ export default function ProductPage() {
     const refreshCart = () => {
       try {
         const value = readCartIds();
-        setInCart(Boolean(resolvedProductId) && value.includes(resolvedProductId!));
+        setInCart(typeof resolvedProductId === 'string' && value.includes(resolvedProductId));
       } catch { setInCart(false); }
     };
     refreshCart();
