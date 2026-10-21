@@ -1818,6 +1818,7 @@ function createApp(options = {}) {
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   require('./lib/founding-schools').installFoundingSchools({app,db,authAdmin,requireAdminRequestOrigin,rateLimit});
+  require('./lib/general-founders').installGeneralFounders({app,db,authAdmin,requireAdminRequestOrigin});
   app.use(customerRouter);
   const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
   const reconcileSpecialDeposits=()=>specialDepositReview.reconcile();
