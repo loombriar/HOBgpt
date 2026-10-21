@@ -200,3 +200,36 @@ test('interrupted transfer response does not issue a second transfer on immediat
   const row=ctx.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get();
   assert.ok(row);
 }));
+
+test('pending refund survives process restart and replay keeps a single provider refund',()=>fixture(async({ctx,options,call,calls,setHandler})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:{id:'unused'});
+  assert.equal((await call(full)).status,200);
+  const before=ctx.db.prepare("SELECT id,status,stripe_refund_id FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+  assert.equal(before.status,'pending');
+  const reopened=createApp(options);
+  try{
+    const after=reopened.db.prepare("SELECT id,status,stripe_refund_id FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+    assert.deepEqual(after,before);
+    assert.equal(reopened.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get().status,'pending');
+  }finally{reopened.db.close();}
+  assert.equal((await call(full)).status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal((await call(release)).body.results[0].reason,'refund_hold');
+}));
+
+test('refund webhook arriving after restart resolves persisted pending refund once',()=>fixture(async({ctx,options,call,webhook,setHandler,calls})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:{id:'unused'});
+  assert.equal((await call(partial)).status,200);
+  const reopened=createApp(options);
+  try{
+    assert.equal(reopened.db.prepare("SELECT status FROM order_refunds WHERE order_id='order' AND scope='maker'").get().status,'pending');
+  }finally{reopened.db.close();}
+  const live={id:'re_test',status:'succeeded',payment_intent:'pi_test',currency:'usd',amount:4000};
+  setHandler(async()=>live);
+  assert.equal((await webhook('evt_restart_refund')).status,200);
+  const row=ctx.db.prepare("SELECT status FROM order_refunds WHERE order_id='order' AND scope='maker'").get();
+  assert.equal(row.status,'succeeded');
+  const n=calls.length;
+  assert.equal((await webhook('evt_restart_refund')).status,200);
+  assert.equal(calls.length,n);
+}));
