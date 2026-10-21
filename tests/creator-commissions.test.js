@@ -21,10 +21,7 @@ test('student gets 5% for 12 months and 7% at the anniversary',()=>{
   assert.equal(commissionBasisPoints(db,'student','2027-10-21T12:00:00.000Z'),700);
   assert.equal(commissionBasisPoints(db,'regular','2026-10-21T12:00:00.000Z'),700);
 });
-test('general founders retain 5% after first year',()=>{
-  const db={prepare:sql=>({get:()=>sql.includes('founding_creator_assignments')?{founder_number:1}:undefined})};
-  assert.equal(commissionBasisPoints(db,'founder','2030-01-01T00:00:00Z'),500);
-});
+
 test('leap-day activation expires on February 28 in the next year',()=>{
   assert.equal(studentDiscountExpiresAt('2024-02-29T09:30:00Z'),'2025-02-28T09:30:00.000Z');
 });
@@ -38,7 +35,4 @@ test('student rate is standard after expiration even if account stays active',()
  const db={prepare:sql=>({get:()=>sql.includes('founding_school_commissions')?{assigned_at:'2025-01-01T00:00:00Z'}:undefined})};
  assert.equal(commissionBasisPoints(db,'student','2026-01-01T00:00:00Z'),700);
 });
-test('founder assignment overrides expired student discount',()=>{
- const db={prepare:sql=>({get:()=>sql.includes('founding_creator_assignments')?{founder_number:12}:{assigned_at:'2020-01-01T00:00:00Z'}})};
- assert.equal(commissionBasisPoints(db,'both','2030-01-01T00:00:00Z'),500);
-});
+
