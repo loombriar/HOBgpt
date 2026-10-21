@@ -1,3 +1,4 @@
+import { readCartIds } from '@/lib/cart-storage';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
 import ShippingSummary from '@/components/ShippingSummary';
 import { useShippingQuote } from '@/lib/shipping';
@@ -16,15 +17,6 @@ type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number
 
 const CART_KEY = 'house-of-briar:cart';
 const PENDING_KEY = 'house-of-briar:checkout-pending';
-
-function readCartIds(): string[] {
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(CART_KEY) ?? '[]');
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
 
 function readSnapshot(): CheckoutSnapshot | null {
   try {
