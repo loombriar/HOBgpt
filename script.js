@@ -2326,6 +2326,8 @@ async function renderAdminOverview(pendingItems) {
 }
 
 async function loadDesignerBrand() {
+  const pageLink=byId('designer-view-page');
+  if(pageLink){pageLink.classList.add('hidden');pageLink.removeAttribute('href');}
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
     designerReadinessState.profile=designer;renderSellerReadiness();
@@ -2339,6 +2341,7 @@ async function loadDesignerBrand() {
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
     if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
+    if(pageLink&&designer.id){pageLink.href='/designers/'+encodeURIComponent(designer.id);pageLink.classList.remove('hidden');}
     await loadHouseStudio(designer.id);
     const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
     if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
