@@ -6,7 +6,7 @@ const express=require('express');
 const {installFoundingSchools}=require('../lib/founding-schools');
 const {commissionBasisPoints}=require('../lib/creator-commissions');
 
-test('founder schema and 12-month student commission work with real SQLite',()=>{
+test('student schema and 12-month student commission work with real SQLite',()=>{
  const db=new Database(':memory:');
  try{
    db.exec('CREATE TABLE designer_profiles (id TEXT PRIMARY KEY)');
@@ -49,6 +49,22 @@ test('application review and assignment enforce roles and recheck graduation win
   assert.equal(await listApplications('viewer'),403);
   assert.equal(await listApplications('operator'),200);
   assert.equal(await listApplications('owner'),200);
+  // Public endpoints must never reveal application totals or private applicant records.
+  const publicPaths=['/','/stats','/applications','/applications/count','/admin/stats'];
+  for(const path of publicPaths){
+   const response=await fetch(base+path);
+   const body=await response.text();
+   assert.notEqual(response.status,200,'unexpected public listing at '+path);
+   assert.doesNotMatch(body,/student@example.com|grad@example.com|applicationCount|totalApplications|waitlistCount/i);
+  }
+  const privateList=await fetch(base+'/admin/applications',{headers:{'x-test-role':'owner'}});
+  assert.equal(privateList.status,200);
+  assert.ok(Array.isArray((await privateList.json()).applications));
+  assert.equal((await request('/admin/applications/not-found/review','operator',{status:'approved'})).status,404);
+  assert.equal((await request('/admin/applications/not-found/review','viewer',{status:'approved'})).status,403);
+  assert.equal((await request('/admin/applications/not-found/assign-creator','viewer',{creatorId:'creator-1',eligibilityVerified:true})).status,403);
+  assert.equal((await request('/admin/applications/not-found/assign-creator','operator',{creatorId:'creator-1',eligibilityVerified:true})).status,403);
+  assert.equal((await request('/admin/applications/not-found/assign-creator','owner',{creatorId:'creator-1',eligibilityVerified:true},'blocked')).status,403);
   const applied=await request('/applications',null,{kind:'student',name:'Recent Graduate',email:'grad@example.com',school:'Art College',academicStatus:'graduate',graduationDate:new Date().toISOString().slice(0,10)});
   assert.equal(applied.status,201);
   const id=applied.data.applicationId;
