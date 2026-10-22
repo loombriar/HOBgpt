@@ -35,6 +35,15 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.goto('/creative-house.html');
   await page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true}).click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Brand & profile',exact:true}).click();
+  const profile=page.locator('#designer-brand-form');
+  await expect(profile).toBeVisible();
+  await expect(profile).toBeInViewport();
+  await expect.poll(()=>profile.evaluate(el=>{
+    const bar=document.getElementById('hob-global-nav').getBoundingClientRect();
+    const heading=document.querySelector('#designer-modal .designer-room-header').getBoundingClientRect();
+    return el.getBoundingClientRect().top >= Math.max(bar.bottom,heading.bottom)-2;
+  })).toBe(true);
   const cookies=await page.context().cookies();expect(cookies.find(c=>c.name==='hob_designer_session').httpOnly).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('briarDesignerToken'))).toBeNull();
 });

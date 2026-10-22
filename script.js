@@ -1784,7 +1784,15 @@ function scrollRoomTarget(target, options = {}) {
   if (!target) return;
   for(let parent=target;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
   const dialog = target.closest('dialog[open]');
-  if (!dialog) { target.scrollIntoView(options); return; }
+  if (!dialog) {
+    if (target.closest('#designer-modal')) {
+      const bar = byId('hob-global-nav');
+      const roomHeader = document.querySelector('#designer-modal .designer-room-header');
+      const inset = (bar?.getBoundingClientRect().height || 0) + (roomHeader?.getBoundingClientRect().height || 0) + 16;
+      window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top + window.scrollY - inset),behavior:options.behavior || 'instant'});
+    } else target.scrollIntoView(options);
+    return;
+  }
   const header = dialog.querySelector('.dialog-header');
   const inset = header ? header.getBoundingClientRect().height : 0;
   const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
@@ -1910,7 +1918,7 @@ if (modalClose) modalClose.addEventListener('click', closeDesignerRoom);
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
-byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+byId('start-profile-setup')?.addEventListener('click', () => scrollRoomTarget(byId('designer-brand-form'),{ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
 syncHeaderDesignerAuth();
