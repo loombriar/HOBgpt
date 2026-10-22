@@ -31,6 +31,7 @@ test('AI support uses the signed-in cookie without a synthetic bearer credential
     await route.fulfill({json:{answer:'Policy-only test answer.',ticketId:null,actions:[]}});
   });
   await page.goto('/account#house-support-agent');
+  await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
   const support=page.locator('#house-support-agent');
   await support.getByLabel('Your question',{exact:true}).fill('Is US delivery free for shoppers?');
   await expect(support.getByRole('button',{name:'Ask House support',exact:true})).toBeDisabled();
