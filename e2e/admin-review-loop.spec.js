@@ -5,7 +5,10 @@ const {createApp,SELLER_TERMS_VERSION}=require('../server');
 let ctx,server,dataDir,origin;
 test.beforeAll(async()=>{
  dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-review-loop-'));
- ctx=createApp({dataDir,seedProducts:[],designerTokens:{'review-loop-designer-token':'review-maker'},adminToken:'review-loop-admin-token'});
+ ctx=createApp({dataDir,seedProducts:[],designerTokens:{'review-loop-designer-token':'review-maker'},adminToken:'review-loop-admin-token',stripeApi:async endpoint=>{
+  if(endpoint==='accounts/acct_fixture_review-maker')return {details_submitted:true,payouts_enabled:true,charges_enabled:true,requirements:{currently_due:[]}};
+  throw new Error('Unexpected Stripe fixture operation '+endpoint);
+ }});
  ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('review-maker',SELLER_TERMS_VERSION,new Date().toISOString(),'e2e-fixture');
  server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
  origin='http://127.0.0.1:'+server.address().port;
@@ -56,7 +59,19 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   piece=creator.locator('#listing-'+id);await piece.getByRole('checkbox').last().check();
   await piece.getByRole('button',{name:'Submit for review',exact:true}).click();await expect(piece).toContainText('Pending review');
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(false);
-  await page.reload();await expect(card).toContainText('Waist 30 in');await card.getByRole('button',{name:'Approve',exact:true}).click();await expect(card).toHaveCount(0);
+  await page.reload();await expect(card).toContainText('Waist 30 in');
+  const approvalResponse=()=>page.waitForResponse(response=>response.url()===origin+'/api/admin/listings/'+id+'/approve'&&response.request().method()==='POST');
+  let responsePromise=approvalResponse();
+  await card.getByRole('button',{name:'Approve',exact:true}).click();
+  const blocked=await responsePromise;expect(blocked.status()).toBe(409);
+  expect((await blocked.json()).error.code).toBe('payout_setup_required');
+  await expect(page.getByText('Designer must finish Stripe payout setup before this piece can go on sale.',{exact:true})).toBeVisible();
+  await expect(card).toBeVisible();
+  require('../tests/helpers/ready-seller')(ctx.db,'review-maker');
+  responsePromise=approvalResponse();
+  await card.getByRole('button',{name:'Approve',exact:true}).click();
+  const accepted=await responsePromise;expect(accepted.ok(),await accepted.text()).toBeTruthy();
+  await expect(card).toHaveCount(0);
   const approved=await(await creator.request.get('/api/my/designer-notifications')).json();expect(approved.items.some(n=>n.listingId===id&&n.title==='Listing approved'&&!n.readAt)).toBe(true);
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(true);
   await creator.reload();await expect(creator.locator('#listing-'+id)).toContainText('Live');
