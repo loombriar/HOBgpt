@@ -10,6 +10,9 @@ test('mobile designer signup verifies email before opening the room',async({page
     page.locator('#hob-global-nav').getByRole('link',{name:'Designer sign in',exact:true}).click()
   ]);
   await expect(page).toHaveURL(/designers\/room/);
+  await expect(page.locator('#designer-login-panel')).toBeInViewport();
+  await expect(page.locator('.briar-invitation')).not.toBeVisible();
+  await expect(page.locator('#creative-house-feature')).not.toBeVisible();
   const form=page.locator('#designer-signup-form');
   await form.getByLabel('Your name',{exact:true}).fill('Mobile Maker');
   await form.getByLabel('Designer or brand name',{exact:true}).fill('Mobile Atelier');
