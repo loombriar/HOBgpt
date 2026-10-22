@@ -1,7 +1,6 @@
 import { readProductIds } from './product-id-storage';
-import { type GenesisNode } from '@/lib/genesis-data';
+import { type CatalogItem } from '@/lib/catalog-fields';
 
-export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
 
 type GalleryItem = {
   id: string;
@@ -24,7 +23,7 @@ type GalleryItem = {
   productionType?: 'One of a Kind'|'Upcycled'|'Made in Multiple'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; availableQuantity?: number|null; soldQuantity?: number; reservedQuantity?: number;
 };
 
-function galleryItemToGenesis(item: GalleryItem): GenesisNode {
+function galleryItemToCatalog(item: GalleryItem): CatalogItem {
   const images = Array.isArray(item.images) ? item.images.map((image) => image.url).filter(Boolean) : [];
   return {
     id: item.id,
@@ -62,12 +61,12 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
   };
 }
 
-export async function getCatalogProducts(_isAuthenticated: boolean): Promise<GenesisNode[]> {
+export async function getCatalogProducts(_isAuthenticated: boolean): Promise<CatalogItem[]> {
   const response = await fetch('/api/gallery', { headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error('Marketplace gallery unavailable.');
   const data = await response.json();
   if (!Array.isArray(data?.items)) throw new Error('Marketplace gallery unavailable.');
-  return data.items.map(galleryItemToGenesis);
+  return data.items.map(galleryItemToCatalog);
 }
 export const DESIGNERS_PROJECT_ID = 'WEttcv6jabX2q9a9';
 export const PRIVATE_DESIGNER_LISTINGS_PROJECT_ID = 'QUQPuN1aFvGorkJ3';

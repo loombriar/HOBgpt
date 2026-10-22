@@ -45,65 +45,18 @@ test('OIDC never performs discovery from an attacker-controlled Host when APP_OR
   } finally { global.fetch = originalFetch; }
 });
 
-test('configured OIDC discovery uses the trusted origin and refuses discovery redirects', async () => {
+test('unknown bearer credentials cannot trigger external identity lookups', async () => {
   const originalFetch = global.fetch;
   const requests = [];
-  global.fetch = async (url, options) => {
-    requests.push({ url, options });
-    return { ok: false, status: 302 };
-  };
+  global.fetch = async url => { requests.push(url); throw new Error('Unexpected external identity lookup'); };
   try {
     await withApp({ appOrigin: 'https://trusted.example' }, async base => {
       const response = await localFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
+        headers: { Authorization: 'Bearer unrecognized-token', Host: 'trusted.example' }
       });
       assert.equal(response.status, 401);
     });
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].url, 'https://trusted.example/_genesis/auth/.well-known/openid-configuration');
-    assert.equal(requests[0].options.redirect, 'manual');
-  } finally { global.fetch = originalFetch; }
-});
-
-test('OIDC userinfo must match configured origin and cannot follow redirects', async () => {
-  const originalFetch = global.fetch;
-  const requests = [];
-  global.fetch = async (url, options) => {
-    requests.push({ url, options });
-    if (requests.length === 1) {
-      return { ok: true, status: 200, json: async () => ({ userinfo_endpoint: 'https://trusted.example/oidc/userinfo' }) };
-    }
-    return { ok: false, status: 302 };
-  };
-  try {
-    await withApp({ appOrigin: 'https://trusted.example' }, async base => {
-      const response = await localFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
-      });
-      assert.equal(response.status, 401);
-    });
-    assert.equal(requests.length, 2);
-    assert.equal(requests[1].url, 'https://trusted.example/oidc/userinfo');
-    assert.equal(requests[1].options.redirect, 'manual');
-    assert.match(requests[1].options.headers.Authorization, /^Bearer /);
-  } finally { global.fetch = originalFetch; }
-});
-
-test('OIDC rejects an off-origin userinfo endpoint before requesting it', async () => {
-  const originalFetch = global.fetch;
-  const requests = [];
-  global.fetch = async (url) => {
-    requests.push(url);
-    return { ok: true, status: 200, json: async () => ({ userinfo_endpoint: 'https://attacker.example/userinfo' }) };
-  };
-  try {
-    await withApp({ appOrigin: 'https://trusted.example' }, async base => {
-      const response = await localFetch(base + '/api/my/designer-profile', {
-        headers: { Authorization: 'Bearer unrecognized-oidc-token', Host: 'trusted.example' }
-      });
-      assert.equal(response.status, 401);
-    });
-    assert.equal(requests.length, 1);
+    assert.equal(requests.length, 0);
   } finally { global.fetch = originalFetch; }
 });
 

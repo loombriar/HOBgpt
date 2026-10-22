@@ -9,11 +9,12 @@ const { createApp, SELLER_TERMS_VERSION } = require('../server');
 
 async function fixture() {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-operational-events-'));
-  let ctx, trackingCalls=0, immediatelyVerified=false;
+  let ctx, trackingCalls=0, immediatelyVerified=false, carrierStatus='TRANSIT';
   const emails=[],stripeCalls=[];
   ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{seller:'designer-a'},adminToken:'admin',connectAccounts:{'designer-a':'acct_test'},
     sendEmail:async message=>{emails.push(message);return true;},
     verifyShipmentTracking:async(number,carrier)=>({id:`trk_${++trackingCalls}`,verified:immediatelyVerified,carrier,status:immediatelyVerified?'in_transit':'pre_transit'}),
+    fetch:async url=>({ok:true,json:async()=>({tracking_number:'1234567890',tracking_status:{status:carrierStatus},tracking_history:[{status_date:new Date().toISOString()}]})}),
     stripeApi:async endpoint=>{
       stripeCalls.push(endpoint);
       if(endpoint==='transfers')return {id:'tr_test'};
@@ -41,18 +42,16 @@ async function fixture() {
     return fetch(origin+'/api/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':`t=${t},v1=${signature}`},body:raw});
   };
   const trackingWebhook=async tracker=>{
-    const raw=JSON.stringify({object:'Event',description:'tracker.updated',result:tracker});
-    const t=new Date().toISOString(),signedPath='/api/easypost/webhook';
-    const signature=crypto.createHmac('sha256',process.env.EASYPOST_WEBHOOK_SECRET).update(t+'POST'+signedPath+raw).digest('hex');
-    return fetch(origin+signedPath,{method:'POST',headers:{'Content-Type':'application/json','x-timestamp':t,'x-path':signedPath,'x-hmac-signature-v2':signature},body:raw});
+    carrierStatus=tracker.status.toUpperCase();
+    return fetch(origin+'/api/shippo/webhook',{method:'POST',headers:{'Content-Type':'application/json','x-shippo-webhook-secret':process.env.SHIPPO_WEBHOOK_SECRET},body:JSON.stringify({event:'track_updated',data:{tracking_number:'1234567890',carrier:'usps'}})});
   };
   return {ctx,call,seed,stripeWebhook,trackingWebhook,emails,stripeCalls,get trackingCalls(){return trackingCalls;},setVerified(value){immediatelyVerified=value;},
     async close(){await new Promise(resolve=>server.close(resolve));ctx.db.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
 function envSecrets() {
-  const prior={STRIPE_WEBHOOK_SECRET:process.env.STRIPE_WEBHOOK_SECRET,EASYPOST_WEBHOOK_SECRET:process.env.EASYPOST_WEBHOOK_SECRET};
-  process.env.STRIPE_WEBHOOK_SECRET='whsec_coordination';process.env.EASYPOST_WEBHOOK_SECRET='tracking_coordination';
+  const prior={STRIPE_WEBHOOK_SECRET:process.env.STRIPE_WEBHOOK_SECRET,SHIPPO_WEBHOOK_SECRET:process.env.SHIPPO_WEBHOOK_SECRET,SHIPPO_API_KEY:process.env.SHIPPO_API_KEY};
+  process.env.STRIPE_WEBHOOK_SECRET='whsec_coordination';process.env.SHIPPO_WEBHOOK_SECRET='tracking_coordination';process.env.SHIPPO_API_KEY='shippo_live_fixture';
   return ()=>{for(const [key,value] of Object.entries(prior)){if(value===undefined)delete process.env[key];else process.env[key]=value;}};
 }
 
@@ -94,7 +93,7 @@ test('every payment path creates sale/shipment events without email and retries 
   } finally {await f.close();restore();}
 });
 
-test('tracking retries and carrier webhooks share one verified event and cannot reset a verified shipment',async()=>{
+test('tracking retries are idempotent and carrier notifications cannot authorize payouts',async()=>{
   const restore=envSecrets(),f=await fixture();
   try {
     for(const immediate of [false,true]) {
@@ -108,12 +107,12 @@ test('tracking retries and carrier webhooks share one verified event and cannot 
       const tracker={id:transfer.tracking_provider_id,status:'in_transit',tracking_details:[{status:'in_transit'}]};
       assert.equal((await f.trackingWebhook(tracker)).status,200);
       assert.equal((await f.trackingWebhook(tracker)).status,200);
-      assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',input)).status,200);
-      assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',{...input,trackingNumber:'different123'})).status,409);
+      assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',input)).status,immediate?200:202);
+      if(immediate)assert.equal((await f.call(`/api/orders/${id}/tracking`,'seller','POST',{...input,trackingNumber:'different123'})).status,409);
       const notices=f.ctx.db.prepare('SELECT type,event_key FROM designer_notifications WHERE order_id=? AND type LIKE ?').all(id,'tracking_%');
-      assert.equal(notices.filter(x=>x.type==='tracking_verified').length,1);
+      assert.equal(notices.filter(x=>x.type==='tracking_verified').length,immediate?1:0);
       assert.equal(notices.filter(x=>x.type==='tracking_submitted').length,immediate?0:1);
-      assert.ok(f.ctx.db.prepare('SELECT tracking_verified_at FROM designer_transfers WHERE id=?').get(transfer.id).tracking_verified_at);
+      assert.equal(Boolean(f.ctx.db.prepare('SELECT tracking_verified_at FROM designer_transfers WHERE id=?').get(transfer.id).tracking_verified_at),immediate);
     }
   } finally {await f.close();restore();}
 });
@@ -134,7 +133,7 @@ test('signed delivery updates continue after payout without repeating transfers 
     for(const status of ['out_for_delivery','delivered','delivered']) {
       const response=await f.trackingWebhook({id:before.tracking_provider_id,status,tracking_details:[{status}]});
       assert.equal(response.status,200);
-      assert.deepEqual(await response.json(),{received:true});
+      assert.equal((await response.json()).received,true);
       const after=f.ctx.db.prepare('SELECT * FROM designer_transfers WHERE id=?').get(before.id);
       assert.equal(after.tracking_status,status);
       assert.equal(after.status,'paid');

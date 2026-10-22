@@ -24,7 +24,7 @@ import DesignerNotifications, { type DesignerNotification } from '@/components/D
 import MeasurementProfiles from '@/components/MeasurementProfiles';
 import StudioPhotoPicker, { releaseStudioPhotoPreviews, type StudioPhoto } from '@/components/StudioPhotoPicker';
 import { MARKET_CATEGORIES, MARKET_STYLES, getPersistentFavoriteIds, getCatalogProducts } from '@/lib/marketplace';
-import { getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getTitle, type CatalogItem } from '@/lib/catalog-fields';
 
 type Promo={id:string;code:string;discountType:'percent'|'fixed';discountValue:number;active:boolean;useCount:number;revenueCents:number;discountCents:number};
 type StudioListing = { aesthetic?:string;studioStatus?:string; giftNoteAvailable?:boolean; expiredAt?:string|null; id:string; pausedByDesigner?:boolean; version:number; availableQuantity?:number|null; reservedQuantity?:number; soldQuantity?:number; title:string; description:string; price:number; category:string; style?:string; status:string; moderationStatus:string; moderationReason?:string|null; images:Array<{id:string;url:string}>; seoTitle?:string; seoDescription?:string; seoTags?:string; shareImageUrl?:string; shippingCostCents?:number|null; freeShippingThresholdCents?:number|null; handlingDaysMin?:number|null; handlingDaysMax?:number|null; internationalShipping?:boolean; availability?:'floor'|'backstock'; productionType?:'One of a Kind'|'Limited Quantity'|'Made to Order'; sku?:string; stockQuantity?:number; lowStockThreshold?:number; lowStock?:boolean };
@@ -112,7 +112,7 @@ function StudioContent() {
   const [purchases,setPurchases]=useState<BuyerOrder[]>([]);
   const [badges,setBadges]=useState<Array<{type:string;awardedAt:string}>>([]);
   const [donations,setDonations]=useState<Array<{id:string;amountCents:number;status:string;createdAt:string;badgeEligible:boolean}>>([]);
-  const [favoriteProducts,setFavoriteProducts]=useState<GenesisNode[]>([]);
+  const [favoriteProducts,setFavoriteProducts]=useState<CatalogItem[]>([]);
   const [designerInquiries,setDesignerInquiries]=useState<DesignerInquiry[]>([]);
   const [buyerInquiries,setBuyerInquiries]=useState<BuyerInquiry[]>([]);
   const [inquiryMessage,setInquiryMessage]=useState('');
