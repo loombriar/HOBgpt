@@ -980,20 +980,9 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    // OIDC discovery is a privileged outbound request: its target must be
-    // configured, never derived from an untrusted HTTP Host header.
-    const origin = configuredAppOrigin;
-    if (!origin) return null;
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`, { redirect: 'manual' });
-    if (!discovery.ok || (discovery.status >= 300 && discovery.status < 400)) return null;
-    const metadata = await discovery.json();
-    if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: 'manual'
-    });
-    if (!userInfo.ok || (userInfo.status >= 300 && userInfo.status < 400)) return null;
-    return userInfo.json();
+    // House sessions and configured credentials are authoritative. Unknown bearer
+    // credentials must not trigger requests to a retired external identity service.
+    return null;
   }
 
   function designerBadgeSubject(designerId) {
@@ -1521,71 +1510,6 @@ function createApp(options = {}) {
   const {createAnalyticsIngest,validateEvent:validateAnalyticsEvent}=require('./lib/analytics-ingest');
   const analyticsIngest=createAnalyticsIngest({db,dataDir,trustedAppOrigin,options:options.analyticsIngest||{}});
   app.use('/api/analytics/events',analyticsIngest.gate);
-
-  app.post('/api/easypost/webhook', express.raw({ type: 'application/json', limit: '64kb' }), async (req, res) => {
-    try {
-      const secret = process.env.EASYPOST_WEBHOOK_SECRET;
-      const timestamp = req.get('x-timestamp') || '';
-      const signedPath = req.get('x-path') || '';
-      const supplied = req.get('x-hmac-signature-v2') || '';
-      if (!secret || !timestamp || !signedPath || !supplied) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature headers are missing.' } });
-      }
-
-      // EasyPost HMAC v2 signs timestamp + uppercase method + x-path + exact raw body.
-      const sentAt = Date.parse(timestamp);
-      const now = Date.now();
-      if (!Number.isFinite(sentAt) || sentAt < now - 60_000 || sentAt > now + 30_000) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook timestamp is outside the allowed window.' } });
-      }
-      if (signedPath !== req.originalUrl) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook path does not match.' } });
-      }
-      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
-      const stringToSign = Buffer.concat([
-        Buffer.from(timestamp + req.method.toUpperCase() + signedPath, 'utf8'),
-        rawBody
-      ]);
-      const expected = crypto.createHmac('sha256', secret).update(stringToSign).digest('hex');
-      const signature = supplied.replace(/^hmac-sha256-hex=/i, '').toLowerCase();
-      if (!/^[a-f0-9]{64}$/.test(signature) || !safeEqual(expected, signature)) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid EasyPost webhook signature.' } });
-      }
-
-      let event;
-      try {
-        event = JSON.parse(rawBody.toString('utf8'));
-      } catch {
-        return res.status(400).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook body is not valid JSON.' } });
-      }
-      if (event?.object !== 'Event' || event?.description !== 'tracker.updated') return res.json({ received: true, ignored: true });
-
-      const tracker = event.result;
-      if (!tracker?.id) return res.json({ received: true, ignored: true });
-
-      const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
-      if (!transfer) return res.json({ received: true, ignored: true });
-
-      // Fulfillment continues after payout. Keep delivery status current without
-      // re-entering payout processing or sending another verification notice.
-      if (transfer.status === 'paid') {
-        db.prepare('UPDATE designer_transfers SET tracking_status = ? WHERE id = ?').run(tracker.status || 'unknown', transfer.id);
-        return res.json({ received: true });
-      }
-
-      const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
-      const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
-      const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
-      db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
-      if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Payout release also requires current Seller Terms acceptance.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
-      if (verifiedAt && payoutSellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
-      else if(verifiedAt)notifyDesigner(transfer.designer_id,'seller_terms_required','Seller Terms acceptance needed','Tracking is verified. Review and accept the current Seller Terms in your Designer’s Room before your held payout can be released.',{orderId:transfer.order_id,actionPath:'/designers/room',eventKey:`terms-hold:${transfer.id}:${SELLER_TERMS_VERSION}`});
-      return res.json({ received: true });
-    } catch (error) {
-      console.error('EasyPost webhook failed:', error);
-      return res.status(500).json({ error: { code: 'webhook_failed', message: 'Tracking update could not be processed.' } });
-    }
-  });
 
   // Shippo sends track_updated events. Treat the payload as a hint only:
   // independently retrieve tracking status from Shippo before updating any order.
@@ -2517,25 +2441,7 @@ function createApp(options = {}) {
       const verified=!testMode&&acceptedStatuses.has(status)&&hasCarrierEvent;
       return {verified,id:tracker.object_id||'',carrier:tracker.carrier||carrier,status:testMode?`test_${status}`:status};
     }
-    const apiKey = process.env.EASYPOST_API_KEY;
-    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in the testing environment.'), { statusCode: 503 });
-    const response = await fetch('https://api.easypost.com/v2/trackers', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ tracker: { tracking_code: trackingNumber, carrier } })
-    });
-    const tracker = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      log('error','easypost_api_failed',{status:response.status,providerMessage:String(tracker?.error?.message||'').slice(0,300)});
-      throw Object.assign(new Error('Carrier could not verify this tracking number.'), { statusCode: 422, code:'tracking_verification_failed' });
-    }
-    const acceptedStatuses = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
-    const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
-    const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
-    return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown' };
+    throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in this environment.'), { statusCode: 503 });
   }
 
   async function processDesignerTransfers(orderId, designerId, releaseReason = 'tracking_submitted') {
@@ -4598,10 +4504,6 @@ function createApp(options = {}) {
     let database = 'ok';
     try { db.prepare('SELECT 1').get(); } catch { database = 'error'; }
     const persistentStorageConfigured = Boolean(options.dataDir || process.env.DATA_DIR);
-    const directorDependencies = {
-      genesisAuth: 'external',
-      taskadeGateway: 'external'
-    };
     const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
       ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
     const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.RAILWAY_ENVIRONMENT_NAME === 'staging' || backupConfigured) && !adminConfigurationErrors.length));
@@ -4610,7 +4512,6 @@ function createApp(options = {}) {
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
     res.set('X-HOB-Offsite-Backup', backupConfigured ? 'configured' : 'missing');
     res.set('X-HOB-React-Build', hasReactBuild ? 'present' : 'absent');
-    res.set('X-HOB-Director-Dependencies', Object.keys(directorDependencies).join(','));
     return res.status(ready ? 200 : 503).json({ ok: ready });
   });
 

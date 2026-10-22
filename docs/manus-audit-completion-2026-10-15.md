@@ -16,7 +16,7 @@ The shared Manus replay stopped during integration; none of its later changes re
 | Missing TypeScript gate | Add supported no-emit configuration, fix highlighter token contracts and privacy-signal declarations, typecheck in CI. |
 | Shared signup count assertion | Assert exactly one fixture account for a unique test email and a nonzero dashboard daily count rather than a global absolute count. |
 | Fresh React PWA entry | Register the same network-only public offline fallback from React; add clean-profile `/shop` browser coverage. |
-| Unimplemented Taskade gateway | Replace the mounted widget with the existing House support route. No new external gateway is required for that support entry. |
+| Retired external automation gateway | Replace the mounted widget with the existing House support route. No new external gateway is required for that support entry. |
 
 ## Recovery limits and operator visibility
 

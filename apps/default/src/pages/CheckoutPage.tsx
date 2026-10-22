@@ -8,7 +8,7 @@ import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, BadgeCheck, CreditCard, LockKeyhole, ShieldCheck, Truck } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 import { trackCommerceEvent } from '@/lib/analytics';
@@ -24,7 +24,7 @@ export default function CheckoutPage() {
   const canceledOrderId = searchParams.get('order_id');
   const cancelToken = searchParams.get('cancel_token');
   const [cartIds, setCartIds] = useState<string[]>(readCartIds);
-  const [products, setProducts] = useState<GenesisNode[]>([]);
+  const [products, setProducts] = useState<CatalogItem[]>([]);
   const [snapshot] = useState<CheckoutSnapshot | null>(readSnapshot);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');

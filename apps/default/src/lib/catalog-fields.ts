@@ -1,22 +1,10 @@
-/**
- * Canonical field-access helpers for Genesis project rows - THE data path for generated
- * apps. Always read `fieldValues` through these helpers instead of indexing it directly;
- * they encode the gateway read contract:
- *
- * - `getNodes` returns EVERY row of the project as one FLAT array. In a flat database
- *   (the common case) every row has `parentId === null` - use the array as-is and NEVER
- *   filter by `parentId` to find data rows: `nodes.filter((n) => n.parentId !== null)`
- *   discards the entire database.
- * - Each field value is emitted under its stable field path (e.g. `/attributes/@statu`)
- *   AND, when the field's display name is unique, that name too (e.g. `Status`). Some
- *   fields emit under only one key form, so pass every key you know (display name first,
- *   then field path) and let the helper fall back. A bare field key (`@statu`) reads the
- *   field path `/attributes/@statu`, the same key form a write accepts.
- * - Values are serialized primitives - usually strings, but some field types (e.g.
- *   Rating) arrive as numbers. Use `getFieldNumber` for numeric fields instead of
- *   trusting `typeof` or calling `Number()` by hand.
- */
-import type { GenesisNode } from './client';
+// Local display adapter for House gallery responses.
+export interface CatalogItem {
+  id: string;
+  fieldValues: Record<string, string>;
+  parentId: string | null;
+  content?: string;
+}
 
 /**
  * Reads a field value with multi-key fallback: returns the value at the first key
@@ -27,7 +15,7 @@ import type { GenesisNode } from './client';
  * const status = getFieldValue(row, 'Status', '/attributes/@statu');
  * ```
  */
-export function getFieldValue(node: GenesisNode, ...fieldKeys: string[]): string | null {
+export function getFieldValue(node: CatalogItem, ...fieldKeys: string[]): string | null {
   for (const fieldKey of fieldKeys) {
     // Typed as string, but some field types serialize to number/boolean at runtime.
     // Rows are never keyed by a bare `@key`, only by its path, so a bare key that
@@ -51,7 +39,7 @@ export function getFieldValue(node: GenesisNode, ...fieldKeys: string[]): string
  * const kills = getFieldNumber(row, 'Kills', '/attributes/@kills') ?? 0;
  * ```
  */
-export function getFieldNumber(node: GenesisNode, ...fieldKeys: string[]): number | null {
+export function getFieldNumber(node: CatalogItem, ...fieldKeys: string[]): number | null {
   const raw = getFieldValue(node, ...fieldKeys);
   if (raw == null || raw.trim().length === 0) {
     // Guard: Number('') and Number('   ') are 0, not NaN.
@@ -75,7 +63,7 @@ export function getFieldNumber(node: GenesisNode, ...fieldKeys: string[]): numbe
  * const title = getTitle(row, 'Name', 'Title') ?? 'Untitled';
  * ```
  */
-export function getTitle(node: GenesisNode, ...titleFieldKeys: string[]): string | null {
+export function getTitle(node: CatalogItem, ...titleFieldKeys: string[]): string | null {
   // Check each key for a NON-BLANK value: `getFieldValue(node, ...keys)` stops at the
   // first *present* key, so a blank earlier key ('   ') would mask a later real title.
   for (const key of titleFieldKeys) {

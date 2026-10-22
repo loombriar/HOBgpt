@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, ShoppingBag, Trash2 } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import HouseShell from '@/components/HouseShell';
 import { trackCommerceEvent } from '@/lib/analytics';
 import { getCatalogProducts, getProductImages, money } from '@/lib/marketplace';
@@ -63,7 +63,7 @@ function EmptyBagCrickets() {
 
 export default function CartPage() {
   const auth = useAuth();
-  const [ids, setIds] = useState<string[]>([]); const [products, setProducts] = useState<GenesisNode[]>([]); const [searchParams] = useSearchParams();
+  const [ids, setIds] = useState<string[]>([]); const [products, setProducts] = useState<CatalogItem[]>([]); const [searchParams] = useSearchParams();
   const donationState = searchParams.get('donation');
   const [catalogLoading,setCatalogLoading]=useState(true);
   const [catalogError,setCatalogError]=useState('');
@@ -83,7 +83,7 @@ export default function CartPage() {
   const missingIds = useMemo(() => ids.filter(id => !products.some(product => product.id === id)), [ids, products]);
   const total = items.reduce((sum, item) => sum + (getFieldNumber(item, '@price', 'Price') ?? 0), 0);
   const shipments = useMemo(() => {
-    const groups = new Map<string, GenesisNode[]>();
+    const groups = new Map<string, CatalogItem[]>();
     items.forEach(item => { const designer=getFieldValue(item,'@desig','Designer') ?? 'Independent designer'; groups.set(designer,[...(groups.get(designer)??[]),item]); });
     return [...groups.entries()];
   }, [items]);

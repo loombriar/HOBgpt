@@ -61,7 +61,7 @@ npm run build
 
 Output is in `apps/default/dist`. For frontend development run `npm run dev`. This restores the build; it does not switch the Express server from its current root storefront to the React app or deploy either frontend.
 
-The React app still expects same-origin `/api/*` backend routes plus Taskade's `/_genesis/auth` and `/api/taskade/*` services for sign-in, chat, and inquiry flows. A standalone Vite preview does not provide those services. Verify those hosting integrations and real checkout, signup, chat, and inquiry delivery before launch. CI's gateway unit tests and production build do not establish end-to-end service readiness.
+The React marketplace uses same-origin House `/api/*` routes for cookie-based sign-in, support, listings, and checkout. Run the Express backend with the built frontend; a standalone Vite preview does not provide those services. Verify real signup, support delivery, and checkout before launch.
 
 The sample Jekyll deployment workflow has been removed. GitHub Pages cannot run this application's Express server, SQLite database, webhooks, or upload handling; deploy the backend to a Node.js host with persistent storage as described below.
 
@@ -98,13 +98,13 @@ House of Briar uses SQLite plus uploaded image files. Production hosting must pr
 
 Set `NODE_ENV=production` and configure `APP_ORIGIN` to the exact public HTTPS origin, for example `https://shop.example.com` with no path. The server intentionally refuses to start in production if this is missing or insecure.
 
-Configure secrets in the hosting provider rather than committing them: `ADMIN_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `EASYPOST_API_KEY`, `EASYPOST_WEBHOOK_SECRET`, and `RESEND_API_KEY`. Configure `RESEND_FROM_EMAIL` with a verified sending domain. Legacy `DESIGNER_TOKENS_JSON` and `DESIGNER_IDENTITY_MAP_JSON` should only be set when those compatibility mappings are actually required.
+Configure secrets in the hosting provider rather than committing them: `ADMIN_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SHIPPO_API_KEY`, `SHIPPO_WEBHOOK_SECRET`, and `RESEND_API_KEY`. Configure `RESEND_FROM_EMAIL` with a verified sending domain. Legacy `DESIGNER_TOKENS_JSON` and `DESIGNER_IDENTITY_MAP_JSON` should only be set when those compatibility mappings are actually required.
 
-Stripe must send its signed webhook to `/api/stripe/webhook`. EasyPost must send its signed webhook to `/api/easypost/webhook`. Use each provider's production webhook secret; do not reuse API keys as webhook secrets.
+Stripe sends signed callbacks to `/api/stripe/webhook`. Shippo sends tracking notifications to `/api/shippo/webhook`, authenticated with the dedicated `SHIPPO_WEBHOOK_SECRET` via the configured token query parameter or `x-shippo-webhook-secret` header. The server independently retrieves tracking status from Shippo; callbacks alone cannot release payouts. Keep webhook secrets separate from API keys.
 
 The built-in signup, report and customer-auth rate limits use the request IP. On Railway public HTTP ingress, the application reads the edge-overwritten `X-Real-IP` header to avoid grouping all shoppers under the reverse proxy address. Outside Railway, it uses the socket address and ignores forwarding headers. The app does **not** enable Express `trust proxy` globally or trust arbitrary `X-Forwarded-For` chains. Railway private-network requests bypass edge header sanitization: do not expose the same HTTP listener to untrusted private-network callers, because those callers can forge `X-Real-IP`. On another hosting provider, validate its proxy trust boundary before enabling client-IP header handling. The IP limit is an abuse-control heuristic, not a verified visitor identity.
 
-Before launch, run `npm ci` and `npm test`, verify the persistent volume survives a redeploy, complete a Stripe test-mode purchase/refund and Connect payout flow, verify EasyPost tracking updates, and confirm transactional email delivery. The separate marketplace frontend now installs, passes gateway contract tests, and builds. Verify the frontend/backend hosting connection and Taskade authentication, chat, and inquiry services before treating it as ready to launch.
+Before launch, run both backend and frontend checks, verify persistent storage survives redeployment, complete a Stripe sandbox purchase/refund and Connect payout flow, verify Shippo tracking, and confirm transactional email and House sign-in. Passing CI does not establish deployed provider readiness.
 
 ### Photo search
 
@@ -122,7 +122,7 @@ Listing inquiries allow the original item request plus the designer's Available/
 
 ### Railway frontend integration
 
-Build both applications with `npm ci && npm --prefix apps/default ci && npm --prefix apps/default run build`, then start with `npm start`. The original homepage and `/designers/room` remain the public storefront and House sign-in. React `/account` and `/shop` use the existing House designer credential only after `/api/my/designer-profile` validates it. The server advertises `house-token` mode through `/api/frontend-config`; House credentials never go to Taskade or URL parameters. Anonymous shoppers retain ordinary browsing and guest checkout. Cloud AI currently requires a validated House designer session on this Railway deployment; a separate visitor account provider is not configured.
+Build both applications with `npm ci && npm --prefix apps/default ci && npm --prefix apps/default run build`, then start with `npm start`. The original homepage and `/designers/room` remain the public storefront and House sign-in. React `/account` and `/shop` use the existing House designer credential only after `/api/my/designer-profile` validates it. The server advertises `house-token` mode through `/api/frontend-config`; House credentials stay in server-managed cookies and never go to external authentication services or URL parameters. Anonymous shoppers retain ordinary browsing and guest checkout. Cloud AI currently requires a validated House designer session on this Railway deployment; a separate visitor account provider is not configured.
 
 ### Designer signup alerts
 
