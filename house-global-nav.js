@@ -12,6 +12,15 @@
   }
   nav.classList.add('hob-global-nav');
   const links = nav.querySelector('nav');
+  const designerEntry = links.querySelector('a[href="/designers/room"]');
+  if (designerEntry) {
+    designerEntry.classList.add('hob-global-designer-link');
+    designerEntry.textContent = 'Designer sign in';
+    designerEntry.addEventListener('click', event => {
+      const openRoom = document.getElementById('designer-login-btn');
+      if (openRoom) { event.preventDefault(); openRoom.click(); }
+    });
+  }
   const creativeLink = links.querySelector('a[href="/creative-house.html"]');
   if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
     const menu = document.createElement('details');
@@ -114,6 +123,7 @@
     sessionCheckBusy = true;
     try {
       const responses = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
+      if (designerEntry) designerEntry.textContent = responses[0].ok ? 'Designer dashboard' : 'Designer sign in';
       if (responses.some(response => response.ok)) signout.hidden = false;
       else if (responses.every(response => [401,403,404].includes(response.status))) signout.hidden = true;
     } catch {} finally { sessionCheckBusy = false; }

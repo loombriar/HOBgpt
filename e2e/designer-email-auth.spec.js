@@ -2,7 +2,9 @@ const {test,expect}=require('@playwright/test');
 test('mobile designer signup verifies email before opening the room',async({page,request})=>{
   await page.setViewportSize({width:390,height:844});
   const email=`designer-mobile-${Date.now()}@example.test`;
-  await page.goto('/designers/room#designer-signup');
+  await page.goto('/');
+  await page.locator('#hob-global-nav').getByRole('link',{name:'Designer sign in',exact:true}).click();
+  await expect(page).toHaveURL(/designers\/room/);
   const form=page.locator('#designer-signup-form');
   await form.getByLabel('Your name',{exact:true}).fill('Mobile Maker');
   await form.getByLabel('Designer or brand name',{exact:true}).fill('Mobile Atelier');
@@ -17,6 +19,14 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.locator('#designer-code-form button[type=submit]').click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
+  await page.goto('/');
+  const dashboard=page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true});
+  await expect(dashboard).toBeVisible();
+  await dashboard.click();
+  await expect(page.locator('#designer-workspace')).toBeVisible();
+  await page.goto('/creative-house.html');
+  await page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true}).click();
+  await expect(page.locator('#designer-workspace')).toBeVisible();
   const cookies=await page.context().cookies();expect(cookies.find(c=>c.name==='hob_designer_session').httpOnly).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('briarDesignerToken'))).toBeNull();
 });

@@ -100,6 +100,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
           <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
+            <a href={auth.isAuthenticated && isDesigner ? '/account' : '/designers/room'} className="inline-flex min-h-10 items-center hover:underline">{auth.isAuthenticated && isDesigner ? 'Designer dashboard' : 'Designer sign in'}</a>
             <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
             <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
             <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
