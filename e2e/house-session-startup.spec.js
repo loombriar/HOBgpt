@@ -14,6 +14,6 @@ test('House browsing and cookie sign-in work without a frontend provider lookup'
     headers: { Authorization: 'Bearer e2e-designer-token', Origin: 'http://127.0.0.1:4173' }
   })).ok()).toBeTruthy();
   await page.reload();
-  await expect(page.getByRole('link', { name: 'View my page', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'View my page (opens in a new tab)', exact: true })).toBeVisible();
   expect(configRequests).toEqual([]);
 });
