@@ -3,7 +3,12 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.setViewportSize({width:390,height:844});
   const email=`designer-mobile-${Date.now()}@example.test`;
   await page.goto('/');
-  await page.locator('#hob-global-nav').getByRole('link',{name:'Designer sign in',exact:true}).click();
+  // The visible entry must navigate even when the retired header control cannot act.
+  await page.locator('#designer-login-btn').evaluate(button=>button.disabled=true);
+  await Promise.all([
+    page.waitForRequest(request=>request.isNavigationRequest()&&new URL(request.url()).pathname==='/designers/room'),
+    page.locator('#hob-global-nav').getByRole('link',{name:'Designer sign in',exact:true}).click()
+  ]);
   await expect(page).toHaveURL(/designers\/room/);
   const form=page.locator('#designer-signup-form');
   await form.getByLabel('Your name',{exact:true}).fill('Mobile Maker');

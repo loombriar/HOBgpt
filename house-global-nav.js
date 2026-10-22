@@ -16,10 +16,6 @@
   if (designerEntry) {
     designerEntry.classList.add('hob-global-designer-link');
     designerEntry.textContent = 'Designer sign in';
-    designerEntry.addEventListener('click', event => {
-      const openRoom = document.getElementById('designer-login-btn');
-      if (openRoom) { event.preventDefault(); openRoom.click(); }
-    });
   }
   const creativeLink = links.querySelector('a[href="/creative-house.html"]');
   if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
