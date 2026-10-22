@@ -18,7 +18,7 @@ cd android
 
 Subsequent builds: `npm run sync` from mobile. Do not run `cap add android` again if the native directory already exists.
 
-**Important:** The frontend depends on same-origin `/api/*` and Taskade authentication endpoints. A packaged `capacitor://localhost` / local HTTPS WebView origin is NOT the deployed backend origin. The native build can launch but **login, checkout, uploads, and external payment return are not yet guaranteed to work**. Before release, implement a reviewed API-origin strategy, cookie/CORS/CSRF and auth callback handling, Stripe browser/deep-link return, Android photo picker and Back navigation integration. Do not put server secrets in the app or disable WebView security. No production server URL is hardcoded.
+**Important:** The frontend depends on same-origin House `/api/*` and cookie-based authentication endpoints. A packaged `capacitor://localhost` / local HTTPS WebView origin is NOT the deployed backend origin. The native build can launch but **login, checkout, uploads, and external payment return are not yet guaranteed to work**. Before release, implement a reviewed API-origin strategy, cookie/CORS/CSRF and auth callback handling, Stripe browser/deep-link return, Android photo picker and Back navigation integration. Do not put server secrets in the app or disable WebView security. No production server URL is hardcoded.
 
 ## Release gates
 

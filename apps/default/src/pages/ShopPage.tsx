@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Heart, Search, SlidersHorizontal } from '@/lib/icons';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import HouseShell from '@/components/HouseShell';
 import VisualSearch from '@/components/VisualSearch';
 import { MARKET_STYLES, getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, isPublicProduct, getProductImages, getProductVisual, money, setPersistentFavorite } from '@/lib/marketplace';
@@ -60,7 +60,7 @@ function setLikedProductIds(ids: string[]) {
 }
 
 type ProductCardProps = {
-  product: GenesisNode;
+  product: CatalogItem;
   onLike: (productId: string) => void;
   liked: boolean;
   saved: boolean;
@@ -100,7 +100,7 @@ function ProductCard({ product, onLike, liked, saved, onSave }: ProductCardProps
 
 export default function ShopPage() {
   const auth = useAuth();
-  const [products, setProducts] = useState<GenesisNode[]>([]);
+  const [products, setProducts] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState('');
   const [query, setQuery] = useState('');
@@ -125,7 +125,7 @@ export default function ShopPage() {
   }, []);
   const categories = ['All pieces', ...taxonomy.departments.map(item=>item.value)];
   const presentation=searchParams.get('presentation')||'all', pattern=searchParams.get('pattern')||'all', availability=searchParams.get('availability')||'all';
-  const availabilityMatches=(item:GenesisNode,value:string)=>value==='all'||(value==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(getFieldValue(item,'@ptype','Production Type')||''):getFieldValue(item,'@ptype','Production Type')===value);
+  const availabilityMatches=(item:CatalogItem,value:string)=>value==='all'||(value==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(getFieldValue(item,'@ptype','Production Type')||''):getFieldValue(item,'@ptype','Production Type')===value);
   const count=(field:string,value:string)=>products.filter(item=>(getFieldValue(item,field,'')||'')===value).length;
 
   const visible = products.filter((product) => {

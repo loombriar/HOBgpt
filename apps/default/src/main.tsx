@@ -8,17 +8,14 @@ import './index.css';
 // declares (`--ring`, `--background`, `--foreground`). Every selector in there
 // is specificity 0, so import order never lets it beat an app's own styles.
 import './styles/genesis-base.css';
-import './lib/gateway-auth';
 import { ThemeProvider } from 'next-themes';
 import type { ReactNode } from 'react';
 import { StrictMode, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
-import { GenesisRoot } from './lib/genesis';
-import { setupThemeBridge } from './lib/theme-bridge';
+import { HouseBoundary } from './lib/house-boundary';
 
-setupThemeBridge();
 
 const rootElement = document.getElementById('root')!;
 
@@ -44,25 +41,6 @@ function appHasOwnThemeProvider(): boolean {
  * the preview access token). Published apps keep the default "theme" key.
  */
 function getThemeStorageKey(): string {
-  try {
-    const cookieMatch = document.cookie.match(/(?:^|;\s*)director-preview-access-token=([^;]+)/);
-    const token =
-      new URLSearchParams(window.location.search).get('accessToken') ??
-      window.sessionStorage.getItem('director-preview-access-token') ??
-      (cookieMatch ? cookieMatch[1] : null);
-    if (token != null) {
-      const segments = token.split('.');
-      const payloadSegment = segments.length === 3 ? segments[1] : null;
-      if (payloadSegment != null) {
-        const payload = JSON.parse(atob(payloadSegment.replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload != null && payload.appId != null) {
-          return `theme:${payload.spaceId}:${payload.appId}`;
-        }
-      }
-    }
-  } catch {
-    // Fall back to the shared key rather than break theming.
-  }
   try { if (!localStorage.getItem('house-of-briar-theme')) { const previous=localStorage.getItem('theme'); if(previous==='dark'||previous==='light')localStorage.setItem('house-of-briar-theme',previous); } } catch {}
   return 'house-of-briar-theme';
 }
@@ -121,10 +99,10 @@ function ThemeGate({ children }: { children: ReactNode }) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <GenesisRoot>
+    <HouseBoundary>
       <ThemeGate>
         <App />
       </ThemeGate>
-    </GenesisRoot>
+    </HouseBoundary>
   </StrictMode>,
 );

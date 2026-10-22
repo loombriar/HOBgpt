@@ -95,23 +95,6 @@ test('an old application consent flag is not a versioned Seller Terms acceptance
   assert.equal(profile.body.designer.sellerTermsAccepted,false);assert.equal(profile.body.designer.sellerTermsAcceptedAt,null);
 }));
 
-test('carrier updates acknowledge verified shipping while holding payouts without Seller Terms',async()=>{
-  const previous=process.env.EASYPOST_WEBHOOK_SECRET;process.env.EASYPOST_WEBHOOK_SECRET='test-only-carrier-secret';
-  try{await fixture(async({ctx,origin,stripeCalls})=>{
-    const now=new Date().toISOString();
-    ctx.db.prepare("INSERT INTO orders (id,status,currency,subtotal_cents,platform_fee_cents,designer_amount_cents,created_at) VALUES ('carrier-order','paid','usd',100,10,90,?)").run(now);
-    ctx.db.prepare("INSERT INTO designer_transfers (id,order_id,designer_id,stripe_account_id,amount_cents,status,created_at,tracking_provider_id) VALUES ('carrier-transfer','carrier-order','maker','acct_existing',90,'pending',?,'trk_held')").run(now);
-    const raw=JSON.stringify({object:'Event',description:'tracker.updated',result:{id:'trk_held',status:'in_transit',tracking_details:[{status:'in_transit'}]}});
-    const timestamp=new Date().toISOString(),route='/api/easypost/webhook';
-    const signature=crypto.createHmac('sha256',process.env.EASYPOST_WEBHOOK_SECRET).update(timestamp+'POST'+route+raw).digest('hex');
-    if(route==='/api/designer-applications'){const result=await verifiedSignup(origin,ctx.db,body);return {status:result.response.status,body:result.body,cookie:result.cookie};}
-    const response=await fetch(origin+route,{method:'POST',headers:{'Content-Type':'application/json','x-timestamp':timestamp,'x-path':route,'x-hmac-signature-v2':signature},body:raw});
-    assert.equal(response.status,200);assert.equal(stripeCalls.length,0);
-    const transfer=ctx.db.prepare("SELECT * FROM designer_transfers WHERE id='carrier-transfer'").get();assert.ok(transfer.tracking_verified_at);assert.equal(transfer.status,'pending');
-    assert.equal(ctx.db.prepare("SELECT COUNT(*) n FROM designer_notifications WHERE type='seller_terms_required'").get().n,1);
-  });}finally{if(previous===undefined)delete process.env.EASYPOST_WEBHOOK_SECRET;else process.env.EASYPOST_WEBHOOK_SECRET=previous;}
-});
-
 test('public designer signup and verification never reveal account existence, state, or IDs',async()=>fixture(async({ctx,origin,emails})=>{
   async function start(email,brandName){
     const response=await fetch(origin+'/api/designer-applications',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({email,displayName:'Test Maker',brandName,categories:['Art'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION})});

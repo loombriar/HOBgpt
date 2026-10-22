@@ -5,7 +5,6 @@
  * full mermaid library (~83 esbuild chunks for all diagram types).
  * Instead, mermaid is loaded on demand from esm.sh CDN.
  *
- * @see https://github.com/taskade/taskcade/issues/26056
  */
 
 const MERMAID_VERSION = "11.14.0";

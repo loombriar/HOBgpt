@@ -1,18 +1,41 @@
-// Isolated mobile review/resubmission journey rebased onto current main.
-// Admin review-form validation is already implemented on main; no UI patch needed.
 const {test,expect}=require('@playwright/test');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {once}=require('node:events');
+const {createApp,SELLER_TERMS_VERSION}=require('../server');
+let ctx,server,dataDir,origin;
+test.beforeAll(async()=>{
+ dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-review-loop-'));
+ ctx=createApp({dataDir,seedProducts:[],designerTokens:{'review-loop-designer-token':'review-maker'},adminToken:'review-loop-admin-token'});
+ ctx.db.prepare('INSERT INTO designer_terms_acceptances (designer_id,terms_version,accepted_at,acceptance_source) VALUES (?,?,?,?)').run('review-maker',SELLER_TERMS_VERSION,new Date().toISOString(),'e2e-fixture');
+ server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');
+ origin='http://127.0.0.1:'+server.address().port;
+});
+test.afterAll(async()=>{
+ if(server)await new Promise(resolve=>server.close(resolve));
+ if(ctx)ctx.db.close();
+ if(dataDir)fs.rmSync(dataDir,{recursive:true,force:true});
+});
+
 test('mobile review loop delivers feedback, resubmission and approval alerts',async({page,browser})=>{
- test.setTimeout(90000);await page.setViewportSize({width:390,height:844});
- const creatorContext=await browser.newContext({baseURL:'http://127.0.0.1:4173',extraHTTPHeaders:{Origin:'http://127.0.0.1:4173'},viewport:{width:390,height:844}}),creator=await creatorContext.newPage();
+ test.setTimeout(90000);page.setDefaultTimeout(10000);await page.setViewportSize({width:390,height:844});
+ const creatorContext=await browser.newContext({baseURL:origin,extraHTTPHeaders:{Origin:origin},viewport:{width:390,height:844}}),creator=await creatorContext.newPage();
+ creator.setDefaultTimeout(10000);
  let id;
  try{
-  expect((await creator.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
+  expect((await creator.request.post('/api/session',{headers:{Authorization:'Bearer review-loop-designer-token'}})).ok()).toBeTruthy();
   const created=await creator.request.post('/api/listings',{data:{title:'Review Loop Dress',price:75,category:'apparel',description:'A sample handmade dress',productionType:'One of a Kind'}});
   expect(created.ok(),await created.text()).toBeTruthy();id=(await created.json()).item.id;
   const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#af4763'}}).png().toBuffer();
-  const uploaded=await creator.request.post(`/api/listings/${id}/images`,{multipart:{clientImageKey:'review-loop-'+id,image:{name:'sample.png',mimeType:'image/png',buffer:image}}});expect(uploaded.ok(),await uploaded.text()).toBeTruthy();
+  const previousKey=process.env.OPENAI_API_KEY,realFetch=global.fetch;
+  process.env.OPENAI_API_KEY='review-loop-image-fixture';
+  global.fetch=(url,options)=>String(url)==='https://api.openai.com/v1/responses'
+   ? Promise.resolve(new Response(JSON.stringify({output_text:JSON.stringify({allow:true,needsHumanReview:false,reason:'Fixture product photo'})}),{status:200,headers:{'Content-Type':'application/json'}}))
+   : realFetch(url,options);
+  let uploaded;
+  try{uploaded=await creator.request.post(`/api/listings/${id}/images`,{multipart:{clientImageKey:'review-loop-'+id,image:{name:'sample.png',mimeType:'image/png',buffer:image}}});}finally{global.fetch=realFetch;if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;}
+  expect(uploaded.ok(),await uploaded.text()).toBeTruthy();
   expect((await creator.request.post(`/api/listings/${id}/submit`,{data:{marketplaceRulesAccepted:true}})).ok()).toBeTruthy();
-  await page.goto('/admin');await page.getByLabel('Admin access token').fill('e2e-admin-token');await page.getByRole('button',{name:'Open dashboard',exact:true}).click();
+  await page.goto(origin+'/admin');await page.getByLabel('Admin access token').fill('review-loop-admin-token');await page.getByRole('button',{name:'Open dashboard',exact:true}).click();
   const card=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Review Loop Dress',exact:true})});
   await expect(card).toBeVisible();
   await expect.poll(()=>card.locator('img').evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
@@ -29,7 +52,7 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   await creator.getByLabel('Garment measurements',{exact:true}).fill('Waist 30 in; length 40 in');
   await creator.getByRole('button',{name:'Save draft',exact:true}).click();
   await expect(creator.getByText('Draft saved. Submit it for review when it is ready.',{exact:true})).toBeVisible();
-  await creator.getByRole('navigation',{name:'Designer studio sections'}).getByRole('link',{name:'Listings',exact:true}).click();
+  await creator.getByRole('navigation',{name:'Designer studio sections'}).getByRole('link',{name:'My listings',exact:true}).click();
   piece=creator.locator('#listing-'+id);await piece.getByRole('checkbox').last().check();
   await piece.getByRole('button',{name:'Submit for review',exact:true}).click();await expect(piece).toContainText('Pending review');
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(false);
@@ -38,5 +61,5 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(true);
   await creator.reload();await expect(creator.locator('#listing-'+id)).toContainText('Live');
   for(const tab of [page,creator])expect(await tab.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
- }finally{if(id)await page.request.delete('/api/admin/listings/'+id,{headers:{Origin:'http://127.0.0.1:4173'}});await creatorContext.close();}
+ }finally{await creatorContext.close();}
 });

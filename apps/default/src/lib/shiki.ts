@@ -9,7 +9,6 @@
  *
  * This reduces the chunk count from 347 → 0.
  *
- * @see https://github.com/taskade/taskcade/issues/26056
  */
 
 import type { HighlighterCore } from "@shikijs/core";
