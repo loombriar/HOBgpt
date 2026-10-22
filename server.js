@@ -3524,9 +3524,10 @@ function createApp(options = {}) {
 
   app.get('/api/admin/listings/:listingId/images/:imageId/content', authAdmin, (req, res) => {
     const row = db.prepare(`
-      SELECT storage_key, mime_type
-      FROM listing_images
-      WHERE id = ? AND listing_id = ? AND upload_status = 'ready'
+      SELECT i.storage_key, i.mime_type, l.designer_id, l.paused_by_designer
+      FROM listing_images i
+      JOIN listings l ON l.id = i.listing_id
+      WHERE i.id = ? AND i.listing_id = ? AND i.upload_status = 'ready' AND l.status != 'deleted'
     `).get(req.params.imageId, req.params.listingId);
     if (!row || row.paused_by_designer || !db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id)) return fail(res, 404, 'not_found', 'Image not found.');
     res.type(row.mime_type);

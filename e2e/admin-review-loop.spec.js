@@ -10,7 +10,7 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   const created=await creator.request.post('/api/listings',{data:{title:'Review Loop Dress',price:75,category:'apparel',description:'A sample handmade dress',productionType:'One of a Kind'}});
   expect(created.ok(),await created.text()).toBeTruthy();id=(await created.json()).item.id;
   const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#af4763'}}).png().toBuffer();
-  expect((await creator.request.post(`/api/listings/${id}/images`,{multipart:{image:{name:'sample.png',mimeType:'image/png',buffer:image}}})).ok()).toBeTruthy();
+  const uploaded=await creator.request.post(`/api/listings/${id}/images`,{multipart:{clientImageKey:'review-loop-'+id,image:{name:'sample.png',mimeType:'image/png',buffer:image}}});expect(uploaded.ok(),await uploaded.text()).toBeTruthy();
   expect((await creator.request.post(`/api/listings/${id}/submit`,{data:{marketplaceRulesAccepted:true}})).ok()).toBeTruthy();
   await page.goto('/admin');await page.getByLabel('Admin access token').fill('e2e-admin-token');await page.getByRole('button',{name:'Open dashboard',exact:true}).click();
   const card=page.getByRole('article').filter({has:page.getByRole('heading',{name:'Review Loop Dress',exact:true})});
