@@ -26,7 +26,9 @@ for(const width of [390,1280]) {
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
-  await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(6);
+  await expect(page.locator('#designer-workspace > .designer-room-panel > summary')).toHaveText([
+   'Your path to selling', 'Your listings', 'Payout setup', 'Create or edit a piece', 'Brand & profile'
+  ]);
   await expect(page.locator('#product-form')).not.toBeVisible();
   await expect(page.locator('#designer-add-piece')).toBeVisible();
   expect(await page.locator('#designer-workspace').evaluate(el=>{
@@ -36,6 +38,8 @@ for(const width of [390,1280]) {
   await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.locator('#designer-add-piece').click();
   await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-form .fabric-finder-card')).toHaveCount(1);
+  await expect(page.locator('#designer-workspace > .fabric-finder-card')).toHaveCount(0);
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
   const checkbox=await page.locator('#product-international').boundingBox();
@@ -46,9 +50,9 @@ for(const width of [390,1280]) {
   await expect(page.locator('#product-photos')).toBeInViewport();
   await expect(page.locator('#product-name')).toBeVisible();
   for(const [id,value]of [['product-price','100'],['estimated-materials','20'],['estimated-labor-hours','2'],['estimated-hourly-pay','15'],['estimated-postage','8'],['estimated-packaging','2']])await page.locator('#'+id).fill(value);
-  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (9%): $9.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (7%): $7.00');
   await expect(page.locator('#pricing-estimate')).toContainText('Labor (hours × hourly pay): $30.00');
-  await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $31.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $33.00');
   await expect(page.locator('#product-price')).toHaveValue('100');
   await page.locator('#product-name').fill('Unsaved design');
   const panel=page.locator('.designer-room-panel').filter({has:page.locator('#product-form')});

@@ -15,6 +15,7 @@ const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
+const creatorCommissions = require('./lib/creator-commissions');
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -1740,6 +1741,7 @@ function createApp(options = {}) {
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  require('./lib/founding-schools').installFoundingSchools({app,db,authAdmin,requireAdminRequestOrigin,rateLimit});
   app.use(customerRouter);
   const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
   const reconcileSpecialDeposits=()=>specialDepositReview.reconcile();
@@ -1983,7 +1985,7 @@ function createApp(options = {}) {
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
     const acceptance=sellerTermsAcceptance(designer.id);
-    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,foundingBadge:foundingDesignerBadge(designer.id),displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
+    return res.json({designer:{id:designer.id,email:designer.email,commissionBasisPoints:creatorCommissions.commissionBasisPoints(db,designer.id),pendingEmail:designer.pending_email||null,foundingBadge:foundingDesignerBadge(designer.id),displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
   app.post('/api/my/seller-terms', authDesigner, (req,res) => {
@@ -2736,7 +2738,7 @@ function createApp(options = {}) {
       }
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
-      const platformFeeCents = Math.round(lineTotalCents * 0.09);
+      const platformFeeCents = creatorCommissions.platformCommissionCents(lineTotalCents, creatorCommissions.commissionBasisPoints(db, listing.designer_id));
       rows.push({ patternFormat:listing.category==='patterns'?(patterns.digital(listing)?'pdf':'paper'):null, giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
@@ -4606,7 +4608,7 @@ function createApp(options = {}) {
       res.set('Cache-Control', 'public, max-age=60');
       return res.type('html').send(html);
     });
-    app.get(['/shop','/designers','/cart','/admin','/sell'], sendFrontend);
+    app.get(['/shop','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
   for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });

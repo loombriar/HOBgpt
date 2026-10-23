@@ -48,6 +48,11 @@ test('named administrator roles enforce cookie and bearer permissions and audit 
     assert.equal((await request('/api/admin/support', 'GET', support)).status, 200);
     assert.equal((await request('/api/admin/support', 'GET', reviewer)).status, 403);
     assert.equal((await request('/api/admin/listings', 'GET', support)).status, 403);
+    assert.equal((await request('/api/founding-schools/admin/applications','GET',reviewer)).status,403);
+    assert.equal((await request('/api/founding-schools/admin/applications','GET',support)).status,403);
+    const schoolList=await request('/api/founding-schools/admin/applications','GET',{Authorization:'Bearer owner-person-test-token'});
+    assert.equal(schoolList.status,200);assert.equal(schoolList.headers.get('cache-control'),'no-store');
+
     // Reaching validation (404 for a nonexistent listing) proves a permitted write passes the role boundary.
     assert.equal((await request('/api/admin/listings/missing/approve', 'POST', reviewer)).status, 404);
     const created = await fetch(origin + '/api/listings', {

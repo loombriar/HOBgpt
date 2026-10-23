@@ -2338,7 +2338,7 @@ async function loadDesignerBrand() {
   if(pageLink){pageLink.classList.add('hidden');pageLink.removeAttribute('href');}
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
-    designerReadinessState.profile=designer;renderSellerReadiness();
+    designerReadinessState.profile=designer;renderSellerReadiness();renderDesignerPriceEstimate();
     const founding = byId('designer-founding-badge'); founding?.replaceChildren();
     if (designer.foundingBadge) founding?.append(createBadgePill('Founding Designer', 'badge founding-badge'));
     byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
@@ -2706,18 +2706,18 @@ function calculateDesignerPriceEstimate(values) {
   };
   const price=hundredths(values.price,1000000),materials=hundredths(values.materials,1000000),postage=hundredths(values.postage,1000000),packaging=hundredths(values.packaging,1000000),hours=hundredths(values.hours,10000),rate=hundredths(values.rate,1000000);
   if([price,materials,postage,packaging,hours,rate].some(value=>value===null)||price<=0)return null;
-  const fee=Math.round(price*.09),earnings=price-fee,labor=Math.round(hours*rate/100);
+  const fee=Math.round(price*(values.basisPoints===500?500:700)/10000),earnings=price-fee,labor=Math.round(hours*rate/100);
   return {price,fee,earnings,materials,labor,postage,packaging,remaining:earnings-materials-labor-postage-packaging};
 }
 function renderDesignerPriceEstimate() {
   const output=byId('pricing-estimate');if(!output)return;
   const fields={price:'product-price',materials:'estimated-materials',hours:'estimated-labor-hours',rate:'estimated-hourly-pay',postage:'estimated-postage',packaging:'estimated-packaging'};
   const inputs=Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,byId(id)]));
-  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate(Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])));
+  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate({...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])),basisPoints:designerReadinessState.profile?.commissionBasisPoints});
   output.replaceChildren();
   if(!estimate){output.textContent='Enter a price above $0 and valid nonnegative costs (up to two decimal places) to see your estimate.';return;}
   const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
-  for(const [label,value]of [['House of Briar fee (9%)',estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
+  for(const [label,value]of [[`House of Briar fee (${designerReadinessState.profile?.commissionBasisPoints===500?5:7}%)`,estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
   if(estimate.remaining<0)output.append(makeElement('p','','This price does not cover all the costs entered.'));
 }
 for(const id of ['product-price','estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
