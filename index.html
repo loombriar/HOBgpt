@@ -28,7 +28,7 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=designer-shortcuts-20261022" defer></script>
+    <script src="/script.js?v=listing-fabric-20261023" defer></script>
     <script src="/passkey-vendor.js" defer></script>
     <script src="/passkey-client.js" defer></script>
 
@@ -81,7 +81,7 @@ html[data-hob-theme="dark"] :is(h1,h2,h3,h4,p,li,small,label){color:inherit}
 html[data-hob-theme="dark"] :is(.product-card,.listing-card,.card,.hob-creator-spotlight-grid>a,article){background-color:#2b3031!important;color:#eee8dc!important;border-color:#515657!important}
 html[data-hob-theme="dark"] :is(input,select,textarea,dialog){background-color:#2b3031!important;color:#eee8dc!important;border-color:#686e6d!important}
 html[data-hob-theme="dark"] :is(a,button){color:inherit}
-</style><link rel="stylesheet" href="/briar-makeover.css?v=dark-contrast-20261012"><link rel="stylesheet" href="/customer-edit.css?v=house-remodel-20261015"><link rel="stylesheet" href="/house-remodel.css?v=nested-shop-filters-20261015"><link rel="stylesheet" href="/briar-campaign.css?v=faint-lower-20261016"><style id="prominent-header-signout-style">
+</style><link rel="stylesheet" href="/briar-makeover.css?v=dark-contrast-20261012"><link rel="stylesheet" href="/customer-edit.css?v=nav-wrap-20261023"><link rel="stylesheet" href="/house-remodel.css?v=nested-shop-filters-20261015"><link rel="stylesheet" href="/briar-campaign.css?v=faint-lower-20261016"><style id="prominent-header-signout-style">
 /* Persistent, thumb-sized sign-out action for signed-in designers and Play reviewers. */
 #header-signout-btn.header-signout-prominent:not([hidden]) {
   position: static !important;
@@ -533,6 +533,19 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
                 <option value="Paisley">Paisley</option><option value="Abstract">Abstract</option><option value="Botanical">Botanical</option><option value="Novelty">Novelty</option>
                 <option value="Tie-Dye">Tie-Dye</option><option value="Color Block">Color Block</option><option value="Mixed Print">Mixed Print</option><option value="Other">Other</option>
               </select>
+        <details class="fabric-finder-card" aria-labelledby="fabric-finder-title">
+          <summary>Fabric Finder · help identify materials</summary>
+          <h3 id="fabric-finder-title">Fabric Finder</h3>
+          <p>Get a visual fabric estimate, possible uses and care suggestions from 1–3 photos.</p>
+          <div id="fabric-finder-form" class="stack-form">
+            <label for="fabric-finder-photos">Fabric photos</label>
+            <input id="fabric-finder-photos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple />
+            <p class="small-print">JPEG, PNG or WebP. Photos are sent to OpenAI after image metadata is removed. Use photos you own or have permission to share. Estimates cannot confirm exact fiber content.</p>
+            <button id="fabric-finder-submit" class="secondary-button" type="button">Identify fabric</button>
+          </div>
+          <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
+          <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
+        </details>
               <label for="product-materials">Materials</label>
               <textarea id="product-materials" name="materials" maxlength="500" rows="2" placeholder="e.g. 100% linen; cotton lining"></textarea>
               <label for="product-care">Care instructions</label>
@@ -612,19 +625,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           </div>
           <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
         </details>
-        <section class="fabric-finder-card" aria-labelledby="fabric-finder-title">
-          <p class="eyebrow">Designer tool</p>
-          <h3 id="fabric-finder-title">Fabric Finder</h3>
-          <p>Get a visual fabric estimate, possible uses and care suggestions from 1–3 photos.</p>
-          <form id="fabric-finder-form" class="stack-form">
-            <label for="fabric-finder-photos">Fabric photos</label>
-            <input id="fabric-finder-photos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple required />
-            <p class="small-print">JPEG, PNG or WebP. Photos are sent to OpenAI after image metadata is removed. Use photos you own or have permission to share. Estimates cannot confirm exact fiber content.</p>
-            <button id="fabric-finder-submit" class="secondary-button" type="submit">Identify fabric</button>
-          </form>
-          <p id="fabric-finder-message" class="form-message" role="status" aria-live="polite"></p>
-          <div id="fabric-finder-result" class="fabric-finder-result hidden"></div>
-        </section>
+
         <details id="designer-settings" class="designer-settings-card">
           <summary>Designer settings</summary><div data-passkey-manage="designer"></div><p><a href="/sewing-services.html#designer-services">Manage custom wedding dresses &amp; other designer services ↗</a> · <a href="/pattern-studio.html">Sell sewing patterns ↗</a></p>
           <form id="designer-settings-form" class="stack-form">
