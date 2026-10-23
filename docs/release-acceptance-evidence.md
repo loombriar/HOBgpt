@@ -49,3 +49,18 @@ For every remaining gate record tester, date/time, environment, commit SHA, test
 - Limitations: this proves recovery of the selected snapshot, not recovery-point freshness for later changes, customer/designer sign-in, encrypted-measurement decryption, provider reconciliation or physical-device behavior. Encryption keys require separate secure recovery arrangements.
 
 The [machine-readable aggregate report](production-restore-evidence-2026-10-18.json) contains no account identities, order identifiers or credentials. Local verification: 5 backup/restore tests passed, including a full downloaded-snapshot/app/photo fixture, corruption and overwrite refusal, and unsafe environment/path rejection.
+
+
+## GitHub issue review — October 23, 2026
+
+Source reviewed: main `7b8e710`. Earlier deployment observations above remain historical and do not establish acceptance of this revision.
+
+- #323: source hardening is integrated; deployed trust-boundary, storage/native-module and provider regression acceptance remain open.
+- #446: automated MFA/session coverage exists; separate operator enrollment and lost-device recovery still need deployment-specific evidence. Keep existing MFA enforcement enabled during routine verification. The original pre-enrollment rollout warning is not an instruction to disable an already enforced deployment.
+- #482: role enforcement and isolated automated coverage exist; signed-in staging owner/reviewer/support and audit acceptance remain open.
+- #510: provider-issued credential rotation/revocation, incident log review, and a fresh backup/restore drill require operator/provider evidence. No credential values were inspected or changed in this review.
+- #411: superseded by merged #509 (`3ba0ffe`), which includes `e2e/admin-review-loop.spec.js` and the current mobile resubmission/approval journey. Do not merge the obsolete overlapping branch.
+- #442: old opt-in identity patch remains unverified and conflicts with current session/MFA code. Keep it out of release integration until current cookie-session and identity regression coverage is supplied.
+- #520: Node.js CI run 40009487569 passed on `40cda6b`; this establishes CI evidence only, not production donation configuration or deployed visual acceptance.
+
+Overall release signoff: INCOMPLETE.
