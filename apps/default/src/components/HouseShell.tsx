@@ -117,10 +117,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{designerAlerts.slice(0, 5).map(item => <div key={item.id} className="border border-border p-3 text-sm"><strong>{item.title}</strong><p>{item.body}</p>{!item.readAt && <button type="button" onClick={() => void readDesignerAlert(item.id)} className="mt-2 underline">Mark read</button>}</div>)}</div>
               </div>}
             </div>}
+            {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2">Sign out</button>}
           </nav>
         </div>
       </header>
-      {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="fixed right-2 z-[10001] inline-flex min-h-12 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] shadow-xl hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 sm:right-4" style={{ top: 'max(8px, env(safe-area-inset-top, 0px))' }}>Sign out</button>}
       <main id="house-main" className="house-main" style={{ paddingTop: headerHeight + 12 }}>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
