@@ -110,7 +110,6 @@ const productForm = byId('product-form');
 const photoInput = byId('product-photos');
 const photoPreview = byId('photo-preview');
 const uploadMessage = byId('upload-message');
-const fabricFinderForm = byId('fabric-finder-form');
 const fabricFinderPhotos = byId('fabric-finder-photos');
 const fabricFinderMessage = byId('fabric-finder-message');
 const fabricFinderResult = byId('fabric-finder-result');
@@ -1145,14 +1144,15 @@ function renderFabricFinderResult(analysis = {}, disclaimer = '') {
   use.addEventListener('click', () => {
     if (byId('product-materials') && analysis.listingMaterialSuggestion) byId('product-materials').value = analysis.listingMaterialSuggestion;
     if (byId('product-care') && Array.isArray(analysis.careConsiderations)) byId('product-care').value = analysis.careConsiderations.join('; ');
-    byId('product-materials')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    for (const id of ['product-materials', 'product-care']) byId(id)?.dispatchEvent(new Event('input', { bubbles: true }));
+    scrollRoomTarget(byId('product-materials'), { block: 'center' });
   });
   fabricFinderResult.appendChild(use);
   if (disclaimer) fabricFinderResult.appendChild(makeElement('p', 'small-print', disclaimer));
   fabricFinderResult.classList.remove('hidden');
 }
 
-fabricFinderForm?.addEventListener('submit', async (event) => {
+byId('fabric-finder-submit')?.addEventListener('click', async (event) => {
   event.preventDefault();
   const files = Array.from(fabricFinderPhotos?.files || []);
   if (!files.length || files.length > 3) { setMessage(fabricFinderMessage, 'Choose between one and three fabric photos.', 'error'); return; }
@@ -2747,8 +2747,7 @@ function prepareDesignerRoomPanels() {
     ['.payout-setup-card','Payout setup'],
     ['#designer-listing-area','Your listings'],
     ['#product-form','Create or edit a piece'],
-    ['#designer-brand-form','Brand & profile'],
-    ['.fabric-finder-card','Fabric Finder']
+    ['#designer-brand-form','Brand & profile']
   ];
   for(const [selector,title] of groups){
     const content=workspace.querySelector(selector);
