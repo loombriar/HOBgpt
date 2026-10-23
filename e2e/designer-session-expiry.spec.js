@@ -8,6 +8,7 @@ test('rejected designer session closes the workspace without losing an unsaved d
   await page.getByLabel('Design name',{exact:true}).fill('Unsaved designer draft');
   // Revoke the actual server session while leaving the page's UI state in place.
   expect((await page.request.delete('/api/session',{headers:{Origin:'http://127.0.0.1:4173'}})).ok()).toBeTruthy();
+  await page.locator('#designer-settings > summary').click();
   await page.getByText('Payout setup',{exact:true}).click();
   await page.locator('#stripe-onboarding-btn').click();
   await expect(page.locator('#designer-workspace')).toBeHidden();
@@ -28,6 +29,7 @@ test('Stripe setup errors keep a valid session and a successful retry follows th
     expect(route.request().headers().cookie).toContain('hob_designer_session=');
     await route.fulfill(retry?{json:{onboardingUrl:'/designers/room?stripe=fixture'}}:{status:503,json:{error:{message:'Payment setup temporarily unavailable.'}}});
   });
+  await page.locator('#designer-settings > summary').click();
   await page.getByText('Payout setup',{exact:true}).click();
   await page.locator('#stripe-onboarding-btn').click();
   await expect(page.locator('#stripe-payout-status')).toHaveText('Payment setup temporarily unavailable.');
