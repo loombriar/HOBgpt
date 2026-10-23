@@ -2744,7 +2744,6 @@ function prepareDesignerRoomPanels() {
   workspace.dataset.panelsReady='true';
   const groups=[
     ['.seller-readiness-card','Getting started'],
-    ['.payout-setup-card','Payout setup'],
     ['#designer-listing-area','Your listings'],
     ['#product-form','Create or edit a piece'],
     ['#designer-brand-form','Brand & profile']

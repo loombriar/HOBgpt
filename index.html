@@ -28,7 +28,7 @@
     <link rel="icon" href="/icons/house-of-briar-192.png?v=sewing-3" type="image/png" />
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=sewing-3" />
     <link rel="stylesheet" href="/styles.css?v=studio-v2-20261011" />
-    <script src="/script.js?v=listing-fabric-school-rates-20261023" defer></script>
+    <script src="/script.js?v=designer-settings-layout-20261023" defer></script>
     <script src="/passkey-vendor.js" defer></script>
     <script src="/passkey-client.js" defer></script>
 
@@ -116,7 +116,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
 
         <nav class="sewing-nav" aria-label="Main navigation">
           <details class="nav-dropdown"><summary class="nav-hotspot">Mess Around <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Mess Around options">
-            <a href="/fashion-personality">Find out…</a><a href="/fashion-personality">Find Your Fashion Personality</a><a href="/fashion-personality" aria-label="Briar Runway coming soon">Briar Runway — Coming Soon</a><a href="/#house-styling-title">AI Styling Companion</a><button type="button" data-mess-around-suite="measurement-profile-name">Saved Measurements</button><button type="button" data-mess-around-suite="visitor-favorites-title">Heart Your Favorites</button><a href="/#house-collections-title">Mood &amp; Seasonal Collections</a><a href="/designers">Designer Stories &amp; Lookbooks</a><a href="/shop#visual-search-title">Photo Style Search</a><a href="/#support">House Badges</a>
+            <a href="/fashion-personality">Find out…</a><a href="/fashion-personality">Find Your Fashion Personality</a><a href="/#house-styling-title">AI Styling Companion</a><button type="button" data-mess-around-suite="measurement-profile-name">Saved Measurements</button><button type="button" data-mess-around-suite="visitor-favorites-title">Heart Your Favorites</button><a href="/#house-collections-title">Mood &amp; Seasonal Collections</a><a href="/designers">Designer Stories &amp; Lookbooks</a><a href="/shop#visual-search-title">Photo Style Search</a><a href="/#support">House Badges</a>
           </div></details>
           <details class="nav-dropdown"><summary class="nav-hotspot">Shop <span aria-hidden="true">▾</span></summary><div class="nav-dropdown-menu" aria-label="Shop options"><a href="/#shop">Shop All</a><a href="/shop?category=womenswear">Womenswear</a><a href="/shop?category=menswear">Masculine</a><a href="/shop?category=unisex">Unisex</a><a href="/#shop">Clothing &amp; Garments</a><a href="/shop#visual-search-title">Search by Photo</a><a href="/#house-collections-title">Seasonal Collections</a><a href="/designers">Meet Designers</a></div></details>
           <a class="nav-hotspot" href="#support" aria-label="Support and Badges">Support &amp; Badges</a>
@@ -451,7 +451,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
             <p id="seller-terms-message" role="status"></p>
           </form>
         </section>
-        <section class="payout-setup-card" aria-labelledby="payout-setup-title"><p class="eyebrow">Step 2 · Get paid</p><h3 id="payout-setup-title">Set up designer payouts</h3><p id="stripe-payout-status">Connect Stripe to verify your seller details and choose where House of Briar sends your earnings. You can draft pieces before this is finished, but they cannot go on sale until payouts are ready.</p><div class="form-actions"><button id="stripe-onboarding-btn" class="primary-button" type="button">Set up payouts with Stripe</button><button id="stripe-status-btn" class="secondary-button" type="button">Check payment setup again</button></div></section>
+
         <div id="designer-welcome" class="designer-welcome hidden">
           <p class="eyebrow">Welcome to House of Briar</p>
           <h3>Your Designer dashboard is ready.</h3>
@@ -460,7 +460,6 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
         </div>
 
 
-        <p><span class="primary-button" aria-label="The Briar Runway is coming soon">The Briar Runway — Coming Soon</span></p>
         <hr class="soft-rule" />
         <form id="product-form" class="stack-form room-card" novalidate>
           <input id="product-id" name="listingId" type="hidden" />
@@ -551,6 +550,27 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               <label for="product-care">Care instructions</label>
               <textarea id="product-care" name="careInstructions" maxlength="1000" rows="3" placeholder="e.g. Hand wash cold; reshape and lay flat to dry"></textarea>
               <div class="form-row"><label class="check-row"><input id="product-alterations" type="checkbox" /> Alterations available</label><label class="check-row"><input id="product-requests" type="checkbox" /> Takes custom requests</label></div>
+        <details class="designer-size-reference room-card" aria-labelledby="us-size-reference-title">
+          <summary id="us-size-reference-title">US size reference</summary>
+          <p class="eyebrow">Fit reference</p>
+          <p>Use this as a general body-measurement reference when describing fit. Sizing varies by brand and garment, so always list the actual measurements your piece fits when you know them.</p>
+          <div class="size-chart-scroll" role="region" aria-label="US women’s size measurement reference" tabindex="0">
+            <table class="size-reference-table">
+              <thead><tr><th>US size</th><th>Bust / chest</th><th>Waist</th><th>Hips</th></tr></thead>
+              <tbody>
+                <tr><th>00 / XXS</th><td>31–32 in</td><td>23–24 in</td><td>33–34 in</td></tr>
+                <tr><th>0–2 / XS</th><td>32–33.5 in</td><td>24–25.5 in</td><td>34–35.5 in</td></tr>
+                <tr><th>4–6 / S</th><td>34–35.5 in</td><td>26–27.5 in</td><td>36–37.5 in</td></tr>
+                <tr><th>8–10 / M</th><td>36–37.5 in</td><td>28–29.5 in</td><td>38–39.5 in</td></tr>
+                <tr><th>12–14 / L</th><td>38–40.5 in</td><td>30–32.5 in</td><td>40–42.5 in</td></tr>
+                <tr><th>16–18 / XL</th><td>41–44 in</td><td>33–36 in</td><td>43–46 in</td></tr>
+                <tr><th>20–22 / 2XL</th><td>45–48 in</td><td>37–40 in</td><td>47–50 in</td></tr>
+                <tr><th>24–26 / 3XL</th><td>49–52 in</td><td>41–44 in</td><td>51–54 in</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
+        </details>
               <label for="product-size">Size</label>
               <select id="product-size" name="size" required>
                 <option value="">Choose a size</option>
@@ -604,27 +624,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div class="form-actions"><button type="submit" class="primary-button">Save brand &amp; logo</button><button id="designer-logo-remove" type="button" class="text-button hidden">Remove logo</button></div>
           <p id="designer-brand-message" role="status" class="form-message"></p>
         </form>
-        <details class="designer-size-reference room-card" aria-labelledby="us-size-reference-title">
-          <summary id="us-size-reference-title">US size reference</summary>
-          <p class="eyebrow">Fit reference</p>
-          <p>Use this as a general body-measurement reference when describing fit. Sizing varies by brand and garment, so always list the actual measurements your piece fits when you know them.</p>
-          <div class="size-chart-scroll" role="region" aria-label="US women’s size measurement reference" tabindex="0">
-            <table class="size-reference-table">
-              <thead><tr><th>US size</th><th>Bust / chest</th><th>Waist</th><th>Hips</th></tr></thead>
-              <tbody>
-                <tr><th>00 / XXS</th><td>31–32 in</td><td>23–24 in</td><td>33–34 in</td></tr>
-                <tr><th>0–2 / XS</th><td>32–33.5 in</td><td>24–25.5 in</td><td>34–35.5 in</td></tr>
-                <tr><th>4–6 / S</th><td>34–35.5 in</td><td>26–27.5 in</td><td>36–37.5 in</td></tr>
-                <tr><th>8–10 / M</th><td>36–37.5 in</td><td>28–29.5 in</td><td>38–39.5 in</td></tr>
-                <tr><th>12–14 / L</th><td>38–40.5 in</td><td>30–32.5 in</td><td>40–42.5 in</td></tr>
-                <tr><th>16–18 / XL</th><td>41–44 in</td><td>33–36 in</td><td>43–46 in</td></tr>
-                <tr><th>20–22 / 2XL</th><td>45–48 in</td><td>37–40 in</td><td>47–50 in</td></tr>
-                <tr><th>24–26 / 3XL</th><td>49–52 in</td><td>41–44 in</td><td>51–54 in</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="small-print">Reference ranges are approximate, not a universal sizing standard. For customer matching, House of Briar uses the fit measurements entered for the individual piece.</p>
-        </details>
+
 
         <details id="designer-settings" class="designer-settings-card">
           <summary>Designer settings</summary><div data-passkey-manage="designer"></div><p><a href="/sewing-services.html#designer-services">Manage custom wedding dresses &amp; other designer services ↗</a> · <a href="/pattern-studio.html">Sell sewing patterns ↗</a></p>
@@ -633,7 +633,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
             <label for="designer-account-name">Your name</label><input id="designer-account-name" maxlength="120" autocomplete="name" required />
             <label for="designer-account-email">House account email</label><input id="designer-account-email" type="email" maxlength="254" autocomplete="email" required aria-describedby="house-email-help" />
             <p id="house-email-help" class="small-print">Used for House of Briar seller messages. A change only takes effect after you verify the code sent to the new address. Your sign-in provider stays separate.</p>
-            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Use “Review Stripe payout setup” above to review those details.</p>
+            <p class="small-print">Stripe payout identity and contact details are managed separately with Stripe. Changing your House email does not change Stripe’s email, bank, tax, or identity information. Open Payout setup below to review those details.</p>
             <div class="form-actions"><button type="submit" class="primary-button">Save account settings</button></div>
             <p id="designer-settings-message" role="status" class="form-message"></p>
           </form>
@@ -643,6 +643,10 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
             <button class="primary-button" type="submit">Verify new House email</button>
             <p id="designer-email-verify-message" role="status"></p>
           </form>
+
+          <details class="designer-room-panel"><summary>Payout setup</summary>
+        <section class="payout-setup-card" aria-labelledby="payout-setup-title"><p class="eyebrow">Step 2 · Get paid</p><h3 id="payout-setup-title">Set up designer payouts</h3><p id="stripe-payout-status">Connect Stripe to verify your seller details and choose where House of Briar sends your earnings. You can draft pieces before this is finished, but they cannot go on sale until payouts are ready.</p><div class="form-actions"><button id="stripe-onboarding-btn" class="primary-button" type="button">Set up payouts with Stripe</button><button id="stripe-status-btn" class="secondary-button" type="button">Check payment setup again</button></div></section>
+          </details>
 
           <section class="room-card" aria-labelledby="designer-delete-title"><h3 id="designer-delete-title">Delete designer account</h3><p>Empty accounts can be permanently deleted after a fresh email-code sign-in. Listings, connected payouts, linked sign-in providers, and shared records require review first. This cannot be undone.</p><form id="designer-delete-form" class="stack-form"><label for="designer-delete-confirmation">Type DELETE to confirm</label><input id="designer-delete-confirmation" autocomplete="off" required pattern="DELETE"/><button type="submit" class="secondary-button">Delete designer account permanently</button><p id="designer-delete-message" role="status"></p></form><a href="mailto:thee.house.of.briar@gmail.com">Request account deletion review</a></section>
         </details>

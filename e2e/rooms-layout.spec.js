@@ -27,7 +27,7 @@ for(const width of [390,1280]) {
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
   await expect(page.locator('#designer-workspace > .designer-room-panel > summary')).toHaveText([
-   'Your path to selling', 'Your listings', 'Payout setup', 'Create or edit a piece', 'Brand & profile'
+   'Your path to selling', 'Your listings', 'Create or edit a piece', 'Brand & profile'
   ]);
   await expect(page.locator('#product-form')).not.toBeVisible();
   await expect(page.locator('#designer-add-piece')).toBeVisible();
@@ -38,6 +38,9 @@ for(const width of [390,1280]) {
   await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.locator('#designer-add-piece').click();
   await expect(page.locator('#product-form')).toBeVisible();
+  await expect(page.locator('#product-form .designer-size-reference')).toHaveCount(1);
+  await expect(page.locator('#designer-settings .payout-setup-card')).toHaveCount(1);
+  await expect(page.getByText('The Briar Runway — Coming Soon',{exact:true})).toHaveCount(0);
   await expect(page.locator('#product-form .fabric-finder-card')).toHaveCount(1);
   await expect(page.locator('#designer-workspace > .fabric-finder-card')).toHaveCount(0);
   await page.getByRole('button',{name:'Create a piece',exact:true}).click();
