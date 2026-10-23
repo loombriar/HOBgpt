@@ -1,6 +1,7 @@
+import HouseShell from '@/components/HouseShell';
 import {useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
-type Application={id:string;kind:'student'|'school';name:string;email:string;school:string;academic_status:string|null;graduation_date:string|null;status:string;created_at:string};
+type Application={id:string;kind:'student'|'school';name:string;email:string;school:string;academic_status:string|null;graduation_date:string|null;status:string;created_at:string;assigned_creator_id?:string|null;portfolio?:string|null;discipline?:string|null};
 export default function FoundingSchoolsAdminPage(){
  const [applications,setApplications]=useState<Application[]>([]);
  const [role,setRole]=useState('');
@@ -8,9 +9,10 @@ export default function FoundingSchoolsAdminPage(){
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState('');
  const [creatorIds,setCreatorIds]=useState<Record<string,string>>({});
+ const [notes,setNotes]=useState<Record<string,string>>({});
  const [verified,setVerified]=useState<Record<string,boolean>>({});
  async function load(){
-   setError('');
+   setError('');setRole('');setApplications([]);
    try{
      const session=await fetch('/api/admin/session',{credentials:'same-origin',cache:'no-store'});
      if(!session.ok)throw Error('Sign in through the House of Briar admin dashboard first.');
@@ -34,7 +36,7 @@ export default function FoundingSchoolsAdminPage(){
    }catch(err){setError(err instanceof Error?err.message:'Action failed');}
    finally{setBusy('');}
  }
- return <main style={{maxWidth:1050,margin:'auto',padding:'3rem 1.5rem'}}>
+ return <HouseShell><main style={{maxWidth:1050,margin:'auto',padding:'3rem 1.5rem'}}>
   <p><Link to="/admin">← Back to administration</Link></p>
   <h1>Founding Schools applications</h1>
   <p>Review student eligibility outside this dashboard before approval. Approval alone does not activate a discounted commission.</p>
@@ -45,17 +47,20 @@ export default function FoundingSchoolsAdminPage(){
     <h2>{a.name} — {a.school}</h2>
     <p>{a.kind==='student'?'Student / graduate':'School representative'} · {a.status} · {a.created_at.slice(0,10)}</p>
     <p><a href={'mailto:'+a.email}>{a.email}</a>{a.academic_status?' · '+a.academic_status:''}{a.graduation_date?' · Graduated '+a.graduation_date:''}</p>
+    {a.assigned_creator_id&&<p>Permanent 5% rate active for creator {a.assigned_creator_id}.</p>}
+    {a.portfolio&&<p><a href={a.portfolio} target="_blank" rel="noopener noreferrer">View portfolio ↗</a></p>}
     {a.status==='pending'&&<div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
      <button disabled={!!busy} onClick={()=>void action('/api/founding-schools/admin/applications/'+encodeURIComponent(a.id)+'/review',{status:'approved'},a.id)}>Approve application</button>
      <button disabled={!!busy} onClick={()=>void action('/api/founding-schools/admin/applications/'+encodeURIComponent(a.id)+'/review',{status:'rejected'},a.id)}>Reject application</button>
     </div>}
-    {role==='owner'&&a.kind==='student'&&a.status==='approved'&&<div style={{marginTop:14}}>
+    {role==='owner'&&a.kind==='student'&&a.status==='approved'&&!a.assigned_creator_id&&<div style={{marginTop:14}}>
       <label>Existing creator ID <input value={creatorIds[a.id]||''} onChange={e=>setCreatorIds(v=>({...v,[a.id]:e.target.value}))}/></label>
       <label style={{display:'block',margin:'12px 0'}}><input type="checkbox" checked={!!verified[a.id]} onChange={e=>setVerified(v=>({...v,[a.id]:e.target.checked}))}/> I have independently verified current enrollment or graduation within 24 months.</label>
-      <button disabled={!!busy||!verified[a.id]||!creatorIds[a.id]?.trim()} onClick={()=>void action('/api/founding-schools/admin/applications/'+encodeURIComponent(a.id)+'/assign-creator',{creatorId:creatorIds[a.id].trim(),eligibilityVerified:true},a.id)}>Activate student 5% introductory rate</button>
+      <label style={{display:'block'}}>Verification summary (no document numbers)<textarea maxLength={500} minLength={10} value={notes[a.id]||''} onChange={e=>setNotes(v=>({...v,[a.id]:e.target.value}))}/></label>
+      <button disabled={!!busy||!verified[a.id]||!creatorIds[a.id]?.trim()||!notes[a.id]?.trim()} onClick={()=>void action('/api/founding-schools/admin/applications/'+encodeURIComponent(a.id)+'/assign-creator',{creatorId:creatorIds[a.id].trim(),eligibilityVerified:true,verificationNote:notes[a.id]?.trim()},a.id)}>Activate permanent student 5% rate</button>
     </div>}
    </section>)}
    {!applications.length&&<p>No applications to display.</p>}
   </div></>}
- </main>;
+ </main></HouseShell>;
 }

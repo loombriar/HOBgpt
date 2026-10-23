@@ -1,53 +1,28 @@
-# Founding Schools Initiative — implementation specification
+# Founding Schools Initiative
 
-Status: proposed, not deployed. Keep production unchanged until tests and legal review. The implementation does not yet include official school badges, dedicated school pages, school referral caps, or the proposed audit trail. The checkout change from the existing 9% commission to a proposed standard 7% is a financial policy change requiring explicit approval and staging verification.
+This branch implements application submission, restricted review, verified account assignment and checkout commission handling. It is not deployment acceptance evidence.
 
-## Commission eligibility
-- School-program creators: enrolled students or graduates within 24 calendar months of graduation at application approval; 5% for the first 12 months after creator activation, then 7%.
-- Other creators: 7% platform commission.
-- Commission applies to discounted merchandise subtotal, excluding separately itemized shipping, sales tax, and gift-wrap charges under the proposed new policy. Confirm treatment of gift-wrap revenue before rollout.
-- Creators pay processor fees separately. Display actual provider fee schedule before account activation.
-- No retroactive fee changes. Store immutable commission-rate assignment with source and timestamp.
-- Initial school referral allocation: 10 approved students per school, configurable, with explicit waitlist handling. Independent verified student applications may be accepted without school partnership.
+## Policy and accounting
 
-## Data model proposal
-schools(id, legal_name, display_name, website, partnership_status, badge_status, logo_permission_at, referral_cap, created_at)
-school_applications(id, school_id, contact_name, contact_email, status, submitted_at, reviewed_at, reviewer_id)
-student_verifications(id, creator_id, school_id, status, enrollment_or_graduation, graduation_date, verification_method, reviewed_at, expires_at)
-commission_assignments(id, creator_id, rate_basis_points, program, approved_at, approved_by, immutable_rate_lock)
-school_referrals(id, school_id, creator_id, referral_code_hash, status, created_at)
-audit_events(id, actor_id, action, target_type, target_id, created_at, details_json)
+- Standard platform commission: 7%. Verified school-program designers: permanent 5% after explicit assignment, with no anniversary increase.
+- Current students or graduates within 24 calendar months are eligible. Graduation is checked again at assignment, including exact calendar boundaries.
+- Assignment is restricted to owners, requires a verification summary, and must match the email of an active designer account. Approving an application alone never assigns a rate. Enrollment/graduation evidence is verified outside this form; do not upload identity documents here.
+- The assignment is unique per designer and application and is committed with an audit record in one SQLite transaction. There is no client endpoint for changing a commission rate.
+- Independently verified students may apply without a school partnership. School inquiries do not create discounted creator accounts.
+- New checkout lines calculate their fee from the stored assignment. Existing orders, transfers and refunds use their stored monetary amounts; approval never rewrites old orders.
+- Platform commission applies to the discounted sale subtotal including selected gift wrap, preserving the existing fee base. Separately itemized tax and shipping are excluded. Processor fees and designer-funded postage remain separate.
+- The signed-in pricing helpers use the account's server-provided rate. Public recruitment copy describes the 7% standard rate and the 5% school program.
 
-## Required workflow
-1. Public school application; public student application; creator authentication.
-2. School approval by authorized admin; badge requires approval and trademark/logo permission for logos.
-3. Student verifies enrollment or graduation within past 24 months; minimize document collection and limit retention.
-4. Admin approval transaction assigns 500 basis points exactly once; prevent race conditions and duplicate student commission assignment.
-5. Creator connects payout provider and passes verification before listing/checkout activation.
-6. On each order, server calculates platform commission from stored assignment, never client-supplied percentage.
-7. Refunds reverse proportionate platform commission. Provider dispute/fee rules disclosed separately.
-8. Audit all approval, denial, fee, and badge changes; add rate-lock regression tests.
+## Operations
 
-## Safety and privacy
-- Do not upload verification documents to publicly served storage; use authenticated access, encryption, retention limits.
-- Require eligible adult status or implement appropriate guardian/minor handling before permitting sales.
-- Do not represent payments to a for-profit marketplace as tax-deductible donations.
-- School partnership never required for independently verified student eligibility.
-- Schools are not guarantors of creator performance.
-- Do not use school trademarks without permission.
+- Public form: `/founding-schools`. Both public and admin pages retain the shared navigation.
+- Admin entry: `/admin/founding-schools`, linked from the main administrator dashboard. Uses the existing administrator session and MFA/role/origin boundary.
+- Owners and operators review inquiries; only owners can activate discounted rates. Reviewers, support and unknown roles are denied.
+- Activation requires the existing creator ID, matching account email, explicit eligibility attestation and a verification summary of at least ten characters. Never record identity document numbers in the summary.
+- Public endpoints never list applications, signup counts, rankings or waitlist sizes. Application details and assignment status are restricted to authorized administrators.
+- Application review and assignment have a dedicated audit table. The existing administrator request audit also records route, actor, role and result.
+- School-branded badges, school pages, referrals and automated evidence verification remain separate work. This change does not claim trademark permission or automatically award school logos.
 
-## Acceptance criteria
-- Student graduating exactly 24 months before approval is eligible; 24 months plus one day is not.
-- Approved student retains the 5% rate until the 12-month anniversary of activation regardless of graduation or later school partnership termination; subsequent orders use 7%.
-- Creator cannot modify commission through browser/API.
-- Concurrent approvals do not overallocate school referral cap.
-- Order totals with shipping/tax/discounts compute correct platform and processor fees.
-- Admin can review and approve applications with an audit trail.
-- No live rollout before passing automated and staging end-to-end tests.
+## Verification before release
 
-## Early-launch privacy policy
-- Do not publicly display creator, student, school, or application signup counts, pending/approved totals, waitlist sizes, or signup rankings.
-- Do not advertise numerical scarcity or disclose how many creators have joined.
-- Application statistics are internal and accessible only to authorized administrators.
-- Public pages may show approved creator profiles and participating schools without aggregate signup metrics.
-- Do not add public aggregate count endpoints, and test future public pages for count leakage.
+Run the backend suite, frontend tests, TypeScript, production build and browser CI on the integrated branch. Rehearse public submission, owner/operator review, rejected/expired/mismatched account handling, owner assignment and a nonproduction checkout. Verify the deployed SHA independently in each environment. No live credentials or infrastructure are changed by this PR.

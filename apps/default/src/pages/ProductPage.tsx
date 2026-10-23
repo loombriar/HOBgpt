@@ -1,10 +1,11 @@
+import { readCartIds } from '@/lib/cart-storage';
 import PurchaseEssentials from '@/components/PurchaseEssentials';
 import { dispatchEstimate } from '@/lib/shipping';
 import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, Heart, Ruler, Share2, ShoppingBag, Sparkles } from '@/lib/icons';
 import { Link, useParams } from 'react-router-dom';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import HouseShell from '@/components/HouseShell';
 import InquiryForm from '@/components/InquiryForm';
 import ProductInquiryForm from '@/components/ProductInquiryForm';
@@ -15,12 +16,12 @@ import { trackCommerceEvent } from '@/lib/analytics';
 export default function ProductPage() {
   const auth = useAuth();
   const { productId } = useParams();
-  const [product, setProduct] = useState<GenesisNode | null>(null);
+  const [product, setProduct] = useState<CatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [inCart, setInCart] = useState(false);
-  const [catalog, setCatalog] = useState<GenesisNode[]>([]);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [boughtTogetherIds, setBoughtTogetherIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -51,8 +52,8 @@ export default function ProductPage() {
   useEffect(() => {
     const refreshCart = () => {
       try {
-        const value = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
-        setInCart(Array.isArray(value) && Boolean(resolvedProductId) && value.includes(resolvedProductId));
+        const value = readCartIds();
+        setInCart(typeof resolvedProductId === 'string' && value.includes(resolvedProductId));
       } catch { setInCart(false); }
     };
     refreshCart();
@@ -121,7 +122,7 @@ export default function ProductPage() {
 
 
 
-  const boughtTogether=boughtTogetherIds.map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
+  const boughtTogether=boughtTogetherIds.map(id=>catalog.find(item=>item.id===id)).filter((item):item is CatalogItem=>Boolean(item)).slice(0,4);
     const productTags = tags.toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
   const recommendations = catalog.filter(item=>item.id!==product.id && (getFieldValue(item,'@statx','Status')??'Available')==='Available').map(item=>{
     const itemTags=(getFieldValue(item,'@tagsx','Tags')??'').toLowerCase().split(/[,|]/).map(v=>v.trim()).filter(Boolean);
@@ -134,12 +135,11 @@ export default function ProductPage() {
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,4).map(x=>x.item);
   let recentIds:string[]=[];
   try { recentIds=JSON.parse(window.localStorage.getItem('house-of-briar:recently-viewed')??'[]'); if(!Array.isArray(recentIds))recentIds=[]; } catch {}
-  const recentlyViewed=recentIds.filter(id=>id!==product.id).map(id=>catalog.find(item=>item.id===id)).filter((item):item is GenesisNode=>Boolean(item)).slice(0,4);
-  const RecommendationCard=({item}:{item:GenesisNode})=>{const itemName=getTitle(item,'Name')??'Untitled piece';const itemImage=getProductImages(getFieldValue(item,'@image','Image URL'),getFieldValue(item,'@gally','Gallery URLs'))[0];return <Link to={`/shop/${item.id}`} className="group block"><div className="aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-muted">{itemImage?<img src={itemImage} alt={itemName} className="size-full object-cover transition duration-300 group-hover:scale-105"/>:null}</div><p className="mt-3 font-serif text-xl">{itemName}</p><p className="mt-1 text-sm text-muted-foreground">{money.format(getFieldNumber(item,'@price','Price')??0)}</p></Link>};
+  const recentlyViewed=recentIds.filter(id=>id!==product.id).map(id=>catalog.find(item=>item.id===id)).filter((item):item is CatalogItem=>Boolean(item)).slice(0,4);
+  const RecommendationCard=({item}:{item:CatalogItem})=>{const itemName=getTitle(item,'Name')??'Untitled piece';const itemImage=getProductImages(getFieldValue(item,'@image','Image URL'),getFieldValue(item,'@gally','Gallery URLs'))[0];return <Link to={`/shop/${item.id}`} className="group block"><div className="aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-muted">{itemImage?<img src={itemImage} alt={itemName} className="size-full object-cover transition duration-300 group-hover:scale-105"/>:null}</div><p className="mt-3 font-serif text-xl">{itemName}</p><p className="mt-1 text-sm text-muted-foreground">{money.format(getFieldNumber(item,'@price','Price')??0)}</p></Link>};
 
   const addToCart = () => {
-    const raw = window.localStorage.getItem('house-of-briar:cart');
-    const items: string[] = raw ? JSON.parse(raw) : [];
+    const items = readCartIds();
     if (!items.includes(product.id)) items.push(product.id);
     window.localStorage.setItem('house-of-briar:cart', JSON.stringify(items));
     setInCart(true);

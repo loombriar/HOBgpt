@@ -1,38 +1,16 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {STANDARD_BPS,FOUNDING_BPS,commissionBasisPoints,studentDiscountExpiresAt,platformCommissionCents}=require('../lib/creator-commissions');
-test('standard creator commission is 7 percent of merchandise subtotal',()=>{
-  assert.equal(STANDARD_BPS,700);
-  assert.equal(platformCommissionCents(10000,STANDARD_BPS),700);
+const {STANDARD_BPS,FOUNDING_BPS,commissionBasisPoints,platformCommissionCents}=require('../lib/creator-commissions');
+test('standard rate is 7% and verified school rate is permanently 5%',()=>{
+ const db={prepare:()=>({get:id=>id==='student'?{rate_basis_points:500}:undefined})};
+ assert.equal(STANDARD_BPS,700);assert.equal(FOUNDING_BPS,500);
+ for(const date of ['2026-10-21','2027-10-21','2050-01-01'])assert.equal(commissionBasisPoints(db,'student',date),500);
+ assert.equal(commissionBasisPoints(db,'regular'),700);
+ assert.equal(platformCommissionCents(10000,500),500);assert.equal(platformCommissionCents(10000,700),700);
+ assert.equal(platformCommissionCents(8001,500),400);
 });
-test('eligible student commission is 5 percent of merchandise subtotal',()=>{
-  assert.equal(FOUNDING_BPS,500);
-  assert.equal(platformCommissionCents(10000,FOUNDING_BPS),500);
+test('fee inputs reject negative, fractional or unsupported values',()=>{
+ for(const value of [-1,1.5,NaN,Infinity])assert.throws(()=>platformCommissionCents(value,500));
+ assert.throws(()=>platformCommissionCents(100,900));assert.throws(()=>commissionBasisPoints({},''));
 });
-test('discounted merchandise amount, not shipping or tax, determines platform fee',()=>{
-  const merchandiseAfterDiscount=8000,shipping=1200,tax=600;
-  assert.equal(platformCommissionCents(merchandiseAfterDiscount,FOUNDING_BPS),400);
-  assert.notEqual(platformCommissionCents(merchandiseAfterDiscount+shipping+tax,FOUNDING_BPS),400);
-});
-test('student gets 5% for 12 months and 7% at the anniversary',()=>{
-  const db={prepare:sql=>({get:id=>sql.includes('founding_school_commissions')&&id==='student'?{assigned_at:'2026-10-21T12:00:00.000Z'}:undefined})};
-  assert.equal(commissionBasisPoints(db,'student','2027-10-21T11:59:59.999Z'),500);
-  assert.equal(commissionBasisPoints(db,'student','2027-10-21T12:00:00.000Z'),700);
-  assert.equal(commissionBasisPoints(db,'regular','2026-10-21T12:00:00.000Z'),700);
-});
-
-test('leap-day activation expires on February 28 in the next year',()=>{
-  assert.equal(studentDiscountExpiresAt('2024-02-29T09:30:00Z'),'2025-02-28T09:30:00.000Z');
-});
-test('rejects invalid fee input',()=>{
-  assert.throws(()=>platformCommissionCents(-1,500));
-  assert.throws(()=>platformCommissionCents(100,900));
-  assert.throws(()=>platformCommissionCents(1.5,500));
-});
-
-test('student rate is standard after expiration even if account stays active',()=>{
- const db={prepare:sql=>({get:()=>sql.includes('founding_school_commissions')?{assigned_at:'2025-01-01T00:00:00Z'}:undefined})};
- assert.equal(commissionBasisPoints(db,'student','2026-01-01T00:00:00Z'),700);
-});
-

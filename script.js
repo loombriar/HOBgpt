@@ -1784,7 +1784,15 @@ function scrollRoomTarget(target, options = {}) {
   if (!target) return;
   for(let parent=target;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
   const dialog = target.closest('dialog[open]');
-  if (!dialog) { target.scrollIntoView(options); return; }
+  if (!dialog) {
+    if (target.closest('#designer-modal')) {
+      const bar = byId('hob-global-nav');
+      const roomHeader = document.querySelector('#designer-modal .designer-room-header');
+      const inset = (bar?.getBoundingClientRect().height || 0) + (roomHeader?.getBoundingClientRect().height || 0) + 16;
+      window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top + window.scrollY - inset),behavior:options.behavior || 'instant'});
+    } else target.scrollIntoView(options);
+    return;
+  }
   const header = dialog.querySelector('.dialog-header');
   const inset = header ? header.getBoundingClientRect().height : 0;
   const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
@@ -1910,7 +1918,7 @@ if (modalClose) modalClose.addEventListener('click', closeDesignerRoom);
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
-byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+byId('start-profile-setup')?.addEventListener('click', () => scrollRoomTarget(byId('designer-brand-form'),{ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
 syncHeaderDesignerAuth();
@@ -2326,9 +2334,11 @@ async function renderAdminOverview(pendingItems) {
 }
 
 async function loadDesignerBrand() {
+  const pageLink=byId('designer-view-page');
+  if(pageLink){pageLink.classList.add('hidden');pageLink.removeAttribute('href');}
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
-    designerReadinessState.profile=designer;renderSellerReadiness();
+    designerReadinessState.profile=designer;renderSellerReadiness();renderDesignerPriceEstimate();
     const founding = byId('designer-founding-badge'); founding?.replaceChildren();
     if (designer.foundingBadge) founding?.append(createBadgePill('Founding Designer', 'badge founding-badge'));
     byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
@@ -2339,6 +2349,7 @@ async function loadDesignerBrand() {
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
     if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
+    if(pageLink&&designer.id){pageLink.href='/designers/'+encodeURIComponent(designer.id);pageLink.classList.remove('hidden');}
     await loadHouseStudio(designer.id);
     const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
     if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
@@ -2695,18 +2706,18 @@ function calculateDesignerPriceEstimate(values) {
   };
   const price=hundredths(values.price,1000000),materials=hundredths(values.materials,1000000),postage=hundredths(values.postage,1000000),packaging=hundredths(values.packaging,1000000),hours=hundredths(values.hours,10000),rate=hundredths(values.rate,1000000);
   if([price,materials,postage,packaging,hours,rate].some(value=>value===null)||price<=0)return null;
-  const fee=Math.round(price*.09),earnings=price-fee,labor=Math.round(hours*rate/100);
+  const fee=Math.round(price*(values.basisPoints===500?500:700)/10000),earnings=price-fee,labor=Math.round(hours*rate/100);
   return {price,fee,earnings,materials,labor,postage,packaging,remaining:earnings-materials-labor-postage-packaging};
 }
 function renderDesignerPriceEstimate() {
   const output=byId('pricing-estimate');if(!output)return;
   const fields={price:'product-price',materials:'estimated-materials',hours:'estimated-labor-hours',rate:'estimated-hourly-pay',postage:'estimated-postage',packaging:'estimated-packaging'};
   const inputs=Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,byId(id)]));
-  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate(Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])));
+  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate({...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])),basisPoints:designerReadinessState.profile?.commissionBasisPoints});
   output.replaceChildren();
   if(!estimate){output.textContent='Enter a price above $0 and valid nonnegative costs (up to two decimal places) to see your estimate.';return;}
   const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
-  for(const [label,value]of [['House of Briar fee (9%)',estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
+  for(const [label,value]of [[`House of Briar fee (${designerReadinessState.profile?.commissionBasisPoints===500?5:7}%)`,estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
   if(estimate.remaining<0)output.append(makeElement('p','','This price does not cover all the costs entered.'));
 }
 for(const id of ['product-price','estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);

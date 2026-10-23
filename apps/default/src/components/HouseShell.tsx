@@ -1,3 +1,4 @@
+import { readCartIds } from '@/lib/cart-storage';
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
@@ -79,8 +80,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   };
   useEffect(() => {
     const refresh = () => {
-      const stored = window.localStorage.getItem('house-of-briar:cart');
-      try { const items = stored ? JSON.parse(stored) : []; setCartCount(Array.isArray(items) ? items.length : 0); } catch { setCartCount(0); }
+      setCartCount(readCartIds().length);
     };
     refresh();
     window.addEventListener('storage', refresh);
@@ -100,6 +100,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
           <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
+            <a href={auth.isAuthenticated && isDesigner ? '/account' : '/designers/room'} className="inline-flex min-h-10 items-center hover:underline">{auth.isAuthenticated && isDesigner ? 'Designer dashboard' : 'Designer sign in'}</a>
             <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
             <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
             <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
@@ -116,10 +117,10 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
                 <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{designerAlerts.slice(0, 5).map(item => <div key={item.id} className="border border-border p-3 text-sm"><strong>{item.title}</strong><p>{item.body}</p>{!item.readAt && <button type="button" onClick={() => void readDesignerAlert(item.id)} className="mt-2 underline">Mark read</button>}</div>)}</div>
               </div>}
             </div>}
+            {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2">Sign out</button>}
           </nav>
         </div>
       </header>
-      {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="fixed right-2 z-[10001] inline-flex min-h-12 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] shadow-xl hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 sm:right-4" style={{ top: 'max(8px, env(safe-area-inset-top, 0px))' }}>Sign out</button>}
       <main id="house-main" className="house-main" style={{ paddingTop: headerHeight + 12 }}>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">

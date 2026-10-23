@@ -46,7 +46,7 @@ for(const width of [390,1280]) {
   await expect(page.locator('#product-photos')).toBeInViewport();
   await expect(page.locator('#product-name')).toBeVisible();
   for(const [id,value]of [['product-price','100'],['estimated-materials','20'],['estimated-labor-hours','2'],['estimated-hourly-pay','15'],['estimated-postage','8'],['estimated-packaging','2']])await page.locator('#'+id).fill(value);
-  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (9%): $9.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (7%): $7.00');
   await expect(page.locator('#pricing-estimate')).toContainText('Labor (hours × hourly pay): $30.00');
   await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $31.00');
   await expect(page.locator('#product-price')).toHaveValue('100');
@@ -95,7 +95,7 @@ for(const width of [390,1280]) {
   expect(session.ok()).toBeTruthy();
   await page.goto('/account');
   await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
-  await expect(page.locator('details').filter({has:page.getByText('Your Customer account',{exact:true})})).not.toHaveAttribute('open');
+  await expect(page.locator('details').filter({has:page.getByText('Personal shopping & support',{exact:true})})).not.toHaveAttribute('open');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-studio-${width}.png`});
   await page.goto('/admin');

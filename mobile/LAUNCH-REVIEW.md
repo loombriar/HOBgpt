@@ -9,7 +9,7 @@
 
 ## Clothing launch dependency
 
-No Shippo or EasyPost API key was listed on the production service during review. Shipment submission calls provider verification before persisting tracking. Seller transfers remain held until real carrier movement is verified. Disabling a shipping integration alone does not provide a functioning manual fulfillment/payout path. This review did not change delivery charges, checkout availability, or payout safeguards.
+No shipping-provider API key was listed on the production service during review. Shipment submission calls provider verification before persisting tracking. Seller transfers remain held until real carrier movement is verified. Disabling a shipping integration alone does not provide a functioning manual fulfillment/payout path. This review did not change delivery charges, checkout availability, or payout safeguards.
 
 Browsing and free profile recruitment can proceed independently. Before live clothing sales, complete a provider-backed fulfillment run or implement and verify an audited manual tracking/payout workflow without removing refund holds or seller isolation.
 

@@ -1,3 +1,5 @@
+import { readCartIds } from '@/lib/cart-storage';
+import { readCheckoutSnapshot as readSnapshot, type CheckoutSnapshot } from '@/lib/checkout-snapshot';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
 import ShippingSummary from '@/components/ShippingSummary';
 import { useShippingQuote } from '@/lib/shipping';
@@ -6,34 +8,13 @@ import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, BadgeCheck, CreditCard, LockKeyhole, ShieldCheck, Truck } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 import { trackCommerceEvent } from '@/lib/analytics';
 
-type SnapshotItem = { id: string; name: string; amount: number; quantity: number };
-type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number };
-
 const CART_KEY = 'house-of-briar:cart';
 const PENDING_KEY = 'house-of-briar:checkout-pending';
-
-function readCartIds(): string[] {
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(CART_KEY) ?? '[]');
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function readSnapshot(): CheckoutSnapshot | null {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(PENDING_KEY) ?? 'null') as CheckoutSnapshot | null;
-    return value && Array.isArray(value.ids) && Array.isArray(value.items) ? value : null;
-  } catch {
-    return null;
-  }
-}
 
 export default function CheckoutPage() {
   const auth = useAuth();
@@ -43,7 +24,7 @@ export default function CheckoutPage() {
   const canceledOrderId = searchParams.get('order_id');
   const cancelToken = searchParams.get('cancel_token');
   const [cartIds, setCartIds] = useState<string[]>(readCartIds);
-  const [products, setProducts] = useState<GenesisNode[]>([]);
+  const [products, setProducts] = useState<CatalogItem[]>([]);
   const [snapshot] = useState<CheckoutSnapshot | null>(readSnapshot);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');

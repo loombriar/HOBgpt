@@ -101,3 +101,11 @@ html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
  html body #hob-global-nav.hob-global-nav:has(.hob-global-signout:not([hidden])){grid-template-rows:44px auto}
  html body #hob-global-nav.hob-global-nav:has(.hob-global-signout:not([hidden]))>nav{height:auto;min-height:44px;flex-wrap:wrap!important;gap:4px 12px!important}
 }
+
+/* Homepage promotions are body siblings, not children of main. Keep the room at the top. */
+html body.designer-room-open > section:not(#designer-modal),
+html body.designer-room-open > aside,
+html body.designer-room-open > .page-shell { display:none!important; }
+
+/* Keep the room heading below the persistent navigation while scrolling. */
+body.designer-room-open .designer-room-header { top:var(--hob-bar-height,80px); }

@@ -1,8 +1,8 @@
 import { lazy, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics';
-import { GenesisSection } from '@/lib/genesis';
-import { GenesisAuth } from '@/lib/genesis-auth';
+import { HouseSection } from '@/lib/house-boundary';
+import { HouseAuth } from '@/lib/house-auth';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -20,7 +20,7 @@ const FoundingSchoolsAdminPage = lazy(() => import('@/pages/FoundingSchoolsAdmin
 const FashionPersonalityPage = lazy(() => import('@/pages/FashionPersonalityPage'));
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
-  return <GenesisSection name={name}>{children}</GenesisSection>;
+  return <HouseSection name={name}>{children}</HouseSection>;
 }
 
 function TrafficTracker() {
@@ -84,5 +84,5 @@ export default function App() {
     if (!appleIcon.parentNode) document.head.appendChild(appleIcon);
   }, []);
 
-  return <GenesisAuth><AppRoutes /></GenesisAuth>;
+  return <HouseAuth><AppRoutes /></HouseAuth>;
 }
