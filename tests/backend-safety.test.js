@@ -128,3 +128,109 @@ test('payout retries queue one failure notification and preserve email delivery 
   assert.equal(ctx.db.prepare('SELECT status FROM email_outbox WHERE event_key=?').get(eventKey).status,'sent');
 }));
 
+
+test('concurrent payout release requests never create duplicate Stripe transfers',()=>fixture(async({call,setHandler,calls,ctx})=>{
+  let entered,finish;
+  const waiting=new Promise(resolve=>{entered=resolve;});
+  const gate=new Promise(resolve=>{finish=resolve;});
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers'){entered();await gate;return {id:'tr_concurrent'};}
+    throw new Error('Unexpected provider call: '+endpoint);
+  });
+  const first=call(release);
+  await waiting;
+  try{
+    const second=await call(release);
+    assert.ok([200,409].includes(second.status));
+    assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  }finally{finish();}
+  assert.equal((await first).status,200);
+  await call(release);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM designer_transfers WHERE order_id='order' AND designer_id='maker'").get().n,1);
+}));
+
+test('partial refund webhook replay does not duplicate refund or reverse unrelated seller payout',()=>fixture(async({ctx,call,webhook,setHandler,calls})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:endpoint==='transfers'?{id:'tr_other'}:{id:'trr_test'});
+  assert.equal((await call(partial)).status,200);
+  const live={id:'re_test',status:'succeeded',payment_intent:'pi_test',currency:'usd',amount:4000};
+  setHandler(async(endpoint)=>endpoint.startsWith('refunds/')?live:endpoint==='transfers'?{id:'tr_other'}:live);
+  assert.equal((await webhook('evt_partial_final')).status,200);
+  const count=ctx.db.prepare("SELECT COUNT(*) AS n FROM order_refunds WHERE order_id='order' AND scope='maker'").get().n;
+  assert.equal(count,1);
+  const n=calls.length;
+  assert.equal((await webhook('evt_partial_final')).status,200);
+  assert.equal(calls.length,n);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM order_refunds WHERE order_id='order' AND scope='maker'").get().n,1);
+  const other=await call('/api/admin/orders/order/designers/other/release');
+  assert.equal(other.status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+}));
+
+test('refund after completed seller payout reverses only the refunded seller transfer',()=>fixture(async({ctx,call,calls,setHandler})=>{
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers')return {id:'tr_maker_paid'};
+    if(endpoint==='transfers/tr_maker_paid/reversals')return {id:'trr_maker'};
+    if(endpoint==='refunds')return {id:'re_test',status:'succeeded'};
+    throw Error('Unexpected provider endpoint '+endpoint);
+  });
+  assert.equal((await call(release)).status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers').length,1);
+  assert.equal((await call(partial)).status,200);
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers/tr_maker_paid/reversals').length,1);
+  assert.equal(calls.filter(c=>c.endpoint.includes('transfer_other/reversals')).length,0);
+  await call(partial);
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal(calls.filter(c=>c.endpoint==='transfers/tr_maker_paid/reversals').length,1);
+}));
+
+test('interrupted transfer response does not issue a second transfer on immediate retry',()=>fixture(async({call,calls,setHandler,ctx})=>{
+  setHandler(async(endpoint)=>{
+    if(endpoint==='transfers')throw new Error('Stripe transfer response lost');
+    throw Error('Unexpected provider endpoint '+endpoint);
+  });
+  await call(release);
+  const first=calls.filter(c=>c.endpoint==='transfers');
+  assert.equal(first.length,1);
+  await call(release);
+  const attempts=calls.filter(c=>c.endpoint==='transfers');
+  if(attempts.length>1)assert.equal(attempts[0].request.idempotencyKey,attempts[1].request.idempotencyKey);
+  assert.ok(attempts.length<=2);
+  const row=ctx.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get();
+  assert.ok(row);
+}));
+
+test('pending refund survives process restart and replay keeps a single provider refund',()=>fixture(async({ctx,options,call,calls,setHandler})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:{id:'unused'});
+  assert.equal((await call(full)).status,200);
+  const before=ctx.db.prepare("SELECT order_id,scope,status,amount_cents FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+  assert.equal(before.status,'pending');
+  let reopened;
+  try{reopened=createApp(options);}catch(error){throw new Error('reopen failed: '+error.message,{cause:error});}
+  try{
+    const after=reopened.db.prepare("SELECT order_id,scope,status,amount_cents FROM order_refunds WHERE order_id='order' AND scope='full'").get();
+    assert.deepEqual(after,before);
+    assert.equal(reopened.db.prepare("SELECT status FROM designer_transfers WHERE id='transfer_maker'").get().status,'pending');
+  }catch(error){throw new Error('restart assertion failed: '+error.message,{cause:error});}finally{reopened.db.close();}
+  const retry=await call(full);assert.equal(retry.status,200,JSON.stringify(retry.body));
+  assert.equal(calls.filter(c=>c.endpoint==='refunds').length,1);
+  assert.equal((await call(release)).body.results[0].reason,'refund_hold');
+}));
+
+test('refund webhook arriving after restart resolves persisted pending refund once',()=>fixture(async({ctx,options,call,webhook,setHandler,calls})=>{
+  setHandler(async(endpoint)=>endpoint==='refunds'?{id:'re_test',status:'pending'}:{id:'unused'});
+  assert.equal((await call(partial)).status,200);
+  const reopened=createApp(options);
+  try{
+    assert.equal(reopened.db.prepare("SELECT status FROM order_refunds WHERE order_id='order' AND scope='maker'").get().status,'pending');
+  }finally{reopened.db.close();}
+  const live={id:'re_test',status:'succeeded',payment_intent:'pi_test',currency:'usd',amount:4000};
+  setHandler(async()=>live);
+  assert.equal((await webhook('evt_restart_refund')).status,200);
+  const row=ctx.db.prepare("SELECT status FROM order_refunds WHERE order_id='order' AND scope='maker'").get();
+  assert.equal(row.status,'succeeded');
+  const n=calls.length;
+  assert.equal((await webhook('evt_restart_refund')).status,200);
+  assert.equal(calls.length,n);
+}));
