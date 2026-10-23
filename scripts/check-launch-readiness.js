@@ -9,6 +9,10 @@ const required = [
   '.github/workflows/ci.yml',
   '.github/workflows/backend-safety.yml',
   'tests/commerce.test.js',
+  'tests/admin-roles.test.js',
+  'tests/admin-mfa.test.js',
+  'tests/admin-session-lifecycle.test.js',
+  'e2e/admin-review-loop.spec.js',
   'tests/payout-transfer-integration.test.js',
   'mobile/ANDROID-DEVICE-TESTS.md',
 ];
@@ -18,7 +22,8 @@ for (const file of required) {
   console.log((exists ? 'PASS ' : 'FAIL ') + file);
   if (!exists) failed = true;
 }
-const evidence = fs.readFileSync(path.resolve(__dirname, '..', 'docs/release-acceptance-evidence.md'), 'utf8');
+const evidencePath = path.resolve(__dirname, '..', 'docs/release-acceptance-evidence.md');
+const evidence = fs.existsSync(evidencePath) ? fs.readFileSync(evidencePath, 'utf8') : '';
 if (!/signoff:\s*INCOMPLETE/i.test(evidence)) {
   console.error('FAIL: release evidence must explicitly retain INCOMPLETE signoff until operator verification');
   failed = true;
