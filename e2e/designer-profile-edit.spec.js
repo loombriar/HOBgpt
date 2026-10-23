@@ -15,8 +15,20 @@ for(const width of [390,1280])test(`free designer profile saves text and images 
  const image=await sharp({create:{width:100,height:100,channels:3,background:'#997799'}}).png().toBuffer();
  for(const label of ['Choose profile photo','Choose brand logo']){
   await editor.getByLabel(label,{exact:true}).setInputFiles({name:'profile.png',mimeType:'image/png',buffer:image});
+  if(label==='Choose profile photo'){
+   await expect(editor.getByLabel('Circular profile photo preview')).toBeVisible();
+   await editor.getByRole('button',{name:'Save photo position',exact:true}).click();
+  }
   await expect(editor.getByRole('status')).toContainText('Image saved');
  }
+ await editor.getByRole('button',{name:'Adjust photo in bubble',exact:true}).click();
+ await editor.getByLabel('Zoom',{exact:true}).fill('2');
+ await editor.getByLabel('Vertical position',{exact:true}).fill('20');
+ await editor.getByRole('button',{name:'Reset position',exact:true}).click();
+ await expect(editor.getByLabel('Zoom',{exact:true})).toHaveValue('1');
+ await expect(editor.getByLabel('Vertical position',{exact:true})).toHaveValue('50');
+ await editor.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(editor.getByLabel('Circular profile photo preview')).toHaveCount(0);
  const popupPromise=page.waitForEvent('popup');
  await page.getByRole('link',{name:'View my page (opens in a new tab)'}).click();
  const publicPage=await popupPromise;
