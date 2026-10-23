@@ -2800,7 +2800,7 @@ prepareDesignerRoomPanels();
    const kind=menu.dataset.filterMenu;
    const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='presentation'?['shop-presentation-filter']:kind==='aesthetic'?['shop-aesthetic-filter']:kind==='pattern'?['shop-pattern-filter']:kind==='availability'?['shop-availability-filter']:['shop-designer-filter'];
    const chosen=ids.filter(id=>value(id)!=='all').map(label);
-   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||(kind==='category'?'All pieces':kind==='style'?'All styles & prints':'All designers');
+   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||({category:'All pieces',presentation:'All presentations',aesthetic:'All aesthetics',pattern:'All prints',availability:'All availability'}[kind]||'All designers');
   }
   const subcategorySelection=document.querySelector('#shop-subcategory-menu > summary .shop-filter-selection');
   if(subcategorySelection)subcategorySelection.textContent=value('shop-garment-filter')!=='all'?label('shop-garment-filter'):'All piece types';
