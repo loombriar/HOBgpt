@@ -262,15 +262,15 @@ test('donation button starts checkout with its displayed amount and shows provid
   }));
   await page.goto('/#support');
   await expect(page.locator('#donation-amount')).toHaveValue('25');
-  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await page.getByRole('button', { name: 'Donate with Stripe' }).click();
   await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
-  await expect(page.getByRole('button', { name: 'Give by card / bank' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Donate with Stripe' })).toBeEnabled();
   await page.unroute('**/api/donations/session');
   await page.route('**/api/donations/session', async route => {
     expect(route.request().postDataJSON().amount).toBe(25);
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
   });
-  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await page.getByRole('button', { name: 'Donate with Stripe' }).click();
   await expect(page.getByText('Your donation checkout was canceled.', { exact: true })).toBeVisible();
 });
 
@@ -285,7 +285,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     expect(inputBox.height).toBeGreaterThanOrEqual(48);
     await amount.fill('10');
     await expect(amount).toHaveValue('10');
-    const buttonBox = await page.getByRole('button', { name: 'Give by card / bank' }).boundingBox();
+    const buttonBox = await page.getByRole('button', { name: 'Donate with Stripe' }).boundingBox();
     expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
   });
 }
