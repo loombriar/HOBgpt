@@ -2430,25 +2430,30 @@ function createApp(options = {}) {
     const shippoKey = process.env.SHIPPO_API_KEY || process.env.Shippo_Test;
     if (shippoKey) {
       const testMode = shippoKey.startsWith('shippo_test_');
-      const response = await fetch('https://api.goshippo.com/tracks/', {
+      const requestedCarrier = testMode ? 'shippo' : carrier.trim().toLowerCase();
+      const response = await (options.fetch || fetch)('https://api.goshippo.com/tracks/', {
         method: 'POST',
         headers: {
           Authorization: `ShippoToken ${shippoKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({tracking_number:trackingNumber,carrier:testMode?'shippo':carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
+        body: JSON.stringify({tracking_number:trackingNumber,carrier:requestedCarrier,metadata:'House of Briar designer shipment'})
       });
       const tracker = await response.json().catch(()=>({}));
       if(!response.ok){
         log('error','shippo_tracking_api_failed',{status:response.status,providerMessage:String(tracker?.detail||tracker?.message||'').slice(0,300)});
         throw Object.assign(new Error('Shippo could not accept this carrier and tracking number. Check the carrier name and tracking number.'),{statusCode:422,code:'tracking_verification_failed'});
       }
+      if (String(tracker.tracking_number || '') !== trackingNumber || String(tracker.carrier || '').trim().toLowerCase() !== requestedCarrier) {
+        throw Object.assign(new Error('Shippo returned tracking for a different shipment. Your payout remains held.'), {statusCode:502,code:'tracking_response_mismatch'});
+      }
       const status=String(tracker.tracking_status?.status||'UNKNOWN').toLowerCase();
       const acceptedStatuses=new Set(['transit','out_for_delivery','delivered','available_for_pickup']);
       const hasCarrierEvent=Array.isArray(tracker.tracking_history)&&tracker.tracking_history.some(event=>Boolean(event?.status_date));
       // Shippo test tracking is simulated. Never release real payouts from simulated events.
-      const verified=!testMode&&acceptedStatuses.has(status)&&hasCarrierEvent;
-      return {verified,id:tracker.object_id||'',carrier:tracker.carrier||carrier,status:testMode?`test_${status}`:status};
+      const simulated = testMode || tracker.test === true;
+      const verified=!simulated&&acceptedStatuses.has(status)&&hasCarrierEvent;
+      return {verified,id:tracker.object_id||'',carrier:tracker.carrier,status:simulated?`test_${status}`:status};
     }
     throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in this environment.'), { statusCode: 503 });
   }
