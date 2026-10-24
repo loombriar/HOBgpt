@@ -2,6 +2,8 @@
 
 **Do not enable `ADMIN_TOTP_REQUIRED=true` until every administrator has enrolled, tested login, and verified an independent recovery path.** This implementation is an interim TOTP control, not phishing-resistant passkey MFA.
 
+This is an initial-rollout warning. Keep MFA enabled on deployments that already enforce it; incomplete acceptance evidence is not a reason to disable protection.
+
 ## Enrollment
 1. Inventory each named administrator and verify their identity out of band. Avoid shared admin tokens; rotate any compromised credential.
 2. Generate a unique random Base32 TOTP secret for each administrator using an approved secret manager or secure provisioning process. Never put real secrets in Git, PRs, tickets, logs, or screenshots.
@@ -20,7 +22,15 @@
 - Record who may change deployment secrets and who can approve rollback before rollout.
 - Turning off `ADMIN_TOTP_REQUIRED` restores legacy bearer compatibility; treat this as a security downgrade and an incident-level action, not routine recovery.
 - TOTP is vulnerable to phishing. Follow up with individual identities, passkeys, revocable session assurance, scoped machine credentials, and complete role enforcement.
-- This runbook does not itself implement self-service enrollment, backup codes, or automatic session revocation.
+- This runbook does not itself implement self-service enrollment or backup codes.
+
+### Session invalidation during recovery
+
+Administrator cookies are bound to the configured token, role and MFA configuration. Once the replacement configuration is active in a running application, changing a required TOTP secret, removing that factor, or changing MFA enforcement invalidates its old cookies. Unchanged identities keep their sessions when only another identity's factor changes. Token rotation, role changes and identity removal also invalidate affected sessions.
+
+The session-binding upgrade invalidates cookies issued by older application versions once; administrators must sign in again. It does not change their tokens or authenticator enrollments. Verify working credentials and an independent recovery path before deploying. Merely saving variables without activating the replacement deployment does not revoke sessions in an older running process. Every active replica must run the replacement configuration before recovery is complete.
+
+For a lost device, replace the affected factor through the deployment secret manager, activate the replacement configuration, and verify a saved old cookie is denied before accepting recovery. Keep MFA enabled. Record only sanitized outcomes, never the cookie or secret. The synthetic tests in `tests/admin-session-lifecycle.test.js` cover configuration transitions across application restarts; they do not substitute for this deployed recovery rehearsal.
 
 ## Staging acceptance record (required before production enforcement)
 
