@@ -91,7 +91,7 @@ export default function SellPage() {
       <section id="designer-signup" className="mx-auto mt-14 max-w-3xl scroll-mt-24" aria-labelledby="designer-signup-heading">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Your invitation starts here</p>
         <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Designer sign up</h2>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email to create your profile. Individual listings are reviewed before appearing in the Shop.</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email, then open your designer room to complete your profile and create your first draft. Submit listings for review and connect Stripe to complete your selling setup. Individual listings are reviewed before appearing in the Shop.</p>
       {requestId ? <form onSubmit={e=>void verify(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6">
         <p role="status">{message}</p><label className="block text-sm font-medium">Six-digit code from your email<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} className={field}/></label>
         <button disabled={loading} className="min-h-12 rounded-full bg-primary px-6 text-primary-foreground">Verify email and open my room</button>
@@ -121,7 +121,7 @@ export default function SellPage() {
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>, including paying postage and offering free US delivery (version {form.sellerTermsVersion}).</span></label>
         {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
         <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Email me a verification code'}</button>
-        <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created after you verify your email.</p>
+        <p className="text-xs leading-5 text-muted-foreground">No application or portfolio required. Your designer profile is created after email verification. Students and recent graduates can separately apply for the 5% school commission through the Founding Schools Initiative; eligibility approval is required and payment processing fees are separate.</p>
       </form>}
       </section>
     </div>
