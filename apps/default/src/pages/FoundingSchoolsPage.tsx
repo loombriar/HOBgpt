@@ -25,6 +25,19 @@ export default function FoundingSchoolsPage() {
       <p style={{letterSpacing:3,color:'#d4b879',textTransform:'uppercase',fontSize:12}}>House of Briar · Creative education</p>
       <h1 style={{fontSize:'clamp(2.2rem,6vw,4rem)',lineHeight:1.1}}>Founding Schools Initiative</h1>
       <p style={{fontSize:19,lineHeight:1.6}}>A place for emerging fashion designers, artists, and makers to build independent creative businesses.</p>
+      <section aria-labelledby="student-start-heading" style={{border:'1px solid #94794e',borderRadius:16,padding:24,margin:'2rem 0',background:'#2c3132'}}>
+        <h2 id="student-start-heading" style={{fontSize:28,margin:'0 0 12px'}}>Students: start your free designer account</h2>
+        <p>You can join House of Briar now, even if your school has not joined the Founding Schools Initiative. Creating a designer account and applying for the student commission are two separate steps.</p>
+        <Link to="/sell#designer-signup" style={{display:'inline-block',padding:'14px 20px',borderRadius:8,background:'#d4b879',color:'#202426',fontWeight:700,textDecoration:'none'}}>Start your free designer account →</Link>
+        <h3 style={{fontSize:20,marginTop:24}}>Your path to selling</h3>
+        <ol style={{lineHeight:1.9,paddingLeft:24}}>
+          <li>Create your free designer account and verify your email.</li>
+          <li>Build your profile and portfolio, then create a draft listing.</li>
+          <li>Submit your work for review and complete Stripe payout setup.</li>
+          <li>Approved listings can go on sale when your selling setup is complete.</li>
+        </ol>
+        <p style={{fontSize:14}}>Want the 5% student rate? Submit the student application below separately. Eligibility must be verified and approved before that rate applies. Payment processing fees are additional.</p>
+      </section>
       <section style={{border:'1px solid #94794e',borderRadius:16,padding:24,margin:'2rem 0'}}>
         <h2 style={{fontSize:32,margin:'0 0 8px'}}>Permanent 5% school commission</h2>
         <p>Approved current students and graduates within 24 months of graduation pay a permanent 5% platform commission after eligibility verification and account assignment. Payment processing fees are separate. Creators manage their own inventory, customer service, and shipping.</p>
@@ -48,7 +61,7 @@ export default function FoundingSchoolsPage() {
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={busy} style={{padding:14,background:'#d4b879',color:'#202426',border:0,borderRadius:8,fontWeight:700}}>{busy?'Submitting…':'Submit application'}</button>
       </form>}
-      <p style={{marginTop:32}}><Link to="/sell" style={{color:'#d4b879'}}>Explore standard creator registration</Link></p>
+      <p style={{marginTop:32}}><Link to="/sell" style={{color:'#d4b879'}}>Create your free designer account</Link></p>
     </div>
   </main></HouseShell>;
 }
