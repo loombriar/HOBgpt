@@ -1229,12 +1229,19 @@ function createApp(options = {}) {
     return false;
   }
   db.exec('CREATE TABLE IF NOT EXISTS admin_totp_used (actor TEXT NOT NULL, counter INTEGER NOT NULL, used_at TEXT NOT NULL, PRIMARY KEY(actor,counter))');
+  function adminSessionCredentialHash(entry) {
+    // Bind persisted sessions to the factor that authenticated them. Rotating a
+    // lost device or enabling MFA must invalidate previously issued cookies.
+    const required = process.env.ADMIN_TOTP_REQUIRED === 'true';
+    const factor = required ? String(adminTotpSecrets[entry.label] || '').toUpperCase().replace(/=+$/, '') : null;
+    return crypto.createHash('sha256').update(JSON.stringify(['admin-session-v2', entry.token, required, factor])).digest('hex');
+  }
   function issueAdminSession(req, res, entry) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
     db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?').run(now.toISOString());
     db.prepare('INSERT INTO admin_sessions(session_hash,actor,role,created_at,expires_at,credential_hash) VALUES (?,?,?,?,?,?)')
-      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString(), crypto.createHash('sha256').update(entry.token).digest('hex'));
+      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString(), adminSessionCredentialHash(entry));
     setAdminSessionCookie(req, res, token);
   }
   function clearAdminSession(req, res) {
@@ -1284,7 +1291,7 @@ function createApp(options = {}) {
     if (sessionToken) {
       const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session = db.prepare('SELECT actor,role,expires_at,credential_hash FROM admin_sessions WHERE session_hash=?').get(sessionHash);
-      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && crypto.createHash('sha256').update(entry.token).digest('hex')===session.credential_hash)) {
+      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && adminSessionCredentialHash(entry)===session.credential_hash)) {
         req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return authorizeAdminRole(req, res, () => requireAdminRequestOrigin(req, res, next));
       }
       if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);
