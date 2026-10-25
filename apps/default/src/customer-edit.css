@@ -57,3 +57,5 @@ html.dark.dark.dark{--background:40 3% 10%;--foreground:42 35% 94%;--card:45 3% 
 .house-shop-toolbar>details>summary{padding:10px 12px;min-height:48px;box-sizing:border-box;width:100%;font-size:13px;overflow-wrap:anywhere}
 .house-shop-toolbar>details .house-filter-options{grid-template-columns:1fr;padding:12px}
 @media(max-width:680px){.house-card-info h2{font-size:21px}.house-card-photo{padding:12px}.house-card-stock,.house-card-photo-count{font-size:11px;padding:5px 7px}.house-card-stock{top:8px;left:8px}.house-card-photo-count{bottom:8px;right:8px}.house-card-info h2+p{font-size:12px}.house-card-actions button{font-size:11px;gap:4px;padding-inline:5px}.fashion-app .house-search-field input,.fashion-app .house-filter-label select{font-size:16px}}
+
+@media(max-width:680px){.house-compact-header .house-seamstress-menu{position:static}.house-compact-header .house-seamstress-menu-panel{top:100%;left:1rem;right:1rem;width:auto}}
