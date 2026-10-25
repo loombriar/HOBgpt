@@ -8,3 +8,6 @@ html[data-hob-theme=dark] .sewing-services-page #hob-global-nav{background:#2028
 .sewing-services-page .design-project-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:1rem;margin:1rem 0}.sewing-services-page .design-project-gallery img{display:block;width:100%;height:260px;object-fit:contain;background:#fff;border:1px solid var(--service-border);border-radius:10px}.sewing-services-page .design-project-actions{display:flex;flex-wrap:wrap;gap:.75rem}.sewing-services-page article p{overflow-wrap:anywhere;white-space:pre-wrap}.sewing-services-page section{scroll-margin-top:100px}
 /* Keep page-level surfaces in the selected theme, including above the cards. */
 body.sewing-services-page{background-color:var(--service-bg)!important;color:var(--service-text)}
+
+/* Match the shared app palette without changing forms or drawings. */
+html[data-hob-theme] body.sewing-services-page,html body.sewing-services-page{--service-bg:var(--house-paper);--service-card:var(--house-card);--service-text:var(--house-ink);--service-muted:var(--house-muted);--service-border:var(--house-line)}

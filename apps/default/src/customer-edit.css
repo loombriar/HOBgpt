@@ -1,6 +1,6 @@
 /* Shopping edit, shared by collection, product, cart and account surfaces. */
-:root:root:root{--background:42 32% 96%;--foreground:40 4% 14%;--card:44 60% 99%;--card-foreground:40 4% 14%;--popover:44 60% 99%;--popover-foreground:40 4% 14%;--primary:29 26% 33%;--primary-foreground:44 60% 99%;--muted:40 18% 90%;--muted-foreground:37 5% 40%;--border:38 16% 80%;--input:38 16% 80%;--accent:40 23% 89%;--accent-foreground:40 4% 14%}
-html.dark.dark.dark{--background:40 3% 10%;--foreground:42 35% 94%;--card:45 3% 14%;--card-foreground:42 35% 94%;--popover:45 3% 14%;--popover-foreground:42 35% 94%;--primary:35 42% 73%;--primary-foreground:40 3% 10%;--muted:40 4% 20%;--muted-foreground:40 12% 76%;--border:40 6% 43%;--input:40 6% 43%;--accent:40 5% 23%;--accent-foreground:42 35% 94%}
+:root:root:root{--background:40 40% 94%;--foreground:40 4% 14%;--card:43 100% 99%;--card-foreground:40 4% 14%;--popover:43 100% 99%;--popover-foreground:40 4% 14%;--primary:34 47% 32%;--primary-foreground:44 60% 99%;--muted:40 18% 90%;--muted-foreground:37 5% 40%;--border:38 16% 80%;--input:38 16% 80%;--accent:40 23% 89%;--accent-foreground:40 4% 14%}
+html.dark.dark.dark{--background:0 0% 13%;--foreground:42 35% 94%;--card:0 0% 16%;--card-foreground:42 35% 94%;--popover:0 0% 16%;--popover-foreground:42 35% 94%;--primary:35 42% 73%;--primary-foreground:40 3% 10%;--muted:40 4% 20%;--muted-foreground:40 12% 76%;--border:40 6% 43%;--input:40 6% 43%;--accent:35 7% 22%;--accent-foreground:42 35% 94%}
 .fashion-app.fashion-app :is(.rounded-2xl,.rounded-3xl){border-radius:6px}
 .fashion-app.fashion-app .house-compact-header>div{min-height:76px;gap:16px!important}
 .house-compact-header .house-compact-links{gap:18px!important;align-items:center}
