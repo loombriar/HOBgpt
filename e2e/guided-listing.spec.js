@@ -8,13 +8,13 @@ for(const width of [390,1280])test(`listing steps recover unfinished text and sa
  await expect(form.getByRole('heading',{name:'Photos',exact:true})).toBeVisible();
  await form.getByRole('button',{name:'Next: Details',exact:true}).click();
  await form.getByLabel('Piece name',{exact:true}).fill(`Recovery shirt ${width}`);
- await form.getByLabel('Description',{exact:true}).fill('Made carefully in our studio.');
+ await form.getByRole('textbox',{name:'Description',exact:true}).fill('Made carefully in our studio.');
  await form.getByRole('button',{name:'Next: Measurements',exact:true}).click();
- await form.getByLabel('Garment measurements',{exact:true}).fill('Chest 40 in; length 25 in');
+ await form.getByRole('textbox',{name:'Garment measurements',exact:true}).fill('Chest 40 in; length 25 in');
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('house-of-briar:listing-draft:v1:maker'))).toContain('Chest 40');
  await page.reload();
  await form.getByRole('button',{name:'Resume unfinished listing',exact:true}).click();
- await expect(form.getByLabel('Garment measurements',{exact:true})).toHaveValue('Chest 40 in; length 25 in');
+ await expect(form.getByRole('textbox',{name:'Garment measurements',exact:true})).toHaveValue('Chest 40 in; length 25 in');
  await expect(form.getByRole('status').last()).toContainText('Step 3 of 5');
  await form.getByRole('button',{name:'4. Price & shipping',exact:true}).click();
  await form.getByLabel('Price',{exact:true}).fill('42');

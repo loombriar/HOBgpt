@@ -21,7 +21,7 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#9b4359'}}).png().toBuffer();
   await upload.setInputFiles({name:'dress.png',mimeType:'image/png',buffer:image});
   const title=page.locator(room==='dashboard'?'#draft-piece-name':'#product-name');
-  const description=room==='dashboard'?form.getByLabel('Description',{exact:true}):page.locator('#product-description');
+  const description=room==='dashboard'?form.getByRole('textbox',{name:'Description',exact:true}):page.locator('#product-description');
   const price=page.locator(room==='dashboard'?'#draft-piece-price':'#product-price');
   if(room==='dashboard')await form.getByRole('button',{name:'4. Price & shipping',exact:true}).click();
   await price.fill('123');
