@@ -1933,32 +1933,27 @@ if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=!!
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 
-byId('donation-form')?.addEventListener('submit', async (event) => {
+async function startHouseDonation(provider,event) {
   event.preventDefault();
-  const amount = Number(byId('donation-amount')?.value);
-  const message = byId('donation-message');
-  if (!Number.isFinite(amount) || amount < 1 || amount > 1000) {
-    setMessage(message, 'Choose a donation between $1 and $1,000.', 'error');
-    return;
-  }
-  const button = event.currentTarget.querySelector('button[type="submit"]');
-  if (button?.disabled) return;
-  if (button) button.disabled = true;
+  const form=byId('donation-form');if(!form?.reportValidity())return;
+  const amount=Number(byId('donation-amount')?.value),message=byId('donation-message');
+  if(!Number.isFinite(amount)||amount<1||amount>1000){setMessage(message,'Choose a donation between $1 and $1,000.','error');return;}
+  const buttons=[...form.querySelectorAll('button')];if(buttons.some(button=>button.disabled))return;
+  buttons.forEach(button=>button.disabled=true);
   try {
-    setMessage(message, 'Opening secure checkout…', '');
-    const payload = await apiRequest('/api/donations/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
-    });
-    if (!payload?.url) throw new Error('Donation checkout did not return a checkout link.');
+    setMessage(message,'Opening '+(provider==='paypal'?'PayPal':'secure checkout')+'…','');
+    const payload=await apiRequest(provider==='paypal'?'/api/paypal/donations/order':'/api/donations/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});
+    if(!payload?.url)throw new Error('Donation checkout did not return a checkout link.');
+    if(provider==='paypal'){
+      const url=new URL(payload.url);
+      if(url.protocol!=='https:'||!['www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)||url.port||url.username||url.password)throw new Error('PayPal did not return a valid approval link.');
+    }
     window.location.assign(payload.url);
-  } catch (error) {
-    setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
-  } finally {
-    if (button) button.disabled = false;
-  }
-});
+  } catch(error){setMessage(message,error.message||'Donation checkout could not be started.','error');}
+  finally{buttons.forEach(button=>button.disabled=false);}
+}
+byId('donation-form')?.addEventListener('submit',event=>void startHouseDonation('stripe',event));
+byId('paypal-donation-btn')?.addEventListener('click',event=>void startHouseDonation('paypal',event));
 
 byId('newsletter-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
