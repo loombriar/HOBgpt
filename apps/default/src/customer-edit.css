@@ -59,3 +59,10 @@ html.dark.dark.dark{--background:40 3% 10%;--foreground:42 35% 94%;--card:45 3% 
 @media(max-width:680px){.house-card-info h2{font-size:21px}.house-card-photo{padding:12px}.house-card-stock,.house-card-photo-count{font-size:11px;padding:5px 7px}.house-card-stock{top:8px;left:8px}.house-card-photo-count{bottom:8px;right:8px}.house-card-info h2+p{font-size:12px}.house-card-actions button{font-size:11px;gap:4px;padding-inline:5px}.fashion-app .house-search-field input,.fashion-app .house-filter-label select{font-size:16px}}
 
 @media(max-width:680px){.house-compact-header .house-seamstress-menu{position:static}.house-compact-header .house-seamstress-menu-panel{top:100%;left:1rem;right:1rem;width:auto}}
+
+.house-seamstress-menu-panel{max-width:calc(100vw - 2rem);max-height:70vh;overflow:auto}
+.house-seamstress-menu-panel>a{display:flex;align-items:center;min-height:44px;padding:6px 8px;color:inherit;text-decoration:none}
+.house-seamstress-menu-panel>a:hover{text-decoration:underline}
+.house-seamstress-menu>summary:focus-visible,.house-seamstress-menu-panel>a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.house-compact-header .house-compact-links{width:100%;justify-content:center}
+.house-join-button{font-size:13px}

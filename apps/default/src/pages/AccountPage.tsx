@@ -63,6 +63,7 @@ function StudioPanel({title,children}:{title:string;children:ReactNode}) {
 }
 
 function StudioContent() {
+  const location=useLocation();
   const auth = useAuth();
   const designerEmail = auth.user?.profile.email ?? '';
   const [studioSummary,setStudioSummary]=useState<StudioSummary|null>(null);
@@ -390,7 +391,7 @@ function StudioContent() {
   const sendSupport=async(event:FormEvent)=>{event.preventDefault();if(!sellerToken)return;setSupportStatus('Sending…');try{const response=await fetch('/api/support/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:supportText,orderId:supportOrderId||undefined})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.error?.message||'Your support message could not be sent.');setSupportText('');setSupportStatus(data.message?.autoReply?'Sent. An automatic status response was emailed to you.':'Sent. Customer service will review your message.');}catch(error){setSupportStatus(error instanceof Error?error.message:'Your support message could not be sent.');}};
   const supportSection=<section id="house-support" className="mb-8 scroll-mt-36 rounded-3xl border border-border bg-card p-6"><HouseSupportAgent token={sellerToken}/><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Customer service</p><h2 className="mt-2 font-serif text-3xl">Need help with an order?</h2><p className="mt-2 text-sm text-muted-foreground">Order-status and shipping questions may receive an automatic informational response. Refunds, returns, cancellations, and disputes are always reviewed by a person.</p><form onSubmit={sendSupport} className="mt-5 space-y-3"><label className="block text-sm font-medium">Order <span className="font-normal text-muted-foreground">(optional)</span><select value={supportOrderId} onChange={e=>setSupportOrderId(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3"><option value="">General question</option>{purchases.map(order=><option key={order.id} value={order.id}>Order {order.id.slice(-8).toUpperCase()}</option>)}</select></label><label className="block text-sm font-medium">How can we help?<textarea required minLength={5} maxLength={1500} rows={4} value={supportText} onChange={e=>setSupportText(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2" placeholder="Ask about your order, shipping, or another customer-service question."/></label><button type="submit" className="min-h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Send to customer service</button>{supportStatus&&<p role="status" className="text-sm text-primary">{supportStatus}</p>}</form></section>;
 
-    const designerNotificationsSection=<details className="mb-8 rounded-3xl border border-border bg-card p-6"><summary className="cursor-pointer font-serif text-2xl">Inbox & notifications {notificationUnread>0?`(${notificationUnread} unread)`: ''} </summary><div className="mt-5"><DesignerNotifications items={designerNotifications} unread={notificationUnread} onRead={markNotificationRead} onReadAll={markAllNotificationsRead} onRefresh={refreshDesignerNotifications}/></div></details>;
+    const designerNotificationsSection=<details id="designer-notifications" open={location.hash==='#designer-notifications'?true:undefined} className="mb-8 rounded-3xl border border-border bg-card p-6"><summary className="cursor-pointer font-serif text-2xl">Inbox & notifications {notificationUnread>0?`(${notificationUnread} unread)`: ''} </summary><div className="mt-5"><DesignerNotifications items={designerNotifications} unread={notificationUnread} onRead={markNotificationRead} onReadAll={markAllNotificationsRead} onRefresh={refreshDesignerNotifications}/></div></details>;
     const measurementProfilesSection=<MeasurementProfiles />;
 
   const passkeySettingsSection=(studioAccess==='designer'||studioAccess==='signup')?<PasskeySettings kind={studioAccess==='designer'?'designer':'customer'}/>:null;
@@ -453,7 +454,7 @@ function packGarmentDetails(description:string, details:Record<string,string>) {
 export default function AccountPage() {
   const location = useLocation();
   useEffect(() => {
-    if (!['#house-support', '#house-support-agent'].includes(location.hash)) return;
+    if (!['#house-support', '#house-support-agent', '#designer-notifications'].includes(location.hash)) return;
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const scrollToSupport = () => {

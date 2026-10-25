@@ -27,7 +27,7 @@ for (const width of [390, 1280]) {
     await expect(page.locator('#visitor-suite-close')).toBeInViewport();
     await page.locator('#visitor-suite-close').click();
     await expect(page.locator('#visitor-suite-modal')).not.toBeVisible();
-    await page.locator('#header-customer-auth-btn').click();
+    await page.locator('[data-customer-welcome]').click();
     await page.getByRole('button', { name: 'Back to shop', exact: true }).click();
     await expect(page.locator('#visitor-suite-modal')).not.toBeVisible();
     await expect(page.locator('#shop')).toBeFocused();

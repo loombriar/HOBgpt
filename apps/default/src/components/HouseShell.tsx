@@ -6,8 +6,6 @@ import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-function HeartMailboxIcon() { return (<svg className="hob-mailbox-icon" viewBox="0 0 64 56" width="38" height="34" aria-hidden="true"><path d="M12 43V23a17 17 0 0 1 34 0v20H12Z" fill="currentColor" fillOpacity=".08" stroke="currentColor" strokeWidth="2.5"/><path d="M12 43h42V25c0-10-7-19-17-19M20 43v10m21-10v10M47 22V8h10v9H47" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><path className="hob-mailbox-heart" d="M29 24c-7-8-16 3 0 13 16-10 7-21 0-13Z" fill="currentColor"/></svg>); }
-
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -25,6 +23,12 @@ function ThemeButton() {
       {dark ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );
+}
+
+function NavigationMenu({label,children}:{label:string;children:React.ReactNode}){
+ const ref=useRef<HTMLDetailsElement>(null);
+ useEffect(()=>{const close=(event:MouseEvent)=>{if(ref.current&&!ref.current.contains(event.target as Node))ref.current.open=false;};document.addEventListener('click',close);return()=>document.removeEventListener('click',close);},[]);
+ return <details ref={ref} className="relative house-seamstress-menu" onToggle={event=>{const menu=event.currentTarget;if(menu.open)menu.closest('nav')?.querySelectorAll('details').forEach(other=>{if(other!==menu)other.open=false;});}} onKeyDown={event=>{if(event.key==='Escape'&&ref.current){ref.current.open=false;ref.current.querySelector('summary')?.focus();}}}><summary className="flex min-h-10 cursor-pointer items-center">{label} ▾</summary><div className="house-seamstress-menu-panel absolute left-0 top-full z-50 grid w-64 gap-1 rounded-xl border border-border bg-background p-3 shadow-lg" onClick={event=>{if((event.target as HTMLElement).closest('a')&&ref.current)ref.current.open=false;}}>{children}</div></details>;
 }
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
@@ -46,28 +50,20 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
     return () => observer.disconnect();
   }, []);
   const [cartCount, setCartCount] = useState(0);
-  const [designerAlerts,setDesignerAlerts]=useState<{id:string;title:string;body:string;readAt?:string|null;orderId?:string|null}[]>([]);
   const [designerUnread,setDesignerUnread]=useState(0);
-  const [designerSales,setDesignerSales]=useState(0);
-  const [isDesigner,setIsDesigner]=useState(false);
-  const [alertsOpen,setAlertsOpen]=useState(false);
   useEffect(()=>{
-    if(!auth.isAuthenticated){setIsDesigner(false);setDesignerUnread(0);setDesignerSales(0);return;}
+    if(!auth.isAuthenticated){setDesignerUnread(0);return;}
     let active=true;
     const refresh=async()=>{
       if(document.visibilityState==='hidden')return;
       try{
-        const [notifications,orders]=await Promise.all([
-          fetch('/api/my/designer-notifications',{credentials:'same-origin'}),
-          fetch('/api/my/orders',{credentials:'same-origin'})
-        ]);
+        const notifications=await fetch('/api/my/designer-notifications',{credentials:'same-origin'});
         if(!active)return;
         if(notifications.ok){
           const data=await notifications.json();
           if(!active)return;
-          setIsDesigner(true);setDesignerAlerts(data.items??[]);setDesignerUnread(data.unread??0);
+          setDesignerUnread(data.unread??0);
         }
-        if(orders.ok){const data=await orders.json();if(active){setIsDesigner(true);setDesignerSales((data.orders??[]).length);}}
       }catch{}
     };
     void refresh();
@@ -75,9 +71,6 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
     document.addEventListener('visibilitychange',refresh);
     return()=>{active=false;window.clearInterval(timer);document.removeEventListener('visibilitychange',refresh);};
   },[auth.isAuthenticated]);
-  const readDesignerAlert=async(id:string)=>{
-    try{const response=await fetch(`/api/my/designer-notifications/${encodeURIComponent(id)}/read`,{method:'PATCH',credentials:'same-origin'});if(response.ok){setDesignerAlerts(items=>items.map(item=>item.id===id?{...item,readAt:new Date().toISOString()}:item));setDesignerUnread(count=>Math.max(0,count-1));}}catch{}
-  };
   useEffect(() => {
     const refresh = () => {
       setCartCount(readCartIds().length);
@@ -98,26 +91,17 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
           <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
+          <a href="/join.html" className="house-join-button inline-flex min-h-11 items-center rounded-lg border-2 border-primary px-4 font-semibold">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a>
           <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
-            <a href={auth.isAuthenticated && isDesigner ? '/account' : '/designers/room'} className="inline-flex min-h-10 items-center hover:underline">{auth.isAuthenticated && isDesigner ? 'Designer dashboard' : 'Designer sign in'}</a>
-            <NavLink to="/designers" className="inline-flex min-h-10 items-center hover:underline">Designers</NavLink>
-            <a href="/creative-house.html" className="inline-flex min-h-10 items-center hover:underline">The Creative House</a>
-            <details className="relative house-seamstress-menu"><summary className="flex min-h-10 cursor-pointer items-center">Seamstresses ▾</summary><div className="house-seamstress-menu-panel absolute left-0 top-full z-50 grid w-52 gap-1 rounded-xl border border-border bg-background p-3 shadow-lg"><a href="/?visitors=signup&seamstress=signin" className="flex min-h-11 items-center px-2 hover:underline">Seamstress sign in</a><a href="/?visitors=signup&seamstress=signup" className="flex min-h-11 items-center px-2 hover:underline">Seamstress signup</a></div></details>
-            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton /><Link to="/account" className="inline-flex min-h-10 items-center hover:underline">My account</Link>
+            <NavigationMenu label="Designers"><a href="/designers/room">Designer dashboard</a><a href="/account#designer-notifications">Designer notifications{designerUnread>0?` (${designerUnread} unread)`:''}</a><NavLink to="/designers">Meet the designers</NavLink></NavigationMenu>
+            <NavigationMenu label="Seamstresses"><a href="/sewing-services.html#offer-services">Seamstress dashboard</a><a href="/sewing-services.html#service-inbox">Seamstress notifications</a><a href="/design-projects.html#maker-board">Find designs to make</a></NavigationMenu>
+            <NavigationMenu label="Creative House"><a href="/creative-house.html">Explore the Creative House</a><a href="/?visitors=signup&creative=model">Model sign in / signup</a><a href="/?visitors=signup&creative=photographer">Photographer sign in / signup</a><a href="/designers/room#designer-signup">Designer signup</a><a href="/?visitors=signup&creative=dj">DJ sign in / signup</a><a href="/?visitors=signup&creative=venue">Venue sign in / signup</a><a href="/creative-house.html#opportunities">Open calls &amp; collaborations</a><a href="/creative-house.html#post-event">Post an event</a></NavigationMenu>
+            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton />
             <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2 hover:border-primary">
               <img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
               <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
             </Link>
-            {auth.isAuthenticated && isDesigner && <div className="relative">
-              <button type="button" aria-label={`Designer notifications, ${designerUnread} unread, ${designerSales} sales`} aria-expanded={alertsOpen} onClick={() => setAlertsOpen(open => !open)} className={`hob-mailbox ${designerUnread>0?'has-unread':''}`}><HeartMailboxIcon />{designerUnread > 0 && <span className="hob-mailbox-count">{designerUnread>99?'99+':designerUnread}</span>}</button>
-              {alertsOpen && <div className="absolute right-0 top-full z-[10000] mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-card p-4 text-foreground shadow-xl">
-                <strong className="block font-serif text-lg">Designer sales & updates</strong>
-                <p className="mt-1 text-sm">{designerSales} orders · {designerUnread} unread</p>
-                <Link to="/account#orders" onClick={() => setAlertsOpen(false)} className="mt-3 block border border-border px-4 py-2 text-center text-sm">View sales & shipping</Link>
-                <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{designerAlerts.slice(0, 5).map(item => <div key={item.id} className="border border-border p-3 text-sm"><strong>{item.title}</strong><p>{item.body}</p>{!item.readAt && <button type="button" onClick={() => void readDesignerAlert(item.id)} className="mt-2 underline">Mark read</button>}</div>)}</div>
-              </div>}
-            </div>}
             {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2">Sign out</button>}
           </nav>
         </div>
