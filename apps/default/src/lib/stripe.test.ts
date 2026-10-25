@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession } from './stripe';
+import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, createPayPalDonationSession } from './stripe';
 
 describe('checkout API regression safeguards', () => {
   beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); });
@@ -50,4 +50,17 @@ describe('checkout API regression safeguards', () => {
     expect(url).toBe('/api/checkout/cancel/order%2F1');
     expect((options?.headers as Record<string,string>)['X-Checkout-Cancel-Token']).toBe('private-token');
   });
+  it('starts a separate PayPal donation with the selected amount and account header', async()=>{
+    vi.mocked(fetch).mockResolvedValue({ok:true,json:async()=>({url:'https://www.paypal.com/checkoutnow?token=fixture'})} as Response);
+    await expect(createPayPalDonationSession(12,'fixture-token')).resolves.toContain('paypal.com');
+    const [url,options]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('/api/paypal/donations/order');expect(JSON.parse(String(options?.body))).toEqual({amount:12});expect((options?.headers as Record<string,string>).Authorization).toBe('Bearer fixture-token');
+  });
+  it('rejects invalid donation amounts before a request',async()=>{
+    for(const amount of [0,1001,NaN])await expect(createPayPalDonationSession(amount)).rejects.toThrow('Choose a donation');expect(fetch).not.toHaveBeenCalled();
+  });
+  it('rejects an approval redirect outside PayPal',async()=>{
+    vi.mocked(fetch).mockResolvedValue({ok:true,json:async()=>({url:'https://www.paypal.com.evil.test/checkoutnow'})} as Response);
+    await expect(createPayPalDonationSession(5)).rejects.toThrow('valid approval link');
+  });
+
 });
