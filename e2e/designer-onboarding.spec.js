@@ -20,7 +20,7 @@ for(const room of ['dashboard','standalone'])test(`designer onboarding opens the
   await expect(checklist).toContainText('Stripe verification: Complete');
   await expect(checklist).toContainText('2 of 4 required selling steps complete.');
   await checklist.locator('[data-next-action]').getByRole('link',{name:'Create your first draft',exact:true}).click();
-  await expect(page.locator('#designer-listings').locator('xpath=ancestor::details[1]')).toHaveAttribute('open','');await expect(page.getByRole('textbox',{name:'Piece name',exact:true})).toBeVisible();
+  await expect(page.locator('#designer-listings').locator('xpath=ancestor::details[1]')).toHaveAttribute('open','');await expect(page.getByRole('heading',{name:'Photos',exact:true})).toBeVisible();
  }else{
   await expect(page.locator('#seller-readiness-list > .seller-readiness-item')).toHaveCount(4);
   await expect(page.locator('#seller-readiness-list')).toContainText('2. Connect your payouts');

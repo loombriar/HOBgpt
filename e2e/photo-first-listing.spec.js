@@ -23,7 +23,9 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   const title=page.locator(room==='dashboard'?'#draft-piece-name':'#product-name');
   const description=room==='dashboard'?form.getByRole('textbox',{name:'Description',exact:true}):page.locator('#product-description');
   const price=page.locator(room==='dashboard'?'#draft-piece-price':'#product-price');
+  if(room==='dashboard')await form.getByRole('button',{name:'4. Price & shipping',exact:true}).click();
   await price.fill('123');
+  if(room==='dashboard')await form.getByRole('button',{name:'1. Photos',exact:true}).click();
   const consent=room==='dashboard'?form.getByRole('checkbox',{name:/Send these listing details to OpenAI/}):page.locator('#photo-draft-consent');
   const analyze=room==='dashboard'?form.getByRole('button',{name:'Fill in details from photo',exact:true}):page.locator('#photo-draft-analyze');
   expect(calls).toBe(0);
@@ -35,6 +37,7 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   expect(writes).toBe(0);
   await apply.click();
   await expect(title).toHaveValue(suggestions.title);
+  if(room==='dashboard')await form.getByRole('button',{name:'2. Details',exact:true}).click();
   await expect(description).toHaveValue(suggestions.description);
   await expect(price).toHaveValue('123');
   if(room==='standalone'){await expect(page.locator('#product-style')).toHaveValue('Purse / Bag');await expect(page.locator('#product-category')).toHaveValue('accessories');await expect(page.locator('#product-pattern')).toHaveValue('Floral');}

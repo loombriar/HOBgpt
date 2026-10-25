@@ -21,6 +21,9 @@ for(const width of [390,1280]) {
   }
   await page.locator('.shop-drop-windows').scrollIntoViewIfNeeded();
   await page.screenshot({path:`/tmp/hob-windows-${width}.png`});
+  // Earlier tests may approve a piece for this shared fixture designer.
+  // Keep this layout scenario in the intended first-listing state.
+  await page.route('**/api/my/listings',route=>route.fulfill({json:{items:[]}}));
   await page.goto('/designers/room');
   await page.getByText('Have an older access token?',{exact:true}).click();
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
