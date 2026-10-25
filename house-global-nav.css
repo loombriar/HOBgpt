@@ -135,3 +135,11 @@ html[data-hob-theme=dark] #hob-global-nav .hob-seamstress-menu-panel{background:
 #hob-global-nav .hob-global-actions .hob-global-join{display:inline-flex;align-items:center;justify-content:center;border:1px solid currentColor;border-radius:8px;padding:6px 10px!important;min-height:44px;font:600 13px/1.2 Arial,sans-serif;color:inherit;text-decoration:none;box-sizing:border-box}
 @media(min-width:701px){html body #hob-global-nav.hob-global-nav{display:grid!important;grid-template-columns:1fr auto;gap:2px 24px}#hob-global-nav>.hob-global-wordmark{grid-column:1;grid-row:1}#hob-global-nav>.hob-global-actions{grid-column:2;grid-row:1}html body #hob-global-nav.hob-global-nav>nav{grid-column:1/-1;grid-row:2;justify-content:center}}
 @media(max-width:700px){#hob-global-nav .hob-seamstress-menu-panel{width:auto}#hob-global-nav .hob-global-actions .hob-global-join{padding:4px 7px!important;font-size:11px!important;max-width:88px}html body #hob-global-nav.hob-global-nav>nav{gap:4px 14px!important}}
+
+/* Shared House palette: ivory, charcoal and a restrained antique gold. */
+:root{--house-paper:#f6f2ea;--house-card:#fffdf8;--house-ink:#292722;--house-muted:#686158;--house-line:#d5cbbb;--house-soft:#ece5d9;--house-gold:#78572b}
+html[data-hob-theme=dark]{--house-paper:#202020;--house-card:#292929;--house-ink:#f5f1e9;--house-muted:#c9c1b5;--house-line:#70685c;--house-soft:#34312d;--house-gold:#d8bc88}
+html body #hob-global-nav.hob-global-nav{background:var(--house-paper)!important;color:var(--house-ink)!important;border-bottom-color:var(--house-line)!important;box-shadow:none!important}
+#hob-global-nav .hob-seamstress-menu-panel{background:var(--house-card)!important;color:var(--house-ink)!important;border-color:var(--house-line)!important}
+#hob-global-nav .hob-global-join{border-color:var(--house-gold)!important}
+#hob-global-nav .hob-mailbox-panel{background:var(--house-card)!important;color:var(--house-ink)!important;border-color:var(--house-line)!important}
