@@ -4340,6 +4340,7 @@ function createApp(options = {}) {
   });
   const patterns=require('./pattern-commerce').mountPatternCommerce({app,db,dataDir,authBuyer,authDesigner,authAdmin,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter,releaseTransfer:processDesignerTransfers});
   const sewingServices=require('./sewing-services').mountSewingServices({app,db,authBuyer,authDesigner,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter});
+  require('./design-projects').mountDesignProjects({app,db,authBuyer,origin:requireDesignerRequestOrigin,rateLimit,imageWork,moderateDesignerImage,fail});
   // Public project-intake forms do not expose talent portfolios or contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_project_requests (
     id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('hire-talent','commission-designer')),
@@ -4648,7 +4649,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
-  for(const asset of ['sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
+  for(const asset of ['design-projects.html','design-projects-ui.js','sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
   app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'briar-seamless-background-v1.webp',
