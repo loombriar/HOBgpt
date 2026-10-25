@@ -11,6 +11,8 @@ if (scrollingHeader) {
 let customerSignedIn = false;
 let customerSigninRequest = '';
 let reviewerVerificationRequested = new URLSearchParams(window.location.search).get('reviewerVerify') === '1';
+const seamstressIntent = ['signin','signup'].includes(new URLSearchParams(window.location.search).get('seamstress')) ? new URLSearchParams(window.location.search).get('seamstress') : '';
+const seamstressDestination = seamstressIntent === 'signin' ? '/sewing-services.html#service-inbox' : '/sewing-services.html#offer-services';
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -2581,6 +2583,22 @@ async function refreshCustomerPurchases() {
   }
 }
 byId('visitor-orders-refresh')?.addEventListener('click',()=>void refreshCustomerPurchases());
+// Seamstresses share House email authentication and land in their sewing workspace.
+if(seamstressIntent){
+  byId('visitor-suite-title').textContent=seamstressIntent==='signin'?'Seamstress sign in':'Seamstress signup';
+  byId('visitor-suite-close').setAttribute('aria-label','Close seamstress account');
+  byId('customer-account-eyebrow').textContent='Your free sewing-services account';
+  byId('customer-account-title').textContent=seamstressIntent==='signin'?'Welcome back to your sewing studio.':'Love to sew? Make yourself at home.';
+  byId('customer-account-intro').textContent=seamstressIntent==='signin'?'Use your House account email. We’ll send a six-digit sign-in code, then open your service requests.':'Create your free House account, then add your sewing skills, service area and availability. You do not need a designer shop.';
+  byId('customer-email-help').textContent='No password to create or remember. We’ll email a six-digit code to verify your House account.';
+  byId('customer-reviewer-entry').hidden=true;
+  byId('customer-name-field').hidden=seamstressIntent==='signin';
+  byId('seamstress-auth-links').hidden=false;
+  byId('seamstress-continue').href=seamstressDestination;
+  byId('visitor-suite').hidden=true;
+  byId('customer-start-shopping').textContent='Back to sewing services';
+  byId('customer-start-shopping').addEventListener('click',()=>window.location.assign('/sewing-services.html'));
+}
 let customerAccountRequest=0;
 async function refreshCustomerAccount() {
   const request=++customerAccountRequest;
@@ -2595,6 +2613,7 @@ async function refreshCustomerAccount() {
     byId('customer-code-form').hidden=true;
     await refreshMeasurementProfiles(customerSignedIn);
     if(request!==customerAccountRequest)return;
+    if(customerSignedIn&&seamstressIntent&&!reviewerVerificationRequested){window.location.assign(seamstressDestination);return;}
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
   }catch{if(request!==customerAccountRequest)return;customerSignedIn=false;void refreshCustomerPurchases();byId('customer-signed-in').hidden=true;byId('customer-signup-form').hidden=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
@@ -2605,7 +2624,7 @@ byId('customer-signup-form')?.addEventListener('submit',async event=>{
 });
 byId('customer-code-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
-  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');if(seamstressIntent&&customerSignedIn)window.location.assign(seamstressDestination);}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
 });
 byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
 byId('customer-delete-account')?.addEventListener('click',async()=>{

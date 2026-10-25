@@ -11,7 +11,8 @@
   const {options}=await api(base(kind)+'/signin/options',{});
   const response=await window.SimpleWebAuthnBrowser.startAuthentication({optionsJSON:options});
   await api(base(kind)+'/signin/verify',{response});
-  window.location.assign('/account');
+  const sewing=new URLSearchParams(window.location.search).get('seamstress');
+  window.location.assign(kind==='customer'&&['signin','signup'].includes(sewing)?'/sewing-services.html'+(sewing==='signin'?'#service-inbox':'#offer-services'):'/account');
  }
  function element(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
  function mountManage(host,kind){

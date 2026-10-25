@@ -17,6 +17,16 @@
     designerEntry.classList.add('hob-global-designer-link');
     designerEntry.textContent = 'Designer sign in';
   }
+  const sewingMenu=document.createElement('details');
+  sewingMenu.className='hob-seamstress-menu';
+  const sewingSummary=document.createElement('summary');sewingSummary.textContent='Seamstresses';sewingMenu.append(sewingSummary);
+  const sewingLinks=document.createElement('div');sewingLinks.className='hob-seamstress-menu-panel';
+  for(const [intent,label] of [['signin','Seamstress sign in'],['signup','Seamstress signup']]){
+    const link=document.createElement('a');link.href='/?visitors=signup&seamstress='+intent;link.textContent=label;sewingLinks.append(link);
+  }
+  sewingMenu.append(sewingLinks);links.append(sewingMenu);
+  document.addEventListener('click',event=>{if(!sewingMenu.contains(event.target))sewingMenu.open=false;});
+  sewingMenu.addEventListener('keydown',event=>{if(event.key==='Escape')sewingMenu.open=false;});
   const creativeLink = links.querySelector('a[href="/creative-house.html"]');
   if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
     const menu = document.createElement('details');
