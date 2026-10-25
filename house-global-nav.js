@@ -32,7 +32,7 @@
     ['/designers/room#designer-signup','Designer signup'],
     ['/?visitors=signup&creative=dj','DJ sign in / signup'],
     ['/?visitors=signup&creative=venue','Venue sign in / signup'],
-    ['/creative-house.html#opportunities','Open calls & collaborations'],
+    ['/creative-house.html#opportunities','Open calls & collaborations'],['/creative-house.html#post-event','Post an event'],
   ],links.querySelector('a[href="/creative-house.html"]'));
   const sewingMenu=makeMenu('Seamstresses','sewing',[
     ['/sewing-services.html#offer-services','Seamstress dashboard'],
