@@ -52,6 +52,7 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   await creator.goto(feedback.actionPath);
   let piece=creator.locator('#listing-'+id);await expect(piece).toContainText('Please add waist and length measurements.');
   await piece.getByRole('button',{name:'Edit & resubmit',exact:true}).click();
+  await creator.getByRole('button',{name:'3. Measurements',exact:true}).click();
   await creator.getByLabel('Garment measurements',{exact:true}).fill('Waist 30 in; length 40 in');
   await creator.getByRole('button',{name:'Save draft',exact:true}).click();
   await expect(creator.getByText('Draft saved. Submit it for review when it is ready.',{exact:true})).toBeVisible();

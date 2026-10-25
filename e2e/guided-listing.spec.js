@@ -1,0 +1,28 @@
+const {test,expect}=require('@playwright/test');
+for(const width of [390,1280])test(`listing steps recover unfinished text and save a private draft at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:850});
+ await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+ await page.goto('/account#designer-listings');
+ const form=page.locator('#designer-listings');
+ await expect(form.getByRole('navigation',{name:'Listing steps'})).toBeVisible();
+ await expect(form.getByRole('heading',{name:'Photos',exact:true})).toBeVisible();
+ await form.getByRole('button',{name:'Next: Details',exact:true}).click();
+ await form.getByLabel('Piece name',{exact:true}).fill(`Recovery shirt ${width}`);
+ await form.getByLabel('Description',{exact:true}).fill('Made carefully in our studio.');
+ await form.getByRole('button',{name:'Next: Measurements',exact:true}).click();
+ await form.getByLabel('Garment measurements',{exact:true}).fill('Chest 40 in; length 25 in');
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('house-of-briar:listing-draft:v1:maker'))).toContain('Chest 40');
+ await page.reload();
+ await form.getByRole('button',{name:'Resume unfinished listing',exact:true}).click();
+ await expect(form.getByLabel('Garment measurements',{exact:true})).toHaveValue('Chest 40 in; length 25 in');
+ await expect(form.getByRole('status').last()).toContainText('Step 3 of 5');
+ await form.getByRole('button',{name:'4. Price & shipping',exact:true}).click();
+ await form.getByLabel('Price',{exact:true}).fill('42');
+ await form.getByRole('button',{name:'5. Review',exact:true}).click();
+ await form.getByRole('button',{name:'At least one photo',exact:false}).click();
+ await expect(form.getByRole('heading',{name:'Photos',exact:true})).toBeVisible();
+ await form.getByRole('button',{name:'Save draft',exact:true}).click();
+ await expect(page.getByText('Draft saved. Submit it for review when it is ready.',{exact:true})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('house-of-briar:listing-draft:v1:maker'))).toBeNull();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

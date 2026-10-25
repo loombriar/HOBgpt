@@ -1,0 +1,10 @@
+import { useRef, type ReactNode } from 'react';
+const steps=['Photos','Details','Measurements','Price & shipping','Review'];
+export function ListingStep({index,active,title,children}:{index:number;active:number;title:string;children:ReactNode}) {
+  return <section id={`listing-step-${index}`} hidden={active!==index} aria-labelledby={`listing-step-heading-${index}`} className="mt-6 space-y-5"><h3 id={`listing-step-heading-${index}`} className="font-serif text-2xl">{title}</h3>{children}</section>;
+}
+export default function ListingSteps({step,onStep,children}:{step:number;onStep:(step:number)=>void;children:ReactNode}) {
+  const heading=useRef<HTMLHeadingElement>(null);
+  const go=(next:number)=>{onStep(next);requestAnimationFrame(()=>{heading.current?.focus();heading.current?.scrollIntoView({block:'start',behavior:'smooth'});});};
+  return <div><h2 ref={heading} tabIndex={-1} className="scroll-mt-32 font-serif text-2xl">Your piece, one step at a time</h2><p className="mt-2 text-sm text-muted-foreground">Move between steps whenever you like. Nothing is published here.</p><nav aria-label="Listing steps" className="mt-4"><ol className="flex flex-wrap gap-2">{steps.map((label,index)=><li key={label}><button type="button" aria-current={step===index?'step':undefined} aria-controls={`listing-step-${index}`} onClick={()=>go(index)} className={`min-h-11 rounded-full border px-4 py-2 text-sm ${step===index?'border-primary bg-primary text-primary-foreground':'border-border bg-background'}`}>{index+1}. {label}</button></li>)}</ol></nav><p role="status" className="mt-3 text-sm">Step {step+1} of {steps.length} · {steps[step]}</p>{children}<div className="mt-6 flex flex-wrap justify-between gap-3"><button type="button" disabled={step===0} onClick={()=>go(step-1)} className="min-h-11 rounded-full border border-border px-5 text-sm disabled:opacity-40">Back</button>{step<steps.length-1&&<button type="button" onClick={()=>go(step+1)} className="min-h-11 rounded-full bg-primary px-5 text-sm text-primary-foreground">Next: {steps[step+1]}</button>}</div></div>;
+}
