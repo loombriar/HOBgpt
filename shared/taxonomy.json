@@ -256,6 +256,10 @@
     {
       "value": "pattern-cutting",
       "label": "Pattern cutting & grading"
+    },
+    {
+      "value": "custom-construction",
+      "label": "Bring sketches to life \u00b7 custom garment construction"
     }
   ],
   "serviceModes": [

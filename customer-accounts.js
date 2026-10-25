@@ -142,7 +142,7 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
   const subject='customer:'+identity.customerId;
   if(db.prepare("SELECT 1 FROM portfolio_billing WHERE owner_subject=? AND (subscription_id IS NOT NULL OR checkout_id IS NOT NULL)").get(subject))return fail(res,409,'subscription_requires_review','Cancel your subscription and contact House support to close billing records before deleting your account.');
   // Financial and correspondence records must be reviewed rather than silently orphaned.
-  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries','sewing_service_requests'];
+  const protectedTables=['orders','donations','collector_notes','listing_inquiries','support_messages','special_order_offers','creative_inquiries','sewing_service_requests','design_project_offers'];
   for(const table of protectedTables){
     const columns=db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name);
     const conditions=[];const values=[];
@@ -152,12 +152,15 @@ function createCustomerAccounts({app,db,fail,authAdmin,deliverEmail,trustedAppOr
       return fail(res,409,'account_records_require_review','Your account has orders, donations, or messages that need a privacy review before deletion. Contact House of Briar support.');
   }
   if(db.prepare('SELECT 1 FROM sewing_service_requests WHERE provider_id IN (SELECT id FROM sewing_service_profiles WHERE owner_subject=?)').get(subject))return fail(res,409,'account_records_require_review','Your sewing service requests need a privacy review before deletion. Contact House support.');
+  if(db.prepare('SELECT 1 FROM design_project_offers WHERE project_id IN (SELECT id FROM design_projects WHERE owner_subject=?) OR maker_subject=?').get(subject,subject))return fail(res,409,'account_records_require_review','Your design project connections need a privacy review before account deletion. Contact House support.');
   const portfolioFiles=db.prepare('SELECT storage_key FROM portfolio_images WHERE owner_subject=?').all(subject);
   db.transaction(()=>{
     db.prepare('DELETE FROM portfolio_images WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_settings WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_views WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM portfolio_billing WHERE owner_subject=?').run(subject);
+    db.prepare('DELETE FROM design_project_images WHERE project_id IN (SELECT id FROM design_projects WHERE owner_subject=?)').run(subject);
+    db.prepare('DELETE FROM design_projects WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM sewing_service_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_profiles WHERE owner_subject=?').run(subject);
     db.prepare('DELETE FROM creative_network_preferences WHERE owner_subject=?').run(subject);
