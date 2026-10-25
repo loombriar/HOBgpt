@@ -4649,7 +4649,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
-  for(const asset of ['design-projects.html','design-projects-ui.js','sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
+  for(const asset of ['join.html','join.js','join.css','design-projects.html','design-projects-ui.js','sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
   app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'briar-seamless-background-v1.webp',

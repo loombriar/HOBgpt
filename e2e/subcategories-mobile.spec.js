@@ -5,7 +5,7 @@ test('mobile navigation stays compact and keeps account and cart usable',async({
  const header=page.locator('#hob-global-nav');
  await expect(header.locator('.hob-global-actions')).toBeVisible();
  await expect.poll(async()=> (await header.boundingBox()).height,{message:'The mobile storefront header must fit two compact rows'}).toBeLessThanOrEqual(110);
- await header.getByRole('button',{name:'Customer sign in or create an account'}).click();
+ await header.getByRole('link',{name:'Sign in / Join',exact:true}).click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
  await expect(page.locator('#visitor-suite-modal')).toBeVisible();
  await page.locator('#visitor-suite-close').click();
  await page.locator('#cart-btn').click();await expect(page.locator('#cart-dialog')).toBeVisible();

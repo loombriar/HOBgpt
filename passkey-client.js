@@ -12,7 +12,9 @@
   const response=await window.SimpleWebAuthnBrowser.startAuthentication({optionsJSON:options});
   await api(base(kind)+'/signin/verify',{response});
   const sewing=new URLSearchParams(window.location.search).get('seamstress');
-  window.location.assign(kind==='customer'&&['signin','signup'].includes(sewing)?'/sewing-services.html'+(sewing==='signin'?'#service-inbox':'#offer-services'):'/account');
+  const creative=new URLSearchParams(window.location.search).get('creative');
+  const creativeRoute=['model','photographer','dj','venue'].includes(creative)?'/creative-house.html?join='+creative+(['dj','venue'].includes(creative)?'#event-profile-editor':'#your-profile'):'/account';
+  window.location.assign(kind==='customer'&&['signin','signup'].includes(sewing)?'/sewing-services.html'+(sewing==='signin'?'#service-inbox':'#offer-services'):kind==='customer'?creativeRoute:'/account');
  }
  function element(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
  function mountManage(host,kind){

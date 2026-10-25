@@ -127,3 +127,11 @@ html[data-hob-theme=dark] #hob-global-nav .hob-seamstress-menu-panel{background:
 
 @media(max-width:700px){#hob-global-nav .hob-seamstress-menu{position:static}#hob-global-nav .hob-seamstress-menu-panel{top:calc(100% + 4px);left:14px;right:14px;width:auto;max-width:none}}
 #hob-global-nav .hob-seamstress-menu>summary:focus-visible{outline:2px solid #b49360;outline-offset:3px}
+
+/* Three role menus with one account entry above them. */
+#hob-global-nav #header-customer-auth-btn{display:none!important}
+#hob-global-nav .hob-seamstress-menu-panel{width:260px;box-sizing:border-box;max-height:70vh;overflow:auto;z-index:10001}
+#hob-global-nav .hob-mailbox-panel{position:static;width:100%;max-width:100%;box-shadow:none}
+#hob-global-nav .hob-global-actions .hob-global-join{display:inline-flex;align-items:center;justify-content:center;border:1px solid currentColor;border-radius:8px;padding:6px 10px!important;min-height:44px;font:600 13px/1.2 Arial,sans-serif;color:inherit;text-decoration:none;box-sizing:border-box}
+@media(min-width:701px){html body #hob-global-nav.hob-global-nav{display:grid!important;grid-template-columns:1fr auto;gap:2px 24px}#hob-global-nav>.hob-global-wordmark{grid-column:1;grid-row:1}#hob-global-nav>.hob-global-actions{grid-column:2;grid-row:1}html body #hob-global-nav.hob-global-nav>nav{grid-column:1/-1;grid-row:2;justify-content:center}}
+@media(max-width:700px){#hob-global-nav .hob-seamstress-menu-panel{width:auto}#hob-global-nav .hob-global-actions .hob-global-join{padding:4px 7px!important;font-size:11px!important;max-width:88px}html body #hob-global-nav.hob-global-nav>nav{gap:4px 14px!important}}

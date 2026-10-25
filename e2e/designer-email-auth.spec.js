@@ -5,9 +5,10 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.goto('/');
   // The visible entry must navigate even when the retired header control cannot act.
   await page.locator('#designer-login-btn').evaluate(button=>button.disabled=true);
+  await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in / Join',exact:true}).click();
   await Promise.all([
     page.waitForRequest(request=>request.isNavigationRequest()&&new URL(request.url()).pathname==='/designers/room'),
-    page.locator('#hob-global-nav').getByRole('link',{name:'Designer sign in',exact:true}).click()
+    page.getByRole('link',{name:'Designer sign in',exact:true}).click()
   ]);
   await expect(page).toHaveURL(/designers\/room/);
   await expect(page.locator('#designer-login-panel')).toBeInViewport();
@@ -28,11 +29,13 @@ test('mobile designer signup verifies email before opening the room',async({page
   await expect(page.locator('#designer-workspace')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
   await page.goto('/');
+  await page.locator('#hob-global-nav .hob-designers-menu summary').click();
   const dashboard=page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true});
   await expect(dashboard).toBeVisible();
   await dashboard.click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.goto('/creative-house.html');
+  await page.locator('#hob-global-nav .hob-designers-menu summary').click();
   await page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true}).click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Brand & profile',exact:true}).click();
