@@ -118,7 +118,7 @@ export default function SellPage() {
             </label>)}
           </div>
         </fieldset>
-        <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>, including paying postage and offering free US delivery (version {form.sellerTermsVersion}).</span></label>
+        <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>.</span></label>
         {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
         <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Email me a verification code'}</button>
         <p className="text-xs leading-5 text-muted-foreground">No application or portfolio required. Your designer profile is created after email verification. Students and recent graduates can separately apply for the 5% school commission through the Founding Schools Initiative; eligibility approval is required and payment processing fees are separate.</p>
