@@ -1,0 +1,12 @@
+import AcceptedPayments from './AcceptedPayments';
+const socials = [
+  {name:'Facebook',href:'https://www.facebook.com/profile.php?id=61595729137315',path:'M15 21v-8h3l.5-3H15V8.5c0-.8.3-1.5 1.5-1.5H19V4h-3c-3 0-5 1.8-5 5v1H8v3h3v8z'},
+  {name:'YouTube',href:'https://www.youtube.com/@Houseofbriar.shop.designers',path:'M21 7a3 3 0 0 0-2-2c-2-.5-12-.5-14 0a3 3 0 0 0-2 2c-.5 2-.5 8 0 10a3 3 0 0 0 2 2c2 .5 12 .5 14 0a3 3 0 0 0 2-2c.5-2 .5-8 0-10ZM10 16V8l7 4z'},
+];
+export default function HouseFooter(){return <footer className="house-footer-enhanced house-react-footer">
+  <details className="house-footer-policies"><summary>Help &amp; policies</summary><nav aria-label="Footer help"><a href="/shipping.html">Shipping &amp; Delivery</a><a href="/rules">Rules &amp; Returns</a><a href="/account#house-support">Customer support</a><a href="/admin">Admin dashboard</a></nav></details>
+  <div className="house-footer-bar"><p className="copyright">© {new Date().getFullYear()} House of Briar. All Rights Reserved.</p>
+    <nav className="house-footer-socials" aria-label="House of Briar social media">{socials.map(s=><a key={s.name} href={s.href} aria-label={s.name} title={s.name} target="_blank" rel="noopener noreferrer"><svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d={s.path} fill="currentColor" fillRule="evenodd"/></svg></a>)}<a href="https://www.instagram.com/house_of_briar_/" aria-label="Instagram" title="Instagram" target="_blank" rel="noopener noreferrer"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a></nav>
+    <AcceptedPayments compact />
+  </div>
+</footer>}
