@@ -23,6 +23,7 @@
   const socials=document.createElement('nav');socials.className='house-footer-socials';socials.setAttribute('aria-label','House of Briar social media');
   for(const item of [
     {name:'Facebook',url:'https://www.facebook.com/profile.php?id=61595729137315',symbol:'f'},
+    {name:'YouTube',url:'https://www.youtube.com/@Houseofbriar.shop.designers',symbol:'▶'},
     {name:'Instagram',url:'https://www.instagram.com/house_of_briar_/',symbol:'◎'}
   ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;link.textContent=item.symbol;socials.append(link);}
   bottom.append(socials);
