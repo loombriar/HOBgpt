@@ -3,12 +3,12 @@ for(const width of [390,1280])test(`role menus and one account entry work at ${w
  await page.setViewportSize({width,height:850});await page.goto('/');
  const nav=page.locator('#hob-global-nav');
  await expect(nav.getByRole('link',{name:'Sign in / Join',exact:true})).toBeVisible();
- for(const label of ['Designers','Seamstresses','Creative House']){
+ for(const label of ['Designers','Seamstresses','Backstage']){
   const menu=nav.locator('details').filter({has:page.locator('summary').filter({hasText:new RegExp('^'+label+'$')})});
   await menu.locator('summary').click();await expect(menu).toHaveAttribute('open','');
   expect(await nav.locator('details[open]').count()).toBe(1);
   const box=await menu.locator('.hob-seamstress-menu-panel').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
-  if(label==='Creative House')await expect(menu.getByRole('link',{name:'Photographer sign in / signup',exact:true})).toBeVisible();
+  if(label==='Backstage')await expect(menu.getByRole('link',{name:'Photographer sign in / signup',exact:true})).toBeVisible();
  }
  await page.keyboard.press('Escape');expect(await nav.locator('details[open]').count()).toBe(0);
  await nav.getByRole('link',{name:'Sign in / Join',exact:true}).click();await expect(page).toHaveURL(/join.html$/);await expect(page.getByText('Designers use their designer account.',{exact:false})).toBeVisible();
