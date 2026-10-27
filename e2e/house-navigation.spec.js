@@ -1,19 +1,21 @@
 const {test,expect}=require('@playwright/test');
-for(const width of [390,1280])test(`role menus and one account entry work at ${width}px`,async({page})=>{
- await page.setViewportSize({width,height:850});await page.goto('/');
- const nav=page.locator('#hob-global-nav');
- await expect(nav.getByRole('link',{name:'Sign in / Join',exact:true})).toBeVisible();
- for(const label of ['Designers','Seamstresses','Creative House']){
-  const menu=nav.locator('details').filter({has:page.locator('summary').filter({hasText:new RegExp('^'+label+'$')})});
-  await menu.locator('summary').click();await expect(menu).toHaveAttribute('open','');
-  expect(await nav.locator('details[open]').count()).toBe(1);
-  const box=await menu.locator('.hob-seamstress-menu-panel').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
-  if(label==='Creative House')await expect(menu.getByRole('link',{name:'Photographer sign in / signup',exact:true})).toBeVisible();
- }
- await page.keyboard.press('Escape');expect(await nav.locator('details[open]').count()).toBe(0);
- await nav.getByRole('link',{name:'Sign in / Join',exact:true}).click();await expect(page).toHaveURL(/join.html$/);await expect(page.getByText('Designers use their designer account.',{exact:false})).toBeVisible();
+for(const width of [390,1280])for(const url of ['/','/shop'])test(`ordered navigation at ${width}px on ${url}`,async({page})=>{
+ await page.setViewportSize({width,height:850});await page.goto(url);
+ const legacy=url==='/';const nav=page.locator(legacy?'#hob-global-nav':'.house-compact-header');
+ const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^SHOP/})});
+ const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^BACKSTAGE/})});
+ const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
+ let last=-1;for(const item of [logo,theme,search,shop.locator('summary'),backstage.locator('summary'),mailbox,cart]){await expect(item).toBeVisible();const box=await item.boundingBox();expect(box.x).toBeGreaterThan(last);last=box.x;}
+ await shop.locator('summary').click();await expect(shop).toContainText('We’re still moving in.');
+ for(const name of ['Create your room','Save your measurements','Create an outfit'])await expect(shop.getByRole('link',{name,exact:true})).toBeVisible();
+ await backstage.locator('summary').click();await expect(shop).not.toHaveAttribute('open');
+ for(const role of ['designer','model','photographer','DJ'])await expect(backstage.getByRole('link',{name:'Sign in as '+role,exact:true})).toBeVisible();
+ await expect(backstage.getByRole('link',{name:/venue/i})).toHaveCount(0);
+ const box=await backstage.locator('div').first().boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+ await backstage.locator('summary').press('Escape');await expect(backstage).not.toHaveAttribute('open');
+ await search.click();await expect(nav.getByRole('searchbox')).toBeVisible();await nav.getByRole('searchbox').press('Escape');await expect(nav.getByRole('searchbox')).toBeHidden();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.screenshot({path:`/tmp/hob-navigation-${width}.png`,fullPage:true});
+ await page.screenshot({path:`/tmp/hob-ordered-${legacy?'home':'shop'}-${width}.png`});
 });
 for(const role of ['model','photographer','dj','venue'])test(`${role} choice verifies email and lands on the right profile`,async({page})=>{
  await page.goto('/join.html');await page.getByRole('link',{name:{model:'Model',photographer:'Photographer',dj:'DJ',venue:'Venue'}[role],exact:true}).click();

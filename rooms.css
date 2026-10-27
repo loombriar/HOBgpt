@@ -217,3 +217,28 @@ html[data-hob-theme=dark] body.blackberry-house #admin-review-workspace .studio-
 .listing-preview-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:16px}
 .listing-preview-layout>div{min-width:0;overflow-wrap:anywhere}.listing-preview-images img{display:inline-block;width:72px;height:80px;object-fit:contain;margin:4px}.listing-preview-images img:first-child{display:block;width:100%;height:auto;max-height:360px;margin:0 0 10px}.listing-preview-text{white-space:pre-wrap}.listing-preview-price{font-size:22px;font-weight:600}
 @media(max-width:600px){.listing-preview-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Designer workspace: consistent surfaces, readable controls and quieter photo tools. */
+html #designer-modal{--studio-surface:#fff;--studio-soft:#f5f2f6;--studio-ink:#27232b;--studio-muted:#59515f;--studio-line:#c9c0ce}
+html[data-hob-theme="dark"] #designer-modal{--studio-surface:#29262e;--studio-soft:#201e24;--studio-ink:#f7f2fa;--studio-muted:#d0c6d6;--studio-line:#75697d}
+html body #designer-modal :is(.photo-preview-item,.room-navigation,.designer-room-panel,.room-card,.listing-enhancements){background:var(--studio-surface)!important;color:var(--studio-ink)!important;border-color:var(--studio-line)!important}
+html body #designer-modal :is(input:not([type=checkbox]):not([type=radio]),select,textarea){background:var(--studio-soft)!important;color:var(--studio-ink)!important;border-color:var(--studio-line)!important;color-scheme:light}
+html[data-hob-theme="dark"] body #designer-modal :is(input,select,textarea){color-scheme:dark}
+html body #designer-modal :is(input,textarea)::placeholder{color:var(--studio-muted)!important;opacity:1}
+html body #designer-modal :is(.photo-preview-meta strong,.photo-preview-actions button,.photo-options summary,.room-navigation button,.room-navigation a,.text-button){color:var(--studio-ink)!important}
+html body #designer-modal :is(.photo-preview-meta span,.small-print){color:var(--studio-muted)!important}
+html body #designer-modal .room-navigation :is(button,a),html body #designer-modal .photo-preview-actions button{background:var(--studio-soft)!important;border:1px solid var(--studio-line)!important;box-shadow:none!important}
+html body #designer-modal .photo-preview{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+html body #designer-modal .photo-preview-item{min-width:0}
+html body #designer-modal .photo-preview-item>img{height:240px;object-fit:contain;background:var(--studio-soft)}
+html body #designer-modal .photo-options{padding:0 12px 12px}
+html body #designer-modal .photo-options>summary{cursor:pointer;min-height:44px;display:list-item;font-weight:600;padding:12px 0}
+html body #designer-modal .photo-angle-select{width:100%;margin:0 0 10px}
+html body #designer-modal .photo-preview-actions{display:flex;flex-wrap:wrap;gap:8px;padding:0;justify-content:flex-start}
+html body #designer-modal .photo-preview-actions button{min-width:80px;min-height:44px;white-space:nowrap;word-break:normal;overflow-wrap:normal;padding:8px 12px}
+html body #designer-modal .photo-preview-actions button:disabled{opacity:.55;cursor:default}
+html body #designer-modal .designer-start-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+html body #designer-modal .designer-start-actions>p{grid-column:1/-1}
+html body #designer-modal .designer-start-actions>button{min-height:52px;border-radius:12px;font:600 16px/1.4 Inter,sans-serif}
+html body #designer-modal #designer-edit-pieces{background:var(--studio-surface)!important;color:var(--studio-ink)!important;border:1px solid var(--studio-line)!important}
+@media(max-width:600px){html body #designer-modal .photo-preview{grid-template-columns:minmax(0,1fr)}html body #designer-modal .photo-preview-item>img{height:260px}html body #designer-modal .designer-start-actions{grid-template-columns:minmax(0,1fr)}}

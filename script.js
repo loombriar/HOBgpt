@@ -448,7 +448,7 @@ updateCartButton();
 renderVisitorFavorites();
 cartButton?.addEventListener('click', openCart);
 checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
-paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal / Venmo';}});
+paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal';}});
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
 byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
 
@@ -1005,6 +1005,7 @@ function resetListingForm() {
   currentIdempotencyKey = '';
   if (productIdInput) productIdInput.value = '';
   if (listingFormTitle) listingFormTitle.textContent = 'Add a design';
+  const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent='Create a piece';
   selectedImages.forEach((item) => {
     if (item.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(item.objectUrl);
   });
@@ -1043,7 +1044,7 @@ function renderSelectedImages() {
       const option=document.createElement('option'); option.value=value; option.textContent=label; angle.appendChild(option);
     });
     angle.value=image.angle || ''; angle.addEventListener('change',()=>{ image.angle=angle.value; });
-    item.appendChild(angle);
+    const options=document.createElement('details');options.className='photo-options';const optionsTitle=document.createElement('summary');optionsTitle.textContent='Arrange or remove';options.append(optionsTitle,angle);item.append(options);
 
     const actions = makeElement('div', 'photo-preview-actions');
     const moveUp = document.createElement('button');
@@ -1090,7 +1091,7 @@ function renderSelectedImages() {
     });
     actions.appendChild(remove);
 
-    item.appendChild(actions);
+    options.appendChild(actions);
     photoPreview.appendChild(item);
   });
   if(byId('listing-preview')?.open)renderListingDraftPreview();
@@ -1474,6 +1475,12 @@ async function loadDesignerListings() {
       edit.className = 'text-button';
       edit.addEventListener('click', () => editListing(listing.id));
       if (['draft', 'rejected', 'published'].includes(listing.status)) actions.appendChild(edit);
+      if(['draft','rejected'].includes(listing.status)){
+        const confirm=makeElement('label','check-label small-print');const consent=document.createElement('input');consent.type='checkbox';confirm.append(consent,document.createTextNode('I confirm this is my original or independently designed work and follows the marketplace rules.'));
+        const submit=makeElement('button','secondary-button','Submit for review');submit.type='button';submit.disabled=true;consent.addEventListener('change',()=>{submit.disabled=!consent.checked;});
+        submit.addEventListener('click',async()=>{submit.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketplaceRulesAccepted:true})});await loadDesignerListings();setMessage(byId('designer-listings-message'),'Submitted for review. Your piece stays private until approved.','success');}catch(error){setMessage(byId('designer-listings-message'),error.message,'error');submit.disabled=!consent.checked;}});
+        actions.append(confirm,submit);
+      }
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Delete';
@@ -1566,6 +1573,7 @@ async function editListing(listingId) {
       });
     }
     renderSelectedImages();
+    const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent=`Editing: ${listing.title}`;
     scrollRoomTarget(byId('product-form'),{behavior:'smooth',block:'start'});
     setMessage(uploadMessage, listing.moderationReason ? `Changes requested: ${listing.moderationReason}. Save your changes, then submit for review again.` : listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
   } catch (error) {
@@ -2617,6 +2625,7 @@ async function refreshCustomerAccount() {
     void refreshCustomerPurchases();
     if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
+    if(customerSignedIn&&location.hash==='#measurement-profile-name'){const target=byId('measurement-profile-name');for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;target?.focus({preventScroll:true});target?.scrollIntoView({block:'center'});}
     for(const button of document.querySelectorAll('[data-passkey-signin=customer]'))button.hidden=customerSignedIn||!window.HousePasskeys?.supported();
     byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
     byId('customer-code-form').hidden=true;
@@ -2658,6 +2667,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
   button.addEventListener('click', () => {
     const target = byId(button.dataset.roomTarget);
     if (!target) return;
+    if(button.dataset.roomTarget==='product-form')resetListingForm();
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
@@ -2773,7 +2783,7 @@ function prepareDesignerRoomPanels() {
   const groups=[
     ['.seller-readiness-card','Getting started'],
     ['#designer-listing-area','Your listings'],
-    ['#product-form','Create or edit a piece'],
+    ['#product-form','Create a piece'],
     ['#designer-brand-form','Brand & profile']
   ];
   for(const [selector,title] of groups){
@@ -2781,6 +2791,8 @@ function prepareDesignerRoomPanels() {
     if(!content||content.parentElement!==workspace)continue;
     const panel=document.createElement('details');
     panel.className='designer-room-panel';
+    panel.setAttribute('name','designer-workspace-panel');
+    if(selector==='#product-form')panel.id='designer-editor-panel';
     panel.open=selector==='.seller-readiness-card';
     if(selector==='.seller-readiness-card')panel.id='designer-setup-panel';
     const summary=document.createElement('summary');
@@ -2795,10 +2807,11 @@ function prepareDesignerRoomPanels() {
   actions.className='designer-start-actions';
   const addPiece=document.createElement('button');
   addPiece.type='button';addPiece.className='primary-button';
-  addPiece.id='designer-add-piece';addPiece.textContent='Add a piece';
+  addPiece.id='designer-add-piece';addPiece.textContent='Create a piece';
   addPiece.addEventListener('click',()=>byId('new-listing-btn')?.click());
   const help=makeElement('p','small-print','Start a draft now. Finish and submit it whenever you are ready.');
-  actions.append(addPiece,help);
+  const manage=document.createElement('button');manage.type='button';manage.className='secondary-button';manage.id='designer-edit-pieces';manage.textContent='Edit my listings';manage.addEventListener('click',()=>scrollRoomTarget(byId('designer-products'),{block:'start'}));
+  actions.append(addPiece,manage,help);
   if(attention)attention.before(actions);else workspace.prepend(actions);
   renderSellerReadiness();
   const reveal=target=>{
@@ -2810,7 +2823,7 @@ function prepareDesignerRoomPanels() {
   workspace.addEventListener('invalid',event=>reveal(event.target),true);
   byId('new-listing-btn')?.addEventListener('click',()=>{const form=byId('product-form');reveal(form);scrollRoomTarget(form,{block:'start'});});
   workspace.addEventListener('click',event=>{
-    if(event.target.closest('.designer-product-actions'))reveal(byId('product-form'));
+    if(event.target.closest('.designer-product-actions')&&/^(Edit|Edit & resubmit)$/.test(event.target.textContent.trim()))reveal(byId('product-form'));
   });
   const revealHash=()=>{const id=location.hash.slice(1);if(id)reveal(byId(id));};
   window.addEventListener('hashchange',revealHash);

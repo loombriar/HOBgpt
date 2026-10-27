@@ -2,7 +2,7 @@ const {test,expect}=require('@playwright/test');
 for(const width of [390,1280])test(`seamstress signup uses email verification and opens the sewing profile at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:850});await page.goto('/');
  await expect(page.getByRole('link',{name:'Shop the edit',exact:false})).toHaveCount(0);
- const menu=page.locator('#hob-global-nav .hob-sewing-menu');await menu.locator('summary').click();
+ const menu=page.locator('#hob-global-nav .hob-shop-menu');await menu.locator('summary').click();
  for(const screen of width===390?[390,430]:[1280]){await page.setViewportSize({width:screen,height:850});const box=await menu.locator('.hob-seamstress-menu-panel').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(screen);}
  await page.setViewportSize({width,height:850});await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in / Join',exact:true}).click();await page.getByRole('link',{name:'Join as a seamstress',exact:true}).click();
  const modal=page.getByRole('dialog',{name:'Seamstress signup',exact:true});await expect(modal).toBeVisible();
@@ -20,7 +20,7 @@ test('seamstress sign in uses an existing customer and opens service requests wi
  await expect(modal.getByLabel('Six-digit email code',{exact:true})).toBeVisible();const {code}=await(await page.request.get('/__test/customer-code?email='+encodeURIComponent(email))).json();await modal.getByLabel('Six-digit email code',{exact:true}).fill(code);await modal.getByRole('button',{name:'Verify and sign in',exact:true}).click();await expect(page).toHaveURL(origin+'/sewing-services.html#service-inbox');await expect(page.locator('#service-inbox')).toHaveAttribute('open','');await expect(page.locator('#service-inbox-status')).toHaveText('Only you can see these requests.');
 });
 
-for(const width of [390,1280])test(`seamstress menu stays within the account dashboard at ${width}px`,async({page})=>{
+for(const width of [390,1280])test(`Shop menu stays within the account dashboard at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:850});await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});await page.goto('/account');
- const menu=page.locator('.house-seamstress-menu').filter({has:page.locator('summary').filter({hasText:'Seamstresses'})});await menu.locator('summary').click();await expect(menu.getByRole('link',{name:'Seamstress dashboard',exact:true})).toBeVisible();await expect(menu.getByRole('link',{name:'Seamstress notifications',exact:true})).toBeVisible();const box=await menu.locator('.house-seamstress-menu-panel').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+ const menu=page.locator('.house-seamstress-menu').filter({has:page.locator('summary').filter({hasText:'SHOP'})});await menu.locator('summary').click();await expect(menu.getByRole('link',{name:'Create your room',exact:true})).toBeVisible();await expect(menu.getByRole('link',{name:'Save your measurements',exact:true})).toBeVisible();const box=await menu.locator('.house-seamstress-menu-panel').boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
 });

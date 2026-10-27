@@ -5,7 +5,7 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.goto('/');
   // The visible entry must navigate even when the retired header control cannot act.
   await page.locator('#designer-login-btn').evaluate(button=>button.disabled=true);
-  await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in / Join',exact:true}).click();
+  await page.locator('.hob-shop-menu > summary').click();await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in / Join',exact:true}).click();
   await Promise.all([
     page.waitForRequest(request=>request.isNavigationRequest()&&new URL(request.url()).pathname==='/designers/room'),
     page.getByRole('link',{name:'Designer sign in',exact:true}).click()
@@ -29,14 +29,14 @@ test('mobile designer signup verifies email before opening the room',async({page
   await expect(page.locator('#designer-workspace')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
   await page.goto('/');
-  await page.locator('#hob-global-nav .hob-designers-menu summary').click();
-  const dashboard=page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true});
+  await page.locator('#hob-global-nav .hob-backstage-menu summary').click();
+  const dashboard=page.locator('#hob-global-nav').getByRole('link',{name:'Sign in as designer',exact:true});
   await expect(dashboard).toBeVisible();
   await dashboard.click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.goto('/creative-house.html');
-  await page.locator('#hob-global-nav .hob-designers-menu summary').click();
-  await page.locator('#hob-global-nav').getByRole('link',{name:'Designer dashboard',exact:true}).click();
+  await page.locator('#hob-global-nav .hob-backstage-menu summary').click();
+  await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in as designer',exact:true}).click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Brand & profile',exact:true}).click();
   const profile=page.locator('#designer-brand-form');
@@ -47,9 +47,10 @@ test('mobile designer signup verifies email before opening the room',async({page
     const heading=document.querySelector('#designer-modal .designer-room-header').getBoundingClientRect();
     return el.getBoundingClientRect().top >= Math.max(bar.bottom,heading.bottom)-2;
   })).toBe(true);
+  await page.locator('.hob-backstage-menu > summary').click();
   const signout=page.locator('#hob-global-signout');
   await expect(signout).toBeVisible();
-  await expect.poll(()=>signout.evaluate(el=>el.getBoundingClientRect().bottom<=document.getElementById('hob-global-nav').getBoundingClientRect().bottom)).toBe(true);
+  await expect(signout).toBeInViewport();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
   const listing=page.locator('#product-form');
   const finder=listing.locator('.fabric-finder-card');
