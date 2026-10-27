@@ -52,6 +52,7 @@ test('mobile designer signup verifies email before opening the room',async({page
   await expect(signout).toBeVisible();
   await expect(signout).toBeInViewport();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  await page.locator('.listing-edit-options').filter({has:page.locator('#product-materials')}).locator(':scope > summary').click();
   const listing=page.locator('#product-form');
   const finder=listing.locator('.fabric-finder-card');
   await finder.locator('summary').click();
@@ -83,6 +84,7 @@ test('marketplace mobile signup continues through a private draft and review sub
   await expect(page).toHaveURL(/designers\/room/);
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  for(const summary of await page.locator('.listing-edit-options > summary').all())await summary.click();
   const design=page.locator('#product-form');
   await design.getByLabel('Design name',{exact:true}).fill('First Mobile Dress');
   await design.getByLabel('Price',{exact:true}).fill('75');

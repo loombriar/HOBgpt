@@ -1349,7 +1349,7 @@ async function handleSave(event) {
     }
 
     const failedPhotos=selectedImages.filter(image=>image.status==='failed');
-    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : 'Draft saved successfully.', failedPhotos.length ? 'error' : 'success');
+    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : (action === 'save' ? 'Changes saved successfully.' : 'Draft saved successfully.'), failedPhotos.length ? 'error' : 'success');
     await loadDesignerListings();
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');
@@ -2798,6 +2798,24 @@ function prepareDesignerRoomPanels() {
     const summary=document.createElement('summary');
     summary.textContent=title;
     content.before(panel);panel.append(summary,content);
+  }
+  const editor=byId('product-form');
+  if(editor){
+    const sections=[['label[for="product-name"]','Name & description'],['fieldset.listing-form-group','Price & shipping'],['section[aria-labelledby="pricing-helper-title"]','Cost estimate'],['fieldset.listing-form-group:has(#product-category)','Garment details & fit'],['fieldset.listing-enhancements','Presentation & gifting']];
+    const starts=sections.map(([selector,title])=>[editor.querySelector(':scope > '+selector),title]).filter(([node])=>node);
+    const children=[...editor.children];
+    for(let i=0;i<starts.length;i++){
+      const [start,title]=starts[i],end=starts[i+1]?.[0]||byId('listing-readiness');
+      const panel=document.createElement('details');panel.className='listing-edit-options';
+      const summary=document.createElement('summary');summary.textContent=title;panel.append(summary);
+      const fields=document.createElement('div');fields.className='stack-form';panel.append(fields);start.before(panel);
+      for(let n=children.indexOf(start);n<children.indexOf(end);n++)if(children[n].id!=='upload-message')fields.append(children[n]);
+    }
+    const toolbar=document.createElement('div');toolbar.className='listing-save-toolbar';
+    const save=document.createElement('button');save.type='submit';save.name='action';save.value='save';save.className='primary-button';save.textContent='Save changes';save.id='listing-save-changes';
+    toolbar.append(save,byId('upload-message'));editor.querySelector('.listing-edit-options').before(toolbar);
+    const guidedLink=editor.querySelector('a[href="/account#designer-listings"]')?.parentElement;if(guidedLink)editor.append(guidedLink);
+    const style=document.createElement('style');style.textContent='.listing-save-toolbar{position:sticky;top:calc(var(--hob-bar-height,80px) + 8px);z-index:20;background:var(--briar-card,#fffdf8);color:var(--briar-ink,#292622);border:1px solid var(--briar-line,#888);border-radius:12px;padding:12px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}.listing-save-toolbar p{margin:0}.listing-edit-options{border:1px solid var(--briar-line,#888);border-radius:10px;padding:14px}.listing-edit-options>summary{cursor:pointer;min-height:44px;display:list-item;font-weight:600}.listing-edit-options>.stack-form{padding-top:14px}';document.head.append(style);
   }
   const setupPanel=byId('designer-setup-panel');
   const attention=byId('designer-attention');
