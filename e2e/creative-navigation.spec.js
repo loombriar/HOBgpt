@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 
 for(const width of [390,1280]){
- test(`Creative House groups roles and reveals their specialties at ${width}px`,async({page})=>{
+ test(`Backstage groups roles and reveals their specialties at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:844});
   await page.route('**/api/creative-house/**',route=>{
    const path=new URL(route.request().url()).pathname;
