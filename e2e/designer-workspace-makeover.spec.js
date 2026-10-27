@@ -15,6 +15,9 @@ for(const width of [390,1280])for(const theme of ['light','dark'])test(`designer
  await page.locator('#listing-makeover-piece').getByRole('button',{name:'Edit',exact:true}).click();
  await expect(page.locator('#product-name')).toHaveValue('Saved dress');
  await expect(page.locator('#designer-editor-panel > summary')).toHaveText('Editing: Saved dress');
+ await expect(page.locator('.listing-edit-options[open]')).toHaveCount(0);
+ await expect(page.locator('#listing-save-changes')).toBeVisible();
+ expect(await page.evaluate(()=>Boolean(document.querySelector('#photo-draft-title').closest('section').compareDocumentPosition(document.querySelector('#photo-preview')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
  const card=page.locator('.photo-preview-item').first();
  await expect(card.locator('img')).toBeVisible();
  await expect(card.locator('.photo-preview-actions')).toBeHidden();
@@ -30,4 +33,13 @@ for(const width of [390,1280])for(const theme of ['light','dark'])test(`designer
  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
  await expect(page.locator('#product-name')).toHaveValue('');
  await expect(page.locator('#designer-editor-panel > summary')).toHaveText('Create a piece');
+});
+test('nearby save updates an existing listing without submitting it',async({page})=>{
+ await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+ const item={id:'save-nearby',title:'Original dress',description:'A handmade dress',price:75,category:'apparel',style:'Dress',size:'M',aesthetic:'Romantic',productionType:'One of a Kind',status:'published',moderationStatus:'approved',images:[{id:'front',url:'/save-test.png'}]};let updates=0,submits=0;
+ await page.route('**/api/my/studio',r=>r.fulfill({json:{items:[item]}}));
+ await page.route('**/api/listings/save-nearby',async r=>{if(r.request().method()==='PUT'){updates++;expect(r.request().postDataJSON().title).toBe('Changed dress');}await r.fulfill({json:{item}});});
+ await page.route('**/api/listings/save-nearby/enhancements',r=>r.fulfill({json:{item}}));await page.route('**/api/listings/save-nearby/images/order',r=>r.fulfill({json:{item}}));await page.route('**/api/listings/save-nearby/submit',r=>{submits++;return r.fulfill({json:{item}});});
+ await page.goto('/designers/room');await page.locator('#designer-edit-pieces').click();await page.locator('#listing-save-nearby').getByRole('button',{name:'Edit',exact:true}).click();
+ await page.locator('.listing-edit-options').filter({has:page.locator('#product-name')}).locator(':scope > summary').click();await page.locator('#product-name').fill('Changed dress');await page.locator('#listing-save-changes').click();await expect(page.locator('#upload-message')).toContainText('Changes saved successfully');expect(updates).toBe(1);expect(submits).toBe(0);
 });
