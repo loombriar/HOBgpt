@@ -4502,6 +4502,7 @@ function createApp(options = {}) {
     if(!result.changes)return res.status(404).json({error:'Opportunity not found.'});
     res.json({ok:true});
   });
+  app.use('/payment-logos', express.static(path.join(rootDir, 'public', 'payment-logos'), { index: false }));
   app.get('/payment-methods.json',(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,'public','payment-methods.json')));
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(req,res)=>{

@@ -11,16 +11,16 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
-  // Refresh branding and payment names on every legacy page footer.
+  // Refresh branding and payment logos on every legacy page footer.
   let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}footer.classList.add('house-footer-enhanced');
   const footerBrand=document.createElement('a');footerBrand.href='/';footerBrand.className='house-footer-logo';footerBrand.innerHTML='<img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar">';footer.prepend(footerBrand);
   fetch('/payment-methods.json?v=20261027').then(r=>{if(!r.ok)throw Error();return r.json();}).then(methods=>{
     const section=document.createElement('section');section.className='house-payment-panel';section.setAttribute('aria-label','Accepted payments');
     const title=document.createElement('h2');title.textContent='Ways to pay';section.append(title);
-    const list=document.createElement('ul');for(const name of methods.primary){const li=document.createElement('li');li.textContent=name;list.append(li);}section.append(list);
+    const list=document.createElement('ul');for(const method of methods.logos){const li=document.createElement('li');const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=64;img.height=40;li.append(img);list.append(li);}section.append(list);
     const note=document.createElement('p');note.textContent=methods.note;section.append(note);
-    const extra=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Additional regional payment methods';const region=document.createElement('p');region.textContent=methods.regional.join(' · ')+' — for eligible locations and currencies.';extra.append(summary,region);section.append(extra);
-    const donations=document.createElement('p');donations.textContent=methods.donations;section.append(donations);footer.append(section);
+    const extra=document.createElement('details');const summary=document.createElement('summary');summary.textContent='More payment options';const region=document.createElement('p');region.textContent=[...methods.primary.filter(name=>!methods.logos.some(method=>method.name===name)),...methods.regional].join(' · ')+' — for eligible locations and currencies.';extra.append(summary,region);section.append(extra);
+    const donations=document.createElement('p');const paypal=document.createElement('img');paypal.src='/payment-logos/paypal.svg';paypal.alt='PayPal donations only';paypal.width=64;paypal.height=40;donations.append(paypal,document.createTextNode(' Donations only'));section.append(donations);footer.append(section);
   }).catch(()=>{});
 
   const wordmark=nav.querySelector('.hob-global-wordmark');
