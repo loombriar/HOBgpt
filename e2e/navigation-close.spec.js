@@ -33,7 +33,7 @@ for (const width of [390, 1280]) {
     await expect(categories).not.toHaveAttribute('open');
     await expect(categories.locator('summary')).toBeFocused();
     await categories.locator('summary').click();
-    await page.locator('#hob-global-nav').getByRole('link', { name: 'Explore the Creative House', exact: true }).click();
+    await page.locator('#hob-global-nav').getByRole('link', { name: 'Enter Backstage', exact: true }).click();
     await expect(page.locator('#hob-global-nav .hob-creative-house-menu')).not.toHaveAttribute('open');
     await page.locator('[data-creative-workflow="event"]').click();
     await expect(page.locator('#event-form')).toBeVisible();
