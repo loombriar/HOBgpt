@@ -56,7 +56,8 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   await creator.getByLabel('Garment measurements',{exact:true}).fill('Waist 30 in; length 40 in');
   await creator.getByRole('button',{name:'Save draft',exact:true}).click();
   await expect(creator.getByText('Draft saved. Submit it for review when it is ready.',{exact:true})).toBeVisible();
-  await creator.getByRole('navigation',{name:'Designer studio sections'}).getByRole('link',{name:'My listings',exact:true}).click();
+  await creator.goto(origin+'/designers/room');
+  await creator.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Your listings',exact:true}).click();
   piece=creator.locator('#listing-'+id);await piece.getByRole('checkbox').last().check();
   await piece.getByRole('button',{name:'Submit for review',exact:true}).click();await expect(piece).toContainText('Pending review');
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(false);
