@@ -168,3 +168,10 @@ html body #hob-global-nav.hob-global-nav{background:var(--house-paper)!important
 .house-payment-panel{max-width:1000px;margin:24px auto;padding:24px;box-sizing:border-box;color:var(--house-ink);background:var(--house-paper)}
 .house-payment-panel ul{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0}.house-payment-panel li{padding:8px 12px;border:1px solid var(--house-line);border-radius:6px;background:var(--house-card);font:600 14px Arial,sans-serif}.house-payment-panel p{font:14px/1.6 Arial,sans-serif}
 @media(max-width:700px){#hob-global-nav .hob-global-wordmark img{width:44px;height:44px}}
+
+/* Added branding and payments must wrap inside every legacy footer layout. */
+footer.house-footer-enhanced{flex-wrap:wrap;box-sizing:border-box;max-width:100%;min-width:0}
+footer.house-footer-enhanced>.house-payment-panel{flex:1 0 100%;width:100%;max-width:100%;min-width:0;overflow-wrap:anywhere}
+footer.house-footer-enhanced>.house-footer-logo{flex-shrink:0}
+footer.house-footer-enhanced>.house-payment-panel *{min-width:0;box-sizing:border-box}
+@media(max-width:700px){footer.house-footer-enhanced{gap:16px}footer.house-footer-enhanced>.house-payment-panel{padding:16px;margin-block:12px}footer.house-footer-enhanced>.house-payment-panel li{max-width:100%}}

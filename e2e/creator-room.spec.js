@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 test('Back Stage updates a template and preserves personal brief notes',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.goto('/design-projects.html#creator-room');
+ await page.setViewportSize({width:390,height:844});expect((await page.request.get('/creator-room.js')).status()).toBe(200);await page.goto('/design-projects.html#creator-room');
  await expect(page.getByRole('heading',{name:'Back Stage',exact:true})).toBeVisible();
  await page.getByLabel('Dress or outfit template',{exact:true}).selectOption('Top & skirt');await page.getByLabel('Neckline',{exact:true}).selectOption('Square');await page.getByLabel('Sleeves',{exact:true}).selectOption('Long');await page.getByLabel('Length',{exact:true}).selectOption('Midi');
  await expect(page.locator('#creator-preview-description')).toContainText('Top & skirt template, Square, long sleeves, midi length');

@@ -12,7 +12,7 @@
   }
   nav.classList.add('hob-global-nav');
   // Refresh branding and payment names on every legacy page footer.
-  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
+  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}footer.classList.add('house-footer-enhanced');
   const footerBrand=document.createElement('a');footerBrand.href='/';footerBrand.className='house-footer-logo';footerBrand.innerHTML='<img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar">';footer.prepend(footerBrand);
   fetch('/payment-methods.json?v=20261027').then(r=>{if(!r.ok)throw Error();return r.json();}).then(methods=>{
     const section=document.createElement('section');section.className='house-payment-panel';section.setAttribute('aria-label','Accepted payments');
