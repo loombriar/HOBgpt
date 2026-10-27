@@ -196,5 +196,5 @@ footer.house-footer-enhanced .house-footer-socials a{display:grid;place-items:ce
 footer.house-footer-enhanced .house-footer-socials a:hover,footer.house-footer-enhanced .house-footer-socials a:focus-visible{background:#343434;outline:2px solid #8bb2ff;outline-offset:2px}
 footer.house-footer-enhanced .house-footer-payment-logos{display:flex;justify-content:flex-end;align-items:center;gap:5px;min-width:0}
 footer.house-footer-enhanced .house-footer-payment-logos img{display:block;width:37px;height:24px;object-fit:contain;background:transparent;border:0;padding:0}
-footer.house-footer-enhanced .house-footer-bar .footer-utilities{display:none!important}
+footer.house-footer-enhanced .house-footer-bar .footer-utilities{display:flex!important;align-items:center;gap:10px;grid-column:1/-1;justify-content:flex-end}
 @media(max-width:700px){footer.house-footer-enhanced .house-footer-bar{grid-template-columns:1fr!important;justify-items:center!important;gap:12px!important;text-align:center;padding:18px 12px!important}footer.house-footer-enhanced .house-footer-payment-logos{justify-content:center;flex-wrap:wrap}}
