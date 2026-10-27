@@ -1,3 +1,4 @@
+import AcceptedPayments from '@/components/AcceptedPayments';
 import { readCartIds } from '@/lib/cart-storage';
 import { readCheckoutSnapshot as readSnapshot, type CheckoutSnapshot } from '@/lib/checkout-snapshot';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
@@ -168,9 +169,9 @@ export default function CheckoutPage() {
             <div className="mt-6 rounded-2xl border border-border p-4"><p className="font-medium">Separate fulfillment by designer</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Shipping charges and lead times belong to each seller shipment—not to the cart as a whole. House of Briar keeps the payment combined while tracking fulfillment and payouts per designer.</p></div>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">Delivery is currently available to US addresses. Preparation time and carrier transit are separate; we do not promise an exact delivery date.</p>
           </section>
-          <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="payment-heading">
-            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CreditCard size={19} /></span><div><h2 id="payment-heading" className="font-serif text-2xl">Payment that feels right</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Pay securely by card or bank through Stripe.</p></div></div>
-            <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><ShieldCheck size={16} /> Protected by Stripe</span><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><LockKeyhole size={16} /> Card details never touch this app</span></div>
+          <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="payment-heading"><AcceptedPayments/>
+            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CreditCard size={19} /></span><div><h2 id="payment-heading" className="font-serif text-2xl">Payment that feels right</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Choose a familiar payment method at secure checkout. You do not need a Stripe account.</p></div></div>
+            <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><ShieldCheck size={16} /> Secure checkout</span><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><LockKeyhole size={16} /> Card details never touch this app</span></div>
           </section>
         </div>
 

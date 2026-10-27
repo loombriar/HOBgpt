@@ -4,7 +4,7 @@ import DesignerSetupChecklist from './DesignerSetupChecklist';
 const base={profileReady:false,hasListing:false,hasPendingPiece:false,termsAccepted:false,paymentReady:false,paymentConnected:false,hasApprovedPiece:false,busy:false,error:'',onPaymentSetup:()=>{},onRefresh:()=>{}};
 it('shows clear next actions and explains private drafts',()=>{
  const html=renderToStaticMarkup(<DesignerSetupChecklist {...base}/>);
- expect(html).toContain('Review and accept terms');expect(html).toContain('Set up payments');expect(html).toContain('You cover postage');expect(html).toContain('drafts stay private');expect(html).not.toContain('>Selling setup complete<');
+ expect(html).toContain('Review and accept terms');expect(html).toContain('Open payout settings');expect(html).toContain('You cover postage');expect(html).toContain('drafts stay private');expect(html).not.toContain('>Selling setup complete<');
 });
 it('requires both current terms and verified payment setup for ready status',()=>{
  expect(renderToStaticMarkup(<DesignerSetupChecklist {...base} paymentReady={true}/>)).not.toContain('>Selling setup complete<');
@@ -35,3 +35,5 @@ it('groups setup into four milestones while preserving both required payout chec
  expect(verified).toContain('Stripe verification: Complete');
  expect(verified).not.toContain('>Selling setup complete<');
 });
+
+it('keeps bank-detail setup behind payout settings and prioritizes a draft',()=>{const html=renderToStaticMarkup(<DesignerSetupChecklist {...base} termsAccepted/>);expect(html).toContain('No card, bank or payment details are needed to join or save drafts');expect(html).toContain('href="#payout-setup"');expect(html).not.toContain('Set up payments');expect(html).toContain('Create your first draft');});

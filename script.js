@@ -1589,7 +1589,7 @@ function renderSellerReadiness(){
   const profileReady=Boolean(profile?.brandName?.trim()&&profile?.bio?.trim()&&profile?.location?.trim());
   const stages=[
     {label:'1. Prepare your profile · recommended',optional:true,done:profileReady,hint:'Add your brand name, story and location. Recommended; this does not block selling.',action:'Edit designer profile',target:'designer-brand-form'},
-    {label:'2. Connect your payouts',done:accepted&&payoutsReady,hint:'Accept the delivery terms, then finish Stripe verification. Customers get free US delivery; include postage and packaging in your price.',detail:'Delivery terms: '+(accepted?'Complete':'Action needed')+' · Stripe verification: '+(!stripe?'Checking…':payoutsReady?'Complete':'Action needed'),action:!accepted?'Review and accept terms':stripe?.connected?'Continue payment setup':'Set up payments',target:!accepted?'seller-terms-form':null,run:accepted?openStripeOnboarding:null},
+    {label:'2. Connect your payouts',done:accepted&&payoutsReady,hint:'No bank or payment details are needed to join or save drafts. Open payout settings when you choose to get ready to sell.',detail:'Delivery terms: '+(accepted?'Complete':'Action needed')+' · Stripe verification: '+(!stripe?'Checking…':payoutsReady?'Complete':'Action needed'),action:!accepted?'Review and accept terms':'Open payout settings',target:!accepted?'seller-terms-form':'designer-payout-settings'},
     {label:'3. List your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
     {label:'4. Get ready to sell',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
   ];
@@ -1606,7 +1606,7 @@ function renderSellerReadiness(){
         if(stage.run){stage.run();return;}
         const target=stage.target||stages.find(item=>!item.done&&item.target)?.target;
         if(target)scrollRoomTarget(byId(target),{behavior:'smooth',block:'start'});
-        else if(!payoutsReady)openStripeOnboarding();
+        else if(!payoutsReady)scrollRoomTarget(byId('designer-payout-settings'),{behavior:'smooth',block:'start'});
       });
       copy.append(action);
     }
@@ -1629,7 +1629,7 @@ function renderSellerReadiness(){
   if(!next&&summary){next=document.createElement('div');next.id='seller-next-action';summary.after(next);}
   if(next){
     next.replaceChildren();
-    const stage=stages.find(stage=>!stage.optional&&!stage.done)||stages.find(stage=>!stage.done);
+    const stage=[stages[2],stages[3],stages[0],stages[1]].find(stage=>!stage.done);
     if(stage&&profile&&stripe){const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent=stage.action;button.addEventListener('click',()=>{if(stage.run)stage.run();else scrollRoomTarget(byId(stage.target),{behavior:'smooth',block:'start'});});next.append(button);}
   }
 }
@@ -1650,7 +1650,7 @@ async function openStripeOnboarding(){
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
-byId('welcome-stripe-setup')?.addEventListener('click',openStripeOnboarding);
+
 byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
 
 function syncHeaderDesignerAuth() {
@@ -1952,8 +1952,8 @@ async function startHouseDonation(provider,event) {
   } catch(error){setMessage(message,error.message||'Donation checkout could not be started.','error');}
   finally{buttons.forEach(button=>button.disabled=false);}
 }
-byId('donation-form')?.addEventListener('submit',event=>void startHouseDonation('stripe',event));
-byId('paypal-donation-btn')?.addEventListener('click',event=>void startHouseDonation('paypal',event));
+byId('donation-form')?.addEventListener('submit',event=>void startHouseDonation('paypal',event));
+
 
 byId('newsletter-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
