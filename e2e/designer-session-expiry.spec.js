@@ -5,6 +5,7 @@ test('rejected designer session closes the workspace without losing an unsaved d
   await page.goto('/designers/room');
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  await page.locator('.listing-edit-options').filter({has:page.locator('#product-name')}).locator(':scope > summary').click();
   await page.getByLabel('Design name',{exact:true}).fill('Unsaved designer draft');
   // Revoke the actual server session while leaving the page's UI state in place.
   expect((await page.request.delete('/api/session',{headers:{Origin:'http://127.0.0.1:4173'}})).ok()).toBeTruthy();
