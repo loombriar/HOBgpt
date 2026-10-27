@@ -4,7 +4,7 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({width,height:844});
     await page.goto('/');
     await expect(page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true})).toBeVisible();
-    expect(await page.locator('#shop').evaluate(element => Boolean(element.compareDocumentPosition(document.querySelector('#creative-house-feature')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    await expect(page.locator('#creative-house-feature')).toHaveCount(0);
     const height=await page.locator('.shop-drop-window').first().evaluate(element=>element.getBoundingClientRect().height);
     // Allow the label plus the full 44px native touch target and spacing.
     expect(height).toBeLessThanOrEqual(120);
