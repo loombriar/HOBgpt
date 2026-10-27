@@ -8,12 +8,11 @@ test('designer menu mailbox appears on designer sign-in and clears only when mar
  });
  await page.setViewportSize({width:390,height:850});
  await page.goto('/designers/room');
- await expect(page.locator('.hob-mailbox-wrap')).toBeHidden();
+ await expect(page.locator('.hob-mailbox-wrap')).toBeVisible();
  await page.getByText('Have an older access token?',{exact:true}).click();
  await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
  signedIn=true;
  await page.locator('#designer-login-form button[type="submit"]').click();
- await page.locator('#hob-global-nav .hob-designers-menu summary').click();
  const mailbox=page.locator('#hob-global-nav .hob-mailbox');
  await expect(mailbox).toBeVisible();
  await expect(mailbox).toHaveClass(/has-unread/);

@@ -65,7 +65,7 @@ for(const width of [390,1280]) {
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
     await expectReadable(page.locator('.sewing-hero-actions .primary-button,.hob-customer-access button'));
-    await page.locator('#hob-global-nav .hob-global-join').click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
+    await page.locator('.hob-shop-menu > summary').click();await page.locator('#hob-global-nav .hob-global-join').click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
     await expectReadable(page.locator('#visitor-suite-modal .dialog-header h2,#visitor-suite-modal .dialog-header p,#visitor-suite-close,#customer-signup-form label,#customer-signup-form .primary-button,#customer-signup-email'));
     await page.locator('#visitor-suite-close').click();
     await page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true}).click();

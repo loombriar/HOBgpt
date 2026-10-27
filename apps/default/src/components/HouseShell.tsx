@@ -1,7 +1,7 @@
 import AcceptedPayments from '@/components/AcceptedPayments';
 import { readCartIds } from '@/lib/cart-storage';
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
@@ -29,12 +29,13 @@ function ThemeButton() {
 function NavigationMenu({label,children}:{label:string;children:React.ReactNode}){
  const ref=useRef<HTMLDetailsElement>(null);
  useEffect(()=>{const close=(event:MouseEvent)=>{if(ref.current&&!ref.current.contains(event.target as Node))ref.current.open=false;};document.addEventListener('click',close);return()=>document.removeEventListener('click',close);},[]);
- return <details ref={ref} className="relative house-seamstress-menu" onToggle={event=>{const menu=event.currentTarget;if(menu.open)menu.closest('nav')?.querySelectorAll('details').forEach(other=>{if(other!==menu)other.open=false;});}} onKeyDown={event=>{if(event.key==='Escape'&&ref.current){ref.current.open=false;ref.current.querySelector('summary')?.focus();}}}><summary className="flex min-h-10 cursor-pointer items-center">{label} ▾</summary><div className="house-seamstress-menu-panel absolute left-0 top-full z-50 grid w-64 gap-1 rounded-xl border border-border bg-background p-3 shadow-lg" onClick={event=>{if((event.target as HTMLElement).closest('a')&&ref.current)ref.current.open=false;}}>{children}</div></details>;
+ return <details ref={ref} className="relative house-seamstress-menu" onToggle={event=>{const menu=event.currentTarget;if(menu.open)menu.closest('nav')?.querySelectorAll('details').forEach(other=>{if(other!==menu)other.open=false;});}} onKeyDown={event=>{if(event.key==='Escape'&&ref.current){ref.current.open=false;ref.current.querySelector('summary')?.focus();}}}><summary className="flex min-h-10 cursor-pointer items-center">{label} ▾</summary><div className="house-seamstress-menu-panel absolute right-0 top-full z-50 grid w-64 gap-1 rounded-xl border border-border bg-background p-3 shadow-lg" onClick={event=>{if((event.target as HTMLElement).closest('a')&&ref.current)ref.current.open=false;}}>{children}</div></details>;
 }
 
 export default function HouseShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const location = useLocation();
+  const [searchOpen,setSearchOpen] = useState(false);
   const [helpOpen,setHelpOpen] = useState(false);
   const [helpQuestion,setHelpQuestion] = useState('');
   useEffect(()=>setHelpOpen(false),[location.pathname,location.hash]);
@@ -90,26 +91,18 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
-          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home"><img src="/house-monogram-v2.webp" alt="" aria-hidden="true" width="64" height="64" className="mr-2 inline-block h-16 w-16 rounded-full" />HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
-          <a href="/join.html" className="house-join-button inline-flex min-h-11 items-center rounded-lg border-2 border-primary px-4 font-semibold">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a>
-          <form action="/shop" method="get" role="search" aria-label="Search the shop" className="house-sticky-search flex w-full items-center gap-2">
-            <input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…" defaultValue={new URLSearchParams(location.search).get('q') || ''} key={location.search} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-base text-foreground" />
-            <button type="submit" className="min-h-11 rounded-md border border-border bg-card px-4 text-sm text-foreground">Search</button>
-          </form>
-          <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
-            <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
-            <NavigationMenu label="Designers"><a href="/designers/room">Designer dashboard</a><a href="/account#designer-notifications">Designer notifications{designerUnread>0?` (${designerUnread} unread)`:''}</a><NavLink to="/designers">Meet the designers</NavLink></NavigationMenu>
-            <NavigationMenu label="Seamstresses"><a href="/sewing-services.html#offer-services">Seamstress dashboard</a><a href="/sewing-services.html#service-inbox">Seamstress notifications</a><a href="/design-projects.html#maker-board">Find designs to make</a></NavigationMenu>
-            <NavigationMenu label="Backstage"><a href="/creative-house.html">Enter Backstage</a><a href="/design-projects.html#creator-room">Create a garment</a><a href="/?visitors=signup&creative=model">Model sign in / signup</a><a href="/?visitors=signup&creative=photographer">Photographer sign in / signup</a><a href="/designers/room#designer-signup">Designer signup</a><a href="/?visitors=signup&creative=dj">DJ sign in / signup</a><a href="/?visitors=signup&creative=venue">Venue sign in / signup</a><a href="/creative-house.html#opportunities">Open calls &amp; collaborations</a><a href="/creative-house.html#post-event">Post an event</a></NavigationMenu>
-            <Link to="/shop?saved=true" className="inline-flex min-h-10 items-center hover:underline">Saved pieces</Link><ThemeButton />
-            <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="relative inline-flex min-h-10 items-center gap-1 border border-border px-2 hover:border-primary">
-              <img src="/suitcase-cart-v1.svg" alt="" aria-hidden="true" className="h-5 w-5 object-contain" />
-              <span>Cart{cartCount > 0 ? ` (${cartCount})` : ''}</span>
-            </Link>
-            {auth.isAuthenticated && <button type="button" aria-label="Sign out of House of Briar" onClick={() => { clearHouseCartOnSignOut(); void auth.signoutRedirect(); }} className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-lg border-2 border-[#6e4b20] bg-[#f4d992] px-4 py-2 text-sm font-bold text-[#18231f] hover:bg-[#fff0b9] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2">Sign out</button>}
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-2 py-2 sm:gap-4 sm:px-6">
+          <a href="/" aria-label="House of Briar home" className="mr-auto shrink-0"><img src="/house-monogram-v2.webp" alt="" width="48" height="48" className="h-10 w-10 rounded-full sm:h-12 sm:w-12"/></a><ThemeButton/>
+          <button type="button" aria-label="Open shop search" aria-expanded={searchOpen} aria-controls="house-nav-search" onClick={()=>setSearchOpen(v=>!v)} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">⌕</button>
+          <nav aria-label="Primary navigation" className="flex items-center gap-3 text-xs sm:gap-6 sm:text-sm">
+            <NavigationMenu label="SHOP"><p className="p-2 font-semibold">We’re still moving in.</p><a href="/?visitors=signup">Create your room</a><a href="/?visitors=signup#measurement-profile-name">Save your measurements</a><a href="/design-projects.html#creator-room">Create an outfit</a><a href="/join.html">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a></NavigationMenu>
+            <NavigationMenu label="BACKSTAGE"><a href="/designers/room">Sign in as designer</a><a href="/?visitors=signup&creative=model">Sign in as model</a><a href="/?visitors=signup&creative=photographer">Sign in as photographer</a><a href="/?visitors=signup&creative=dj">Sign in as DJ</a>{auth.isAuthenticated&&<button type="button" aria-label="Sign out of House of Briar" onClick={()=>{clearHouseCartOnSignOut();void auth.signoutRedirect();}} className="min-h-11 text-left">Sign out</button>}</NavigationMenu>
           </nav>
+          <a href={auth.isAuthenticated?'/account#messages':'/join.html'} aria-label={`Mailbox${designerUnread?`, ${designerUnread} unread`:''}`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">✉{designerUnread>0&&<span>{designerUnread}</span>}</a>
+          <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border"><img src="/suitcase-cart-v1.svg" alt="" className="h-7 w-7"/></Link>
         </div>
+        {searchOpen&&<form id="house-nav-search" action="/shop" method="get" role="search" aria-label="Search the shop" className="flex gap-2 border-t border-border bg-background p-3" onKeyDown={event=>{if(event.key==='Escape')setSearchOpen(false);}}><input autoFocus type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…" className="min-h-11 min-w-0 flex-1 rounded border border-border bg-card px-3"/><button type="submit" className="min-h-11 rounded border border-border px-4">Search</button></form>}
+
       </header>
       <main id="house-main" className="house-main" style={{ paddingTop: headerHeight + 12 }}>{children}</main>
       <footer className="border-t border-border/70 bg-card/30">

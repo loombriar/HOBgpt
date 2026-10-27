@@ -58,27 +58,18 @@
     document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
     menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;summary.focus();}});return menu;
   };
-  const designerMenu=makeMenu('Designers','designers',[
-    ['/designers/room','Designer dashboard'],['/account#designer-notifications','Designer notifications'],['/designers','Meet the designers'],
-  ],links.querySelector('a[href="/designers/room"]'));
-  const creativeMenu=makeMenu('Backstage','creative-house',[
-    ['/creative-house.html','Enter Backstage'],['/design-projects.html#creator-room','Create a garment'],
-    ['/?visitors=signup&creative=model','Model sign in / signup'],
-    ['/?visitors=signup&creative=photographer','Photographer sign in / signup'],
-    ['/designers/room#designer-signup','Designer signup'],
-    ['/?visitors=signup&creative=dj','DJ sign in / signup'],
-    ['/?visitors=signup&creative=venue','Venue sign in / signup'],
-    ['/creative-house.html#opportunities','Open calls & collaborations'],['/creative-house.html#post-event','Post an event'],
-  ],links.querySelector('a[href="/creative-house.html"]'));
-  const sewingMenu=makeMenu('Seamstresses','sewing',[
-    ['/sewing-services.html#offer-services','Seamstress dashboard'],
-    ['/sewing-services.html#service-inbox','Seamstress notifications'],
-    ['/design-projects.html#maker-board','Find designs to make'],
-  ]);links.insertBefore(sewingMenu,creativeMenu);
+  links.querySelectorAll('a:not(.hob-global-cart-link)').forEach(link=>link.remove());
+  const shopMenu=makeMenu('SHOP','shop',[
+    ['/?visitors=signup','Create your room'],['/?visitors=signup#measurement-profile-name','Save your measurements'],['/design-projects.html#creator-room','Create an outfit'],
+  ]);
+  const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
+  const designerMenu=makeMenu('BACKSTAGE','backstage',[
+    ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
+  ]);
   const account=document.getElementById('header-customer-auth-btn');
   // Existing page scripts retain their trigger; one shared entry is visible.
   if(account){account.hidden=true;account.style.setProperty('display','none','important');}
-  const join=document.createElement('a');join.href='/join.html';join.className='hob-global-account-link hob-global-join';join.textContent='Sign in / Join';links.append(join);
+  const join=document.createElement('a');join.href='/join.html';join.className='hob-global-account-link hob-global-join';join.textContent='Sign in / Join';shopMenu.querySelector('.hob-seamstress-menu-panel').append(join);
   const cart = document.getElementById('cart-btn');
   const placeholder = links.querySelector('.hob-global-cart-link');
   if (cart && placeholder) {
@@ -119,7 +110,7 @@
   const actions = document.createElement('div');
   actions.className = 'hob-global-actions';
   actions.setAttribute('aria-label', 'Account, cart and theme');
-  for (const control of [searchToggle, themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link'), join]) {
+  for (const control of [searchToggle, themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link')]) {
     if (control) actions.appendChild(control);
   }
   nav.appendChild(actions);
@@ -131,7 +122,7 @@
   signout.textContent = 'Sign out';
   signout.hidden = true;
   signout.setAttribute('aria-label', 'Sign out of House of Briar');
-  links.appendChild(signout);
+  designerMenu.querySelector('.hob-seamstress-menu-panel').appendChild(signout);
   const sessionEndpoints = ['/api/my/designer-profile', '/api/customer/session'];
   let sessionCheckBusy = false;
   async function refreshSignout() {
@@ -171,20 +162,23 @@
   if (account) new MutationObserver(() => void refreshSignout()).observe(account, {childList:true,subtree:true,characterData:true});
 
   // Persistent designer mailbox uses the existing private notification/read-state API.
-  const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=true;
+  const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=false;
   const mailbox=document.createElement('button');mailbox.type='button';mailbox.className='hob-mailbox';
   mailbox.setAttribute('aria-label','Designer mailbox');mailbox.setAttribute('aria-expanded','false');mailbox.setAttribute('aria-controls','hob-mailbox-panel');
   mailbox.innerHTML='<svg class="hob-mailbox-icon" viewBox="0 0 64 56" width="38" height="34" aria-hidden="true"><path d="M12 43V23a17 17 0 0 1 34 0v20H12Z" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="2.5"/><path d="M12 43h42V25c0-10-7-19-17-19M20 43v10m21-10v10M47 22V8h10v9H47" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="hob-mailbox-heart" d="M29 24c-7-8-16 3 0 13 16-10 7-21 0-13Z" fill="currentColor"/></svg>';
   const count=document.createElement('span');count.className='hob-mailbox-count';count.hidden=true;mailbox.append(count);
   const panel=document.createElement('div');panel.id='hob-mailbox-panel';panel.className='hob-mailbox-panel';panel.hidden=true;
-  mailboxWrap.append(mailbox,panel);designerMenu.querySelector('.hob-seamstress-menu-panel').append(mailboxWrap);
+  mailboxWrap.append(mailbox,panel);actions.append(mailboxWrap);
+  const cartControl=actions.querySelector('.hob-global-cart-button,.hob-global-cart-link');
+  nav.append(themeButton,searchToggle,links,mailboxWrap);if(cartControl)nav.append(cartControl);nav.classList.add('hob-ordered-menu');
+  const guestInbox=()=>{panel.replaceChildren();const link=document.createElement('a');link.href='/join.html';link.textContent='Sign in to see your mailbox';panel.append(link);};guestInbox();
   let mailboxBusy=false;
   async function refreshMailbox(){
     if(mailboxBusy||document.visibilityState==='hidden')return;
     mailboxBusy=true;
     try{
       const response=await fetch('/api/my/designer-notifications',{credentials:'same-origin',cache:'no-store'});
-      if([401,403].includes(response.status)){mailboxWrap.hidden=true;panel.hidden=true;mailbox.setAttribute('aria-expanded','false');return;}
+      if([401,403].includes(response.status)){guestInbox();return;}
       if(!response.ok)return;
       const data=await response.json();if(!Array.isArray(data.items))return;
       const unread=Number(data.unread)||0;mailboxWrap.hidden=false;mailbox.classList.toggle('has-unread',unread>0);

@@ -59,7 +59,7 @@ test('mobile review loop delivers feedback, resubmission and approval alerts',as
   await creator.goto(origin+'/designers/room');
   await creator.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Your listings',exact:true}).click();
   piece=creator.locator('#listing-'+id);await piece.getByRole('checkbox').last().check();
-  await piece.getByRole('button',{name:'Submit for review',exact:true}).click();await expect(piece).toContainText('Pending review');
+  await piece.getByRole('button',{name:'Submit for review',exact:true}).click();await expect(piece).toContainText('Pending approval');
   expect((await(await creator.request.get('/api/gallery')).json()).items.some(x=>x.id===id)).toBe(false);
   await page.reload();await expect(card).toContainText('Waist 30 in');
   const approvalResponse=()=>page.waitForResponse(response=>response.url()===origin+'/api/admin/listings/'+id+'/approve'&&response.request().method()==='POST');

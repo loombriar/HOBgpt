@@ -21,7 +21,7 @@
     "Satispay"
   ],
   "note": "Available options appear at checkout and depend on your device, location, currency and order eligibility.",
-  "donations": "PayPal donations only; PayPal and Venmo are not currently offered for shop purchases.",
+  "donations": "PayPal donations only.",
   "logos": [
     {
       "name": "Visa",
