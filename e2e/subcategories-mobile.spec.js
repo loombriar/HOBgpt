@@ -23,7 +23,10 @@ test('mobile navigation stays compact and keeps account and cart usable',async({
 
 test('homepage category changes reset subcategories and retain the chosen branch',async({page})=>{
  await page.goto('/');
+ // Homepage filters are temporarily hidden; the dedicated shop page retains filtering.
+ await expect(page.locator('.shop-search-controls')).toBeHidden();
  const categoryMenu=page.locator('[data-filter-menu="category"]');
+ await categoryMenu.evaluate(element=>element.closest('.shop-search-controls').hidden=false);
  await categoryMenu.locator(':scope > summary').click();
  await page.getByLabel('Filter by category',{exact:true}).selectOption('accessories');
  const sub=page.getByLabel('Filter by subcategory',{exact:true});
