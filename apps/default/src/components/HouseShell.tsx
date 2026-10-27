@@ -90,8 +90,12 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
-          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home">HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
+          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home"><img src="/house-monogram-v1.webp" alt="" aria-hidden="true" width="44" height="44" className="mr-2 inline-block rounded-full" />HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
           <a href="/join.html" className="house-join-button inline-flex min-h-11 items-center rounded-lg border-2 border-primary px-4 font-semibold">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a>
+          <form action="/shop" method="get" role="search" aria-label="Search the shop" className="house-sticky-search flex w-full items-center gap-2">
+            <input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…" defaultValue={new URLSearchParams(location.search).get('q') || ''} key={location.search} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-base text-foreground" />
+            <button type="submit" className="min-h-11 rounded-md border border-border bg-card px-4 text-sm text-foreground">Search</button>
+          </form>
           <nav className="house-compact-links flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm" aria-label="Primary navigation">
             <NavLink to="/shop" className="inline-flex min-h-10 items-center hover:underline">Shop</NavLink>
             <NavigationMenu label="Designers"><a href="/designers/room">Designer dashboard</a><a href="/account#designer-notifications">Designer notifications{designerUnread>0?` (${designerUnread} unread)`:''}</a><NavLink to="/designers">Meet the designers</NavLink></NavigationMenu>
