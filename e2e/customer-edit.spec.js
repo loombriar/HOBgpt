@@ -9,9 +9,8 @@ for (const width of [390, 1280]) {
     // Allow the label plus the full 44px native touch target and spacing.
     expect(height).toBeLessThanOrEqual(120);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-    await page.locator('#shop-search-input').fill('no matching garment xyz');
-    await expect(page.locator('#shop-status')).toContainText('0 pieces');
-    await page.locator('#shop-clear-filters').click();
+    // Homepage browsing controls are intentionally hidden until the collection is ready.
+    await expect(page.locator('.shop-search-controls')).toBeHidden();
     await expect(page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true})).toBeVisible();
   });
   test(`collection search, sorting and reset work at ${width}px`,async({page})=>{
