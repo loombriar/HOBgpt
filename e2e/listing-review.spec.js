@@ -11,6 +11,7 @@ for(const room of ['dashboard','standalone'])test(`review feedback opens the pie
  await expect(card).toContainText('Please add garment measurements.');
  await card.getByRole('button',{name:'Edit & resubmit',exact:true}).click();
  if(room==='dashboard')await page.getByRole('button',{name:'2. Details',exact:true}).click();
+ if(room==='standalone')await page.locator('.listing-edit-options').filter({has:page.locator('#product-name')}).locator(':scope > summary').click();
  const title=room==='dashboard'?page.getByRole('textbox',{name:'Piece name',exact:true}):page.locator('#product-name');
  await expect(title).toBeVisible();await expect(title).toHaveValue('Berry dress');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);

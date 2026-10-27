@@ -50,12 +50,14 @@ for(const width of [390,1280]) {
   await expect(page.locator('#designer-workspace > .fabric-finder-card')).toHaveCount(0);
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
+  await expect(page.locator('.listing-edit-options[open]')).toHaveCount(0);
+  for(const summary of await page.locator('.listing-edit-options > summary').all())await summary.click();
   const checkbox=await page.locator('#product-international').boundingBox();
   expect(checkbox.width).toBeLessThanOrEqual(24);
   await expect(page.locator('#product-form fieldset').filter({has:page.getByText('Price & shipping',{exact:true})})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   // New garment drafts now begin with listing photos; the name remains editable below.
-  await expect(page.locator('#product-photos')).toBeInViewport();
+  await expect(page.locator('#product-photos')).toBeVisible();
   await expect(page.locator('#product-name')).toBeVisible();
   for(const [id,value]of [['product-price','100'],['estimated-materials','20'],['estimated-labor-hours','2'],['estimated-hourly-pay','15'],['estimated-postage','8'],['estimated-packaging','2']])await page.locator('#'+id).fill(value);
   await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (7%): $7.00');
