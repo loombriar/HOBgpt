@@ -256,22 +256,23 @@ test('customers verify email, get a private account and appear once in the Admin
 
 
 test('donation button starts checkout with its displayed amount and shows provider errors', async ({ page }) => {
-  await page.route('**/api/donations/session', route => route.fulfill({
+  await page.route('**/api/paypal/donations/order', route => route.fulfill({
     status: 503, contentType: 'application/json',
     body: JSON.stringify({ error: { message: 'Checkout is temporarily unavailable. Please try again.' } })
   }));
   await page.goto('/#support');
   await expect(page.locator('#donation-amount')).toHaveValue('25');
-  await page.getByRole('button', { name: 'Donate with Stripe' }).click();
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
   await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
-  await expect(page.getByRole('button', { name: 'Donate with Stripe' })).toBeEnabled();
-  await page.unroute('**/api/donations/session');
-  await page.route('**/api/donations/session', async route => {
+  await expect(page.getByRole('button', { name: 'Donate with PayPal' })).toBeEnabled();
+  await page.unroute('**/api/paypal/donations/order');
+  await page.route('**/api/paypal/donations/order', async route => {
     expect(route.request().postDataJSON().amount).toBe(25);
-    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: 'https://www.paypal.com/checkoutnow?token=FIXTURE' }) });
   });
-  await page.getByRole('button', { name: 'Donate with Stripe' }).click();
-  await expect(page.getByText('Your donation checkout was canceled.', { exact: true })).toBeVisible();
+  await page.route('https://www.paypal.com/**',route=>route.fulfill({body:'PayPal approval fixture'}));
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
+  await expect(page).toHaveURL('https://www.paypal.com/checkoutnow?token=FIXTURE');
 });
 
 for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
@@ -285,7 +286,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     expect(inputBox.height).toBeGreaterThanOrEqual(48);
     await amount.fill('10');
     await expect(amount).toHaveValue('10');
-    const buttonBox = await page.getByRole('button', { name: 'Donate with Stripe' }).boundingBox();
+    const buttonBox = await page.getByRole('button', { name: 'Donate with PayPal' }).boundingBox();
     expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
   });
 }

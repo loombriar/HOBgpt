@@ -74,7 +74,7 @@ export default function SellPage() {
         <h2 id="designer-steps-heading" className="font-serif text-4xl">Your place in the House, in three steps.</h2>
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
           <li><span className="text-sm font-semibold text-primary">01 · Introduce yourself</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your free profile and verify your email. You do not need a portfolio or a designer application.</p></li>
-          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Tell your story, connect Stripe for payouts, and draft your first piece. You can prepare drafts while payment setup is in progress.</p></li>
+          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Tell your story and draft your first piece. No card, bank or payment details are needed to join or save drafts.</p></li>
           <li><span className="text-sm font-semibold text-primary">03 · Share your work</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Submit your finished listings for review. Approved pieces can go on sale once your selling setup is ready.</p></li>
         </ol>
       </section>
@@ -83,7 +83,7 @@ export default function SellPage() {
         <h2 id="designer-delivery-heading" className="font-serif text-3xl">What happens when a piece sells?</h2>
         <div className="mt-5 grid gap-6 sm:grid-cols-2">
           <div><h3 className="font-semibold">You cover postage. Customers get free US delivery.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Include postage, packaging, materials, and your time in your price. For eligible paid orders, a live label purchased through House is deducted from your earnings only after you confirm its cost; you can also purchase postage separately from a carrier. Live in-app labels may not yet be enabled. Add your preparation time and measurements so shoppers know what to expect.</p></div>
-          <div><h3 className="font-semibold">Earnings stay held until shipment tracking is verified.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Connect Stripe to verify your seller details and payout account. After a sale, add tracking in your dashboard. Verified shipment tracking is required before earnings can be released; bank processing time may still apply.</p></div>
+          <div><h3 className="font-semibold">Earnings stay held until shipment tracking is verified.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">When you choose to set up payouts, open Payout settings to verify your seller details securely. After a sale, add tracking in your dashboard. Verified shipment tracking is required before earnings can be released; bank processing time may still apply.</p></div>
         </div>
         <p className="mt-5 text-sm leading-7 text-muted-foreground">You retain 93% of qualifying sales before postage and other applicable costs. <a className="underline underline-offset-4" href="/rules#seller-terms">Read the full seller terms →</a> · <a className="underline" href="/founding-schools">Founding Schools Initiative →</a></p>
       </section>
@@ -91,7 +91,7 @@ export default function SellPage() {
       <section id="designer-signup" className="mx-auto mt-14 max-w-3xl scroll-mt-24" aria-labelledby="designer-signup-heading">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Your invitation starts here</p>
         <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Designer sign up</h2>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email, then open your designer room to complete your profile and create your first draft. Submit listings for review and connect Stripe to complete your selling setup. Individual listings are reviewed before appearing in the Shop.</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email, then open your designer room to complete your profile and create your first draft. No payment details are requested during signup. Open Payout settings later when you choose to get ready to sell. Individual listings are reviewed before appearing in the Shop.</p>
       {requestId ? <form onSubmit={e=>void verify(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6">
         <p role="status">{message}</p><label className="block text-sm font-medium">Six-digit code from your email<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} className={field}/></label>
         <button disabled={loading} className="min-h-12 rounded-full bg-primary px-6 text-primary-foreground">Verify email and open my room</button>

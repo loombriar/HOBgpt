@@ -160,3 +160,11 @@ html body #hob-global-nav.hob-global-nav{background:var(--house-paper)!important
  #hob-global-nav .hob-sticky-search{display:none}
  #hob-global-nav.hob-search-open .hob-sticky-search{display:flex;grid-row:3;grid-column:1/-1}
 }
+
+/* Prominent branding belongs in the page and footer; the phone bar stays compact. */
+#hob-global-nav .hob-global-wordmark img{width:64px;height:64px}
+.house-hero-logo{display:block;width:192px;height:192px;object-fit:contain;margin:0 auto 24px;border-radius:50%}
+.house-footer-logo{display:block;width:176px;margin:24px auto}.house-footer-logo img{display:block;width:176px;height:176px;border-radius:50%}
+.house-payment-panel{max-width:1000px;margin:24px auto;padding:24px;box-sizing:border-box;color:var(--house-ink);background:var(--house-paper)}
+.house-payment-panel ul{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0}.house-payment-panel li{padding:8px 12px;border:1px solid var(--house-line);border-radius:6px;background:var(--house-card);font:600 14px Arial,sans-serif}.house-payment-panel p{font:14px/1.6 Arial,sans-serif}
+@media(max-width:700px){#hob-global-nav .hob-global-wordmark img{width:44px;height:44px}}

@@ -1,0 +1,25 @@
+{
+  "primary": [
+    "Credit & debit cards",
+    "Apple Pay",
+    "Google Pay",
+    "Samsung Pay",
+    "Amazon Pay",
+    "Cash App Pay",
+    "Klarna",
+    "Afterpay",
+    "Link",
+    "US bank account (ACH)",
+    "Pay by bank"
+  ],
+  "regional": [
+    "Bancontact",
+    "BLIK",
+    "EPS",
+    "MB WAY",
+    "Pix",
+    "Satispay"
+  ],
+  "note": "Available options appear at checkout and depend on your device, location, currency and order eligibility.",
+  "donations": "PayPal donations only; PayPal and Venmo are not currently offered for shop purchases."
+}

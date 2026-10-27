@@ -1,3 +1,4 @@
+import AcceptedPayments from '@/components/AcceptedPayments';
 import { readCartIds } from '@/lib/cart-storage';
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -90,7 +91,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
-          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home"><img src="/house-monogram-v1.webp" alt="" aria-hidden="true" width="44" height="44" className="mr-2 inline-block rounded-full" />HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
+          <a href="/" className="shrink-0 font-serif text-2xl tracking-[.08em]" aria-label="House of Briar home"><img src="/house-monogram-v2.webp" alt="" aria-hidden="true" width="64" height="64" className="mr-2 inline-block h-16 w-16 rounded-full" />HOUSE <span className="text-base italic tracking-normal">of</span> BRIAR</a>
           <a href="/join.html" className="house-join-button inline-flex min-h-11 items-center rounded-lg border-2 border-primary px-4 font-semibold">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a>
           <form action="/shop" method="get" role="search" aria-label="Search the shop" className="house-sticky-search flex w-full items-center gap-2">
             <input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…" defaultValue={new URLSearchParams(location.search).get('q') || ''} key={location.search} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-base text-foreground" />
@@ -114,7 +115,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
       <footer className="border-t border-border/70 bg-card/30">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
           <div>
-            <p className="font-serif text-2xl">Independent fashion. Individual expression.</p>
+            <img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar" className="mb-5 h-44 w-44 rounded-full"/><p className="font-serif text-2xl">Independent fashion. Individual expression.</p><AcceptedPayments/>
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">We celebrate independent designers, slow-made pieces, and the beauty of being different.</p>
           </div>
           <div>

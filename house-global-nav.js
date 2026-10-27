@@ -11,8 +11,20 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
+  // Refresh branding and payment names on every legacy page footer.
+  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
+  const footerBrand=document.createElement('a');footerBrand.href='/';footerBrand.className='house-footer-logo';footerBrand.innerHTML='<img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar">';footer.prepend(footerBrand);
+  fetch('/payment-methods.json?v=20261027').then(r=>{if(!r.ok)throw Error();return r.json();}).then(methods=>{
+    const section=document.createElement('section');section.className='house-payment-panel';section.setAttribute('aria-label','Accepted payments');
+    const title=document.createElement('h2');title.textContent='Ways to pay';section.append(title);
+    const list=document.createElement('ul');for(const name of methods.primary){const li=document.createElement('li');li.textContent=name;list.append(li);}section.append(list);
+    const note=document.createElement('p');note.textContent=methods.note;section.append(note);
+    const extra=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Additional regional payment methods';const region=document.createElement('p');region.textContent=methods.regional.join(' · ')+' — for eligible locations and currencies.';extra.append(summary,region);section.append(extra);
+    const donations=document.createElement('p');donations.textContent=methods.donations;section.append(donations);footer.append(section);
+  }).catch(()=>{});
+
   const wordmark=nav.querySelector('.hob-global-wordmark');
-  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v1.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
+  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v2.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
   const search=document.createElement('form');
   search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
   search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…"><button type="submit">Search</button>';
