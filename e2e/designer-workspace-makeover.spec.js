@@ -17,6 +17,7 @@ for(const width of [390,1280])for(const theme of ['light','dark'])test(`designer
  await expect(page.locator('#designer-editor-panel > summary')).toHaveText('Editing: Saved dress');
  await expect(page.locator('.listing-edit-options[open]')).toHaveCount(0);
  await expect(page.locator('#listing-save-changes')).toBeVisible();
+ expect(await page.evaluate(()=>Boolean(document.querySelector('#photo-draft-title').closest('section').compareDocumentPosition(document.querySelector('#photo-preview')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
  const card=page.locator('.photo-preview-item').first();
  await expect(card.locator('img')).toBeVisible();
  await expect(card.locator('.photo-preview-actions')).toBeHidden();

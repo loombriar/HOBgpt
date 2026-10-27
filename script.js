@@ -1001,6 +1001,7 @@ function openProductDetails(item) {
 
 function resetListingForm() {
   if (productForm) {productForm.reset();syncSellerTypes();}
+  productForm?.querySelectorAll('.listing-edit-options').forEach(panel=>{panel.open=false;});
   currentListingId = '';
   currentIdempotencyKey = '';
   if (productIdInput) productIdInput.value = '';
@@ -2813,7 +2814,7 @@ function prepareDesignerRoomPanels() {
     }
     const toolbar=document.createElement('div');toolbar.className='listing-save-toolbar';
     const save=document.createElement('button');save.type='submit';save.name='action';save.value='save';save.className='primary-button';save.textContent='Save changes';save.id='listing-save-changes';
-    toolbar.append(save,byId('upload-message'));editor.querySelector('.listing-edit-options').before(toolbar);
+    toolbar.append(save,byId('upload-message'));byId('photo-preview').before(byId('photo-draft-title').closest('section'),toolbar);
     const guidedLink=editor.querySelector('a[href="/account#designer-listings"]')?.parentElement;if(guidedLink)editor.append(guidedLink);
     const style=document.createElement('style');style.textContent='.listing-save-toolbar{position:sticky;top:calc(var(--hob-bar-height,80px) + 8px);z-index:20;background:var(--briar-card,#fffdf8);color:var(--briar-ink,#292622);border:1px solid var(--briar-line,#888);border-radius:12px;padding:12px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}.listing-save-toolbar p{margin:0}.listing-edit-options{border:1px solid var(--briar-line,#888);border-radius:10px;padding:14px}.listing-edit-options>summary{cursor:pointer;min-height:44px;display:list-item;font-weight:600}.listing-edit-options>.stack-form{padding-top:14px}';document.head.append(style);
   }
