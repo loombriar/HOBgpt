@@ -180,3 +180,21 @@ footer.house-footer-enhanced>.house-payment-panel *{min-width:0;box-sizing:borde
 html body.blackberry-house #shop .shop-search-controls[hidden]{display:none!important}
 .house-payment-panel li{padding:5px;background:#fff;border-color:#ddd;display:flex;align-items:center;justify-content:center;width:82px;height:52px}
 .house-payment-panel img{display:inline-block;width:64px;height:40px;object-fit:contain;vertical-align:middle;background:#fff;border-radius:4px;padding:3px}
+
+
+/* House of Briar footer reference: slim black strip, blue rule, centered socials. */
+footer.house-footer-enhanced .house-footer-bar{
+  box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+  align-items:center!important;gap:18px!important;width:100%!important;max-width:none!important;
+  min-height:78px!important;padding:14px clamp(18px,4vw,48px)!important;
+  margin:24px 0 0!important;background:#080808!important;color:#fff!important;
+  border-top:3px solid #2862c5!important;border-radius:0!important;
+}
+footer.house-footer-enhanced .house-footer-bar .copyright{margin:0!important;color:#fff!important;font:600 12px/1.5 Arial,sans-serif!important;white-space:normal}
+footer.house-footer-enhanced .house-footer-socials{display:flex;align-items:center;justify-content:center;gap:8px}
+footer.house-footer-enhanced .house-footer-socials a{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#202020;color:#fff!important;text-decoration:none;font:700 21px/1 Arial,sans-serif}
+footer.house-footer-enhanced .house-footer-socials a:hover,footer.house-footer-enhanced .house-footer-socials a:focus-visible{background:#343434;outline:2px solid #8bb2ff;outline-offset:2px}
+footer.house-footer-enhanced .house-footer-payment-logos{display:flex;justify-content:flex-end;align-items:center;gap:5px;min-width:0}
+footer.house-footer-enhanced .house-footer-payment-logos img{display:block;width:37px;height:24px;object-fit:contain;background:transparent;border:0;padding:0}
+footer.house-footer-enhanced .house-footer-bar .footer-utilities{display:none!important}
+@media(max-width:700px){footer.house-footer-enhanced .house-footer-bar{grid-template-columns:1fr!important;justify-items:center!important;gap:12px!important;text-align:center;padding:18px 12px!important}footer.house-footer-enhanced .house-footer-payment-logos{justify-content:center;flex-wrap:wrap}}
