@@ -210,9 +210,14 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     const explore=footer.locator('details.footer-menu').filter({has:page.locator('summary').filter({hasText:/^Explore$/})});
     await expect(explore).not.toHaveAttribute('open','');
     if(viewport.width===390){
-      // The expanded footer intentionally includes the brand emblem and payment names.
+      // The expanded footer intentionally includes the brand emblem and payment logos.
       expect((await footer.boundingBox()).height).toBeLessThan(1100);
-      await expect(footer.getByRole('region',{name:'Accepted payments'})).toContainText('Apple Pay');
+      const payments=footer.getByRole('region',{name:'Accepted payments'});
+      const applePay=payments.getByRole('img',{name:'Apple Pay',exact:true});
+      await expect(applePay).toBeVisible();
+      await expect.poll(()=>applePay.evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+      await expect(payments.getByRole('img',{name:'PayPal donations only',exact:true})).toBeVisible();
+      await expect(page.locator('.shop-search-controls')).toBeHidden();
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       await footer.locator('#admin-review-btn').scrollIntoViewIfNeeded();
       await expect(footer.locator('#admin-review-btn')).toBeInViewport();

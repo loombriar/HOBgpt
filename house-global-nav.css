@@ -177,6 +177,6 @@ footer.house-footer-enhanced>.house-payment-panel *{min-width:0;box-sizing:borde
 @media(max-width:700px){footer.house-footer-enhanced{gap:16px}footer.house-footer-enhanced>.house-payment-panel{padding:16px;margin-block:12px}footer.house-footer-enhanced>.house-payment-panel li{max-width:100%}}
 
 /* Keep the prelaunch browse block tucked away until deliberately restored. */
-.shop-search-controls[hidden]{display:none!important}
+html body.blackberry-house #shop .shop-search-controls[hidden]{display:none!important}
 .house-payment-panel li{padding:5px;background:#fff;border-color:#ddd;display:flex;align-items:center;justify-content:center;width:82px;height:52px}
 .house-payment-panel img{display:inline-block;width:64px;height:40px;object-fit:contain;vertical-align:middle;background:#fff;border-radius:4px;padding:3px}
