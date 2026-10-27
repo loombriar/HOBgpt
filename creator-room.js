@@ -1,0 +1,33 @@
+(()=>{'use strict';
+ const root=document.getElementById('creator-room');if(!root)return;
+ const $=id=>document.getElementById(id),form=$('design-project-form');
+ const controls=['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color'];
+ const paths={
+  'A-line':'M108 80 L92 98 L79 158 L96 164 L109 124 L115 195 L65 355 Q150 380 235 355 L185 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
+  'Fitted':'M108 80 L92 98 L79 158 L96 164 L109 124 L118 195 Q98 240 112 355 L188 355 Q202 240 182 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
+  'Full skirt':'M108 80 L92 98 L79 158 L96 164 L109 124 L116 195 L40 350 Q150 390 260 350 L184 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
+  'Top & skirt':'M108 80 L92 98 L79 158 L96 164 L109 124 L113 190 L187 190 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z M115 204 L72 355 Q150 375 228 355 L185 204 Z'
+ };
+ let active=false;
+ function values(){return {template:$('creator-template').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value};}
+ function render(){
+  const v=values(),svg=$('creator-preview');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
+  const add=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));svg.append(n);return n;};
+  add('rect',{x:0,y:0,width:300,height:430,fill:'#faf7f0'});
+  const height=v.length==='Mini'?.65:v.length==='Midi'?.83:1;
+  const group=add('g',{transform:`translate(0 ${72*(1-height)}) scale(1 ${height})`});
+  const shape=document.createElementNS(ns,'path');shape.setAttribute('d',paths[v.template]);shape.setAttribute('fill',v.color);shape.setAttribute('stroke','#292722');shape.setAttribute('stroke-width','3');group.append(shape);
+  if(v.sleeves==='Long')for(const d of ['M92 98 L79 158 L58 235 L79 241 L109 124','M208 98 L221 158 L242 235 L221 241 L191 124']){const p=document.createElementNS(ns,'path');p.setAttribute('d',d);p.setAttribute('fill',v.color);p.setAttribute('stroke','#292722');p.setAttribute('stroke-width','3');group.append(p);}
+  if(v.sleeves==='Sleeveless')for(const d of ['M92 98 L79 158 L96 164 L109 124 L108 80 Z','M208 98 L221 158 L204 164 L191 124 L192 80 Z']){const p=document.createElementNS(ns,'path');p.setAttribute('d',d);p.setAttribute('fill','#faf7f0');group.append(p);}
+  const neckline=document.createElementNS(ns,'path');neckline.setAttribute('d',v.neckline==='V-neck'?'M130 72 L150 118 L170 72 Z':v.neckline==='Square'?'M130 72 L130 104 L170 104 L170 72 Z':'M130 72 Q150 105 170 72 Z');neckline.setAttribute('fill','#faf7f0');neckline.setAttribute('stroke','#292722');neckline.setAttribute('stroke-width','2');group.append(neckline);
+  const title=add('text',{x:150,y:410,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'sans-serif'});title.textContent=v.template+' · '+v.length;
+  $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length. Color is an illustration only.`;
+ }
+ function fabric(){const raw=$('creator-fabric-url').value.trim();if(!raw)return '';let url;try{url=new URL(raw);}catch{throw Error('Use a complete fabric product link starting with https://.');}if(url.protocol!=='https:'||url.username||url.password)throw Error('Use a secure https:// fabric product link without sign-in details.');return url.href;}
+ function brief(){const v=values(),link=fabric();return `Template design: ${v.template}\nNeckline: ${v.neckline}\nSleeves: ${v.sleeves}\nLength: ${v.length}\nPreview color: ${v.color}\nFabric choice: ${$('creator-fabric-name').value.trim()||'To discuss with maker'}${link?'\nFabric product link: '+link:''}\nFabric quantity, suitability, price and availability need maker/store confirmation. This template is a concept, not a sewing pattern or guaranteed fit.`;}
+ $('creator-use-template').addEventListener('click',()=>{const status=$('creator-status');try{const text=brief(),field=$('project-details'),old=field.value.replace(/\n?\[Back Stage template\][\s\S]*?\[End template\]/g,'').trim();const combined=(old?old+'\n\n':'')+'[Back Stage template]\n'+text+'\n[End template]';if(combined.length>field.maxLength)throw Error('Shorten your notes or fabric description so your brief fits within 2,000 characters.');field.value=combined;active=true;$('creator-include-preview').disabled=false;if(!$('project-title').value)$('project-title').value=values().template+' outfit concept';status.textContent='Template added to your brief below. Save it as a private project when ready.';$('new-project').scrollIntoView({block:'start',behavior:'smooth'});}catch(e){status.textContent=e.message;}});
+ for(const id of controls)$(id).addEventListener('input',()=>{render();if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Design changed. Add the updated template to your brief before saving.';}});
+ for(const id of ['creator-fabric-name','creator-fabric-url'])$(id).addEventListener('input',()=>{if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Fabric changed. Add the updated template to your brief before saving.';}});
+ window.houseCreatorPreview=async()=>{if(!active||!$('creator-include-preview').checked)return null;const source=new XMLSerializer().serializeToString($('creator-preview'));const url=URL.createObjectURL(new Blob([source],{type:'image/svg+xml'}));try{const image=new Image();image.src=url;await image.decode();const canvas=document.createElement('canvas');canvas.width=600;canvas.height=860;canvas.getContext('2d').drawImage(image,0,0,600,860);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('The sketch could not be created. Your written brief can still be saved.');return blob;}finally{URL.revokeObjectURL(url);}};
+ form.addEventListener('reset',()=>{active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;});render();
+})();

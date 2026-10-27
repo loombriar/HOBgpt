@@ -52,7 +52,7 @@
     ['/designers/room','Designer dashboard'],['/account#designer-notifications','Designer notifications'],['/designers','Meet the designers'],
   ],links.querySelector('a[href="/designers/room"]'));
   const creativeMenu=makeMenu('Creative House','creative-house',[
-    ['/creative-house.html','Explore the Creative House'],
+    ['/creative-house.html','Explore the Creative House'],['/design-projects.html#creator-room','Back Stage · build an outfit'],
     ['/?visitors=signup&creative=model','Model sign in / signup'],
     ['/?visitors=signup&creative=photographer','Photographer sign in / signup'],
     ['/designers/room#designer-signup','Designer signup'],
