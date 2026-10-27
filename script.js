@@ -1005,6 +1005,7 @@ function resetListingForm() {
   currentIdempotencyKey = '';
   if (productIdInput) productIdInput.value = '';
   if (listingFormTitle) listingFormTitle.textContent = 'Add a design';
+  const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent='Create a piece';
   selectedImages.forEach((item) => {
     if (item.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(item.objectUrl);
   });
@@ -1043,7 +1044,7 @@ function renderSelectedImages() {
       const option=document.createElement('option'); option.value=value; option.textContent=label; angle.appendChild(option);
     });
     angle.value=image.angle || ''; angle.addEventListener('change',()=>{ image.angle=angle.value; });
-    item.appendChild(angle);
+    const options=document.createElement('details');options.className='photo-options';const optionsTitle=document.createElement('summary');optionsTitle.textContent='Arrange or remove';options.append(optionsTitle,angle);item.append(options);
 
     const actions = makeElement('div', 'photo-preview-actions');
     const moveUp = document.createElement('button');
@@ -1090,7 +1091,7 @@ function renderSelectedImages() {
     });
     actions.appendChild(remove);
 
-    item.appendChild(actions);
+    options.appendChild(actions);
     photoPreview.appendChild(item);
   });
   if(byId('listing-preview')?.open)renderListingDraftPreview();
@@ -1566,6 +1567,7 @@ async function editListing(listingId) {
       });
     }
     renderSelectedImages();
+    const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent=`Editing: ${listing.title}`;
     scrollRoomTarget(byId('product-form'),{behavior:'smooth',block:'start'});
     setMessage(uploadMessage, listing.moderationReason ? `Changes requested: ${listing.moderationReason}. Save your changes, then submit for review again.` : listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
   } catch (error) {
@@ -2658,6 +2660,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
   button.addEventListener('click', () => {
     const target = byId(button.dataset.roomTarget);
     if (!target) return;
+    if(button.dataset.roomTarget==='product-form')resetListingForm();
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
@@ -2773,7 +2776,7 @@ function prepareDesignerRoomPanels() {
   const groups=[
     ['.seller-readiness-card','Getting started'],
     ['#designer-listing-area','Your listings'],
-    ['#product-form','Create or edit a piece'],
+    ['#product-form','Create a piece'],
     ['#designer-brand-form','Brand & profile']
   ];
   for(const [selector,title] of groups){
@@ -2781,6 +2784,8 @@ function prepareDesignerRoomPanels() {
     if(!content||content.parentElement!==workspace)continue;
     const panel=document.createElement('details');
     panel.className='designer-room-panel';
+    panel.setAttribute('name','designer-workspace-panel');
+    if(selector==='#product-form')panel.id='designer-editor-panel';
     panel.open=selector==='.seller-readiness-card';
     if(selector==='.seller-readiness-card')panel.id='designer-setup-panel';
     const summary=document.createElement('summary');
@@ -2795,10 +2800,11 @@ function prepareDesignerRoomPanels() {
   actions.className='designer-start-actions';
   const addPiece=document.createElement('button');
   addPiece.type='button';addPiece.className='primary-button';
-  addPiece.id='designer-add-piece';addPiece.textContent='Add a piece';
+  addPiece.id='designer-add-piece';addPiece.textContent='Create a piece';
   addPiece.addEventListener('click',()=>byId('new-listing-btn')?.click());
   const help=makeElement('p','small-print','Start a draft now. Finish and submit it whenever you are ready.');
-  actions.append(addPiece,help);
+  const manage=document.createElement('button');manage.type='button';manage.className='secondary-button';manage.id='designer-edit-pieces';manage.textContent='Edit my listings';manage.addEventListener('click',()=>scrollRoomTarget(byId('designer-products'),{block:'start'}));
+  actions.append(addPiece,manage,help);
   if(attention)attention.before(actions);else workspace.prepend(actions);
   renderSellerReadiness();
   const reveal=target=>{

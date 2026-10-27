@@ -3,6 +3,8 @@ for(const width of [390,1280]) {
  test(`House windows and rooms fit a ${width}px screen`,async({page})=>{
   await page.setViewportSize({width,height:850});
   await page.goto('/');
+  // Exercise the dormant filters as they will behave when browsing is restored.
+  await page.locator('.shop-search-controls').evaluate(el=>el.hidden=false);
   const menus=page.locator('.shop-filter-menu');
   await expect(menus).toHaveCount(5);
   await expect(page.locator('#shop-designer-filter')).not.toBeVisible();
@@ -30,7 +32,7 @@ for(const width of [390,1280]) {
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
   await expect(page.locator('#designer-workspace > .designer-room-panel > summary')).toHaveText([
-   'Your path to selling', 'Your listings', 'Create or edit a piece', 'Brand & profile'
+   'Your path to selling', 'Your listings', 'Create a piece', 'Brand & profile'
   ]);
   await expect(page.locator('#product-form')).not.toBeVisible();
   await expect(page.locator('#designer-add-piece')).toBeVisible();
@@ -46,7 +48,7 @@ for(const width of [390,1280]) {
   await expect(page.getByText('The Briar Runway — Coming Soon',{exact:true})).toHaveCount(0);
   await expect(page.locator('#product-form .fabric-finder-card')).toHaveCount(1);
   await expect(page.locator('#designer-workspace > .fabric-finder-card')).toHaveCount(0);
-  await page.getByRole('button',{name:'Create a piece',exact:true}).click();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
   const checkbox=await page.locator('#product-international').boundingBox();
   expect(checkbox.width).toBeLessThanOrEqual(24);

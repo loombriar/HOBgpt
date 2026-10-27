@@ -1,0 +1,33 @@
+const {test,expect}=require('@playwright/test');
+for(const width of [390,1280])for(const theme of ['light','dark'])test(`designer create and edit stay separate with readable photos at ${width}px in ${theme}`,async({page})=>{
+ await page.setViewportSize({width,height:850});
+ await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+ const image=await require('sharp')({create:{width:32,height:40,channels:3,background:'#439b85'}}).png().toBuffer();
+ const item={id:'makeover-piece',title:'Saved dress',description:'A handmade dress',price:75,category:'apparel',status:'draft',moderationStatus:'pending',version:1,images:[{id:'front',url:'/api/listings/makeover-piece/images/front/content'},{id:'back',url:'/api/listings/makeover-piece/images/back/content'}]};
+ await page.route('**/api/my/studio',r=>r.fulfill({json:{items:[item]}}));
+ await page.route('**/api/listings/makeover-piece',r=>r.fulfill({json:{item}}));
+ await page.route('**/api/listings/makeover-piece/images/*/content',r=>r.fulfill({contentType:'image/png',body:image}));
+ await page.goto('/designers/room');
+ await page.evaluate(theme=>document.documentElement.setAttribute('data-hob-theme',theme),theme);
+ await page.locator('#designer-edit-pieces').click();
+ await expect(page.locator('#designer-products')).toBeVisible();
+ await expect(page.locator('#product-form')).toBeHidden();
+ await page.locator('#listing-makeover-piece').getByRole('button',{name:'Edit',exact:true}).click();
+ await expect(page.locator('#product-name')).toHaveValue('Saved dress');
+ await expect(page.locator('#designer-editor-panel > summary')).toHaveText('Editing: Saved dress');
+ const card=page.locator('.photo-preview-item').first();
+ await expect(card.locator('img')).toBeVisible();
+ await expect(card.locator('.photo-preview-actions')).toBeHidden();
+ await card.getByText('Arrange or remove',{exact:true}).click();
+ await expect(card.getByRole('button',{name:'Move down',exact:true})).toBeVisible();
+ const contrast=await card.locator('.photo-preview-meta strong, .photo-preview-meta span, .photo-options summary, .photo-preview-actions button:not(:disabled)').evaluateAll(elements=>{
+  const rgb=v=>(v.match(/[\d.]+/g)||[]).map(Number);const lum=c=>c.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+  return Math.min(...elements.map(el=>{let bg=[255,255,255];for(let p=el;p;p=p.parentElement){const c=rgb(getComputedStyle(p).backgroundColor);if(c.length===3||c[3]===1){bg=c;break;}}const a=lum(rgb(getComputedStyle(el).color)),b=lum(bg);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);}));
+ });
+ expect(contrast).toBeGreaterThanOrEqual(4.5);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`/tmp/hob-designer-${theme}-${width}.png`,fullPage:false});
+ await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+ await expect(page.locator('#product-name')).toHaveValue('');
+ await expect(page.locator('#designer-editor-panel > summary')).toHaveText('Create a piece');
+});
