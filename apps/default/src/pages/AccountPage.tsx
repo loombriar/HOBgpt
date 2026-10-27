@@ -335,7 +335,7 @@ function StudioContent() {
   const beginEdit = (product: StudioListing) => {
     setListingStep(0);
     releaseStudioPhotoPreviews(photos); setEditingId(product.id); setEditingVersion(product.version); setName(product.title); setPrice(String(product.price)); const parsed=unpackGarmentDetails(product.description||'');setDescription(parsed.description);setGarmentMeasurements(parsed.details['Garment Measurements']||'');setFitNotes(parsed.details['Fit Notes']||'');setMaterials(parsed.details['Material']||'');setCareInstructions(parsed.details['Care Instructions']||'');setAesthetic(product.aesthetic||''); setCategory(product.category); setStyle(product.style || ''); setStockPlacement(product.availability||'floor'); setPieceType(product.productionType||'One of a Kind'); setSeoTitle(product.seoTitle||''); setSeoDescription(product.seoDescription||''); setSeoTags(product.seoTags||''); setShareImageUrl(product.shareImageUrl||''); setShippingCost(product.shippingCostCents==null?'':String(product.shippingCostCents/100)); setFreeShippingThreshold(product.freeShippingThresholdCents==null?'':String(product.freeShippingThresholdCents/100)); setHandlingMin(product.handlingDaysMin==null?'':String(product.handlingDaysMin)); setHandlingMax(product.handlingDaysMax==null?'':String(product.handlingDaysMax)); setInternationalShipping(Boolean(product.internationalShipping)); setSku(product.sku||''); setStockQuantity(String(product.stockQuantity??1)); setLowStockThreshold(String(product.lowStockThreshold??1));
-    setRemovedImageIds([]); setPhotos((product.images ?? []).map((image,index)=>({key:`saved-${image.id}`,name:`Photo ${index+1}`,url:image.url,previewUrl:image.url})));
+    setRemovedImageIds([]); setPhotos((product.images ?? []).map((image,index)=>({key:`saved-${image.id}`,id:image.id,name:`Photo ${index+1}`,url:image.url,previewUrl:image.url})));
     setMessage(product.moderationReason ? `Changes requested: ${product.moderationReason}` : 'Editing this listing.');
     window.requestAnimationFrame(()=>{const form=document.getElementById('designer-listings');const panel=form?.closest('details');if(panel)panel.open=true;form?.scrollIntoView({block:'start',behavior:'smooth'});});
   };
@@ -357,7 +357,26 @@ function StudioContent() {
       const listingId=data.item.id;
       setEditingId(listingId);setEditingVersion(data.item.version);if(!editingId)clearRecovery();
       for(const imageId of removedImageIds){const removed=await fetch(`/api/listings/${listingId}/images/${encodeURIComponent(imageId)}`,{method:'DELETE',credentials:'same-origin'});if(!removed.ok){const details=await removed.json().catch(()=>({}));throw new Error(details?.error?.message||'A removed photo could not be deleted.');}const removedData=await removed.json().catch(()=>({}));if(removedData.item?.version)setEditingVersion(removedData.item.version);setRemovedImageIds(ids=>ids.filter(id=>id!==imageId));}
-      for(const photo of photos){if(!photo.file)continue;const body=new FormData();body.append('image',photo.file);body.append('clientImageKey',`studio-${listingId}-${photo.key}`);const upload=await fetch(`/api/listings/${listingId}/images`,{method:'POST',headers:{'Idempotency-Key':`studio-${listingId}-${photo.key}`},body});const uploaded=await upload.json().catch(()=>({}));if(!upload.ok)throw new Error(uploaded?.error?.message||'A listing image could not be uploaded.');setEditingVersion(uploaded.item.version);}
+      const orderedImageIds: string[] = [];
+      const knownImageIds = new Set((data.item.images ?? []).map((image: {id: string}) => image.id));
+      for (const photo of photos) {
+        if (!photo.file) { if (photo.id) orderedImageIds.push(photo.id); continue; }
+        const body = new FormData(); body.append('image', photo.file); body.append('clientImageKey', `studio-${listingId}-${photo.key}`);
+        const upload = await fetch(`/api/listings/${listingId}/images`, {method:'POST', headers:{'Idempotency-Key':`studio-${listingId}-${photo.key}`}, body});
+        const uploaded = await upload.json().catch(()=>({}));
+        if (!upload.ok) throw new Error(uploaded?.error?.message || 'A listing image could not be uploaded.');
+        const image = uploaded.item.images.find((image: {id: string; url: string}) => !knownImageIds.has(image.id));
+        if (!image) throw new Error('The uploaded photo could not be identified. Please reload the listing before trying again.');
+        knownImageIds.add(image.id); orderedImageIds.push(image.id); setEditingVersion(uploaded.item.version);
+        releaseStudioPhotoPreviews([photo]);
+        setPhotos(current => current.map(entry => entry.key === photo.key ? {...entry, id:image.id, url:image.url, previewUrl:image.url, file:undefined} : entry));
+      }
+      if (orderedImageIds.length) {
+        const order = await fetch(`/api/listings/${listingId}/images/order`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({imageIds:orderedImageIds})});
+        const ordered = await order.json().catch(()=>({}));
+        if (!order.ok) throw new Error(ordered?.error?.message || 'Your main photo and photo order could not be saved. Try saving again.');
+        if (ordered.item?.version) setEditingVersion(ordered.item.version);
+      }
       await refreshProducts(); resetListingForm(); setMessage('Draft saved. Submit it for review when it is ready.');
     } catch(error){setMessage(error instanceof Error?error.message:'Your listing could not be saved.');} finally{setIsSaving(false);}
   };

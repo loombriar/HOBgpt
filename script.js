@@ -1031,13 +1031,18 @@ function renderSelectedImages() {
     img.src = image.objectUrl || image.url;
     img.alt = image.name || `Image ${index + 1}`;
     item.appendChild(img);
-    item.appendChild(makeElement('span', 'photo-order-label', index === 0 ? 'Cover' : String(index + 1)));
+    item.appendChild(makeElement('span', 'photo-order-label', index === 0 ? 'Main photo' : String(index + 1)));
 
     const info = makeElement('div', 'photo-preview-meta');
     info.appendChild(makeElement('strong', '', image.name || `Image ${index + 1}`));
     const statusText = image.status === 'uploading' ? 'Uploading…' : image.status === 'ready' ? 'Ready' : image.status === 'failed' ? (image.error || 'Failed') : 'Queued';
     info.appendChild(makeElement('span', '', `${statusText}${image.size ? ` · ${formatBytes(image.size)}` : ''}`));
     item.appendChild(info);
+    const mainPhoto=document.createElement('button');mainPhoto.type='button';mainPhoto.className='secondary-button photo-main-button';
+    mainPhoto.textContent=index===0?'Main photo':'Make main photo';mainPhoto.disabled=index===0;
+    mainPhoto.setAttribute('aria-label',index===0?'Main photo, photo 1':`Make photo ${index+1} the main photo`);
+    mainPhoto.addEventListener('click',()=>{const current=selectedImages.indexOf(image);if(current<1)return;selectedImages.splice(current,1);selectedImages.unshift(image);renderSelectedImages();setMessage(uploadMessage,'Main photo selected. Choose Save changes to keep this photo order.','success');photoPreview.querySelector('.photo-main-button')?.focus();});
+    item.append(mainPhoto);
     const angle = document.createElement('select');
     angle.className = 'photo-angle-select';
     angle.setAttribute('aria-label', `Photo ${index + 1} angle`);
