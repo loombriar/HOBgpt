@@ -17,6 +17,7 @@
   let bottom=footer.querySelector('.footer-bottom');
   if(!bottom){bottom=document.createElement('div');bottom.className='footer-bottom';footer.append(bottom);}
   bottom.classList.add('house-footer-bar');
+  const utilities=bottom.querySelector('.footer-utilities');if(utilities){utilities.classList.add('house-footer-support-links');bottom.before(utilities);}
   let copyright=bottom.querySelector('.copyright');
   if(!copyright){copyright=document.createElement('p');copyright.className='copyright';bottom.prepend(copyright);}
   copyright.textContent='© '+new Date().getFullYear()+' House of Briar. All Rights Reserved.';
@@ -25,7 +26,7 @@
     {name:'Facebook',url:'https://www.facebook.com/profile.php?id=61595729137315',symbol:'f'},
     {name:'YouTube',url:'https://www.youtube.com/@Houseofbriar.shop.designers',symbol:'▶'},
     {name:'Instagram',url:'https://www.instagram.com/house_of_briar_/',symbol:'◎'}
-  ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;link.textContent=item.symbol;socials.append(link);}
+  ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;const icons={Facebook:'<path d="M15 21v-8h3l.5-3H15V8.5c0-.8.3-1.5 1.5-1.5H19V4h-3c-3 0-5 1.8-5 5v1H8v3h3v8z" fill="currentColor"/>',YouTube:'<path d="M21 7a3 3 0 0 0-2-2c-2-.5-12-.5-14 0a3 3 0 0 0-2 2c-.5 2-.5 8 0 10a3 3 0 0 0 2 2c2 .5 12 .5 14 0a3 3 0 0 0 2-2c.5-2 .5-8 0-10ZM10 16V8l7 4z" fill="currentColor" fill-rule="evenodd"/>',Instagram:'<rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>'};link.innerHTML='<svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">'+icons[item.name]+'</svg>';socials.append(link);}
   bottom.append(socials);
   const payments=document.createElement('div');payments.className='house-footer-payment-logos';payments.setAttribute('role','region');payments.setAttribute('aria-label','Accepted payments');
   for(const method of [{name:'Visa',file:'visa.svg'},{name:'Mastercard',file:'mastercard.svg'},{name:'American Express',file:'amex.svg'},{name:'Apple Pay',file:'applepay.svg'},{name:'Google Pay',file:'googlepay.svg'}]){
@@ -64,6 +65,7 @@
   ]);
   const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
   const designerMenu=makeMenu('BACKSTAGE','backstage',[
+    ['/creative-house.html','Enter Backstage'],
     ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
   ]);
   const account=document.getElementById('header-customer-auth-btn');

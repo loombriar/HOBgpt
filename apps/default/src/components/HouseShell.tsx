@@ -1,4 +1,4 @@
-import AcceptedPayments from '@/components/AcceptedPayments';
+import HouseFooter from '@/components/HouseFooter';
 import { readCartIds } from '@/lib/cart-storage';
 import { clearHouseCartOnSignOut } from '@/lib/cart-signout';
 import { Link, useLocation } from 'react-router-dom';
@@ -36,6 +36,12 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
   const auth = useAuth();
   const location = useLocation();
   const [searchOpen,setSearchOpen] = useState(false);
+  const [supportBottom,setSupportBottom] = useState(20);
+  useEffect(()=>{
+    const footer=document.querySelector('.house-react-footer');if(!footer)return;
+    const observer=new IntersectionObserver(([entry])=>setSupportBottom(entry.isIntersecting?Math.max(20,window.innerHeight-entry.boundingClientRect.top+12):20),{threshold:Array.from({length:21},(_,i)=>i/20)});
+    observer.observe(footer);return()=>observer.disconnect();
+  },[location.pathname]);
   const [helpOpen,setHelpOpen] = useState(false);
   const [helpQuestion,setHelpQuestion] = useState('');
   useEffect(()=>setHelpOpen(false),[location.pathname,location.hash]);
@@ -96,7 +102,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
           <button type="button" aria-label="Open shop search" aria-expanded={searchOpen} aria-controls="house-nav-search" onClick={()=>setSearchOpen(v=>!v)} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">⌕</button>
           <nav aria-label="Primary navigation" className="flex items-center gap-3 text-xs sm:gap-6 sm:text-sm">
             <NavigationMenu label="SHOP"><p className="p-2 font-semibold">We’re still moving in.</p><a href="/?visitors=signup">Create your room</a><a href="/?visitors=signup#measurement-profile-name">Save your measurements</a><a href="/design-projects.html#creator-room">Create an outfit</a><a href="/join.html">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a></NavigationMenu>
-            <NavigationMenu label="BACKSTAGE"><a href="/designers/room">Sign in as designer</a><a href="/?visitors=signup&creative=model">Sign in as model</a><a href="/?visitors=signup&creative=photographer">Sign in as photographer</a><a href="/?visitors=signup&creative=dj">Sign in as DJ</a>{auth.isAuthenticated&&<button type="button" aria-label="Sign out of House of Briar" onClick={()=>{clearHouseCartOnSignOut();void auth.signoutRedirect();}} className="min-h-11 text-left">Sign out</button>}</NavigationMenu>
+            <NavigationMenu label="BACKSTAGE"><a href="/creative-house.html">Enter Backstage</a><a href="/designers/room">Sign in as designer</a><a href="/?visitors=signup&creative=model">Sign in as model</a><a href="/?visitors=signup&creative=photographer">Sign in as photographer</a><a href="/?visitors=signup&creative=dj">Sign in as DJ</a>{auth.isAuthenticated&&<button type="button" aria-label="Sign out of House of Briar" onClick={()=>{clearHouseCartOnSignOut();void auth.signoutRedirect();}} className="min-h-11 text-left">Sign out</button>}</NavigationMenu>
           </nav>
           <a href={auth.isAuthenticated?'/account#messages':'/join.html'} aria-label={`Mailbox${designerUnread?`, ${designerUnread} unread`:''}`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">✉{designerUnread>0&&<span>{designerUnread}</span>}</a>
           <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border"><img src="/suitcase-cart-v1.svg" alt="" className="h-7 w-7"/></Link>
@@ -105,19 +111,8 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
       </header>
       <main id="house-main" className="house-main" style={{ paddingTop: headerHeight + 12 }}>{children}</main>
-      <footer className="border-t border-border/70 bg-card/30">
-        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_1fr] lg:px-8">
-          <div>
-            <img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar" className="mb-5 h-44 w-44 rounded-full"/><p className="font-serif text-2xl">Independent fashion. Individual expression.</p><AcceptedPayments/>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">We celebrate independent designers, slow-made pieces, and the beauty of being different.</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Explore</p>
-            <div className="mt-4 flex flex-col gap-3 text-sm"><Link to="/shop" className="transition hover:text-primary">Shop the collection</Link><Link to="/account" className="transition hover:text-primary">Designer dashboard</Link><a href="/shipping.html" className="transition hover:text-primary">Shipping &amp; Delivery</a><a href="/rules" className="transition hover:text-primary">Rules &amp; Returns</a><Link to="/account#house-support" className="transition hover:text-primary">Customer support</Link><Link to="/admin" className="transition hover:text-primary">Admin dashboard</Link></div>
-          </div>
-        </div>
-      </footer>
-      <div className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-3">
+      <HouseFooter />
+      <div style={{bottom:supportBottom}} className="house-support-widget fixed right-5 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-3">
         {helpOpen && <section id="house-help-chat" role="dialog" aria-label="House of Briar AI support" className="w-[min(23rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-3"><h2 className="font-serif text-xl">House support assistant</h2><button type="button" aria-label="Close support chat" onClick={()=>setHelpOpen(false)} className="min-h-11 min-w-11 rounded-full border border-border">×</button></div>
           <p className="mt-2 text-sm text-muted-foreground">Ask about House policies, designer registration, shipping, or orders. AI support requires a signed-in House account and your consent. You can also email House support without an account.</p>
