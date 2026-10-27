@@ -71,7 +71,7 @@ export default function App() {
     themeColor.setAttribute('content', '#c9ae72');
     if (!themeColor.parentNode) document.head.appendChild(themeColor);
 
-    const logoUrl = '/icons/house-of-briar-32.png?v=dress-form-4';
+    const logoUrl = '/icons/house-of-briar-32.png?v=thorn-moon-5';
     const favicon = document.querySelector('link[rel="icon"]') ?? document.createElement('link');
     favicon.setAttribute('rel', 'icon');
     favicon.setAttribute('type', 'image/png');
@@ -80,7 +80,7 @@ export default function App() {
 
     const appleIcon = document.querySelector('link[rel="apple-touch-icon"]') ?? document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
-    appleIcon.setAttribute('href', '/icons/house-of-briar-192.png?v=dress-form-4');
+    appleIcon.setAttribute('href', '/icons/house-of-briar-192.png?v=thorn-moon-5');
     if (!appleIcon.parentNode) document.head.appendChild(appleIcon);
   }, []);
 

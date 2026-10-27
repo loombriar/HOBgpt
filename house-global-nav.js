@@ -11,6 +11,14 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
+  const wordmark=nav.querySelector('.hob-global-wordmark');
+  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v1.webp" width="48" height="48" alt="" aria-hidden="true"> HOUSE <i>of</i> BRIAR';
+  const search=document.createElement('form');
+  search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
+  search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…"><button type="submit">Search</button>';
+  search.querySelector('input').value=new URLSearchParams(location.search).get('q')||'';
+  nav.append(search);
+
   const links = nav.querySelector('nav');
   const makeMenu=(label,kind,entries,replace)=>{
     const menu=document.createElement('details');menu.className='hob-seamstress-menu hob-'+kind+'-menu';
