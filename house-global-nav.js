@@ -11,17 +11,26 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
-  // Refresh branding and payment logos on every legacy page footer.
-  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}footer.classList.add('house-footer-enhanced');
-  const footerBrand=document.createElement('a');footerBrand.href='/';footerBrand.className='house-footer-logo';footerBrand.innerHTML='<img src="/house-logo-v2.webp" width="176" height="176" alt="House of Briar">';footer.prepend(footerBrand);
-  fetch('/payment-methods.json?v=20261027').then(r=>{if(!r.ok)throw Error();return r.json();}).then(methods=>{
-    const section=document.createElement('section');section.className='house-payment-panel';section.setAttribute('aria-label','Accepted payments');
-    const title=document.createElement('h2');title.textContent='Ways to pay';section.append(title);
-    const list=document.createElement('ul');for(const method of methods.logos){const li=document.createElement('li');const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=64;img.height=40;li.append(img);list.append(li);}section.append(list);
-    const note=document.createElement('p');note.textContent=methods.note;section.append(note);
-    const extra=document.createElement('details');const summary=document.createElement('summary');summary.textContent='More payment options';const region=document.createElement('p');region.textContent=[...methods.primary.filter(name=>!methods.logos.some(method=>method.name===name)),...methods.regional].join(' · ')+' — for eligible locations and currencies.';extra.append(summary,region);section.append(extra);
-    const donations=document.createElement('p');const paypal=document.createElement('img');paypal.src='/payment-logos/paypal.svg';paypal.alt='PayPal donations only';paypal.width=64;paypal.height=40;donations.append(paypal,document.createTextNode(' Donations only'));section.append(donations);footer.append(section);
-  }).catch(()=>{});
+  // Compact footer bar: copyright, verified social links, and checkout payment brands.
+  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
+  footer.classList.add('house-footer-enhanced');
+  let bottom=footer.querySelector('.footer-bottom');
+  if(!bottom){bottom=document.createElement('div');bottom.className='footer-bottom';footer.append(bottom);}
+  bottom.classList.add('house-footer-bar');
+  let copyright=bottom.querySelector('.copyright');
+  if(!copyright){copyright=document.createElement('p');copyright.className='copyright';bottom.prepend(copyright);}
+  copyright.textContent='© '+new Date().getFullYear()+' House of Briar. All Rights Reserved.';
+  const socials=document.createElement('nav');socials.className='house-footer-socials';socials.setAttribute('aria-label','House of Briar social media');
+  for(const item of [
+    {name:'Facebook',url:'https://www.facebook.com/profile.php?id=61595729137315',symbol:'f'},
+    {name:'Instagram',url:'https://www.instagram.com/house_of_briar_/',symbol:'◎'}
+  ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;link.textContent=item.symbol;socials.append(link);}
+  bottom.append(socials);
+  const payments=document.createElement('div');payments.className='house-footer-payment-logos';payments.setAttribute('aria-label','Accepted payment methods');
+  for(const method of [{name:'Visa',file:'visa.svg'},{name:'Mastercard',file:'mastercard.svg'},{name:'American Express',file:'amex.svg'},{name:'Apple Pay',file:'applepay.svg'},{name:'Google Pay',file:'googlepay.svg'}]){
+    const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=40;img.height=25;img.loading='lazy';payments.append(img);
+  }
+  bottom.append(payments);
 
   const wordmark=nav.querySelector('.hob-global-wordmark');
   if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v2.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
