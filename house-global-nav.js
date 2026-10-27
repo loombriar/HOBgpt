@@ -12,12 +12,18 @@
   }
   nav.classList.add('hob-global-nav');
   const wordmark=nav.querySelector('.hob-global-wordmark');
-  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v1.webp" width="48" height="48" alt="" aria-hidden="true"> HOUSE <i>of</i> BRIAR';
+  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v1.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
   const search=document.createElement('form');
   search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
   search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…"><button type="submit">Search</button>';
   search.querySelector('input').value=new URLSearchParams(location.search).get('q')||'';
+  search.id='hob-sticky-search';
   nav.append(search);
+  const searchToggle=document.createElement('button');searchToggle.type='button';searchToggle.className='hob-search-toggle';searchToggle.textContent='⌕';searchToggle.setAttribute('aria-label','Open shop search');searchToggle.setAttribute('aria-controls',search.id);searchToggle.setAttribute('aria-expanded','false');
+  const closeSearch=()=>{nav.classList.remove('hob-search-open');searchToggle.setAttribute('aria-expanded','false');};
+  searchToggle.addEventListener('click',()=>{const open=nav.classList.toggle('hob-search-open');searchToggle.setAttribute('aria-expanded',String(open));if(open)search.querySelector('input').focus();});
+  search.addEventListener('keydown',event=>{if(event.key==='Escape'){closeSearch();searchToggle.focus();}});
+
 
   const links = nav.querySelector('nav');
   const makeMenu=(label,kind,entries,replace)=>{
@@ -91,7 +97,7 @@
   const actions = document.createElement('div');
   actions.className = 'hob-global-actions';
   actions.setAttribute('aria-label', 'Account, cart and theme');
-  for (const control of [themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link'), join]) {
+  for (const control of [searchToggle, themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link'), join]) {
     if (control) actions.appendChild(control);
   }
   nav.appendChild(actions);

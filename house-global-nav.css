@@ -151,3 +151,12 @@ html body #hob-global-nav.hob-global-nav{background:var(--house-paper)!important
 #hob-global-nav .hob-sticky-search input{min-width:0;flex:1;width:100%;min-height:44px;background:var(--house-card);color:var(--house-ink);border:1px solid var(--house-line);border-radius:6px;padding:8px 12px;font:16px Arial,sans-serif}
 #hob-global-nav .hob-sticky-search button{min-height:44px;padding:8px 14px;background:var(--house-card);color:var(--house-ink);border:1px solid var(--house-line);border-radius:6px}
 @media(max-width:700px){#hob-global-nav .hob-sticky-search{flex-basis:100%}#hob-global-nav .hob-global-wordmark img{width:36px;height:36px}}
+
+/* Phone search opens on demand, preserving the two-row navigation. */
+#hob-global-nav .hob-search-toggle{display:none}
+@media(max-width:700px){
+ #hob-global-nav .hob-global-wordmark>span{display:none}
+ #hob-global-nav .hob-search-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;min-width:36px;height:44px;border:0;background:transparent;color:inherit;font-size:28px;cursor:pointer}
+ #hob-global-nav .hob-sticky-search{display:none}
+ #hob-global-nav.hob-search-open .hob-sticky-search{display:flex;grid-row:3;grid-column:1/-1}
+}
