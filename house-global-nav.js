@@ -27,7 +27,7 @@
     {name:'Instagram',url:'https://www.instagram.com/house_of_briar_/',symbol:'◎'}
   ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;link.textContent=item.symbol;socials.append(link);}
   bottom.append(socials);
-  const payments=document.createElement('div');payments.className='house-footer-payment-logos';payments.setAttribute('aria-label','Accepted payment methods');
+  const payments=document.createElement('div');payments.className='house-footer-payment-logos';payments.setAttribute('role','region');payments.setAttribute('aria-label','Accepted payments');
   for(const method of [{name:'Visa',file:'visa.svg'},{name:'Mastercard',file:'mastercard.svg'},{name:'American Express',file:'amex.svg'},{name:'Apple Pay',file:'applepay.svg'},{name:'Google Pay',file:'googlepay.svg'}]){
     const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=40;img.height=25;img.loading='lazy';payments.append(img);
   }
