@@ -19,3 +19,12 @@ test('Back Stage rejects unsafe fabric links and invalidates stale previews',asy
  await page.goto('/design-projects.html');await page.getByLabel('Fabric product link',{exact:true}).fill('javascript:alert(1)');await page.getByRole('button',{name:'Add this template to my brief'}).click();await expect(page.locator('#creator-status')).toContainText('secure https://');
  await page.getByLabel('Fabric product link',{exact:true}).fill('');await page.getByRole('button',{name:'Add this template to my brief'}).click();await page.locator('#creator-include-preview').check();await page.getByLabel('Length',{exact:true}).selectOption('Mini');await expect(page.locator('#creator-include-preview')).not.toBeChecked();await expect(page.locator('#creator-include-preview')).toBeDisabled();
 });
+for(const width of [390,1280])test(`Outfit studio starter looks work at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.goto('/design-projects.html#creator-room');
+ await page.getByLabel('Fabric name and notes',{exact:true}).fill('Keep my cotton selection');
+ await page.getByRole('button',{name:'Add this template to my brief'}).click();await page.locator('#creator-include-preview').check();
+ await page.getByRole('button',{name:/Evening silhouette/}).click();await expect(page.locator('#creator-preview-description')).toContainText('Fitted template, V-neck, sleeveless sleeves, maxi length');await expect(page.locator('#creator-include-preview')).toBeDisabled();await expect(page.locator('#creator-include-preview')).not.toBeChecked();await expect(page.locator('#creator-fabric-name')).toHaveValue('Keep my cotton selection');
+ await page.getByRole('button',{name:/Mix your separates/}).click();await expect(page.locator('#creator-template')).toHaveValue('Top & skirt');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('#creator-room').screenshot({path:`/tmp/hob-studio-${width}.png`});
+});
