@@ -346,3 +346,7 @@ html:root body .house-footer-link-row {background:var(--briar-mint)!important;co
 .fashion-app .house-product-card:nth-child(3n){border-top-color:var(--briar-gold)}
 .fashion-app .house-outline-link {border-color:var(--studio-jade);color:var(--studio-jade)}
 html body :is(a,button,input,select,textarea,summary):focus-visible {outline:3px solid var(--studio-jade);outline-offset:3px}
+
+/* Campaign copy follows its colored surface in both themes. */
+html:root:root body.blackberry-house #designers-wanted :is(h2,p,.eyebrow,.small-print){color:var(--briar-ink)!important}
+html:root:root body.blackberry-house #designers-wanted .secondary-button{background:var(--studio-jade)!important;color:var(--studio-jade-ink)!important;border-color:var(--studio-jade)!important}
