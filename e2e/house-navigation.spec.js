@@ -4,7 +4,7 @@ for(const width of [320,390,768,1280])for(const url of ['/','/shop'])test(`order
  const legacy=url==='/';const nav=page.locator(legacy?'#hob-global-nav':'.house-compact-header');
  const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Shop the Runway/})});
  const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Go Backstage/})});
- const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
+ const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=width>1100?nav.getByRole('search',{name:'Search the shop',exact:true}):nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
  const ordered=width<=900?[logo,theme,search,mailbox,cart]:[logo,theme,search,shop.locator('summary'),backstage.locator('summary'),mailbox,cart];
  const logoBox=await logo.boundingBox(),themeBox=await theme.boundingBox(),searchBox=await search.boundingBox();expect(themeBox.x-(logoBox.x+logoBox.width)).toBeLessThan(26);expect(searchBox.x-(themeBox.x+themeBox.width)).toBeLessThan(26);
  let last=-1;for(const item of ordered){await expect(item).toBeVisible();const box=await item.boundingBox();expect(box.x).toBeGreaterThan(last);last=box.x;}
@@ -15,7 +15,7 @@ for(const width of [320,390,768,1280])for(const url of ['/','/shop'])test(`order
  await expect(backstage.getByRole('link',{name:/venue/i})).toHaveCount(0);
  const box=await backstage.locator('div').first().boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
  await backstage.locator('summary').press('Escape');await expect(backstage).not.toHaveAttribute('open');
- await search.click();await expect(nav.getByRole('searchbox')).toBeVisible();await nav.getByRole('searchbox').press('Escape');await expect(nav.getByRole('searchbox')).toBeHidden();
+ if(width>1100){await expect(nav.getByRole('button',{name:'Open shop search',exact:true})).toBeHidden();await expect(nav.getByRole('searchbox')).toBeVisible();expect(logoBox.x).toBeLessThan(35);const menuBox=await shop.boundingBox();expect(menuBox.x-(searchBox.x+searchBox.width)).toBeGreaterThan(40);}else{await search.click();await expect(nav.getByRole('searchbox')).toBeVisible();await nav.getByRole('searchbox').press('Escape');await expect(nav.getByRole('searchbox')).toBeHidden();}
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:`/tmp/hob-ordered-${legacy?'home':'shop'}-${width}.png`});
 });

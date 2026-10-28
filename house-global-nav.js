@@ -37,16 +37,30 @@
     const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=40;img.height=25;img.loading='lazy';payments.append(img);
   }
   bottom.append(payments);
+  const footerRow=document.createElement('div');footerRow.className='house-footer-link-row';
+  const brand=footer.querySelector('.footer-brand');if(brand)footerRow.append(brand);
+  for(const details of footer.querySelectorAll('.footer-links>details,.footer-story')){
+    const panel=document.createElement('div');panel.className='house-footer-link-panel';
+    for(const child of [...details.children])if(child.tagName!=='SUMMARY')panel.append(child);
+    details.append(panel);footerRow.append(details);
+  }
+  if(utilities)for(const child of [...utilities.children])footerRow.append(child);
+  bottom.before(footerRow);utilities?.remove();footer.querySelector('.footer-main')?.remove();
+  const footerMenus=[...footerRow.querySelectorAll('details')];
+  for(const menu of footerMenus){menu.addEventListener('toggle',()=>{if(menu.open)for(const other of footerMenus)if(other!==menu)other.open=false;});menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;menu.querySelector('summary')?.focus();}});}
+  document.addEventListener('click',event=>{for(const menu of footerMenus)if(!menu.contains(event.target))menu.open=false;});
+
+
 
   const wordmark=nav.querySelector('.hob-global-wordmark');
   if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v2.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
   const search=document.createElement('form');
   search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
-  search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search pieces, designers…"><button type="submit">Search</button>';
+  search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search the runway"><button type="submit">Search</button>';
   search.querySelector('input').value=new URLSearchParams(location.search).get('q')||'';
   search.id='hob-sticky-search';
   nav.append(search);
-  const searchToggle=document.createElement('button');searchToggle.type='button';searchToggle.className='hob-search-toggle';searchToggle.textContent='⌕';searchToggle.setAttribute('aria-label','Open shop search');searchToggle.setAttribute('aria-controls',search.id);searchToggle.setAttribute('aria-expanded','false');
+  const searchToggle=document.createElement('button');searchToggle.type='button';searchToggle.id='hob-search-toggle';searchToggle.className='hob-search-toggle';searchToggle.textContent='⌕';searchToggle.setAttribute('aria-label','Open shop search');searchToggle.setAttribute('aria-controls',search.id);searchToggle.setAttribute('aria-expanded','false');
   const closeSearch=()=>{nav.classList.remove('hob-search-open');searchToggle.setAttribute('aria-expanded','false');};
   searchToggle.addEventListener('click',()=>{const open=nav.classList.toggle('hob-search-open');searchToggle.setAttribute('aria-expanded',String(open));if(open)search.querySelector('input').focus();});
   search.addEventListener('keydown',event=>{if(event.key==='Escape'){closeSearch();searchToggle.focus();}});

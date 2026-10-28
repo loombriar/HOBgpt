@@ -4,12 +4,12 @@ test('mobile navigation stays compact and keeps account and cart usable',async({
  await page.setViewportSize({width:393,height:851});await page.goto('/');
  const header=page.locator('#hob-global-nav');
  await expect(header.getByRole('button',{name:'Open shop search'})).toBeVisible();
- await expect.poll(async()=> (await header.boundingBox()).height,{message:'The mobile storefront header must fit two compact rows'}).toBeLessThanOrEqual(110);
+ await expect.poll(async()=> (await header.boundingBox()).height,{message:'The mobile storefront header must fit the announcement and two compact navigation rows'}).toBeLessThanOrEqual(160);
  await expect(header.getByRole('search')).toBeHidden();
  await header.getByRole('button',{name:'Open shop search'}).click();
  const search=header.getByRole('searchbox');await expect(search).toBeFocused();await search.fill('linen');
  await search.press('Escape');await expect(header.getByRole('search')).toBeHidden();
- await expect.poll(async()=> (await header.boundingBox()).height).toBeLessThanOrEqual(110);
+ await expect.poll(async()=> (await header.boundingBox()).height).toBeLessThanOrEqual(160);
  await page.locator('.hob-shop-menu > summary').click();await header.getByRole('link',{name:'Sign in / Join',exact:true}).click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
  await expect(page.locator('#visitor-suite-modal')).toBeVisible();
  await page.locator('#visitor-suite-close').click();
