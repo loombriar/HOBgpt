@@ -102,7 +102,9 @@ html[data-hob-theme=dark] body.sewing-services-page{--service-bg:#211d23;--servi
 @media(max-height:1000px){.creator-builder figure{position:static}}
 @media(max-width:700px){.creator-builder svg#creator-preview{max-height:min(48vh,360px)}}
 
-/* Keep the sketch bounded even inside the scoped atelier layout. */
+/* Preserve the global editorial paper surface and bound the atelier sketch. */
+html[data-hob-theme=light] body.sewing-services-page{background:#f8f3fa!important;background-image:none!important}
+html[data-hob-theme=dark] body.sewing-services-page{background:#1c1724!important;background-image:none!important}
 #creator-room svg#creator-preview{max-height:min(44vh,400px)}
 @media(max-width:700px){#creator-room svg#creator-preview{max-height:min(48vh,360px)}}
 </style></head>
