@@ -2,7 +2,8 @@
  const root=document.getElementById('creator-room');if(!root)return;
  const $=id=>document.getElementById(id),form=$('design-project-form');
  const controls=['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color','creator-secondary-color','creator-print','creator-print-scale','creator-offset-x','creator-offset-y','creator-scale','creator-opacity'];
- let avatarData='',avatarVersion=0;
+ let avatarData='',avatarVersion=0,conceptVersion=0,conceptController=null;
+ function invalidateConcept(){const hadPreview=conceptController||!$('creator-concept-image').hidden;conceptVersion++;conceptController?.abort();conceptController=null;$('creator-concept-consent').checked=false;$('creator-concept-image').hidden=true;$('creator-concept-image').removeAttribute('src');$('creator-concept-download').hidden=true;$('creator-concept-download').removeAttribute('href');$('creator-concept-cancel').hidden=true;if(hadPreview)$('creator-concept-status').textContent='Design changed. Generate a fresh concept when ready.';}
  const position=()=>({x:Number($('creator-offset-x').value),y:Number($('creator-offset-y').value),scale:Number($('creator-scale').value)/100,opacity:Number($('creator-opacity').value)/100});
  const resetPosition=()=>{for(const [id,value]of [['creator-offset-x',0],['creator-offset-y',0],['creator-scale',100],['creator-opacity',100]])$(id).value=value;};
  function invalidate(message='Design changed. Add the updated template to your brief before saving.'){if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent=message;}}
@@ -24,12 +25,11 @@
  let active=false;
  function values(){return {template:$('creator-template').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value,secondary:$('creator-secondary-color').value,print:$('creator-print').value,printScale:Number($('creator-print-scale').value)};}
  function render(){
+  invalidateConcept();
   const v=values(),pos=position(),svg=$('creator-preview');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
   const add=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));parent.append(n);return n;};
   add('rect',{x:0,y:0,width:300,height:430,fill:'#faf7f0'});
   add('path',{d:'M22 32 H42 M22 32 V52 M278 32 H258 M278 32 V52 M22 390 H42 M22 390 V370 M278 390 H258 M278 390 V370',stroke:'#c9c1b4','stroke-width':.8,fill:'none'});
-  add('ellipse',{cx:150,cy:384,rx:70,ry:5,fill:'#5c5548','fill-opacity':.07});
-  if(!avatarData){add('ellipse',{cx:150,cy:43,rx:15,ry:21,fill:'#d4cec3','fill-opacity':.4});add('path',{'data-default-form':'true',d:'M141 63 L141 77 Q119 80 108 98 Q97 131 86 182 Q83 195 89 205 Q95 199 96 185 L117 128 Q120 170 116 197 Q107 237 116 276 L121 370 Q127 382 136 370 L150 264 L164 370 Q173 382 179 370 L184 276 Q193 237 184 197 Q180 170 183 128 L204 185 Q205 199 211 205 Q217 195 214 182 Q203 131 192 98 Q181 80 159 77 L159 63 Z',fill:'#ded8ce','fill-opacity':.32,stroke:'#b8b1a5','stroke-opacity':.5,'stroke-width':.8});}
   if(avatarData)add('image',{href:avatarData,x:0,y:0,width:300,height:400,preserveAspectRatio:'xMidYMid meet','data-avatar-reference':'true'});
   const height=v.length==='Mini'?.4:v.length==='Midi'?.72:1;
   const shapeForLength=d=>d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>195?195+(Number(y)-195)*height:y));
@@ -48,19 +48,16 @@
   add('path',{d:silhouette,fill:bottomFill,stroke:'#292722','stroke-width':1.4,'clip-path':'url(#creator-bottom-clip)'},garment);
   const garmentClip=add('clipPath',{id:'creator-garment-detail-clip'},defs);add('path',{d:silhouette},garmentClip);
   const details=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
-  const light=add('linearGradient',{id:'creator-fabric-shading',x1:'0%',y1:'0%',x2:'100%',y2:'20%'},defs);
-  for(const [offset,color,opacity]of [['0%','#fff',.28],['30%','#fff',.04],['65%','#292722',.025],['100%','#292722',.16]])add('stop',{offset,'stop-color':color,'stop-opacity':opacity},light);
-  add('path',{d:silhouette,fill:'url(#creator-fabric-shading)'},details);
   const separates=v.template.startsWith('Top &');
   const seam=separates?'M117 189 Q150 198 183 189 M117 211 Q150 219 183 211':'M117 194 Q150 201 183 194';
-  add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.4,'stroke-width':.8},details);
+  add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.7,'stroke-width':.8,'stroke-dasharray':'2 2'},details);
   const legs=v.template==='Jumpsuit'||v.template==='Top & trousers';
-  const folds=legs?'M126 218 Q119 283 120 351 M174 218 Q181 283 180 351 M150 217 L150 254':v.template==='Fitted'?'M128 208 Q116 277 126 351 M172 208 Q184 277 174 351':'M123 210 Q109 284 103 354 M140 211 Q133 293 132 363 M160 211 Q167 293 168 363 M177 210 Q191 284 197 354';
-  add('path',{d:shapeForLength(folds),fill:'none',stroke:'#343830','stroke-opacity':.19,'stroke-width':.9,'stroke-linecap':'round'},details);
+  if(legs)add('path',{d:shapeForLength('M125 213 Q121 231 113 237 M175 213 Q179 231 187 237 M150 216 L150 253'),fill:'none',stroke:'#343830','stroke-width':.8},details);
   add('path',{d:'M130 99 Q124 150 132 188 M170 99 Q176 150 168 188',fill:'none',stroke:'#343830','stroke-opacity':.18,'stroke-width':.7},details);
   add('path',{d:neckline,fill:'none',stroke:'#292722','stroke-width':1.2,'stroke-linecap':'round'},group);
+  const viewLabel=add('text',{x:150,y:30,'text-anchor':'middle',fill:'#746d61','font-size':9,'font-family':'sans-serif','letter-spacing':1.5});viewLabel.textContent='FRONT · TECHNICAL SKETCH';
   const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.5'});title.textContent=v.template+' · '+v.length;
-  $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} Concept illustration only; not a fit or size calculation.`;
+  $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} Technical concept sketch; confirm construction and measurements with your maker.`;
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
@@ -81,9 +78,19 @@
  function brief(){const v=values(),link=fabric();return `Template design: ${v.template}\nNeckline: ${v.neckline}\nSleeves: ${v.sleeves}\nLength: ${v.length}\nPreview color: ${v.color}\nBottom color: ${v.secondary}\nPrint: ${v.print}${v.print==='Solid'?'':' (repeat '+v.printScale+')'}${avatarData?'\nAvatar: user-provided visual reference only; does not establish garment size or fit.':''}\nFabric choice: ${$('creator-fabric-name').value.trim()||'To discuss with maker'}${link?'\nFabric product link: '+link:''}\nFabric quantity, suitability, price and availability need maker/store confirmation. This template is a concept, not a sewing pattern or guaranteed fit.`;}
  $('creator-use-template').addEventListener('click',()=>{const status=$('creator-status');try{const text=brief(),field=$('project-details'),old=field.value.replace(/\n?\[Back Stage template\][\s\S]*?\[End template\]/g,'').trim();const combined=(old?old+'\n\n':'')+'[Back Stage template]\n'+text+'\n[End template]';if(combined.length>field.maxLength)throw Error('Shorten your notes or fabric description so your brief fits within 2,000 characters.');field.value=combined;active=true;$('creator-include-preview').disabled=false;if(!$('project-title').value)$('project-title').value=values().template+' outfit concept';status.textContent='Template added to your brief below. Save it as a private project when ready.';$('new-project').scrollIntoView({block:'start',behavior:'smooth'});}catch(e){status.textContent=e.message;}});
  for(const id of controls)$(id).addEventListener('input',()=>{render();if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Design changed. Add the updated template to your brief before saving.';}});
- for(const id of ['creator-fabric-name','creator-fabric-url'])$(id).addEventListener('input',()=>{if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Fabric changed. Add the updated template to your brief before saving.';}});
+ for(const id of ['creator-fabric-name','creator-fabric-url'])$(id).addEventListener('input',()=>{invalidateConcept();if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Fabric changed. Add the updated template to your brief before saving.';}});
  async function exportSketch(){const source=new XMLSerializer().serializeToString($('creator-preview'));const url=URL.createObjectURL(new Blob([source],{type:'image/svg+xml'}));try{const image=new Image();image.src=url;await image.decode();const canvas=document.createElement('canvas');canvas.width=600;canvas.height=860;canvas.getContext('2d').drawImage(image,0,0,600,860);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('The sketch could not be created. Your written brief can still be saved.');return blob;}finally{URL.revokeObjectURL(url);}}
  window.houseCreatorPreview=async()=>active&&$('creator-include-preview').checked?exportSketch():null;
  $('creator-download').addEventListener('click',async()=>{const button=$('creator-download');button.disabled=true;try{const blob=await exportSketch(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='house-of-briar-outfit.png';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('creator-status').textContent='Your outfit sketch was downloaded to this device.';}catch(error){$('creator-status').textContent=error.message||'The sketch could not be downloaded.';}finally{button.disabled=false;}});
- form.addEventListener('reset',()=>{active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;});render();
+ $('creator-concept-consent').addEventListener('change',()=>{if(!$('creator-concept-consent').checked)invalidateConcept();});
+ $('creator-concept-cancel').addEventListener('click',()=>{invalidateConcept();$('creator-concept-status').textContent='Concept preview cancelled. Your sketch is unchanged.';});
+ $('creator-visualize').addEventListener('click',async()=>{
+  const status=$('creator-concept-status'),button=$('creator-visualize');if(!$('creator-concept-consent').checked){status.textContent='Agree to send your sketch to OpenAI before generating a concept.';return;}
+  const attempt=++conceptVersion,controller=new AbortController();conceptController=controller;button.disabled=true;$('creator-concept-cancel').hidden=false;$('creator-concept-image').hidden=true;$('creator-concept-download').hidden=true;$('creator-concept-signin').hidden=true;status.textContent='Creating your AI concept. This may take a couple of minutes…';
+  let timedOut=false;const timer=setTimeout(()=>{timedOut=true;controller.abort();},160000);
+  try{const details={...values(),includesAvatar:Boolean(avatarData),fabricNotes:$('creator-fabric-name').value.trim()},sketch=await exportSketch();if(attempt!==conceptVersion)return;const body=new FormData();body.append('image',sketch,'outfit-sketch.png');body.append('consent','true');body.append('details',JSON.stringify(details));const response=await fetch('/api/house/outfit-preview',{method:'POST',credentials:'same-origin',body,signal:controller.signal});const data=await response.json().catch(()=>({}));if(attempt!==conceptVersion)return;if(!response.ok){if(response.status===401||response.status===403)$('creator-concept-signin').hidden=false;throw Error(data.error?.message||'The concept preview is unavailable. Your sketch is unchanged.');}if(typeof data.image!=='string'||!data.image.startsWith('data:image/webp;base64,'))throw Error('The preview could not be opened. Please try again.');$('creator-concept-image').src=data.image;$('creator-concept-image').hidden=false;$('creator-concept-download').href=data.image;$('creator-concept-download').hidden=false;status.textContent=data.disclaimer||'AI concept only; garment details and fit may change.';}
+  catch(error){if(attempt===conceptVersion)status.textContent=timedOut?'The preview took too long. Your sketch is unchanged; try again later.':error.message;}
+  finally{clearTimeout(timer);if(conceptController===controller)conceptController=null;button.disabled=false;if(attempt===conceptVersion)$('creator-concept-cancel').hidden=true;}
+ });
+ form.addEventListener('reset',()=>{invalidateConcept();active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;});render();
 })();
