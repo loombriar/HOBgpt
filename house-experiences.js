@@ -80,13 +80,19 @@ function registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,uploa
     const imageRow=db.prepare("SELECT storage_key FROM listing_images WHERE listing_id=? AND upload_status='ready' ORDER BY position LIMIT 1").get(item.id);
     if(!imageRow)return fail(res,422,'photo_unavailable','This piece does not yet have a photo suitable for try-on.');
     let person,garment;
-    try{person=await sharp(req.file.buffer,{limitInputPixels:40_000_000}).rotate().resize(1536,1536,{fit:'inside',withoutEnlargement:true}).png().toBuffer();garment=await fs.readFile(path.join(imagesDir,path.basename(imageRow.storage_key)));}
+    try{
+      // Normalize both references before sending them to the image model. This keeps
+      // phone rotation metadata from changing the pose and gives the garment a
+      // consistent, high-quality reference instead of forwarding an arbitrary upload.
+      person=await sharp(req.file.buffer,{limitInputPixels:40_000_000}).rotate().resize(1536,1536,{fit:'inside',withoutEnlargement:true}).webp({quality:94,smartSubsample:true}).toBuffer();
+      garment=await sharp(path.join(imagesDir,path.basename(imageRow.storage_key)),{limitInputPixels:40_000_000}).rotate().resize(1536,1536,{fit:'inside',withoutEnlargement:true}).webp({quality:96,smartSubsample:true}).toBuffer();
+    }
     catch{return fail(res,422,'invalid_image','Use a valid JPEG, PNG, or WebP photo.');}
     if(!quota(req,res,'tryon'))return;
     try{
-      const form=new FormData();form.append('model',process.env.HOUSE_TRYON_MODEL||'gpt-image-1.5');form.append('n','1');form.append('size','1024x1536');form.append('quality','medium');form.append('output_format','webp');
-      form.append('prompt','Create an AI fashion try-on preview: the person in image 1 wearing the garment from image 2. Preserve their identity, body proportions, ordinary clothing coverage, pose and background. Preserve the garment silhouette, color, print, construction and details as closely as possible. Do not add text, other people, nudity or sexual content. This is a fully clothed fashion visualization.');
-      form.append('image[]',new Blob([person],{type:'image/png'}),'person.png');form.append('image[]',new Blob([garment],{type:'image/webp'}),'garment.webp');
+      const form=new FormData();form.append('model',process.env.HOUSE_TRYON_MODEL||'gpt-image-1.5');form.append('n','1');form.append('size','1024x1536');form.append('quality',process.env.HOUSE_TRYON_QUALITY||'high');form.append('input_fidelity','high');form.append('output_format','webp');
+      form.append('prompt','Create a realistic, fully clothed fashion try-on preview. Image 1 is the wearer and image 2 is the exact garment product reference. Transfer the garment from image 2 onto the wearer without redesigning it: preserve its silhouette, proportions, color, print, weave or texture, neckline, collar, sleeves, hem, closures, seams, embellishments and any visible logos or motifs. Match the garment to the wearer’s pose, perspective, lighting and natural body contours, including believable drape and contact shadows. Keep the wearer’s identity, face, hair, skin, hands, body proportions, pose, ordinary coverage, camera framing and background unchanged. Do not invent hidden garment details, add accessories, smooth away construction details, change the garment category, add text, add people, or create nudity or sexual content. If a detail is uncertain, preserve the visible source reference rather than embellishing it.');
+      form.append('image[]',new Blob([person],{type:'image/webp'}),'person.webp');form.append('image[]',new Blob([garment],{type:'image/webp'}),'garment.webp');
       const response=await providerFetch('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:'Bearer '+apiKey()},body:form,signal:AbortSignal.timeout(150000)});
       const result=await response.json();if(!response.ok||!result.data?.[0]?.b64_json)throw new Error('provider');
       res.json({image:'data:image/webp;base64,'+result.data[0].b64_json,disclaimer:'AI visual preview only — check the original piece and measurements before buying.'});
