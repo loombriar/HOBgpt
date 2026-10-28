@@ -65,6 +65,11 @@
   add('path',{d:silhouette,fill:'url(#creator-garment-base)',stroke:'none'},surface);
   add('path',{d:silhouette,fill:'url(#creator-garment-weave)','fill-opacity':.55,stroke:'none'},surface);
   add('path',{d:silhouette,fill:'url(#creator-garment-sheen)','fill-opacity':.75,stroke:'none'},surface);
+  // Directional folds and edge highlights are clipped to the garment silhouette.
+  const drape=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
+  const drapeShade=add('linearGradient',{id:'creator-drape-shade',x1:'0%',y1:'0%',x2:'100%',y2:'0%'},defs);
+  for(const [offset,opacity] of [['0%',.15],['24%',0],['49%',.11],['75%',0],['100%',.17]])add('stop',{offset,'stop-color':'#292722','stop-opacity':opacity},drapeShade);
+  add('path',{d:silhouette,fill:'url(#creator-drape-shade)',stroke:'none'},drape);
   const details=add('g',{'clip-path':'url(#creator-garment-detail-clip)','stroke-linecap':'round','stroke-linejoin':'round'},garment);
   const separates=v.template.startsWith('Top &');
   const seam=separates?'M124 185 Q150 188 176 185 M124 207 Q150 210 176 207':'M124 190 Q150 193 176 190';
@@ -77,6 +82,11 @@
    folds.forEach((d,index)=>add('path',{d:shapeForLength(d),fill:'none',stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},details));
   }
   add('path',{d:'M115 123 Q113 158 122 188 M185 123 Q187 158 178 188',fill:'none',stroke:'#fff','stroke-opacity':.18,'stroke-width':1},details);
+  // Keep tailoring marks within the silhouette and adjust them to skirt length.
+  if(!legs){
+   const pleats=v.template==='Full skirt'?['M124 203 Q106 261 83 337','M142 204 Q134 272 128 348','M158 204 Q166 272 172 348','M176 203 Q194 261 217 337']:['M125 207 Q120 260 116 334','M175 207 Q180 260 184 334'];
+   pleats.forEach((d,i)=>add('path',{d:shapeForLength(d),fill:'none',stroke:i%2?'#fff':'#292722','stroke-opacity':i%2?.19:.12,'stroke-width':i%2?1.5:1.1},details));
+  }
   const hem=legs?'M111 351 Q128 355 143 351 M157 351 Q173 355 189 351':v.template==='Fitted'?'M123 351 Q150 356 177 351':v.template==='Full skirt'?'M57 343 Q150 373 243 343':'M87 350 Q150 361 213 350';
   add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.45,'stroke-width':.65},details);
   if(v.sleeves==='Short')add('path',{d:'M91 121 L106 128 M194 128 L209 121',fill:'none',stroke:'#343830','stroke-opacity':.5,'stroke-width':.65},details);
