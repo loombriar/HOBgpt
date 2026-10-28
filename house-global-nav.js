@@ -105,8 +105,8 @@
     themeButton.id = 'hob-theme-toggle';
     links.appendChild(themeButton);
   }
-  let savedTheme = 'dark';
-  try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'dark'; } catch {}
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'light'; } catch {}
   document.documentElement.dataset.hobTheme = savedTheme === 'dark' ? 'dark' : 'light';
   document.documentElement.classList.toggle('dark',savedTheme==='dark');
   const syncTheme = () => {
