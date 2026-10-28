@@ -101,6 +101,10 @@ html[data-hob-theme=dark] body.sewing-services-page{--service-bg:#211d23;--servi
 .creator-preview-actions{gap:8px}
 @media(max-height:1000px){.creator-builder figure{position:static}}
 @media(max-width:700px){.creator-builder svg#creator-preview{max-height:min(48vh,360px)}}
+
+/* Keep the sketch bounded even inside the scoped atelier layout. */
+#creator-room svg#creator-preview{max-height:min(44vh,400px)}
+@media(max-width:700px){#creator-room svg#creator-preview{max-height:min(48vh,360px)}}
 </style></head>
 <body class="sewing-services-page"><main><p class="eyebrow">Your design studio</p><h1>Create an outfit</h1><p>Start with a dress or outfit template, choose the details, and add fabric you have found. Save your concept privately, then invite a maker to quote.</p><nav class="room-navigation" aria-label="Design projects"><a href="#creator-room">Build an outfit</a><a href="#my-projects">My design portfolio</a><a href="#new-project">Add a design</a><a href="#maker-board">Find projects to make</a><a href="/sewing-services.html#offer-services">Offer sewing services</a><a href="/account">My account</a></nav>
 <aside class="room-card" aria-labelledby="sewing-invite-title"><h2 id="sewing-invite-title">Not a designer, but love to sew?</h2><p>Help turn someone’s original sketch into a wearable piece. You do not need a designer shop to offer your sewing skills.</p><a href="/?visitors=signup&amp;seamstress=signup">Sign up as a seamstress or tailor →</a></aside>
