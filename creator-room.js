@@ -104,6 +104,16 @@
   const hem=legs?'M111 351 Q128 355 143 351 M157 351 Q173 355 189 351':v.template==='Fitted'?'M123 351 Q150 356 177 351':v.template==='Full skirt'?'M57 343 Q150 373 243 343':'M87 350 Q150 361 213 350';
   add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.45,'stroke-width':.65},details);
   if(v.sleeves==='Short')add('path',{d:'M91 121 L106 128 M194 128 L209 121',fill:'none',stroke:'#343830','stroke-opacity':.5,'stroke-width':.65},details);
+  // Construction accents follow sleeve selection without changing the editable silhouette.
+  if(v.sleeves==='Long'){
+   add('path',{d:'M78 196 Q85 200 93 200 M207 200 Q215 200 222 196',fill:'none',stroke:'#292722','stroke-opacity':.55,'stroke-width':.8},details);
+   add('path',{d:'M82 189 Q86 192 95 193 M205 193 Q214 192 218 189',fill:'none',stroke:'#fff','stroke-opacity':.28,'stroke-width':.7},details);
+  }else if(v.sleeves==='Sleeveless'){
+   add('path',{d:'M116 84 Q112 104 120 121 M184 84 Q188 104 180 121',fill:'none',stroke:'#fff','stroke-opacity':.3,'stroke-width':.9},details);
+  }
+  // A restrained neckline facing adds depth while preserving the neckline cutout.
+  const facing=v.neckline==='V-neck'?'M138 79 L150 103 L162 79':v.neckline==='Square'?'M138 79 L138 96 Q150 98 162 96 L162 79':'M138 79 Q150 96 162 79';
+  add('path',{d:facing,fill:'none',stroke:'#fff','stroke-opacity':.42,'stroke-width':.8,'stroke-linecap':'round'},details);
   add('path',{d:neckline,fill:'none',stroke:'#292722','stroke-width':1.2,'stroke-linecap':'round'},group);
   const viewLabel=add('text',{x:150,y:30,'text-anchor':'middle',fill:'#746d61','font-size':9,'font-family':'sans-serif','letter-spacing':1.5});viewLabel.textContent='FRONT · TECHNICAL SKETCH';
   const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.5'});title.textContent=v.template+' · '+v.length;
