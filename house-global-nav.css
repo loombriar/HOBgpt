@@ -350,3 +350,11 @@ html body :is(a,button,input,select,textarea,summary):focus-visible {outline:3px
 /* Campaign copy follows its colored surface in both themes. */
 html:root:root body.blackberry-house #designers-wanted :is(h2,p,.eyebrow,.small-print){color:var(--briar-ink)!important}
 html:root:root body.blackberry-house #designers-wanted .secondary-button{background:var(--studio-jade)!important;color:var(--studio-jade-ink)!important;border-color:var(--studio-jade)!important}
+
+/* Readable footer navigation, independently of the black payment strip. */
+html:root:root body .house-footer-link-row {
+ --briar-ink:var(--studio-ink);--briar-muted:var(--studio-muted);--briar-line:var(--studio-line);
+ color:var(--studio-ink)!important;background:var(--studio-mint)!important;
+}
+html:root:root body .house-footer-link-row :is(a,button,summary,p,span,.brand-name,.footer-kicker){color:var(--studio-ink)!important;opacity:1!important}
+html:root:root body .house-footer-link-row .house-footer-link-panel{color:var(--studio-ink)!important;background:var(--studio-card)!important;border-color:var(--studio-line)!important}

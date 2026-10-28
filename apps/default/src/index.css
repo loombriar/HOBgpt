@@ -260,3 +260,11 @@ html:root body .house-footer-link-row {background:var(--briar-mint)!important;co
 .fashion-app .house-product-card:nth-child(3n){border-top-color:var(--briar-gold)}
 .fashion-app .house-outline-link {border-color:var(--studio-jade);color:var(--studio-jade)}
 html body :is(a,button,input,select,textarea,summary):focus-visible {outline:3px solid var(--studio-jade);outline-offset:3px}
+
+/* Readable footer navigation, independently of the black payment strip. */
+html:root:root body .house-footer-link-row {
+ --briar-ink:var(--studio-ink);--briar-muted:var(--studio-muted);--briar-line:var(--studio-line);
+ color:var(--studio-ink)!important;background:var(--studio-mint)!important;
+}
+html:root:root body .house-footer-link-row :is(a,button,summary,p,span,.brand-name,.footer-kicker){color:var(--studio-ink)!important;opacity:1!important}
+html:root:root body .house-footer-link-row .house-footer-link-panel{color:var(--studio-ink)!important;background:var(--studio-card)!important;border-color:var(--studio-line)!important}
