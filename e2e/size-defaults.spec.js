@@ -1,0 +1,9 @@
+const {test,expect}=require('@playwright/test');
+for(const width of [390,1280])test(`US reference defaults stay editable and missing sections are marked at ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});await page.goto('/designers/room');await page.locator('#designer-add-piece').click();
+ const section=page.locator('.listing-edit-options').filter({has:page.locator('#product-size')});await expect(section).toHaveClass(/listing-needs-attention/);await expect(section.locator(':scope > summary')).toContainText('required items missing');await section.locator(':scope > summary').click();await page.locator('#product-size').selectOption('L');
+ await expect(page.locator('#product-size-reference-note')).toContainText('12–14 / L');await expect(page.locator('#product-fit-bust-min')).toHaveValue('38');await expect(page.locator('#product-fit-bust-max')).toHaveValue('40.5');await expect(page.locator('#product-size')).not.toHaveAttribute('aria-invalid','true');
+ await page.locator('#product-fit-bust-min').fill('39');await page.locator('#product-size').selectOption('XL');await expect(page.locator('#product-fit-bust-min')).toHaveValue('39');await expect(page.locator('#product-fit-bust-max')).toHaveValue('44');
+ await page.locator('#product-style').selectOption('Dress');await page.locator('#product-aesthetic').selectOption('Romantic');await page.locator('#product-production-type').selectOption('One of a Kind');await expect(section).not.toHaveClass(/listing-needs-attention/);
+ await page.locator('#listing-save-changes').click();await expect(page.locator('#product-name')).toBeVisible();await expect(page.locator('#product-name')).toHaveAttribute('aria-invalid','true');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

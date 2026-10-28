@@ -2,8 +2,8 @@ const {test,expect}=require('@playwright/test');
 for(const room of ['dashboard','standalone'])test('photo-first details are reviewed and editable in '+room,async({page})=>{
   await page.setViewportSize({width:390,height:844});
   expect((await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
-  const suggestions={title:'Rose wrap dress',category:'apparel',style:'Dress',description:'A wrap dress with a visible floral print.',tags:['floral','wrap dress'],aesthetic:'Romantic',pattern:'Floral',reviewNotes:['Confirm measurements and materials.'],draftOnly:true};
-  if(room==='standalone')Object.assign(suggestions,{title:'Floral bag',category:'accessories',style:'Purse / Bag'});
+  const suggestions={size:'L',title:'Rose wrap dress',category:'apparel',style:'Dress',description:'A wrap dress with a visible floral print.',tags:['floral','wrap dress'],aesthetic:'Romantic',pattern:'Floral',reviewNotes:['Confirm measurements and materials.'],draftOnly:true};
+  if(room==='standalone')Object.assign(suggestions,{size:'',title:'Floral bag',category:'accessories',style:'Purse / Bag'});
   let calls=0,writes=0;
   await page.route('**/api/my/studio/photo-listing',async route=>{
     calls++;
@@ -46,6 +46,7 @@ for(const room of ['dashboard','standalone'])test('photo-first details are revie
   await description.fill('Designer-checked description.');
   await expect(title).toHaveValue('My edited rose dress');
   await expect(description).toHaveValue('Designer-checked description.');
+  if(room==='dashboard'){await form.getByRole('button',{name:'3. Measurements',exact:true}).click();await expect(page.getByRole('textbox',{name:/^Fit notes/})).toHaveValue(/US women’s size L \(12–14\)/);await page.getByRole('textbox',{name:/^Fit notes/}).fill('My actual fit notes');await expect(page.getByRole('textbox',{name:/^Fit notes/})).toHaveValue('My actual fit notes');}
   expect(calls).toBe(1);
   expect(writes).toBe(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
