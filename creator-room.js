@@ -23,15 +23,34 @@
   const outer=add('g',{transform:`translate(${pos.x} ${pos.y}) translate(150 195) scale(${pos.scale}) translate(-150 -195)`,opacity:pos.opacity});
   const group=add('g',{transform:`translate(0 ${72*(1-height)}) scale(1 ${height})`},outer);
   const neckline=v.neckline==='V-neck'?'M130 72 L150 118 L170 72 Z':v.neckline==='Square'?'M130 72 L130 104 L170 104 L170 72 Z':'M130 72 Q150 105 170 72 Z';
-  const defs=add('defs',{}),mask=add('mask',{id:'creator-garment-cutouts',maskUnits:'userSpaceOnUse',x:0,y:0,width:300,height:430},defs);add('rect',{x:0,y:0,width:300,height:430,fill:'white'},mask);
+  const defs=add('defs',{});
+  const base=add('linearGradient',{id:'creator-garment-base',x1:'0%',y1:'0%',x2:'100%',y2:'100%'},defs);
+  add('stop',{offset:'0%', 'stop-color':v.color, 'stop-opacity':.98},base);add('stop',{offset:'48%', 'stop-color':v.color, 'stop-opacity':.9},base);add('stop',{offset:'100%', 'stop-color':'#292722', 'stop-opacity':.3},base);
+  const sheen=add('linearGradient',{id:'creator-garment-sheen',x1:'0%',y1:'0%',x2:'100%',y2:'0%'},defs);
+  add('stop',{offset:'0%', 'stop-color':'#fff', 'stop-opacity':0},sheen);add('stop',{offset:'42%', 'stop-color':'#fff', 'stop-opacity':.2},sheen);add('stop',{offset:'58%', 'stop-color':'#fff', 'stop-opacity':.04},sheen);add('stop',{offset:'100%', 'stop-color':'#fff', 'stop-opacity':0},sheen);
+  const weave=add('pattern',{id:'creator-garment-weave',width:8,height:8,patternUnits:'userSpaceOnUse'},defs);add('path',{d:'M0 2H8M0 6H8M2 0V8M6 0V8',stroke:'#fff','stroke-opacity':.16,'stroke-width':.45},weave);
+  const mask=add('mask',{id:'creator-garment-cutouts',maskUnits:'userSpaceOnUse',x:0,y:0,width:300,height:430},defs);add('rect',{x:0,y:0,width:300,height:430,fill:'white'},mask);
   add('path',{d:neckline,fill:'black'},mask);
   if(v.sleeves==='Sleeveless')for(const d of ['M92 98 L79 158 L96 164 L109 124 L108 80 Z','M208 98 L221 158 L204 164 L191 124 L192 80 Z'])add('path',{d,fill:'black'},mask);
+  const silhouette=paths[v.template];
   const garment=add('g',{mask:'url(#creator-garment-cutouts)'},group);
-  add('path',{d:paths[v.template],fill:v.color,stroke:'#292722','stroke-width':3},garment);
-  if(v.sleeves==='Long')for(const d of ['M92 98 L79 158 L58 235 L79 241 L109 124','M208 98 L221 158 L242 235 L221 241 L191 124'])add('path',{d,fill:v.color,stroke:'#292722','stroke-width':3},garment);
-  add('path',{d:neckline,fill:'none',stroke:'#292722','stroke-width':2},group);
-  const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'sans-serif'});title.textContent=v.template+' · '+v.length;
-  $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} Concept illustration only; not a fit or size calculation.`;
+  add('path',{d:silhouette,fill:'url(#creator-garment-base)',stroke:'#292722','stroke-width':3,'stroke-linejoin':'round'},garment);
+  if(v.sleeves==='Long')for(const d of ['M92 98 L79 158 L58 235 L79 241 L109 124','M208 98 L221 158 L242 235 L221 241 L191 124'])add('path',{d,fill:'url(#creator-garment-base)',stroke:'#292722','stroke-width':3,'stroke-linejoin':'round'},garment);
+  // A restrained textile overlay makes the chosen color feel like fabric without
+  // pretending the preview is a photograph or a fit calculation.
+  add('path',{d:silhouette,fill:'url(#creator-garment-weave)','fill-opacity':.55,stroke:'none'},garment);
+  add('path',{d:silhouette,fill:'url(#creator-garment-sheen)','fill-opacity':.75,stroke:'none'},garment);
+  const detail=add('g',{fill:'none','stroke-linecap':'round','stroke-linejoin':'round'},group);
+  add('path',{d:neckline,stroke:'#292722','stroke-width':2},detail);
+  const waist=v.template==='Top & skirt'?'M113 190 Q150 198 187 190':'M115 194 Q150 202 185 194';
+  add('path',{d:waist,stroke:'#292722','stroke-opacity':.58,'stroke-width':1.2,'stroke-dasharray':'3 3'},detail);
+  const folds=v.template==='Fitted'?['M128 210 Q118 278 126 345','M172 210 Q182 278 174 345']:['M124 211 Q112 278 103 348','M141 212 Q134 284 132 355','M159 212 Q166 284 168 355','M176 211 Q188 278 197 348'];
+  folds.forEach((d,index)=>add('path',{d,stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},detail));
+  if(v.sleeves!=='Sleeveless')for(const d of ['M80 157 L96 163','M204 163 L220 157'])add('path',{d,stroke:'#292722','stroke-opacity':.52,'stroke-width':1.1},detail);
+  add('path',{d:'M109 124 Q104 158 112 190 M191 124 Q196 158 188 190',stroke:'#fff','stroke-opacity':.2,'stroke-width':1},detail);
+  const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.4'});title.textContent=v.template+' · '+v.length;
+  const note=add('text',{x:150,y:32,'text-anchor':'middle',fill:'#746d61','font-size':8,'font-family':'sans-serif','letter-spacing':1.4});note.textContent='FRONT · FABRIC STUDY';
+  $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} Textured concept illustration only; confirm construction and measurements with your maker.`;
  }
  const looks={everyday:['A-line','Scoop','Short','Midi','#b7d9cc'],evening:['Fitted','V-neck','Sleeveless','Maxi','#775166'],separates:['Top & skirt','Square','Sleeveless','Mini','#b8bdd9']};
  for(const button of root.querySelectorAll('[data-creator-look]'))button.addEventListener('click',()=>{const look=looks[button.dataset.creatorLook];['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color'].forEach((id,index)=>{$(id).value=look[index];});invalidate();render();$('creator-status').textContent=button.querySelector('strong').textContent+' loaded. Make it your own with the details below.';});
