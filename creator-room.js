@@ -77,7 +77,7 @@
   // Preserve the configured solid/printed colors while adding fabric depth.
   const surface=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
   add('path',{d:silhouette,fill:'url(#creator-garment-base)',stroke:'none'},surface);
-  add('path',{d:silhouette,fill:'url(#creator-garment-weave)','fill-opacity':.55,stroke:'none'},surface);
+  add('path',{d:silhouette,fill:'url(#creator-garment-weave)','fill-opacity':.16,stroke:'none'},surface);
   add('path',{d:silhouette,fill:'url(#creator-garment-sheen)','fill-opacity':.75,stroke:'none'},surface);
   // Directional folds and edge highlights are clipped to the garment silhouette.
   const drape=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
