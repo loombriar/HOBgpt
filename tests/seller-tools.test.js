@@ -28,3 +28,13 @@ test('photo autofill uses real departments and matching item types, including pr
   assert.equal(ctx.db.prepare("SELECT title FROM listings WHERE id='piece'").get().title,'Original title');
  },{houseAiFetch:async(url,request)=>{photoRequest=request;return {ok:true,json:async()=>({output_text:JSON.stringify(suggestion)})};}});
 });
+test('photo size is an explicit editable suggestion and is bounded to supported sizes',async()=>{
+ let requestBody;let size='L';
+ await fixture(async({origin})=>{
+ const image=await sharp({create:{width:8,height:8,channels:3,background:'#abc'}}).png().toBuffer();
+ const analyze=async()=>{const body=new FormData();body.append('image',new Blob([image],{type:'image/png'}),'dress.png');body.append('consent','true');body.append('title','Large dress');return fetch(origin+'/api/my/studio/photo-listing',{method:'POST',headers:{Authorization:'Bearer seller'},body});};
+ const response=await analyze();assert.equal(response.status,200);assert.equal((await response.json()).size,'L');const schema=requestBody.text.format.schema;assert.ok(schema.required.includes('size'));assert.ok(schema.properties.size.enum.includes(''));
+ assert.match(requestBody.input[0].content,/never infer size from body shape/);
+ size='unsupported';assert.equal((await analyze()).status,502);
+ },{houseAiFetch:async(url,request)=>{requestBody=JSON.parse(request.body);return {ok:true,json:async()=>({output_text:JSON.stringify({title:'Large dress',category:'apparel',style:'Dress',pattern:'',description:'A dress.',tags:['dress'],aesthetic:'Other',reviewNotes:[],size})})};}});
+});

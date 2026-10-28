@@ -1305,6 +1305,8 @@ async function handleSave(event) {
   const values = readFormValues();
   const validationError = validateListingValues(values);
   if (validationError) {
+    renderListingReadiness();
+    const missing=productForm?.querySelector('[aria-invalid="true"]:required')||productForm?.querySelector('[aria-invalid="true"]');if(missing){for(let p=missing.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;missing.scrollIntoView({block:'center',behavior:'smooth'});missing.focus({preventScroll:true});}
     setMessage(uploadMessage, validationError, 'error');
     return;
   }
@@ -2920,11 +2922,19 @@ function renderListingReadiness(){
  const host=byId('listing-readiness');if(!host)return;host.replaceChildren();
  host.append(makeElement('h3','','Listing readiness'),makeElement('p','small-print','A quick guide, not a submission guarantee. Final validation happens when you save or submit.'));
  const val=id=>byId(id)?.value?.trim()||'';
- const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Fix failed photo uploads',!selectedImages.some(image=>image.status==='failed'),'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const form=byId('product-form');
+ for(const input of Array.from(form?.elements||[])){if(input.id&&input.validity&&!input.validity.valid&&!required.some(row=>row[2]===input.id))required.push([input.validationMessage||'Check this field',false,input.id]);}
+ form?.querySelectorAll('.listing-needs-attention').forEach(node=>node.classList.remove('listing-needs-attention'));
+ form?.querySelectorAll('[aria-invalid="true"]').forEach(node=>node.removeAttribute('aria-invalid'));
+ form?.querySelectorAll('.listing-missing-label').forEach(node=>node.remove());
+ const missingBySection=new Map();
+ for(const [label,done,id]of required){if(done)continue;const input=byId(id);input?.setAttribute('aria-invalid','true');input?.classList.add('listing-needs-attention');const section=input?.closest('.listing-edit-options');if(section){missingBySection.set(section,(missingBySection.get(section)||0)+1);section.classList.add('listing-needs-attention');}}
+ for(const [section,count]of missingBySection){const label=makeElement('span','listing-missing-label',` · ${count} required item${count===1?'':'s'} missing`);section.querySelector(':scope > summary')?.append(label);}
  const suggested=[['Add body measurement ranges',Object.keys(readFitRanges()).length>0,'product-fit-bust-min'],['Add preparation time',Boolean(val('product-handling-min')||val('product-handling-max')),'product-handling-min']];
  for(const [heading,rows]of [['Before submission',required],['Helpful suggestions',suggested]]){
   host.append(makeElement('h4','',heading));const list=document.createElement('ul');
-  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','○ '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
+  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','Needs attention: '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
  }
  host.append(makeElement('h4','','Before going live'));const payout=makeElement('button','text-button','Review payout setup →');payout.type='button';payout.addEventListener('click',()=>{const target=byId('payout-setup-title');for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});});host.append(payout);
 }
@@ -3018,10 +3028,10 @@ document.addEventListener('DOMContentLoaded', () => {
     button.disabled=true;results.replaceChildren();results.hidden=true;status.textContent='Examining your garment…';
     try{
       const body=new FormData();body.append('image',photo);body.append('consent','true');
-      for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type'}))body.append(field,byId(id)?.value||'');
+      for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type',size:'product-size'}))body.append(field,byId(id)?.value||'');
       const data=await apiRequest('/api/my/studio/photo-listing',{method:'POST',body,credentials:'same-origin'});
       if(!current())return;
-      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Print / Pattern',data.pattern],['Tags',(data.tags||[]).join(', ')]]){
+      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Print / Pattern',data.pattern],['Size',data.size||'Choose your size'],['Tags',(data.tags||[]).join(', ')]]){
         const paragraph=makeElement('p','',label+': '+String(value||''));results.append(paragraph);
       }
       for(const note of data.reviewNotes||[])results.append(makeElement('p','small-print',String(note)));
@@ -3032,10 +3042,11 @@ document.addEventListener('DOMContentLoaded', () => {
         byId('product-name').value=data.title;byId('product-description').value=data.description;
         const department=byId('product-category');
         if(Array.from(department.options).some(option=>option.value===data.category)){department.value=data.category;syncSellerTypes();}
-        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic],['product-pattern',data.pattern]]){
+        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic],['product-pattern',data.pattern],['product-size',data.size]]){
           const input=byId(id),option=Array.from(input?.options||[]).find(option=>option.value&&option.value.toLowerCase()===String(value||'').trim().toLowerCase());
           if(option)input.value=option.value;
         }
+        byId('product-size').dispatchEvent(new Event('change',{bubbles:true}));
         form.dispatchEvent(new Event('input',{bubbles:true}));
         status.textContent='Details added. Edit anything that needs correcting, complete the remaining fields, then save your private draft.';
         scrollRoomTarget(byId('product-name'),{behavior:'smooth',block:'center'});
@@ -3045,3 +3056,22 @@ document.addEventListener('DOMContentLoaded', () => {
     finally{button.disabled=false;}
   });
 })();
+
+// US women's chart defaults are suggestions; preserve manually edited measurements.
+(() => {
+ const size=byId('product-size');if(!size)return;
+ const note=makeElement('p','small-print','US women’s reference defaults are suggestions. Edit these ranges to match your garment; other sizing systems may differ.');note.id='product-size-reference-note';size.after(note);
+ size.addEventListener('change',()=>{
+  const key=size.value==='XXL'?'2XL':size.value;
+  const row=[...document.querySelectorAll('.size-reference-table tbody tr')].find(row=>row.querySelector('th')?.textContent.split('/').at(-1).trim()===key);
+  const cells=row?[...row.querySelectorAll('td')]:[];
+  for(const [index,field] of ['bust','waist','hips'].entries()){
+   const values=cells[index]?.textContent.match(/\d+(?:\.\d+)?/g)||[];
+   for(const [bound,i] of [['min',0],['max',1]]){const input=byId(`product-fit-${field}-${bound}`);if(!input.value||input.value===input.dataset.sizeDefault){input.value=values[i]||'';input.dataset.sizeDefault=input.value;}}
+  }
+  note.textContent=row?'Suggested US women’s '+row.querySelector('th').textContent+' body ranges filled below. Edit them to match your garment.':'Choose a size or enter the actual body ranges your garment fits.';
+  renderListingReadiness();
+ });
+})();
+
+{const style=document.createElement('style');style.textContent='.listing-needs-attention{outline:2px solid #d94759!important;outline-offset:2px}.listing-missing-label{display:inline-block;font-size:13px;font-weight:600;color:inherit}.listing-edit-options.listing-needs-attention>summary{border-bottom:2px solid #d94759}';document.head.append(style);}
