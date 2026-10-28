@@ -286,3 +286,63 @@ html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search button{border-radi
 
 html body footer.site-footer.house-footer-enhanced{overflow:visible!important}
 @media(min-width:1101px){html body #hob-global-nav.hob-global-nav.hob-ordered-menu>#hob-search-toggle{display:none!important}html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search input{font-size:14px!important}html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search button{font:600 13px Arial,sans-serif!important}}
+
+/* Color studio: paired surfaces and ink for both explicit themes. */
+:root:root:root:root {
+ --genesis-default-theme:light;
+ --briar-paper:#f8f3fa;--briar-card:#fffafd;--briar-ink:#30233c;--briar-muted:#65536c;--briar-line:#b7a2bf;
+ --briar-mint:#d5eee5;--briar-coral:#f5d8e3;--briar-gold:#89601f;
+ --studio-jade:#216650;--studio-jade-ink:#ffffff;--studio-berry:#87355d;--studio-lilac:#e9ddf5;--studio-gold:#f5e6bb;
+ --house-paper:var(--briar-paper);--house-card:var(--briar-card);--house-ink:var(--briar-ink);--house-line:var(--briar-line);
+ --background:282 41% 97%;--foreground:277 26% 19%;--card:324 100% 99%;--card-foreground:277 26% 19%;
+ --popover:324 100% 99%;--popover-foreground:277 26% 19%;--primary:161 51% 26%;--primary-foreground:0 0% 100%;
+ --secondary:335 59% 90%;--secondary-foreground:277 26% 19%;--accent:270 55% 91%;--accent-foreground:277 26% 19%;
+ --muted:270 27% 93%;--muted-foreground:283 13% 37%;--border:282 18% 69%;--input:282 18% 69%;--ring:161 51% 26%;
+}
+html.dark.dark.dark.dark,html[data-hob-theme=dark]:root:root:root {
+ --briar-paper:#1c1724;--briar-card:#292132;--briar-ink:#f8edf7;--briar-muted:#d1bdd8;--briar-line:#80678d;
+ --briar-mint:#233f37;--briar-coral:#4b2a40;--briar-gold:#efcf8d;
+ --studio-jade:#9edfc4;--studio-jade-ink:#142b22;--studio-berry:#f0accb;--studio-lilac:#382a4b;--studio-gold:#473b22;
+ --background:263 22% 12%;--foreground:305 44% 95%;--card:268 20% 16%;--card-foreground:305 44% 95%;
+ --popover:268 20% 16%;--popover-foreground:305 44% 95%;--primary:155 50% 75%;--primary-foreground:156 35% 12%;
+ --secondary:320 28% 23%;--secondary-foreground:305 44% 95%;--accent:265 28% 23%;--accent-foreground:305 44% 95%;
+ --muted:268 19% 20%;--muted-foreground:283 26% 79%;--border:280 16% 48%;--input:280 16% 48%;--ring:155 50% 75%;
+}
+html:root:root {--studio-paper:var(--briar-paper);--studio-card:var(--briar-card);--studio-ink:var(--briar-ink);--studio-muted:var(--briar-muted);--studio-line:var(--briar-line);--studio-mint:var(--briar-mint);--studio-coral:var(--briar-coral)}
+html:root:root body.blackberry-house,html:root:root body.creative-makeover {
+ --briar-paper:var(--studio-paper);--briar-card:var(--studio-card);--briar-ink:var(--studio-ink);--briar-muted:var(--studio-muted);--briar-line:var(--studio-line);--briar-mint:var(--studio-mint);--briar-coral:var(--studio-coral);
+ background:var(--briar-paper)!important;color:var(--briar-ink)!important;
+}
+html:root body #hob-global-nav.hob-global-nav, .fashion-app .house-compact-header {
+ background:var(--briar-card)!important;color:var(--briar-ink)!important;border-bottom:3px solid var(--studio-jade)!important;
+}
+html:root body #hob-global-nav .hob-signup-banner {background:var(--studio-lilac)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html:root body.blackberry-house .hero.sewing-hero.fashion-cover,html:root body.creative-makeover main>.hero {
+ background:var(--studio-lilac)!important;color:var(--briar-ink)!important;border-bottom:1px solid var(--briar-line)!important;
+}
+html:root body.blackberry-house .hero .fashion-cover-copy {background:transparent!important;color:var(--briar-ink)!important}
+html:root body.blackberry-house .hero :is(h1,h2,p,.eyebrow){color:var(--briar-ink)!important}
+html:root body.blackberry-house :is(.primary-button,.sewing-hero-actions .secondary-button),html:root body.creative-makeover .creative-jump-links a {
+ background:var(--studio-jade)!important;color:var(--studio-jade-ink)!important;border-color:var(--studio-jade)!important;
+}
+html:root body.blackberry-house :is(.feature-bar,.house-shopping-promises,.hob-creative-statement),html:root body.creative-makeover .creative-jump-panel {
+ background:var(--briar-mint)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important;
+}
+html:root body.blackberry-house :is(.briar-editorial-poster,.briar-invitation,.designer-callout-section){background:var(--briar-coral)!important;color:var(--briar-ink)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n+1){background:var(--briar-mint)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n+2){background:var(--studio-lilac)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n){background:var(--briar-coral)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a {color:var(--briar-ink)!important;border-top:4px solid var(--studio-berry)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a :is(h2,h3,p,span){color:inherit!important}
+html:root body.blackberry-house #support .curation-card {background:var(--studio-gold)!important;border-color:var(--briar-line)!important}
+html:root body.blackberry-house #support .curation-card,html:root body.blackberry-house #support .curation-card :is(h3,p,label,.curation-number,.supporter-thanks){color:var(--briar-ink)!important}
+html:root body.blackberry-house :is(input,textarea,select,.app-dialog),html:root body #hob-global-nav :is(.hob-creative-menu-panel,.hob-seamstress-menu-panel,.hob-mailbox-panel){background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html:root body #hob-global-nav :is(a,button){color:inherit!important}
+html:root body .house-footer-link-row {background:var(--briar-mint)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+.fashion-app .house-shop-heading {background:var(--studio-lilac);border:1px solid hsl(var(--border));padding:clamp(18px,3vw,32px);border-radius:16px;align-items:center;flex-wrap:wrap}
+.fashion-app .house-shop-note {background:var(--briar-mint);color:var(--briar-ink)}
+.fashion-app .house-product-card {border-radius:16px;overflow:hidden;border-top:3px solid var(--studio-berry)}
+.fashion-app .house-product-card:nth-child(3n+2){border-top-color:var(--studio-jade)}
+.fashion-app .house-product-card:nth-child(3n){border-top-color:var(--briar-gold)}
+.fashion-app .house-outline-link {border-color:var(--studio-jade);color:var(--studio-jade)}
+html body :is(a,button,input,select,textarea,summary):focus-visible {outline:3px solid var(--studio-jade);outline-offset:3px}

@@ -54,7 +54,7 @@ function readDefaultTheme(): 'dark' | 'light' {
     .trim()
     .replace(/^['"]|['"]$/g, '')
     .toLowerCase();
-  return value === 'light' ? 'light' : 'dark';
+  return value === 'dark' ? 'dark' : 'light';
 }
 
 /**

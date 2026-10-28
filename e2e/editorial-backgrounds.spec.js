@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
-for(const width of [390,1280])for(const theme of ['light','dark'])test(`editorial surfaces stay plain and readable in ${theme} at ${width}px`,async({page})=>{
+for(const width of [390,1280])for(const theme of ['light','dark'])test(`editorial surfaces stay solid and readable in ${theme} at ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:850});await page.addInitScript(t=>{localStorage.setItem('house-of-briar-theme',t);localStorage.setItem('theme',t);},theme);
- const paper=theme==='dark'?'rgb(32, 32, 32)':'rgb(246, 242, 234)';
+ const paper=theme==='dark'?'rgb(28, 23, 36)':'rgb(248, 243, 250)';
  for(const path of ['/','/creative-house.html','/sewing-services.html','/design-projects.html','/join.html']){
   await page.goto(path);await expect(page.locator('html')).toHaveAttribute('data-hob-theme',theme);
   const surface=await page.locator('body').evaluate(el=>({color:getComputedStyle(el).backgroundColor,image:getComputedStyle(el).backgroundImage}));expect(surface.color).toBe(paper);expect(surface.image).toBe('none');
