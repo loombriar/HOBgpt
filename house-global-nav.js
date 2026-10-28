@@ -11,6 +11,10 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
+  const signupBanner=document.createElement('div');signupBanner.className='hob-signup-banner';signupBanner.setAttribute('role','region');signupBanner.setAttribute('aria-label','House signup announcement');
+  const signupDate=document.createElement('time'),signupMessage=document.createElement('span');signupMessage.textContent='We’re in our signup era.';signupBanner.append(signupDate,signupMessage);nav.prepend(signupBanner);
+  const updateSignupDate=()=>{const now=new Date();signupDate.dateTime=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/New_York'}).format(now);signupDate.textContent=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'long',day:'numeric',year:'numeric'}).format(now);};updateSignupDate();setInterval(updateSignupDate,60000);
+
   // Compact footer bar: copyright, verified social links, and checkout payment brands.
   let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
   footer.classList.add('house-footer-enhanced');

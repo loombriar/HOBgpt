@@ -7,6 +7,14 @@ import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+function SignupBanner(){
+ const [now,setNow]=useState(()=>new Date());
+ useEffect(()=>{const timer=setInterval(()=>setNow(new Date()),60000);return()=>clearInterval(timer);},[]);
+ const date=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'long',day:'numeric',year:'numeric'}).format(now);
+ const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/New_York'}).format(now);
+ return <div role="region" aria-label="House signup announcement" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-border bg-accent/30 px-2 py-1 text-center text-[11px] leading-4"><time dateTime={day}>{date}</time><span className="font-semibold">We’re in our signup era.</span></div>;
+}
+
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -97,6 +105,7 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
+        <SignupBanner/>
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1 px-2 py-2 sm:gap-4 sm:px-6">
           <a href="/" aria-label="House of Briar home" className="shrink-0"><img src="/house-monogram-v2.webp" alt="" width="48" height="48" className="h-10 w-10 rounded-full sm:h-12 sm:w-12"/></a><ThemeButton/>
           <button type="button" aria-label="Open shop search" aria-expanded={searchOpen} aria-controls="house-nav-search" onClick={()=>setSearchOpen(v=>!v)} className="mr-auto flex min-h-11 min-w-11 items-center justify-center rounded border border-border">⌕</button>

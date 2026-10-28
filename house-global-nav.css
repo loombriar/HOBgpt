@@ -236,3 +236,7 @@ html body #hob-global-nav.hob-global-nav.hob-ordered-menu>.hob-search-toggle{mar
  html body #hob-global-nav.hob-global-nav.hob-ordered-menu>nav{order:10!important;flex:1 0 100%!important;width:100%!important;justify-content:center!important;gap:24px!important}
  html body #hob-global-nav.hob-global-nav.hob-ordered-menu .hob-seamstress-menu>summary{font-size:12px!important;padding:0 8px!important;min-height:44px!important;display:flex!important;align-items:center!important}
 }
+
+html body #hob-global-nav.hob-global-nav.hob-ordered-menu{flex-wrap:wrap!important}
+html body #hob-global-nav.hob-global-nav.hob-ordered-menu>.hob-signup-banner{order:-10!important;display:flex!important;flex:1 0 100%!important;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 12px;box-sizing:border-box;width:100%;padding:3px 8px 7px;border-bottom:1px solid var(--house-line,#777);font:500 11px/1.4 Arial,sans-serif;color:inherit;background:transparent;text-align:center}
+.hob-signup-banner span{font-weight:600}
