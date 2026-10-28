@@ -6,43 +6,65 @@
  const position=()=>({x:Number($('creator-offset-x').value),y:Number($('creator-offset-y').value),scale:Number($('creator-scale').value)/100,opacity:Number($('creator-opacity').value)/100});
  const resetPosition=()=>{for(const [id,value]of [['creator-offset-x',0],['creator-offset-y',0],['creator-scale',100],['creator-opacity',100]])$(id).value=value;};
  function invalidate(message='Design changed. Add the updated template to your brief before saving.'){if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent=message;}}
- const paths={
-  'A-line':'M108 80 L92 98 L79 158 L96 164 L109 124 L115 195 L65 355 Q150 380 235 355 L185 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
-  'Fitted':'M108 80 L92 98 L79 158 L96 164 L109 124 L118 195 Q98 240 112 355 L188 355 Q202 240 182 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
-  'Full skirt':'M108 80 L92 98 L79 158 L96 164 L109 124 L116 195 L40 350 Q150 390 260 350 L184 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
-  'Jumpsuit':'M108 80 L92 98 L79 158 L96 164 L109 124 L116 195 L102 355 L141 355 L150 255 L159 355 L198 355 L184 195 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z',
-  'Top & trousers':'M108 80 L92 98 L79 158 L96 164 L109 124 L113 190 L187 190 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z M116 204 L104 355 L142 355 L150 255 L158 355 L196 355 L184 204 Z',
-  'Top & skirt':'M108 80 L92 98 L79 158 L96 164 L109 124 L113 190 L187 190 L191 124 L204 164 L221 158 L208 98 L192 80 L170 72 Q150 94 130 72 Z M115 204 L72 355 Q150 375 228 355 L185 204 Z'
- };
+ function garmentPaths(sleeves='Short'){
+  const left=sleeves==='Sleeveless'?'Q105 102 109 126':sleeves==='Long'?'Q98 84 92 98 Q84 144 58 228 Q67 240 80 240 L109 126':'Q98 84 92 98 L79 154 Q87 160 97 162 L109 126';
+  const right=sleeves==='Sleeveless'?'Q195 102 192 80':sleeves==='Long'?'L220 240 Q233 240 242 228 Q216 144 208 98 Q202 84 192 80':'L203 162 Q213 160 221 154 L208 98 Q202 84 192 80';
+  const start='M130 72 Q119 74 108 80 '+left+' Q112 163 117 194 ',end=' Q188 163 191 126 '+right+' Q181 74 170 72 Q150 94 130 72 Z';
+  const top=start+'Q150 201 183 194'+end;
+  return {
+   'A-line':start+'Q105 240 70 352 Q150 378 230 352 Q195 240 183 194'+end,
+   'Fitted':start+'Q101 238 110 354 Q150 362 190 354 Q199 238 183 194'+end,
+   'Full skirt':start+'Q89 252 44 350 Q150 395 256 350 Q211 252 183 194'+end,
+   'Jumpsuit':start+'Q104 255 101 354 Q121 361 141 355 L146 266 Q150 258 154 266 L159 355 Q179 361 199 354 Q196 255 183 194'+end,
+   'Top & trousers':top+' M117 206 Q150 213 183 206 Q192 251 201 354 Q180 361 158 356 L154 266 Q150 258 146 266 L142 356 Q120 361 99 354 Q108 251 117 206 Z',
+   'Top & skirt':top+' M117 207 Q150 214 183 207 Q196 265 231 352 Q150 378 69 352 Q104 265 117 207 Z'
+  };
+ }
+ const paths=garmentPaths();
  let active=false;
  function values(){return {template:$('creator-template').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value,secondary:$('creator-secondary-color').value,print:$('creator-print').value,printScale:Number($('creator-print-scale').value)};}
  function render(){
   const v=values(),pos=position(),svg=$('creator-preview');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
   const add=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));parent.append(n);return n;};
   add('rect',{x:0,y:0,width:300,height:430,fill:'#faf7f0'});
+  add('path',{d:'M22 32 H42 M22 32 V52 M278 32 H258 M278 32 V52 M22 390 H42 M22 390 V370 M278 390 H258 M278 390 V370',stroke:'#c9c1b4','stroke-width':.8,fill:'none'});
+  add('ellipse',{cx:150,cy:384,rx:70,ry:5,fill:'#5c5548','fill-opacity':.07});
+  if(!avatarData){add('ellipse',{cx:150,cy:43,rx:15,ry:21,fill:'#d4cec3','fill-opacity':.4});add('path',{'data-default-form':'true',d:'M141 63 L141 77 Q119 80 108 98 Q97 131 86 182 Q83 195 89 205 Q95 199 96 185 L117 128 Q120 170 116 197 Q107 237 116 276 L121 370 Q127 382 136 370 L150 264 L164 370 Q173 382 179 370 L184 276 Q193 237 184 197 Q180 170 183 128 L204 185 Q205 199 211 205 Q217 195 214 182 Q203 131 192 98 Q181 80 159 77 L159 63 Z',fill:'#ded8ce','fill-opacity':.32,stroke:'#b8b1a5','stroke-opacity':.5,'stroke-width':.8});}
   if(avatarData)add('image',{href:avatarData,x:0,y:0,width:300,height:400,preserveAspectRatio:'xMidYMid meet','data-avatar-reference':'true'});
   const height=v.length==='Mini'?.4:v.length==='Midi'?.72:1;
-  const silhouette=paths[v.template].replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>195?195+(Number(y)-195)*height:y));
+  const shapeForLength=d=>d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>195?195+(Number(y)-195)*height:y));
+  const silhouette=shapeForLength(garmentPaths(v.sleeves)[v.template]);
   const outer=add('g',{transform:`translate(${pos.x} ${pos.y}) translate(150 195) scale(${pos.scale}) translate(-150 -195)`,opacity:pos.opacity});
   const group=add('g',{},outer);
   const neckline=v.neckline==='V-neck'?'M130 72 L150 118 L170 72 Z':v.neckline==='Square'?'M130 72 L130 104 L170 104 L170 72 Z':'M130 72 Q150 105 170 72 Z';
   const defs=add('defs',{}),mask=add('mask',{id:'creator-garment-cutouts',maskUnits:'userSpaceOnUse',x:0,y:0,width:300,height:430},defs);add('rect',{x:0,y:0,width:300,height:430,fill:'white'},mask);
   add('path',{d:neckline,fill:'black'},mask);
-  if(v.sleeves==='Sleeveless')for(const d of ['M92 98 L79 158 L96 164 L109 124 L108 80 Z','M208 98 L221 158 L204 164 L191 124 L192 80 Z'])add('path',{d,fill:'black'},mask);
+
   const fill=(id,color)=>{if(v.print==='Solid')return color;const pattern=add('pattern',{id,width:v.printScale,height:v.printScale,patternUnits:'userSpaceOnUse'},defs);add('rect',{width:v.printScale,height:v.printScale,fill:color},pattern);if(v.print==='Polka dots')add('circle',{cx:v.printScale/2,cy:v.printScale/2,r:v.printScale/6,fill:'#292722','fill-opacity':.45},pattern);else add('path',{d:`M0 0 L0 ${v.printScale}`,'stroke-width':v.printScale/3,stroke:'#292722','stroke-opacity':.4},pattern);return `url(#${id})`;};
   const topFill=fill('creator-top-print',v.color),bottomFill=fill('creator-bottom-print',v.secondary);
   const clip=add('clipPath',{id:'creator-bottom-clip'},defs);add('rect',{x:0,y:195,width:300,height:235},clip);
   const garment=add('g',{mask:'url(#creator-garment-cutouts)'},group);
-  add('path',{d:silhouette,fill:topFill,stroke:'#292722','stroke-width':3},garment);
-  add('path',{d:silhouette,fill:bottomFill,stroke:'#292722','stroke-width':3,'clip-path':'url(#creator-bottom-clip)'},garment);
-  if(v.sleeves==='Long')for(const d of ['M92 98 L79 158 L58 235 L79 241 L109 124','M208 98 L221 158 L242 235 L221 241 L191 124'])add('path',{d,fill:topFill,stroke:'#292722','stroke-width':3},garment);
-  add('path',{d:neckline,fill:'none',stroke:'#292722','stroke-width':2},group);
-  const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'sans-serif'});title.textContent=v.template+' · '+v.length;
+  add('path',{d:silhouette,fill:topFill,stroke:'#292722','stroke-width':1.4},garment);
+  add('path',{d:silhouette,fill:bottomFill,stroke:'#292722','stroke-width':1.4,'clip-path':'url(#creator-bottom-clip)'},garment);
+  const garmentClip=add('clipPath',{id:'creator-garment-detail-clip'},defs);add('path',{d:silhouette},garmentClip);
+  const details=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
+  const light=add('linearGradient',{id:'creator-fabric-shading',x1:'0%',y1:'0%',x2:'100%',y2:'20%'},defs);
+  for(const [offset,color,opacity]of [['0%','#fff',.28],['30%','#fff',.04],['65%','#292722',.025],['100%','#292722',.16]])add('stop',{offset,'stop-color':color,'stop-opacity':opacity},light);
+  add('path',{d:silhouette,fill:'url(#creator-fabric-shading)'},details);
+  const separates=v.template.startsWith('Top &');
+  const seam=separates?'M117 189 Q150 198 183 189 M117 211 Q150 219 183 211':'M117 194 Q150 201 183 194';
+  add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.4,'stroke-width':.8},details);
+  const legs=v.template==='Jumpsuit'||v.template==='Top & trousers';
+  const folds=legs?'M126 218 Q119 283 120 351 M174 218 Q181 283 180 351 M150 217 L150 254':v.template==='Fitted'?'M128 208 Q116 277 126 351 M172 208 Q184 277 174 351':'M123 210 Q109 284 103 354 M140 211 Q133 293 132 363 M160 211 Q167 293 168 363 M177 210 Q191 284 197 354';
+  add('path',{d:shapeForLength(folds),fill:'none',stroke:'#343830','stroke-opacity':.19,'stroke-width':.9,'stroke-linecap':'round'},details);
+  add('path',{d:'M130 99 Q124 150 132 188 M170 99 Q176 150 168 188',fill:'none',stroke:'#343830','stroke-opacity':.18,'stroke-width':.7},details);
+  add('path',{d:neckline,fill:'none',stroke:'#292722','stroke-width':1.2,'stroke-linecap':'round'},group);
+  const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.5'});title.textContent=v.template+' · '+v.length;
   $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} Concept illustration only; not a fit or size calculation.`;
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
- for(const [name,path]of Object.entries(paths)){const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.className='creator-template-card';const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 40 300 350');icon.setAttribute('aria-hidden','true');const shape=document.createElementNS(icon.namespaceURI,'path');shape.setAttribute('d',path);shape.setAttribute('fill','#b7d9cc');shape.setAttribute('stroke','#292722');shape.setAttribute('stroke-width','4');icon.append(shape);const label=document.createElement('span');label.textContent=name;button.append(icon,label);button.addEventListener('click',()=>{$('creator-template').value=name;invalidate();render();});chooser.append(button);}
+ for(const [name,path]of Object.entries(paths)){const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.className='creator-template-card';const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 40 300 350');icon.setAttribute('aria-hidden','true');const shape=document.createElementNS(icon.namespaceURI,'path');shape.setAttribute('d',path);shape.setAttribute('fill','#b7d9cc');shape.setAttribute('stroke','#292722');shape.setAttribute('stroke-width','2');icon.append(shape);const label=document.createElement('span');label.textContent=name;button.append(icon,label);button.addEventListener('click',()=>{$('creator-template').value=name;invalidate();render();});chooser.append(button);}
  $('creator-template').closest('label').before(chooser);
  const looks={everyday:['A-line','Scoop','Short','Midi','#b7d9cc'],evening:['Fitted','V-neck','Sleeveless','Maxi','#775166'],separates:['Top & skirt','Square','Sleeveless','Mini','#b8bdd9']};
  for(const button of root.querySelectorAll('[data-creator-look]'))button.addEventListener('click',()=>{const look=looks[button.dataset.creatorLook];['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color'].forEach((id,index)=>{$(id).value=look[index];});$('creator-secondary-color').value=look[4];invalidate();render();$('creator-status').textContent=button.querySelector('strong').textContent+' loaded. Make it your own with the details below.';});
