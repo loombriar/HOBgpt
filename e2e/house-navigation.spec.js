@@ -1,11 +1,13 @@
 const {test,expect}=require('@playwright/test');
-for(const width of [390,1280])for(const url of ['/','/shop'])test(`ordered navigation at ${width}px on ${url}`,async({page})=>{
+for(const width of [320,390,768,1280])for(const url of ['/','/shop'])test(`ordered navigation at ${width}px on ${url}`,async({page})=>{
  await page.setViewportSize({width,height:850});await page.goto(url);
  const legacy=url==='/';const nav=page.locator(legacy?'#hob-global-nav':'.house-compact-header');
- const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^SHOP/})});
- const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^BACKSTAGE/})});
+ const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Shop the Runway/})});
+ const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Go Backstage/})});
  const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
- let last=-1;for(const item of [logo,theme,search,shop.locator('summary'),backstage.locator('summary'),mailbox,cart]){await expect(item).toBeVisible();const box=await item.boundingBox();expect(box.x).toBeGreaterThan(last);last=box.x;}
+ const ordered=width<=900?[logo,theme,search,mailbox,cart]:[logo,theme,search,shop.locator('summary'),backstage.locator('summary'),mailbox,cart];
+ const logoBox=await logo.boundingBox(),themeBox=await theme.boundingBox(),searchBox=await search.boundingBox();expect(themeBox.x-(logoBox.x+logoBox.width)).toBeLessThan(26);expect(searchBox.x-(themeBox.x+themeBox.width)).toBeLessThan(26);
+ let last=-1;for(const item of ordered){await expect(item).toBeVisible();const box=await item.boundingBox();expect(box.x).toBeGreaterThan(last);last=box.x;}
  await shop.locator('summary').click();await expect(shop).toContainText('We’re still moving in.');
  for(const name of ['Create your room','Save your measurements','Create an outfit'])await expect(shop.getByRole('link',{name,exact:true})).toBeVisible();
  await backstage.locator('summary').click();await expect(shop).not.toHaveAttribute('open');

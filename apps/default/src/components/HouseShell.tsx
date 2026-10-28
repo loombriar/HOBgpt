@@ -7,6 +7,14 @@ import { Moon, Sun } from '@/lib/icons';
 import { useTheme } from 'next-themes';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+function SignupBanner(){
+ const [now,setNow]=useState(()=>new Date());
+ useEffect(()=>{const timer=setInterval(()=>setNow(new Date()),60000);return()=>clearInterval(timer);},[]);
+ const date=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'long',day:'numeric',year:'numeric'}).format(now);
+ const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/New_York'}).format(now);
+ return <div role="region" aria-label="House signup announcement" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-border bg-accent/30 px-2 py-1 text-center text-[11px] leading-4"><time dateTime={day}>{date}</time><span className="font-semibold">We’re in our signup era.</span></div>;
+}
+
 function ThemeButton() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -97,12 +105,13 @@ export default function HouseShell({ children }: { children: React.ReactNode }) 
 
       <a href="#house-main" className="house-skip-link">Skip to content</a>
       <header ref={headerRef} className="house-compact-header fixed inset-x-0 top-0 z-[9999] border-b border-border/70 bg-background shadow-sm" aria-label="Persistent House of Briar navigation">
-        <div className="mx-auto flex w-full max-w-7xl items-center gap-1 px-2 py-2 sm:gap-4 sm:px-6">
-          <a href="/" aria-label="House of Briar home" className="mr-auto shrink-0"><img src="/house-monogram-v2.webp" alt="" width="48" height="48" className="h-10 w-10 rounded-full sm:h-12 sm:w-12"/></a><ThemeButton/>
-          <button type="button" aria-label="Open shop search" aria-expanded={searchOpen} aria-controls="house-nav-search" onClick={()=>setSearchOpen(v=>!v)} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">⌕</button>
-          <nav aria-label="Primary navigation" className="flex items-center gap-3 text-xs sm:gap-6 sm:text-sm">
-            <NavigationMenu label="SHOP"><p className="p-2 font-semibold">We’re still moving in.</p><a href="/?visitors=signup">Create your room</a><a href="/?visitors=signup#measurement-profile-name">Save your measurements</a><a href="/design-projects.html#creator-room">Create an outfit</a><a href="/join.html">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a></NavigationMenu>
-            <NavigationMenu label="BACKSTAGE"><a href="/creative-house.html">Enter Backstage</a><a href="/designers/room">Sign in as designer</a><a href="/?visitors=signup&creative=model">Sign in as model</a><a href="/?visitors=signup&creative=photographer">Sign in as photographer</a><a href="/?visitors=signup&creative=dj">Sign in as DJ</a>{auth.isAuthenticated&&<button type="button" aria-label="Sign out of House of Briar" onClick={()=>{clearHouseCartOnSignOut();void auth.signoutRedirect();}} className="min-h-11 text-left">Sign out</button>}</NavigationMenu>
+        <SignupBanner/>
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1 px-2 py-2 sm:gap-4 sm:px-6">
+          <a href="/" aria-label="House of Briar home" className="shrink-0"><img src="/house-monogram-v2.webp" alt="" width="48" height="48" className="h-10 w-10 rounded-full sm:h-12 sm:w-12"/></a><ThemeButton/>
+          <button type="button" aria-label="Open shop search" aria-expanded={searchOpen} aria-controls="house-nav-search" onClick={()=>setSearchOpen(v=>!v)} className="mr-auto flex min-h-11 min-w-11 items-center justify-center rounded border border-border">⌕</button>
+          <nav aria-label="Primary navigation" className="order-last flex w-full items-center justify-center gap-6 text-xs min-[901px]:order-none min-[901px]:w-auto sm:text-sm">
+            <NavigationMenu label="Shop the Runway"><p className="p-2 font-semibold">We’re still moving in.</p><a href="/?visitors=signup">Create your room</a><a href="/?visitors=signup#measurement-profile-name">Save your measurements</a><a href="/design-projects.html#creator-room">Create an outfit</a><a href="/join.html">{auth.isAuthenticated?'My dashboard':'Sign in / Join'}</a></NavigationMenu>
+            <NavigationMenu label="Go Backstage"><a href="/creative-house.html">Enter Backstage</a><a href="/designers/room">Sign in as designer</a><a href="/?visitors=signup&creative=model">Sign in as model</a><a href="/?visitors=signup&creative=photographer">Sign in as photographer</a><a href="/?visitors=signup&creative=dj">Sign in as DJ</a>{auth.isAuthenticated&&<button type="button" aria-label="Sign out of House of Briar" onClick={()=>{clearHouseCartOnSignOut();void auth.signoutRedirect();}} className="min-h-11 text-left">Sign out</button>}</NavigationMenu>
           </nav>
           <a href={auth.isAuthenticated?'/account#messages':'/join.html'} aria-label={`Mailbox${designerUnread?`, ${designerUnread} unread`:''}`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border">✉{designerUnread>0&&<span>{designerUnread}</span>}</a>
           <Link to="/cart" aria-label={`Cart with ${cartCount} items`} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-border"><img src="/suitcase-cart-v1.svg" alt="" className="h-7 w-7"/></Link>

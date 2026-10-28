@@ -11,6 +11,10 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
+  const signupBanner=document.createElement('div');signupBanner.className='hob-signup-banner';signupBanner.setAttribute('role','region');signupBanner.setAttribute('aria-label','House signup announcement');
+  const signupDate=document.createElement('time'),signupMessage=document.createElement('span');signupMessage.textContent='We’re in our signup era.';signupBanner.append(signupDate,signupMessage);nav.prepend(signupBanner);
+  const updateSignupDate=()=>{const now=new Date();signupDate.dateTime=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/New_York'}).format(now);signupDate.textContent=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'long',day:'numeric',year:'numeric'}).format(now);};updateSignupDate();setInterval(updateSignupDate,60000);
+
   // Compact footer bar: copyright, verified social links, and checkout payment brands.
   let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
   footer.classList.add('house-footer-enhanced');
@@ -60,11 +64,11 @@
     menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;summary.focus();}});return menu;
   };
   links.querySelectorAll('a:not(.hob-global-cart-link)').forEach(link=>link.remove());
-  const shopMenu=makeMenu('SHOP','shop',[
+  const shopMenu=makeMenu('Shop the Runway','shop',[
     ['/?visitors=signup','Create your room'],['/?visitors=signup#measurement-profile-name','Save your measurements'],['/design-projects.html#creator-room','Create an outfit'],
   ]);
   const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
-  const designerMenu=makeMenu('BACKSTAGE','backstage',[
+  const designerMenu=makeMenu('Go Backstage','backstage',[
     ['/creative-house.html','Enter Backstage'],
     ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
   ]);
