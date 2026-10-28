@@ -4,7 +4,7 @@ for (const width of [390, 1280]) {
   test(`dark mode keeps creative descriptions and activity buttons readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/creative-house.html');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
@@ -60,7 +60,7 @@ for(const width of [390,1280]) {
   test(`dark customer, product and cart headers and controls are readable at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:844});
     await page.goto('/');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
@@ -84,7 +84,7 @@ for (const width of [393,1280]) {
     const asset = await page.request.get(stylesheet);
     expect(asset.status()).toBe(200);
     expect(asset.headers()['content-type']).toContain('text/css');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');

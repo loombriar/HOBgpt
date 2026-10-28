@@ -15,13 +15,13 @@ for (const width of [390, 1280]) {
     await nav.locator('#cart-btn').click();
     await expect(page.locator('#cart-dialog')).toBeVisible();
     await page.locator('#cart-dialog-close').click();
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
     await page.goto('/creative-house.html#your-profile');
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
     await expect(page.locator('#profile-form')).toBeVisible();
     await expect(page.locator('#creative-access-status')).not.toHaveText('Checking your House account…');
     await page.locator('#hob-theme-toggle').click();
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
     const categories = page.locator('#hob-global-nav .hob-backstage-menu');
     await categories.locator('summary').click();await categories.locator('summary').press('Escape');
     await expect(categories).not.toHaveAttribute('open');await expect(categories.locator('summary')).toBeFocused();

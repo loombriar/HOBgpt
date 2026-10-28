@@ -16,6 +16,7 @@ test('mobile navigation stays compact and keeps account and cart usable',async({
  await page.locator('#cart-btn').click();await expect(page.locator('#cart-dialog')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#cart-dialog-close').click();
+ await page.locator('#hob-theme-toggle').click();
  await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
  const surface=await page.locator('#product-grid .product-body').first().evaluate(el=>({background:getComputedStyle(el).backgroundColor,blur:getComputedStyle(el).backdropFilter}));
  expect(surface.background).not.toContain('rgba');expect(surface.blur).toBe('none');
