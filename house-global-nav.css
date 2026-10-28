@@ -227,3 +227,12 @@ html body footer.house-footer-enhanced .house-footer-payment-logos img{display:b
 .house-react-footer{border-top:1px solid #444}.house-footer-policies{padding:8px 22px;font-size:12px}.house-footer-policies summary{cursor:pointer}.house-footer-policies nav{display:flex;flex-wrap:wrap;gap:16px;padding:12px 0}.house-footer-policies a{text-decoration:underline}
 html body footer.house-footer-enhanced .house-footer-support-links{display:flex;justify-content:flex-end;gap:16px;padding:8px 22px;font-size:12px}
 @media(max-width:700px){html body footer.house-footer-enhanced .house-footer-bar{grid-template-columns:minmax(0,1fr)!important;justify-items:center!important;gap:10px!important;padding:12px!important;text-align:center!important}html body footer.house-footer-enhanced .house-footer-payment-logos{justify-content:center!important}}
+
+/* Keep logo, theme and search together; let longer menu titles wrap as a row on phones. */
+html body #hob-global-nav.hob-global-nav.hob-ordered-menu>.hob-global-wordmark{margin-right:0!important}
+html body #hob-global-nav.hob-global-nav.hob-ordered-menu>.hob-search-toggle{margin-right:auto!important}
+@media(max-width:900px){
+ html body #hob-global-nav.hob-global-nav.hob-ordered-menu{flex-wrap:wrap!important}
+ html body #hob-global-nav.hob-global-nav.hob-ordered-menu>nav{order:10!important;flex:1 0 100%!important;width:100%!important;justify-content:center!important;gap:24px!important}
+ html body #hob-global-nav.hob-global-nav.hob-ordered-menu .hob-seamstress-menu>summary{font-size:12px!important;padding:0 8px!important;min-height:44px!important;display:flex!important;align-items:center!important}
+}

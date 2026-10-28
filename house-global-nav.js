@@ -60,11 +60,11 @@
     menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;summary.focus();}});return menu;
   };
   links.querySelectorAll('a:not(.hob-global-cart-link)').forEach(link=>link.remove());
-  const shopMenu=makeMenu('SHOP','shop',[
+  const shopMenu=makeMenu('Shop the Runway','shop',[
     ['/?visitors=signup','Create your room'],['/?visitors=signup#measurement-profile-name','Save your measurements'],['/design-projects.html#creator-room','Create an outfit'],
   ]);
   const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
-  const designerMenu=makeMenu('BACKSTAGE','backstage',[
+  const designerMenu=makeMenu('Go Backstage','backstage',[
     ['/creative-house.html','Enter Backstage'],
     ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
   ]);
