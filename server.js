@@ -2326,6 +2326,7 @@ function createApp(options = {}) {
   const postageAccounting=require('./lib/postage-accounting').createPostageAccounting(db);
   // Initialize the append-only settlement journal schema. No automatic backfill or transfers.
   const designerSettlementLedger=require('./lib/designer-settlement-ledger').createDesignerSettlementLedger(db);
+  const designerTestRefundAudit=require('./lib/designer-test-refund-audit').createTestRefundAudit(db);
 
   async function finishDepositRefund(offer) {
       if(offer.stripe_transfer_id && !offer.stripe_reversal_id){
@@ -3844,11 +3845,25 @@ function createApp(options = {}) {
       const {orderId,scope,apply}=req.body||{};
       const result=await require('./lib/designer-verified-test-refund').postVerifiedTestRefund(
         db,designerSettlementLedger,stripeApi,{orderId,scope,apply:apply===true});
+      designerTestRefundAudit.record({orderId,scope,refundId:result.refundId,
+        action:apply===true?'apply':'preview',outcome:apply===true?'posted':'verified',
+        detail:apply===true?'verified_test_refund_journal_applied':'verified_test_refund_preview'});
       return res.json(result);
     } catch(error) {
       console.error('Test refund journal review:',String(error.message||error));
+      const {orderId,scope,apply}=req.body||{};
+      if(typeof orderId==='string'&&orderId&&typeof scope==='string'&&scope){
+        try{designerTestRefundAudit.record({orderId,scope,action:'blocked',outcome:'review_required',detail:'verification_or_allocation_blocked'});}
+        catch(auditError){console.error('Test refund audit failed:',auditError.message);}
+      }
       return res.status(409).json({error:{message:'Verified test refund posting blocked; manual review required'}});
     }
+  });
+
+  app.get('/api/admin/designer-settlement-ledger/test-refund-audit', authAdmin, (req,res) => {
+    try {
+      return res.json({entries:designerTestRefundAudit.list(req.query.orderId,req.query.scope)});
+    }catch{return res.status(400).json({error:{message:'Invalid audit scope'}});}
   });
 
   app.post('/api/admin/designer-settlement-ledger/preview-refund-allocation', authAdmin, (req,res) => {
