@@ -28,3 +28,9 @@ House of Briar collects the customer payment, retains a commission, and owes the
 `lib/designer-payout-readiness.js` exposes a **pure, fail-closed** readiness assessment function. It is not wired to checkout or payouts yet, deliberately: integration must wait for confirmed provider capabilities and an approved compliance model. Unit tests cover the blocked default and the approval gates.
 
 Do not place bank details, API keys, or identity documents in GitHub or test fixtures.
+
+## Staging UI and settlement simulation
+
+The React admin operations page now displays an informational **International designer payout readiness** panel. It does not enable any sales, create recipients, or initiate transfers. The panel is a static planning indicator, not a verified provider/account status feed.
+
+`lib/designer-payout-preview.js` models single-currency minor-unit arithmetic for gross, commission, processing fees, refunds, reserves, and designer net. It deliberately has no API calls or database writes. It is a planning/test helper, **not** the existing order ledger or payout engine. Tests cover the nominal calculation, partial refunds, over-deduction, and invalid amounts. Real reconciliation, idempotency, verified provider events, and per-designer accounting remain pending.
