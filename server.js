@@ -3837,6 +3837,25 @@ function createApp(options = {}) {
 
   // Explicit admin-only sandbox review; never posts ambiguous refund/reversal events.
   // Read-only provider evidence; never books a refund or transfer reversal.
+  // Read-only per-designer allocation for an existing test-mode refund record.
+  app.post('/api/admin/designer-settlement-ledger/preview-refund-allocation', authAdmin, (req,res) => {
+    try {
+      const {orderId,scope}=req.body||{};
+      if(typeof orderId!=='string'||typeof scope!=='string')return res.status(400).json({error:{message:'Invalid refund scope'}});
+      const order=db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
+      if(!order||!String(order.stripe_session_id||'').startsWith('cs_test_'))
+        return res.status(409).json({error:{message:'Paid test checkout order required'}});
+      const refund=db.prepare('SELECT * FROM order_refunds WHERE order_id=? AND scope=?').get(orderId,scope);
+      if(!refund)return res.status(404).json({error:{message:'Refund record not found'}});
+      const allocation=require('./lib/designer-refund-allocation').allocateOrderRefund(db,{
+        orderId,scope,amountCents:refund.amount_cents
+      });
+      return res.json({refundStatus:refund.status,refundReference:refund.stripe_refund_id||null,...allocation,posted:false});
+    } catch(error) {
+      return res.status(409).json({error:{message:'Refund allocation requires review'}});
+    }
+  });
+
   app.post('/api/admin/designer-settlement-ledger/review-provider-adjustments', authAdmin, async (req,res) => {
     try {
       const {orderId,designerId}=req.body||{};
