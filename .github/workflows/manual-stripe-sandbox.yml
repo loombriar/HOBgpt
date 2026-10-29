@@ -1,0 +1,45 @@
+name: Manual Stripe sandbox lifecycle
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type RUN_STRIPE_TEST_ONLY to authorize test-mode payment and refund"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: stripe-sandbox-manual
+  cancel-in-progress: false
+jobs:
+  stripe-sandbox:
+    if: ${{ github.ref == 'refs/heads/staging' && inputs.confirmation == 'RUN_STRIPE_TEST_ONLY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-sandbox
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      RUN_HOB_UNIFIED_SANDBOX_E2E: 'true'
+      HOB_STRIPE_TEST_WRITES_ACK: I_AUTHORIZE_TEST_PAYMENTS_AND_REFUNDS
+      STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify sandbox secret exists
+        shell: bash
+        run: |
+          if [[ -z "$STRIPE_TEST_SECRET_KEY" || "$STRIPE_TEST_SECRET_KEY" != sk_test_* ]]; then
+            echo "::error::Set a protected STRIPE_TEST_SECRET_KEY starting with sk_test_ in the stripe-sandbox environment."
+            exit 1
+          fi
+      - run: npm ci --ignore-scripts
+      - name: Rebuild native SQLite dependency
+        run: npm rebuild better-sqlite3
+      - name: Execute sandbox payment/refund and ledger test
+        run: node --test tests/designer-unified-stripe-sandbox.test.js
