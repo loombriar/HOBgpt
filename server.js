@@ -825,7 +825,6 @@ function createApp(options = {}) {
     ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
   }
   const adminEntries = parseAdminTokens(options);
-  const adminTokens = adminEntries.map(entry => entry.token);
   const adminConfigurationErrors = productionConfigurationErrors({adminEntries});
   if (adminConfigurationErrors.length) throw new Error(`Production configuration is incomplete: ${adminConfigurationErrors.join(' ')}`);
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
@@ -1186,12 +1185,15 @@ function createApp(options = {}) {
 
   const ADMIN_SESSION_COOKIE = 'hob_admin_session';
   const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+  function unambiguousAdminEntry(entry) {
+    // Shared credentials cannot establish which actor/role authenticated.
+    // Labels must also be unique across legacy and named configuration sources.
+    return adminEntries.filter(candidate => safeEqual(candidate.token, entry.token)).length === 1 &&
+      adminEntries.filter(candidate => candidate.label === entry.label).length === 1;
+  }
   function adminEntryForToken(token) {
     const entry = adminEntries.find(candidate => safeEqual(token, candidate.token));
-    if (entry) return entry;
-    // Keep the compatibility check explicit while legacy ADMIN_TOKENS are migrated.
-    if (adminTokens.some(candidate => safeEqual(token, candidate))) return {label: 'admin', role: 'operator', token};
-    return null;
+    return entry && unambiguousAdminEntry(entry) ? entry : null;
   }
   function setAdminSessionCookie(req, res, token, maxAgeSeconds = Math.floor(ADMIN_SESSION_TTL_MS / 1000)) {
     const secure = trustedAppOrigin(req).startsWith('https://');
@@ -1291,7 +1293,7 @@ function createApp(options = {}) {
     if (sessionToken) {
       const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session = db.prepare('SELECT actor,role,expires_at,credential_hash FROM admin_sessions WHERE session_hash=?').get(sessionHash);
-      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && adminSessionCredentialHash(entry)===session.credential_hash)) {
+      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && unambiguousAdminEntry(entry) && adminSessionCredentialHash(entry)===session.credential_hash)) {
         req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return authorizeAdminRole(req, res, () => requireAdminRequestOrigin(req, res, next));
       }
       if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);

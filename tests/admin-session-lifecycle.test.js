@@ -66,6 +66,67 @@ test('persistent admin sessions survive unchanged config but fail after token ro
   assert.equal(f.ctx.db.prepare('SELECT count(*) n FROM admin_sessions').get().n,0);
 }));
 
+test('shared admin tokens reject login and bearer access regardless of config order or role',async()=>fixture(async f=>{
+  for(const role of ['owner','reviewer']){
+    for(const reverse of [false,true]){
+      const shared={reviewer:{...f.identities.reviewer},duplicate:{token:f.identities.reviewer.token,role}};
+      const entries=Object.entries(shared);if(reverse)entries.reverse();
+      await f.start({...Object.fromEntries(entries),owner:f.identities.owner});
+      const sessionCount=f.ctx.db.prepare('SELECT count(*) n FROM admin_sessions').get().n;
+      const auth={Authorization:'Bearer '+f.identities.reviewer.token};
+      assert.equal((await f.request('/api/admin/session',null,'POST',auth)).status,401);
+      assert.equal((await f.request('/api/admin/designers',null,'GET',auth)).status,403);
+      assert.equal(f.ctx.db.prepare('SELECT count(*) n FROM admin_sessions').get().n,sessionCount);
+      const owner=await f.login('owner');
+      assert.equal((await f.request('/api/admin/designers',owner)).status,200);
+    }
+  }
+}));
+
+test('introducing a shared token revokes existing cookies while unrelated identities remain available',async()=>fixture(async f=>{
+  const reviewer=await f.login('reviewer'),owner=await f.login('owner');
+  await f.start({...f.identities,duplicate:{token:f.identities.reviewer.token,role:'owner'}});
+  assert.equal((await f.request('/api/admin/listings',reviewer)).status,401);
+  assert.equal(f.ctx.db.prepare('SELECT 1 FROM admin_sessions WHERE session_hash=?').get(f.hash(reviewer)),undefined);
+  assert.equal((await f.request('/api/admin/designers',owner)).status,200);
+}));
+
+test('legacy administrator token rotation preserves unique ADMIN_TOKEN compatibility',async()=>fixture(async f=>{
+  process.env.ADMIN_TOKEN='legacy-rotation-fixture';
+  process.env.ADMIN_TOKENS='old-rotation-fixture,new-rotation-fixture';
+  await f.start();
+  for(const token of ['legacy-rotation-fixture','old-rotation-fixture','new-rotation-fixture']){
+    assert.equal((await f.request('/api/admin/designers',null,'GET',{Authorization:'Bearer '+token})).status,200);
+  }
+  process.env.ADMIN_TOKENS='new-rotation-fixture';
+  await f.start();
+  assert.equal((await f.request('/api/admin/designers',null,'GET',{Authorization:'Bearer old-rotation-fixture'})).status,403);
+  for(const token of ['legacy-rotation-fixture','new-rotation-fixture']){
+    assert.equal((await f.request('/api/admin/designers',null,'GET',{Authorization:'Bearer '+token})).status,200);
+  }
+}));
+
+test('legacy token and actor collisions cannot bypass named admin ambiguity checks',async()=>fixture(async f=>{
+  process.env.ADMIN_TOKEN=f.identities.reviewer.token;
+  await f.start();
+  const auth={Authorization:'Bearer '+f.identities.reviewer.token};
+  assert.equal((await f.request('/api/admin/session',null,'POST',auth)).status,401);
+  assert.equal((await f.request('/api/admin/designers',null,'GET',auth)).status,403);
+  process.env.ADMIN_TOKEN='unique-legacy-lifecycle-token';
+  await f.start();
+  const legacy=await f.request('/api/admin/session',null,'POST',{Authorization:'Bearer '+process.env.ADMIN_TOKEN});
+  assert.equal(legacy.status,200);
+  const cookie=legacy.headers.get('set-cookie').split(';')[0];
+  await f.start({...f.identities,'legacy-admin':{token:'another-legacy-lifecycle-token',role:'reviewer'}});
+  assert.equal((await f.request('/api/admin/designers',cookie)).status,401);
+  for(const token of [process.env.ADMIN_TOKEN,'another-legacy-lifecycle-token']){
+    assert.equal((await f.request('/api/admin/session',null,'POST',{Authorization:'Bearer '+token})).status,401);
+    assert.equal((await f.request('/api/admin/designers',null,'GET',{Authorization:'Bearer '+token})).status,403);
+  }
+  const owner=await f.login('owner');
+  assert.equal((await f.request('/api/admin/designers',owner)).status,200);
+}));
+
 const FACTOR_A='GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
 const FACTOR_B='MFRGGZDFMZTWQ2LKMFRGGZDFMZTWQ2LK';
 function factorCode(secret,step=0){

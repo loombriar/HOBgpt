@@ -18,6 +18,8 @@ Session actor/role come from the validated server session and current credential
 
 ## Acceptance
 
+Administrator tokens and actor labels must each identify exactly one configured entry, including entries from `ADMIN_TOKEN`, `ADMIN_TOKENS` and `ADMIN_TOKENS_JSON`. Shared tokens or colliding labels reject both session exchange and bearer access; previously issued cookies for affected entries are revoked when next used. Unaffected accounts keep working. Before rollout, check uniqueness privately and replace ambiguous credentials through the deployment secret manager; never paste values into logs or GitHub. This check does not establish that a named credential is used by only one person or complete MFA recovery acceptance.
+
 - Automated regression covers separate named reviewer/support/owner identities, cookie and bearer authorization, permitted review writes, financial/destructive denials, unknown-role denial, header spoofing and audit attribution.
 - Full CI and staging checks must pass on the reviewed commit.
 - Confirm the proposed role/action matrix with the owner before merge/deployment.
