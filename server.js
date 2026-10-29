@@ -2759,6 +2759,7 @@ function createApp(options = {}) {
     const requestedCodes=[...new Set((Array.isArray(promoCodes)?promoCodes:[]).map(v=>String(v||'').trim().toUpperCase()).filter(Boolean))].slice(0,20);
     const rows = [];
     for (const [id, quantity] of quantities) {
+      if(id===require('./lib/staging-checkout-fixture').FIXTURE_ID && !(atelierEnvironment==='staging' && /^sk_test_/.test(process.env.STRIPE_SECRET_KEY||'')))throw Object.assign(new Error('This disposable listing is available only for staging test payments.'),{statusCode:409});
       const listing = db.prepare("SELECT l.* FROM listings l JOIN designer_profiles dp ON dp.id=l.designer_id AND dp.status='active' AND COALESCE(dp.vacation_mode,0)=0 AND dp.stripe_account_id IS NOT NULL AND dp.stripe_account_id!='' WHERE l.id = ? AND l.status = 'published' AND l.moderation_status = 'approved' AND COALESCE(l.paused_by_designer,0)=0").get(id);
       if(listing&&!patterns.ready(listing))throw Object.assign(new Error('This PDF pattern is not ready for sale.'),{statusCode:409});
       if(listing&&patterns.digital(listing)&&(quantity!==1||giftWrapSelections.get(id)||giftNotes.get(id)))throw Object.assign(new Error('PDF downloads are purchased once without gift wrapping or notes.'),{statusCode:422});
@@ -3609,6 +3610,7 @@ function createApp(options = {}) {
   atelierSellerReview.setupSellerReview(db,{environment:atelierEnvironment,initialInvite:atelierEnvironment==='staging'?require('./fixtures/atelier-emine/review-invite.json'):null});
   atelierSellerReview.registerSellerReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,trustedAppOrigin,rateLimit});
   atelierDrafts.registerAtelierDraftReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,importError:atelierImportError});
+  require('./lib/staging-checkout-fixture').registerStagingCheckoutFixture({app,db,authAdmin,fail,environment:atelierEnvironment,imagesDir,serializeListing});
 
   app.get('/api/admin/listings', authAdmin, (_req, res) => {
     res.set('Cache-Control', 'no-store');
