@@ -11,49 +11,85 @@
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
+  const signupBanner=document.createElement('div');signupBanner.className='hob-signup-banner';signupBanner.setAttribute('role','region');signupBanner.setAttribute('aria-label','House signup announcement');
+  const signupDate=document.createElement('time'),signupMessage=document.createElement('span');signupMessage.textContent='We’re in our signup era.';signupBanner.append(signupDate,signupMessage);nav.prepend(signupBanner);
+  const updateSignupDate=()=>{const now=new Date();signupDate.dateTime=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/New_York'}).format(now);signupDate.textContent=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'long',day:'numeric',year:'numeric'}).format(now);};updateSignupDate();setInterval(updateSignupDate,60000);
+
+  // Compact footer bar: copyright, verified social links, and checkout payment brands.
+  let footer=document.querySelector('footer');if(!footer){footer=document.createElement('footer');document.body.append(footer);}
+  footer.classList.add('house-footer-enhanced');
+  let bottom=footer.querySelector('.footer-bottom');
+  if(!bottom){bottom=document.createElement('div');bottom.className='footer-bottom';footer.append(bottom);}
+  bottom.classList.add('house-footer-bar');
+  const utilities=bottom.querySelector('.footer-utilities');if(utilities){utilities.classList.add('house-footer-support-links');bottom.before(utilities);}
+  let copyright=bottom.querySelector('.copyright');
+  if(!copyright){copyright=document.createElement('p');copyright.className='copyright';bottom.prepend(copyright);}
+  copyright.textContent='© '+new Date().getFullYear()+' House of Briar. All Rights Reserved.';
+  const socials=document.createElement('nav');socials.className='house-footer-socials';socials.setAttribute('aria-label','House of Briar social media');
+  for(const item of [
+    {name:'Facebook',url:'https://www.facebook.com/profile.php?id=61595729137315',symbol:'f'},
+    {name:'YouTube',url:'https://www.youtube.com/@Houseofbriar.shop.designers',symbol:'▶'},
+    {name:'Instagram',url:'https://www.instagram.com/house_of_briar_/',symbol:'◎'}
+  ]){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',item.name);link.title=item.name;const icons={Facebook:'<path d="M15 21v-8h3l.5-3H15V8.5c0-.8.3-1.5 1.5-1.5H19V4h-3c-3 0-5 1.8-5 5v1H8v3h3v8z" fill="currentColor"/>',YouTube:'<path d="M21 7a3 3 0 0 0-2-2c-2-.5-12-.5-14 0a3 3 0 0 0-2 2c-.5 2-.5 8 0 10a3 3 0 0 0 2 2c2 .5 12 .5 14 0a3 3 0 0 0 2-2c.5-2 .5-8 0-10ZM10 16V8l7 4z" fill="currentColor" fill-rule="evenodd"/>',Instagram:'<rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>'};link.innerHTML='<svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">'+icons[item.name]+'</svg>';socials.append(link);}
+  bottom.append(socials);
+  const payments=document.createElement('div');payments.className='house-footer-payment-logos';payments.setAttribute('role','region');payments.setAttribute('aria-label','Accepted payments');
+  for(const method of [{name:'Visa',file:'visa.svg'},{name:'Mastercard',file:'mastercard.svg'},{name:'American Express',file:'amex.svg'},{name:'Apple Pay',file:'applepay.svg'},{name:'Google Pay',file:'googlepay.svg'}]){
+    const img=document.createElement('img');img.src='/payment-logos/'+method.file;img.alt=method.name;img.width=40;img.height=25;img.loading='lazy';payments.append(img);
+  }
+  bottom.append(payments);
+  const footerRow=document.createElement('div');footerRow.className='house-footer-link-row';
+  const brand=footer.querySelector('.footer-brand');if(brand)footerRow.append(brand);
+  for(const details of footer.querySelectorAll('.footer-links>details,.footer-story')){
+    const panel=document.createElement('div');panel.className='house-footer-link-panel';
+    for(const child of [...details.children])if(child.tagName!=='SUMMARY')panel.append(child);
+    details.append(panel);footerRow.append(details);
+  }
+  if(utilities)for(const child of [...utilities.children])footerRow.append(child);
+  bottom.before(footerRow);utilities?.remove();footer.querySelector('.footer-main')?.remove();
+  const footerMenus=[...footerRow.querySelectorAll('details')];
+  for(const menu of footerMenus){menu.addEventListener('toggle',()=>{if(menu.open)for(const other of footerMenus)if(other!==menu)other.open=false;});menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;menu.querySelector('summary')?.focus();}});}
+  document.addEventListener('click',event=>{for(const menu of footerMenus)if(!menu.contains(event.target))menu.open=false;});
+
+
+
+  const wordmark=nav.querySelector('.hob-global-wordmark');
+  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-v2.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
+  const search=document.createElement('form');
+  search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
+  search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search the runway"><button type="submit">Search</button>';
+  search.querySelector('input').value=new URLSearchParams(location.search).get('q')||'';
+  search.id='hob-sticky-search';
+  nav.append(search);
+  const searchToggle=document.createElement('button');searchToggle.type='button';searchToggle.id='hob-search-toggle';searchToggle.className='hob-search-toggle';searchToggle.textContent='⌕';searchToggle.setAttribute('aria-label','Open shop search');searchToggle.setAttribute('aria-controls',search.id);searchToggle.setAttribute('aria-expanded','false');
+  const closeSearch=()=>{nav.classList.remove('hob-search-open');searchToggle.setAttribute('aria-expanded','false');};
+  searchToggle.addEventListener('click',()=>{const open=nav.classList.toggle('hob-search-open');searchToggle.setAttribute('aria-expanded',String(open));if(open)search.querySelector('input').focus();});
+  search.addEventListener('keydown',event=>{if(event.key==='Escape'){closeSearch();searchToggle.focus();}});
+
+
   const links = nav.querySelector('nav');
-  const creativeLink = links.querySelector('a[href="/creative-house.html"]');
-  if (creativeLink && location.pathname === '/creative-house.html' && !links.querySelector('.hob-creative-menu')) {
-    const menu = document.createElement('details');
-    menu.className = 'hob-creative-menu';
-    const summary = document.createElement('summary');
-    summary.textContent = 'Creative categories';
-    menu.appendChild(summary);
-    const panel = document.createElement('div');
-    panel.className = 'hob-creative-menu-panel';
-    for (const [section, label] of [
-      ['opportunities', 'Open calls'], ['creative-directory', 'Models & photographers'],
-      ['your-profile', 'My creative profile'], ['fashion-events', 'Fashion events'],
-      ['event-creatives', 'DJs & venues'], ['event-profile-editor', 'My event profile'],
-      ['private-inquiries', 'Private inquiries'], ['casting-commissioning', 'Project requests'],
-      ['post', 'Post a call'], ['post-event', 'Post an event'],
-    ]) {
-      const link = document.createElement('a');
-      link.href = (location.pathname === '/creative-house.html' ? '' : '/creative-house.html') + '#' + section;
-      link.textContent = label;
-      link.addEventListener('click', () => { menu.open = false; });
-      panel.appendChild(link);
-    }
-    menu.appendChild(panel);
-    creativeLink.after(menu);
-    document.addEventListener('click', event => {
-      if (!menu.contains(event.target)) menu.open = false;
-    });
-    menu.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { menu.open = false; summary.focus(); }
-    });
-  }
-  const account = document.getElementById('header-customer-auth-btn');
-  if (account) {
-    account.classList.remove('nav-hotspot');
-    links.appendChild(account);
-  } else {
-    const signIn = document.createElement('a');
-    signIn.href = '/?visitors=signup';
-    signIn.className = 'hob-global-account-link';
-    signIn.textContent = 'My account';
-    links.appendChild(signIn);
-  }
+  const makeMenu=(label,kind,entries,replace)=>{
+    const menu=document.createElement('details');menu.className='hob-seamstress-menu hob-'+kind+'-menu';
+    const summary=document.createElement('summary');summary.textContent=label;menu.append(summary);
+    const panel=document.createElement('div');panel.className='hob-seamstress-menu-panel';
+    for(const [href,text] of entries){const link=document.createElement('a');link.href=href;link.textContent=text;link.onclick=()=>{menu.open=false;};panel.append(link);}
+    menu.append(panel);if(replace)replace.replaceWith(menu);else links.append(menu);
+    menu.addEventListener('toggle',()=>{if(menu.open)for(const other of links.querySelectorAll('details'))if(other!==menu)other.open=false;});
+    document.addEventListener('click',event=>{if(!menu.contains(event.target))menu.open=false;});
+    menu.addEventListener('keydown',event=>{if(event.key==='Escape'){menu.open=false;summary.focus();}});return menu;
+  };
+  links.querySelectorAll('a:not(.hob-global-cart-link)').forEach(link=>link.remove());
+  const shopMenu=makeMenu('Shop the Runway','shop',[
+    ['/?visitors=signup','Create your room'],['/?visitors=signup#measurement-profile-name','Save your measurements'],['/design-projects.html#creator-room','Create an outfit'],
+  ]);
+  const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
+  const designerMenu=makeMenu('Go Backstage','backstage',[
+    ['/creative-house.html','Enter Backstage'],
+    ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
+  ]);
+  const account=document.getElementById('header-customer-auth-btn');
+  // Existing page scripts retain their trigger; one shared entry is visible.
+  if(account){account.hidden=true;account.style.setProperty('display','none','important');}
+  const join=document.createElement('a');join.href='/join.html';join.className='hob-global-account-link hob-global-join';join.textContent='Sign in / Join';shopMenu.querySelector('.hob-seamstress-menu-panel').append(join);
   const cart = document.getElementById('cart-btn');
   const placeholder = links.querySelector('.hob-global-cart-link');
   if (cart && placeholder) {
@@ -69,8 +105,8 @@
     themeButton.id = 'hob-theme-toggle';
     links.appendChild(themeButton);
   }
-  let savedTheme = 'dark';
-  try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'dark'; } catch {}
+  let savedTheme = 'light';
+  try { savedTheme = localStorage.getItem('house-of-briar-theme') || localStorage.getItem('theme') || 'light'; } catch {}
   document.documentElement.dataset.hobTheme = savedTheme === 'dark' ? 'dark' : 'light';
   document.documentElement.classList.toggle('dark',savedTheme==='dark');
   const syncTheme = () => {
@@ -94,7 +130,7 @@
   const actions = document.createElement('div');
   actions.className = 'hob-global-actions';
   actions.setAttribute('aria-label', 'Account, cart and theme');
-  for (const control of [themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link'), account || links.querySelector('.hob-global-account-link')]) {
+  for (const control of [searchToggle, themeButton, links.querySelector('.hob-global-cart-button,.hob-global-cart-link')]) {
     if (control) actions.appendChild(control);
   }
   nav.appendChild(actions);
@@ -106,7 +142,7 @@
   signout.textContent = 'Sign out';
   signout.hidden = true;
   signout.setAttribute('aria-label', 'Sign out of House of Briar');
-  links.appendChild(signout);
+  designerMenu.querySelector('.hob-seamstress-menu-panel').appendChild(signout);
   const sessionEndpoints = ['/api/my/designer-profile', '/api/customer/session'];
   let sessionCheckBusy = false;
   async function refreshSignout() {
@@ -114,8 +150,8 @@
     sessionCheckBusy = true;
     try {
       const responses = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
-      if (responses.some(response => response.ok)) signout.hidden = false;
-      else if (responses.every(response => [401,403,404].includes(response.status))) signout.hidden = true;
+      if (responses.some(response => response.ok)){signout.hidden=false;join.textContent='My dashboard';}
+      else if (responses.every(response => [401,403,404].includes(response.status))){signout.hidden=true;join.textContent='Sign in / Join';}
     } catch {} finally { sessionCheckBusy = false; }
   }
   signout.addEventListener('click', async () => {
@@ -146,20 +182,23 @@
   if (account) new MutationObserver(() => void refreshSignout()).observe(account, {childList:true,subtree:true,characterData:true});
 
   // Persistent designer mailbox uses the existing private notification/read-state API.
-  const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=true;
+  const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=false;
   const mailbox=document.createElement('button');mailbox.type='button';mailbox.className='hob-mailbox';
   mailbox.setAttribute('aria-label','Designer mailbox');mailbox.setAttribute('aria-expanded','false');mailbox.setAttribute('aria-controls','hob-mailbox-panel');
   mailbox.innerHTML='<svg class="hob-mailbox-icon" viewBox="0 0 64 56" width="38" height="34" aria-hidden="true"><path d="M12 43V23a17 17 0 0 1 34 0v20H12Z" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="2.5"/><path d="M12 43h42V25c0-10-7-19-17-19M20 43v10m21-10v10M47 22V8h10v9H47" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="hob-mailbox-heart" d="M29 24c-7-8-16 3 0 13 16-10 7-21 0-13Z" fill="currentColor"/></svg>';
   const count=document.createElement('span');count.className='hob-mailbox-count';count.hidden=true;mailbox.append(count);
   const panel=document.createElement('div');panel.id='hob-mailbox-panel';panel.className='hob-mailbox-panel';panel.hidden=true;
-  mailboxWrap.append(mailbox,panel);actions.prepend(mailboxWrap);
+  mailboxWrap.append(mailbox,panel);actions.append(mailboxWrap);
+  const cartControl=actions.querySelector('.hob-global-cart-button,.hob-global-cart-link');
+  nav.append(themeButton,searchToggle,links,mailboxWrap);if(cartControl)nav.append(cartControl);nav.classList.add('hob-ordered-menu');
+  const guestInbox=()=>{panel.replaceChildren();const link=document.createElement('a');link.href='/join.html';link.textContent='Sign in to see your mailbox';panel.append(link);};guestInbox();
   let mailboxBusy=false;
   async function refreshMailbox(){
     if(mailboxBusy||document.visibilityState==='hidden')return;
     mailboxBusy=true;
     try{
       const response=await fetch('/api/my/designer-notifications',{credentials:'same-origin',cache:'no-store'});
-      if([401,403].includes(response.status)){mailboxWrap.hidden=true;panel.hidden=true;mailbox.setAttribute('aria-expanded','false');return;}
+      if([401,403].includes(response.status)){guestInbox();return;}
       if(!response.ok)return;
       const data=await response.json();if(!Array.isArray(data.items))return;
       const unread=Number(data.unread)||0;mailboxWrap.hidden=false;mailbox.classList.toggle('has-unread',unread>0);

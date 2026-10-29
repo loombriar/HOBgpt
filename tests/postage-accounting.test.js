@@ -79,3 +79,33 @@ test('a carrier adjustment after payout is review-only and cannot cause a second
   assert.equal(f.db.prepare("SELECT status FROM postage_adjustments WHERE adjustment_id='late-invoice'").get().status,'review_required');
  }finally{await f.close();}
 });
+
+test('admin postage queue includes uncertain labels before a charge exists, with mode isolation and no duplicates',async()=>{
+ for(const testMode of [false,true]){
+  const f=await fixture({testMode});try{
+   const insert=f.db.prepare("INSERT INTO shipping_labels (order_id,designer_id,quote_id,rate_id,cost_cents,status,test_mode,created_at) VALUES ('order','maker','quote','rate',610,?,?,?)");
+   for(const status of ['processing','review_required']){
+    insert.run(status,Number(testMode),Date.now());
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM postage_charges').get().n,0);
+    const response=await f.request('/api/admin/operations','GET');
+    assert.equal(response.status,200);
+    assert.equal(response.body.postageReviews.length,1);
+    const row=response.body.postageReviews[0];
+    assert.equal(row.orderId,'order');assert.equal(row.designerId,'maker');
+    assert.equal(row.postageHold,true);assert.equal(row.testMode,testMode);
+    assert.equal(row.postageChargedCents,0);
+    assert.equal((await f.release()).body.results[0].reason,'postage_review_required');
+    f.db.exec('DELETE FROM shipping_labels');
+   }
+   insert.run('review_required',Number(!testMode),Date.now());
+   assert.deepEqual((await f.request('/api/admin/operations','GET')).body.postageReviews,[]);
+   f.db.exec('DELETE FROM shipping_labels');
+   insert.run('review_required',Number(testMode),Date.now());
+   f.charge();
+   assert.equal((await f.request('/api/admin/operations','GET')).body.postageReviews.length,1);
+   f.db.exec("UPDATE shipping_labels SET status='ready'");
+   assert.deepEqual((await f.request('/api/admin/operations','GET')).body.postageReviews,[]);
+   assert.equal(f.calls.length,0);
+  }finally{await f.close();}
+ }
+});

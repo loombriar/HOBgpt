@@ -210,7 +210,15 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     const explore=footer.locator('details.footer-menu').filter({has:page.locator('summary').filter({hasText:/^Explore$/})});
     await expect(explore).not.toHaveAttribute('open','');
     if(viewport.width===390){
-      expect((await footer.boundingBox()).height).toBeLessThan(360);
+      // The expanded footer intentionally includes the brand emblem and payment logos.
+      expect((await footer.boundingBox()).height).toBeLessThan(1100);
+      const payments=footer.getByRole('region',{name:'Accepted payments'});
+      const applePay=payments.getByRole('img',{name:'Apple Pay',exact:true});
+      await expect(applePay).toBeVisible();
+      await expect(applePay).toHaveAttribute('src','/payment-logos/applepay.svg');
+      await expect(payments.getByRole('img',{name:'Visa',exact:true})).toBeVisible();
+      await expect(page.locator('.shop-search-controls')).toBeHidden();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       await footer.locator('#admin-review-btn').scrollIntoViewIfNeeded();
       await expect(footer.locator('#admin-review-btn')).toBeInViewport();
     }
@@ -256,22 +264,23 @@ test('customers verify email, get a private account and appear once in the Admin
 
 
 test('donation button starts checkout with its displayed amount and shows provider errors', async ({ page }) => {
-  await page.route('**/api/donations/session', route => route.fulfill({
+  await page.route('**/api/paypal/donations/order', route => route.fulfill({
     status: 503, contentType: 'application/json',
     body: JSON.stringify({ error: { message: 'Checkout is temporarily unavailable. Please try again.' } })
   }));
   await page.goto('/#support');
   await expect(page.locator('#donation-amount')).toHaveValue('25');
-  await page.getByRole('button', { name: 'Give by card / bank' }).click();
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
   await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
-  await expect(page.getByRole('button', { name: 'Give by card / bank' })).toBeEnabled();
-  await page.unroute('**/api/donations/session');
-  await page.route('**/api/donations/session', async route => {
+  await expect(page.getByRole('button', { name: 'Donate with PayPal' })).toBeEnabled();
+  await page.unroute('**/api/paypal/donations/order');
+  await page.route('**/api/paypal/donations/order', async route => {
     expect(route.request().postDataJSON().amount).toBe(25);
-    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: '/?donation=canceled' }) });
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: 'https://www.paypal.com/checkoutnow?token=FIXTURE' }) });
   });
-  await page.getByRole('button', { name: 'Give by card / bank' }).click();
-  await expect(page.getByText('Your donation checkout was canceled.', { exact: true })).toBeVisible();
+  await page.route('https://www.paypal.com/**',route=>route.fulfill({body:'PayPal approval fixture'}));
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
+  await expect(page).toHaveURL('https://www.paypal.com/checkoutnow?token=FIXTURE');
 });
 
 for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
@@ -285,7 +294,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     expect(inputBox.height).toBeGreaterThanOrEqual(48);
     await amount.fill('10');
     await expect(amount).toHaveValue('10');
-    const buttonBox = await page.getByRole('button', { name: 'Give by card / bank' }).boundingBox();
+    const buttonBox = await page.getByRole('button', { name: 'Donate with PayPal' }).boundingBox();
     expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
   });
 }

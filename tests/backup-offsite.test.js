@@ -54,3 +54,33 @@ test('virtual-host S3 requests sign and send requests to bucket hostname',async(
  try{assert.equal((await list()).length,1);}
  finally{global.fetch=before;keys.forEach((key,i)=>{if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i];});}
 });
+
+
+test('offsite work is writable outside the application tree and isolated between runs',()=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {prepareWorkDirectory}=require('../scripts/backup-offsite');
+ const first=prepareWorkDirectory(),second=prepareWorkDirectory();
+ try{
+  assert.equal(path.dirname(first),os.tmpdir());
+  assert.notEqual(first,second);
+  const snapshot=path.join(first,'snapshot');
+  fs.mkdirSync(snapshot);
+  fs.writeFileSync(path.join(snapshot,'manifest.json'),'{}');
+  assert.equal(fs.readFileSync(path.join(snapshot,'manifest.json'),'utf8'),'{}');
+  fs.rmSync(second,{recursive:true,force:true});
+  assert.equal(fs.existsSync(snapshot),true);
+ }finally{for(const dir of [first,second])fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('explicit backup work directory remains supported',()=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {prepareWorkDirectory}=require('../scripts/backup-offsite');
+ const parent=fs.mkdtempSync(path.join(os.tmpdir(),'backup-override-test-'));
+ try{
+  const root=path.join(parent,'work');
+  assert.equal(prepareWorkDirectory(root),root);
+  fs.writeFileSync(path.join(root,'stale'),'old');
+  assert.equal(prepareWorkDirectory(root),root);
+  assert.deepEqual(fs.readdirSync(root),[]);
+ }finally{fs.rmSync(parent,{recursive:true,force:true});}
+});

@@ -20,9 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf 
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
+# Retain the compiled storefront, not its build-time dependency tree or test fixtures.
+# The server serves apps/default/dist; frontend node_modules are build-only.
+RUN test -d /app/apps/default/dist \
+ && rm -rf /app/apps/default/node_modules \
+    /app/apps/default/src /app/apps/default/scripts \
+    /app/apps/default/test /app/apps/default/tests \
+    /app/tests /app/e2e /app/docs /app/.github /app/.git \
+    /app/playwright.config.js /app/playwright.config.ts
 # Run the HTTP process without root privileges. Persistent data must be writable by UID 1000.
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["npm","start"]
+# Launch the authenticated ingress directly; ENTRYPOINT drops to UID 1000.
+CMD ["node","scripts/start-ingress.js"]

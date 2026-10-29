@@ -101,3 +101,39 @@ test('creative specialties migrate old profiles and remain private across legacy
   const designers=await f.call('/api/creative-house/profiles','GET',undefined,'seller');assert.equal(designers.body.profiles[0].specialties,'Runway, Editorial');
  }finally{await f.close();}
 });
+
+test('networking preferences include wedding attire and repairs and survive edits without exposing account identities',async()=>{
+ const f=await fixture();try{
+  const owner=await f.customer('network@example.test');
+  const profile={display_name:'Wedding Studio',role:'designer',location:'Ohio',bio:'Wedding attire, repair and alteration collaboration.',published:true,openTo:['wedding-attire','repairs-alterations','paid-work']};
+  const saved=await f.call('/api/creative-house/my-profile','PUT',profile,owner);assert.equal(saved.status,200);
+  const slug=saved.body.profile.slug;
+  let data=await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,'seller');assert.deepEqual(data.body.profile.openTo,profile.openTo);assert.ok(!JSON.stringify(data.body).includes('owner_subject'));assert.ok(!JSON.stringify(data.body).includes('network@example.test'));
+  assert.equal((await f.call('/api/creative-house/my-profile','PUT',{...profile,openTo:['invalid']},owner)).status,422);
+  const {openTo,...legacy}=profile;await f.call('/api/creative-house/my-profile','PUT',legacy,owner);
+  await f.restart();data=await f.call('/api/creative-house/my-profile','GET',undefined,owner);assert.deepEqual(data.body.profile.openTo,openTo);
+  await f.call('/api/creative-house/my-profile','PUT',{...profile,openTo:[]},owner);assert.deepEqual((await f.call('/api/creative-house/profiles/'+slug,'GET',undefined,'seller')).body.profile.openTo,[]);
+ }finally{await f.close();}
+});
+test('wedding and repair briefs are validated, isolated, reportable and blocked at the server',async()=>{
+ const f=await fixture();try{
+  const owner=await f.customer('network-recipient@example.test'),other=await f.customer('network-other@example.test');
+  const p=await f.call('/api/creative-house/my-profile','PUT',{display_name:'Alterations Studio',role:'designer',published:true},owner);
+  const brief={recipient_kind:'talent',recipient_slug:p.body.profile.slug,subject:'Wedding attire collaboration',message:'Looking for a collaborator for wedding party alterations.',projectType:'wedding-attire',compensation:'paid',budget:'$400 total',projectLocation:'Columbus, Ohio',startDate:'2027-06-01',endDate:'2027-06-10'};
+  for(const change of [{budget:''},{startDate:'2027-02-30'},{endDate:'2027-05-01'},{projectType:'invalid'},{compensation:'exposure'}])assert.equal((await f.call('/api/creative-house/inquiries','POST',{...brief,...change},'seller')).status,422);
+  assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM creative_inquiries').get().n,0);
+  assert.equal((await f.call('/api/creative-house/inquiries','POST',brief,'seller')).status,201);
+  const inbox=await f.call('/api/creative-house/my-inquiries','GET',undefined,owner);assert.equal(inbox.response.headers.get('cache-control'),'no-store');const item=inbox.body.inquiries[0];assert.equal(JSON.parse(item.collaboration_json).budget,'$400 total');assert.ok(item.sender_name);assert.ok(!JSON.stringify(inbox.body).includes('network-recipient@example.test'));
+  const route='/api/creative-house/my-inquiries/'+item.id;
+  assert.equal((await f.call(route+'/block','POST',{},other)).status,404);
+  assert.equal((await f.call(route+'/report','POST',{reason:'Unwanted request'},other)).status,404);
+  assert.equal((await f.call(route+'/block','POST',{},owner,'https://evil.example')).status,403);
+  assert.equal((await f.call(route+'/report','POST',{reason:'Unwanted request'},owner)).status,200);
+  assert.equal((await f.call(route+'/report','POST',{reason:'Unwanted request'},owner)).status,200);
+  assert.equal(f.ctx.db.prepare("SELECT COUNT(*) n FROM support_messages WHERE category='creative_safety'").get().n,1);
+  assert.equal((await f.call(route+'/block','POST',{},owner)).status,200);
+  assert.equal((await f.call('/api/creative-house/inquiries','POST',brief,'seller')).status,404);
+  assert.equal((await f.call(route+'/unblock','POST',{},owner)).status,200);
+  assert.equal((await f.call('/api/creative-house/inquiries','POST',{...brief,projectType:'repairs-alterations'},'seller')).status,201);
+ }finally{await f.close();}
+});

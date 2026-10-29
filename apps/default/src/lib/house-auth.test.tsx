@@ -18,3 +18,30 @@ describe('House session bridge',()=>{
 });
 
 it('recognizes an email-verified customer session without granting a designer identity',async()=>{vi.stubGlobal('window',{location:{origin:'https://houseofbriar.shop'}});const request=vi.fn(async(url:string)=>url==='/api/my/designer-profile'?new Response('{}',{status:401}):new Response(JSON.stringify({customer:{id:'guest',name:'Guest',email:'guest@example.test'}})));const user=await validateHouseSession(request as typeof fetch);expect(user?.profile.sub).toBe('customer:guest');expect(user?.access_token).toBe('');});
+
+ it.each(['http', 'network'])('attempts customer revocation even if designer revocation fails (%s)',async failure=>{
+  const request=vi.fn(async(url:RequestInfo | URL)=>{
+   if(url==='/api/session'){
+    if(failure==='network')throw new Error('Connection interrupted');
+    return new Response('{}',{status:503});
+   }
+   return new Response('{}');
+  });
+  await expect(revokeHouseSessions(request as typeof fetch)).rejects.toThrow('Sign-out could not be completed');
+  expect(request.mock.calls.map(call=>call[0])).toEqual(['/api/session','/api/customer/session']);
+ });
+ it('waits for both revocations before reporting a failure',async()=>{
+  let finishCustomer!:()=>void;
+  const pendingCustomer=new Promise<void>(resolve=>{finishCustomer=resolve;});
+  const request=vi.fn(async(url:RequestInfo | URL)=>{
+   if(url==='/api/session')return new Response('{}',{status:503});
+   await pendingCustomer;
+   return new Response('{}');
+  });
+  let settled=false;
+  const result=revokeHouseSessions(request as typeof fetch).catch(error=>{settled=true;return error;});
+  await Promise.resolve();await Promise.resolve();
+  expect(settled).toBe(false);
+  finishCustomer();
+  expect(await result).toBeInstanceOf(Error);
+ });

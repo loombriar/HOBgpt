@@ -109,7 +109,7 @@
 .briar-house-link:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* Fashion editorial palette shared with the public storefront. */
-:root { --genesis-default-theme: dark; --background: 40 27% 97%; --foreground: 0 3% 13%; --card: 40 25% 98%; --card-foreground: 0 3% 13%; --popover: 40 25% 98%; --popover-foreground: 0 3% 13%; --primary: 0 3% 13%; --primary-foreground: 40 27% 97%; --secondary: 18 23% 91%; --secondary-foreground: 0 3% 13%; --accent: 12 27% 90%; --accent-foreground: 0 3% 13%; --muted: 40 14% 91%; --muted-foreground: 0 2% 40%; --border: 30 9% 82%; --input: 30 9% 82%; --ring: 0 3% 30%; --radius: .2rem; }
+:root { --genesis-default-theme: light; --background: 40 27% 97%; --foreground: 0 3% 13%; --card: 40 25% 98%; --card-foreground: 0 3% 13%; --popover: 40 25% 98%; --popover-foreground: 0 3% 13%; --primary: 0 3% 13%; --primary-foreground: 40 27% 97%; --secondary: 18 23% 91%; --secondary-foreground: 0 3% 13%; --accent: 12 27% 90%; --accent-foreground: 0 3% 13%; --muted: 40 14% 91%; --muted-foreground: 0 2% 40%; --border: 30 9% 82%; --input: 30 9% 82%; --ring: 0 3% 30%; --radius: .2rem; }
 .dark { --background: 0 3% 10%; --foreground: 40 27% 95%; --card: 0 3% 13%; --card-foreground: 40 27% 95%; --popover: 0 3% 13%; --popover-foreground: 40 27% 95%; --primary: 18 23% 85%; --primary-foreground: 0 3% 10%; --secondary: 0 3% 19%; --secondary-foreground: 40 27% 95%; --accent: 0 3% 21%; --accent-foreground: 40 27% 95%; --muted: 0 3% 18%; --muted-foreground: 30 8% 70%; --border: 0 2% 29%; --input: 0 2% 29%; --ring: 18 23% 85%; }
 .fashion-app :is(.rounded-2xl,.rounded-3xl,.rounded-full) { border-radius: 3px; }
 .fashion-app h1 { font-weight:400; letter-spacing:-.045em; }
@@ -164,3 +164,107 @@ html[data-hob-theme=dark] .hob-mailbox,.dark .hob-mailbox{background:#30282a!imp
 html[data-hob-theme=dark] .hob-mailbox-panel{background:#30282a;color:#f3e6da}
 @keyframes hob-heart-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media(prefers-reduced-motion:no-preference){.hob-mailbox.has-unread .hob-mailbox-heart{animation:hob-heart-pulse 1.8s ease-in-out infinite}}
+/* Compact reference footer, shared visually by both page shells. */
+html body footer.house-footer-enhanced .house-footer-bar{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;gap:16px!important;min-height:52px!important;padding:7px 22px!important;margin:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important;background:#080808!important;color:#fff!important;border-top:0!important;border-bottom:2px solid #2862c5!important;border-radius:0!important}
+html body footer.house-footer-enhanced .house-footer-bar .copyright{margin:0!important;color:#fff!important;font:600 12px/1.5 Arial,sans-serif!important}
+html body footer.house-footer-enhanced .house-footer-socials{display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important}
+html body footer.house-footer-enhanced .house-footer-socials a{display:flex!important;align-items:center!important;justify-content:center!important;width:36px!important;height:36px!important;border-radius:50%!important;background:#202020!important;color:#fff!important;text-decoration:none!important;font:700 20px/1 Arial,sans-serif!important}
+html body footer.house-footer-enhanced .house-footer-payment-logos{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important}
+html body footer.house-footer-enhanced .house-footer-payment-logos img{display:block!important;width:37px!important;height:24px!important;object-fit:contain!important;box-sizing:border-box!important;background:#fff!important;border:0!important;padding:1px!important;border-radius:2px!important;filter:none!important}
+.house-inline-payment-logos{display:flex;flex-wrap:wrap;gap:5px}.house-inline-payment-logos img{width:40px!important;height:26px!important;background:#fff!important;object-fit:contain;padding:2px;border-radius:2px}
+.house-react-footer{border-top:1px solid #444}.house-footer-policies{padding:8px 22px;font-size:12px}.house-footer-policies summary{cursor:pointer}.house-footer-policies nav{display:flex;flex-wrap:wrap;gap:16px;padding:12px 0}.house-footer-policies a{text-decoration:underline}
+html body footer.house-footer-enhanced .house-footer-support-links{display:flex;justify-content:flex-end;gap:16px;padding:8px 22px;font-size:12px}
+@media(max-width:700px){html body footer.house-footer-enhanced .house-footer-bar{grid-template-columns:minmax(0,1fr)!important;justify-items:center!important;gap:10px!important;padding:12px!important;text-align:center!important}html body footer.house-footer-enhanced .house-footer-payment-logos{justify-content:center!important}}
+
+/* Flat footer links above the payment strip. */
+.house-footer-link-row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px 24px;padding:12px 24px;box-sizing:border-box;font:13px/1.5 Arial,sans-serif;color:inherit}
+.house-footer-link-row .footer-brand{display:flex!important;align-items:center!important;gap:12px!important;margin:0!important}
+.house-footer-link-row .footer-kicker{margin:0!important;font-size:10px!important}
+.house-footer-link-row .brand-name{font-size:20px!important;text-decoration:none!important}
+html body .house-footer-link-row :is(.footer-story,.footer-menu,.house-footer-policies){position:relative!important;flex:0 0 auto!important;width:auto!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;color:inherit!important}
+html body .house-footer-link-row summary{display:list-item!important;padding:0!important;min-height:44px!important;line-height:44px!important;font:inherit;cursor:pointer;white-space:nowrap}
+.house-footer-link-row a,.house-footer-link-row button{color:inherit;min-height:44px;display:inline-flex;align-items:center;margin:0!important;font-size:13px!important;white-space:nowrap}
+html body .house-footer-link-panel{position:absolute;bottom:100%;left:0;z-index:50;display:flex;flex-direction:column;gap:8px;width:max-content;max-width:min(700px,calc(100vw - 32px));max-height:60vh;overflow:auto;padding:16px;background:var(--briar-card,#252523);color:var(--briar-ink,#f4f0e7);border:1px solid var(--briar-line,#777);box-sizing:border-box;box-shadow:0 4px 20px #0004}
+html body .house-footer-link-panel .story-section{margin:0!important;padding:0!important;background:inherit!important;color:inherit!important}
+html body .house-footer-link-panel .story-grid{display:block!important;padding:0!important}
+html body .house-footer-link-panel .story-visual{display:none!important}
+html body .house-footer-link-panel .story-copy{max-width:600px}
+.house-footer-link-row details:not([open])>.house-footer-link-panel{display:none!important}
+@media(max-width:900px){.house-footer-link-row{gap:4px 18px;padding:12px}.house-footer-link-row .footer-brand{flex-basis:100%;justify-content:center}.house-footer-link-panel{position:fixed!important;left:12px!important;right:12px!important;bottom:12px!important;width:auto!important;max-width:none!important}}
+/* A quiet, consistent finish for the rebuilt header and footer. */
+.house-footer-link-row{min-height:72px;border-top:1px solid var(--briar-line,#777);background:var(--briar-card,transparent);gap:10px 28px}
+.house-footer-link-row .footer-kicker{letter-spacing:.12em;opacity:.72}
+.house-footer-link-row a:hover,.house-footer-link-row summary:hover{text-decoration:underline;text-underline-offset:4px}
+.house-footer-link-row :is(a,button,summary):focus-visible{outline:2px solid currentColor;outline-offset:4px;border-radius:4px}
+html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search{gap:0!important;border-radius:999px!important;overflow:hidden}
+html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search input{border-radius:999px 0 0 999px!important;border-right:0!important}
+html body #hob-global-nav.hob-ordered-menu>.hob-sticky-search button{border-radius:0 999px 999px 0!important}
+@media(max-width:900px){html body .house-footer-link-panel{top:20%!important;bottom:auto!important;max-height:55vh!important}}
+
+/* Color studio: paired surfaces and ink for both explicit themes. */
+:root:root:root:root {
+ --genesis-default-theme:light;
+ --briar-paper:#f8f3fa;--briar-card:#fffafd;--briar-ink:#30233c;--briar-muted:#65536c;--briar-line:#b7a2bf;
+ --briar-mint:#d5eee5;--briar-coral:#f5d8e3;--briar-gold:#89601f;
+ --studio-jade:#216650;--studio-jade-ink:#ffffff;--studio-berry:#87355d;--studio-lilac:#e9ddf5;--studio-gold:#f5e6bb;
+ --house-paper:var(--briar-paper);--house-card:var(--briar-card);--house-ink:var(--briar-ink);--house-line:var(--briar-line);
+ --background:282 41% 97%;--foreground:277 26% 19%;--card:324 100% 99%;--card-foreground:277 26% 19%;
+ --popover:324 100% 99%;--popover-foreground:277 26% 19%;--primary:161 51% 26%;--primary-foreground:0 0% 100%;
+ --secondary:335 59% 90%;--secondary-foreground:277 26% 19%;--accent:270 55% 91%;--accent-foreground:277 26% 19%;
+ --muted:270 27% 93%;--muted-foreground:283 13% 37%;--border:282 18% 69%;--input:282 18% 69%;--ring:161 51% 26%;
+}
+html.dark.dark.dark.dark,html[data-hob-theme=dark]:root:root:root {
+ --briar-paper:#1c1724;--briar-card:#292132;--briar-ink:#f8edf7;--briar-muted:#d1bdd8;--briar-line:#80678d;
+ --briar-mint:#233f37;--briar-coral:#4b2a40;--briar-gold:#efcf8d;
+ --studio-jade:#9edfc4;--studio-jade-ink:#142b22;--studio-berry:#f0accb;--studio-lilac:#382a4b;--studio-gold:#473b22;
+ --background:263 22% 12%;--foreground:305 44% 95%;--card:268 20% 16%;--card-foreground:305 44% 95%;
+ --popover:268 20% 16%;--popover-foreground:305 44% 95%;--primary:155 50% 75%;--primary-foreground:156 35% 12%;
+ --secondary:320 28% 23%;--secondary-foreground:305 44% 95%;--accent:265 28% 23%;--accent-foreground:305 44% 95%;
+ --muted:268 19% 20%;--muted-foreground:283 26% 79%;--border:280 16% 48%;--input:280 16% 48%;--ring:155 50% 75%;
+}
+html:root:root {--studio-paper:var(--briar-paper);--studio-card:var(--briar-card);--studio-ink:var(--briar-ink);--studio-muted:var(--briar-muted);--studio-line:var(--briar-line);--studio-mint:var(--briar-mint);--studio-coral:var(--briar-coral)}
+html:root:root body.blackberry-house,html:root:root body.creative-makeover {
+ --briar-paper:var(--studio-paper);--briar-card:var(--studio-card);--briar-ink:var(--studio-ink);--briar-muted:var(--studio-muted);--briar-line:var(--studio-line);--briar-mint:var(--studio-mint);--briar-coral:var(--studio-coral);
+ background:var(--briar-paper)!important;color:var(--briar-ink)!important;
+}
+html:root body #hob-global-nav.hob-global-nav, .fashion-app .house-compact-header {
+ background:var(--briar-card)!important;color:var(--briar-ink)!important;border-bottom:3px solid var(--studio-jade)!important;
+}
+html:root body #hob-global-nav .hob-signup-banner {background:var(--studio-lilac)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html:root body.blackberry-house .hero.sewing-hero.fashion-cover,html:root body.creative-makeover main>.hero {
+ background:var(--studio-lilac)!important;color:var(--briar-ink)!important;border-bottom:1px solid var(--briar-line)!important;
+}
+html:root body.blackberry-house .hero .fashion-cover-copy {background:transparent!important;color:var(--briar-ink)!important}
+html:root body.blackberry-house .hero :is(h1,h2,p,.eyebrow){color:var(--briar-ink)!important}
+html:root body.blackberry-house :is(.primary-button,.sewing-hero-actions .secondary-button),html:root body.creative-makeover .creative-jump-links a {
+ background:var(--studio-jade)!important;color:var(--studio-jade-ink)!important;border-color:var(--studio-jade)!important;
+}
+html:root body.blackberry-house :is(.feature-bar,.house-shopping-promises,.hob-creative-statement),html:root body.creative-makeover .creative-jump-panel {
+ background:var(--briar-mint)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important;
+}
+html:root body.blackberry-house :is(.briar-editorial-poster,.briar-invitation,.designer-callout-section){background:var(--briar-coral)!important;color:var(--briar-ink)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n+1){background:var(--briar-mint)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n+2){background:var(--studio-lilac)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a:nth-child(3n){background:var(--briar-coral)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a {color:var(--briar-ink)!important;border-top:4px solid var(--studio-berry)!important}
+html:root body.blackberry-house .hob-creator-spotlight-grid>a :is(h2,h3,p,span){color:inherit!important}
+html:root body.blackberry-house #support .curation-card {background:var(--studio-gold)!important;border-color:var(--briar-line)!important}
+html:root body.blackberry-house #support .curation-card,html:root body.blackberry-house #support .curation-card :is(h3,p,label,.curation-number,.supporter-thanks){color:var(--briar-ink)!important}
+html:root body.blackberry-house :is(input,textarea,select,.app-dialog),html:root body #hob-global-nav :is(.hob-creative-menu-panel,.hob-seamstress-menu-panel,.hob-mailbox-panel){background:var(--briar-card)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+html:root body #hob-global-nav :is(a,button){color:inherit!important}
+html:root body .house-footer-link-row {background:var(--briar-mint)!important;color:var(--briar-ink)!important;border-color:var(--briar-line)!important}
+.fashion-app .house-shop-heading {background:var(--studio-lilac);border:1px solid hsl(var(--border));padding:clamp(18px,3vw,32px);border-radius:16px;align-items:center;flex-wrap:wrap}
+.fashion-app .house-shop-note {background:var(--briar-mint);color:var(--briar-ink)}
+.fashion-app .house-product-card {border-radius:16px;overflow:hidden;border-top:3px solid var(--studio-berry)}
+.fashion-app .house-product-card:nth-child(3n+2){border-top-color:var(--studio-jade)}
+.fashion-app .house-product-card:nth-child(3n){border-top-color:var(--briar-gold)}
+.fashion-app .house-outline-link {border-color:var(--studio-jade);color:var(--studio-jade)}
+html body :is(a,button,input,select,textarea,summary):focus-visible {outline:3px solid var(--studio-jade);outline-offset:3px}
+
+/* Readable footer navigation, independently of the black payment strip. */
+html:root:root body .house-footer-link-row {
+ --briar-ink:var(--studio-ink);--briar-muted:var(--studio-muted);--briar-line:var(--studio-line);
+ color:var(--studio-ink)!important;background:var(--studio-mint)!important;
+}
+html:root:root body .house-footer-link-row :is(a,button,summary,p,span,.brand-name,.footer-kicker){color:var(--studio-ink)!important;opacity:1!important}
+html:root:root body .house-footer-link-row .house-footer-link-panel{color:var(--studio-ink)!important;background:var(--studio-card)!important;border-color:var(--studio-line)!important}

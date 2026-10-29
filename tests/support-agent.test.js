@@ -20,3 +20,15 @@ test('provider failure after escalation still returns the actual ticket and neve
  const result=await call({allowEscalation:true});assert.equal(result.status,200);assert.ok(result.body.ticketId);assert.equal(result.body.answer.includes('No refund or account change'),true);assert.equal(JSON.stringify(result.body).includes('PROVIDER_SECRET'),false);assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM support_messages').get().n,1);
 },turn=>{if(turn===1)return response([tool('escalate_to_house',{message:'Ask human support',category:'general'})]);throw Error('PROVIDER_SECRET');}));
 test('tool loops are bounded and cannot change order state',async()=>fixture(async({ctx,calls,call})=>{const result=await call();assert.equal(result.status,200);assert.equal(calls.length,3);assert.equal(ctx.db.prepare("SELECT status FROM orders WHERE id='order-a'").get().status,'paid');},()=>response([tool('lookup_order',{orderId:'order-a'})])));
+
+
+test('provider diagnostics expose only safe status metadata',async()=>{
+ const before=console.error,logs=[];console.error=(...args)=>logs.push(args.join(' '));
+ try{await fixture(async({call})=>{
+  const result=await call();assert.equal(result.status,502);
+  const log=logs.find(line=>line.startsWith('House support request failed:'));
+  assert.ok(log);assert.match(log,/"phase":"provider"/);assert.match(log,/"providerHttpStatus":429/);
+  for(const secret of ['PROVIDER_SECRET','private-a@example.test','test-provider-key','Where is my order?'])assert.equal(log.includes(secret),false);
+ },()=>({ok:false,status:429,json:async()=>({error:{message:'PROVIDER_SECRET'},status:'PROVIDER_SECRET'})}));}
+ finally{console.error=before;}
+});

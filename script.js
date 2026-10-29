@@ -11,6 +11,12 @@ if (scrollingHeader) {
 let customerSignedIn = false;
 let customerSigninRequest = '';
 let reviewerVerificationRequested = new URLSearchParams(window.location.search).get('reviewerVerify') === '1';
+const seamstressIntent = ['signin','signup'].includes(new URLSearchParams(window.location.search).get('seamstress')) ? new URLSearchParams(window.location.search).get('seamstress') : '';
+const seamstressDestination = seamstressIntent === 'signin' ? '/sewing-services.html#service-inbox' : '/sewing-services.html#offer-services';
+const creativeRole=new URLSearchParams(window.location.search).get('creative');
+const creativeDestination=['model','photographer','dj','venue'].includes(creativeRole)?'/creative-house.html?join='+creativeRole+(['dj','venue'].includes(creativeRole)?'#event-profile-editor':'#your-profile'):'';
+const roleDestination=seamstressIntent?seamstressDestination:creativeDestination;
+
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -57,11 +63,12 @@ function showCheckoutReturnStatus() {
   if (checkout === 'success') notice.textContent = 'Thank you. Your payment was submitted. Bank payments may remain pending until Stripe confirms they have cleared.';
   else if (checkout === 'canceled') notice.textContent = 'Checkout was canceled. Your payment was not completed.';
   else if (donation === 'success') notice.textContent = 'Thank you for supporting House of Briar. Bank donations may remain pending until Stripe confirms they have cleared.';
+  else if (donation === 'pending' || donation === 'paypal-success') notice.textContent = 'Your PayPal donation is awaiting confirmation. Please do not pay again; we will check its status automatically.';
   else notice.textContent = 'Your donation checkout was canceled.';
   document.body.prepend(notice);
   history.replaceState({}, '', window.location.pathname + window.location.hash);
 }
-window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
+window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('token')||params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{const result=await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation',result.status==='paid'?'success':'pending');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
 
 const byId = (id) => document.getElementById(id);
 const year = byId('year');
@@ -109,7 +116,6 @@ const productForm = byId('product-form');
 const photoInput = byId('product-photos');
 const photoPreview = byId('photo-preview');
 const uploadMessage = byId('upload-message');
-const fabricFinderForm = byId('fabric-finder-form');
 const fabricFinderPhotos = byId('fabric-finder-photos');
 const fabricFinderMessage = byId('fabric-finder-message');
 const fabricFinderResult = byId('fabric-finder-result');
@@ -442,7 +448,7 @@ updateCartButton();
 renderVisitorFavorites();
 cartButton?.addEventListener('click', openCart);
 checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
-paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal / Venmo';}});
+paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal';}});
 byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
 byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
 
@@ -541,6 +547,9 @@ async function apiRequest(url, options = {}) {
   try { payload = await response.json(); } catch {}
 
   if (!response.ok) {
+    if (response.status === 401 && designerToken && url.startsWith('/api/my/')) {
+      expireDesignerSession();
+    }
     const message = payload?.error?.message || `Request failed (${response.status})`;
     const error = new Error(message);
     error.status = response.status;
@@ -992,10 +1001,12 @@ function openProductDetails(item) {
 
 function resetListingForm() {
   if (productForm) {productForm.reset();syncSellerTypes();}
+  productForm?.querySelectorAll('.listing-edit-options').forEach(panel=>{panel.open=false;});
   currentListingId = '';
   currentIdempotencyKey = '';
   if (productIdInput) productIdInput.value = '';
   if (listingFormTitle) listingFormTitle.textContent = 'Add a design';
+  const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent='Create a piece';
   selectedImages.forEach((item) => {
     if (item.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(item.objectUrl);
   });
@@ -1020,13 +1031,18 @@ function renderSelectedImages() {
     img.src = image.objectUrl || image.url;
     img.alt = image.name || `Image ${index + 1}`;
     item.appendChild(img);
-    item.appendChild(makeElement('span', 'photo-order-label', index === 0 ? 'Cover' : String(index + 1)));
+    item.appendChild(makeElement('span', 'photo-order-label', index === 0 ? 'Main photo' : String(index + 1)));
 
     const info = makeElement('div', 'photo-preview-meta');
     info.appendChild(makeElement('strong', '', image.name || `Image ${index + 1}`));
     const statusText = image.status === 'uploading' ? 'Uploading…' : image.status === 'ready' ? 'Ready' : image.status === 'failed' ? (image.error || 'Failed') : 'Queued';
     info.appendChild(makeElement('span', '', `${statusText}${image.size ? ` · ${formatBytes(image.size)}` : ''}`));
     item.appendChild(info);
+    const mainPhoto=document.createElement('button');mainPhoto.type='button';mainPhoto.className='secondary-button photo-main-button';
+    mainPhoto.textContent=index===0?'Main photo':'Make main photo';mainPhoto.disabled=index===0;
+    mainPhoto.setAttribute('aria-label',index===0?'Main photo, photo 1':`Make photo ${index+1} the main photo`);
+    mainPhoto.addEventListener('click',()=>{const current=selectedImages.indexOf(image);if(current<1)return;selectedImages.splice(current,1);selectedImages.unshift(image);renderSelectedImages();setMessage(uploadMessage,'Main photo selected. Choose Save changes to keep this photo order.','success');photoPreview.querySelector('.photo-main-button')?.focus();});
+    item.append(mainPhoto);
     const angle = document.createElement('select');
     angle.className = 'photo-angle-select';
     angle.setAttribute('aria-label', `Photo ${index + 1} angle`);
@@ -1034,7 +1050,7 @@ function renderSelectedImages() {
       const option=document.createElement('option'); option.value=value; option.textContent=label; angle.appendChild(option);
     });
     angle.value=image.angle || ''; angle.addEventListener('change',()=>{ image.angle=angle.value; });
-    item.appendChild(angle);
+    const options=document.createElement('details');options.className='photo-options';const optionsTitle=document.createElement('summary');optionsTitle.textContent='Arrange or remove';options.append(optionsTitle,angle);item.append(options);
 
     const actions = makeElement('div', 'photo-preview-actions');
     const moveUp = document.createElement('button');
@@ -1081,7 +1097,7 @@ function renderSelectedImages() {
     });
     actions.appendChild(remove);
 
-    item.appendChild(actions);
+    options.appendChild(actions);
     photoPreview.appendChild(item);
   });
   if(byId('listing-preview')?.open)renderListingDraftPreview();
@@ -1141,14 +1157,15 @@ function renderFabricFinderResult(analysis = {}, disclaimer = '') {
   use.addEventListener('click', () => {
     if (byId('product-materials') && analysis.listingMaterialSuggestion) byId('product-materials').value = analysis.listingMaterialSuggestion;
     if (byId('product-care') && Array.isArray(analysis.careConsiderations)) byId('product-care').value = analysis.careConsiderations.join('; ');
-    byId('product-materials')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    for (const id of ['product-materials', 'product-care']) byId(id)?.dispatchEvent(new Event('input', { bubbles: true }));
+    scrollRoomTarget(byId('product-materials'), { block: 'center' });
   });
   fabricFinderResult.appendChild(use);
   if (disclaimer) fabricFinderResult.appendChild(makeElement('p', 'small-print', disclaimer));
   fabricFinderResult.classList.remove('hidden');
 }
 
-fabricFinderForm?.addEventListener('submit', async (event) => {
+byId('fabric-finder-submit')?.addEventListener('click', async (event) => {
   event.preventDefault();
   const files = Array.from(fabricFinderPhotos?.files || []);
   if (!files.length || files.length > 3) { setMessage(fabricFinderMessage, 'Choose between one and three fabric photos.', 'error'); return; }
@@ -1288,6 +1305,8 @@ async function handleSave(event) {
   const values = readFormValues();
   const validationError = validateListingValues(values);
   if (validationError) {
+    renderListingReadiness();
+    const missing=productForm?.querySelector('[aria-invalid="true"]:required')||productForm?.querySelector('[aria-invalid="true"]');if(missing){for(let p=missing.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;missing.scrollIntoView({block:'center',behavior:'smooth'});missing.focus({preventScroll:true});}
     setMessage(uploadMessage, validationError, 'error');
     return;
   }
@@ -1338,7 +1357,7 @@ async function handleSave(event) {
     }
 
     const failedPhotos=selectedImages.filter(image=>image.status==='failed');
-    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : 'Draft saved successfully.', failedPhotos.length ? 'error' : 'success');
+    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : (action === 'save' ? 'Changes saved successfully.' : 'Draft saved successfully.'), failedPhotos.length ? 'error' : 'success');
     await loadDesignerListings();
   } catch (error) {
     setMessage(uploadMessage, error.message, 'error');
@@ -1464,6 +1483,12 @@ async function loadDesignerListings() {
       edit.className = 'text-button';
       edit.addEventListener('click', () => editListing(listing.id));
       if (['draft', 'rejected', 'published'].includes(listing.status)) actions.appendChild(edit);
+      if(['draft','rejected'].includes(listing.status)){
+        const confirm=makeElement('label','check-label small-print');const consent=document.createElement('input');consent.type='checkbox';confirm.append(consent,document.createTextNode('I confirm this is my original or independently designed work and follows the marketplace rules.'));
+        const submit=makeElement('button','secondary-button','Submit for review');submit.type='button';submit.disabled=true;consent.addEventListener('change',()=>{submit.disabled=!consent.checked;});
+        submit.addEventListener('click',async()=>{submit.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketplaceRulesAccepted:true})});await loadDesignerListings();setMessage(byId('designer-listings-message'),'Submitted for review. Your piece stays private until approved.','success');}catch(error){setMessage(byId('designer-listings-message'),error.message,'error');submit.disabled=!consent.checked;}});
+        actions.append(confirm,submit);
+      }
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Delete';
@@ -1556,6 +1581,7 @@ async function editListing(listingId) {
       });
     }
     renderSelectedImages();
+    const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent=`Editing: ${listing.title}`;
     scrollRoomTarget(byId('product-form'),{behavior:'smooth',block:'start'});
     setMessage(uploadMessage, listing.moderationReason ? `Changes requested: ${listing.moderationReason}. Save your changes, then submit for review again.` : listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
   } catch (error) {
@@ -1579,16 +1605,16 @@ function renderSellerReadiness(){
   const profileReady=Boolean(profile?.brandName?.trim()&&profile?.bio?.trim()&&profile?.location?.trim());
   const stages=[
     {label:'1. Prepare your profile · recommended',optional:true,done:profileReady,hint:'Add your brand name, story and location. Recommended; this does not block selling.',action:'Edit designer profile',target:'designer-brand-form'},
-    {label:'2. Accept the delivery terms',done:accepted,hint:'Customers get free US delivery. You cover postage, so include it in your price.',action:'Review and accept terms',target:'seller-terms-form'},
-    {label:'3. Finish payment setup',done:payoutsReady,hint:'Stripe checks your details and sets up your bank account for designer earnings.',action:stripe?.connected?'Continue payment setup':'Set up payments',run:openStripeOnboarding},
-    {label:'4. Save your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
-    {label:'5. Submit for approval',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
+    {label:'2. Connect your payouts',done:accepted&&payoutsReady,hint:'No bank or payment details are needed to join or save drafts. Open payout settings when you choose to get ready to sell.',detail:'Delivery terms: '+(accepted?'Complete':'Action needed')+' · Stripe verification: '+(!stripe?'Checking…':payoutsReady?'Complete':'Action needed'),action:!accepted?'Review and accept terms':'Open payout settings',target:!accepted?'seller-terms-form':'designer-payout-settings'},
+    {label:'3. List your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
+    {label:'4. Get ready to sell',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
   ];
   list.replaceChildren();
   for(const stage of stages){
     const row=document.createElement('div');row.className='seller-readiness-item '+(stage.done?'is-complete':'is-pending');
     const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=stage.done?'✓':'○';mark.setAttribute('aria-hidden','true');
     const copy=document.createElement('div');copy.append(makeElement('strong','',stage.label));
+    if(stage.detail)copy.append(makeElement('span','seller-readiness-hint',stage.detail));
     if(!stage.done){
       copy.append(makeElement('span','seller-readiness-hint',stage.hint));
       const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';action.textContent=stage.action;
@@ -1596,7 +1622,7 @@ function renderSellerReadiness(){
         if(stage.run){stage.run();return;}
         const target=stage.target||stages.find(item=>!item.done&&item.target)?.target;
         if(target)scrollRoomTarget(byId(target),{behavior:'smooth',block:'start'});
-        else if(!payoutsReady)openStripeOnboarding();
+        else if(!payoutsReady)scrollRoomTarget(byId('designer-payout-settings'),{behavior:'smooth',block:'start'});
       });
       copy.append(action);
     }
@@ -1613,13 +1639,13 @@ function renderSellerReadiness(){
     }
   }
   if(badge){badge.textContent=ready?'Selling setup complete':!profile||!stripe?'Checking your setup…':accountReady?'Account ready · prepare your first approved piece':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
-  const complete=stages.filter(stage=>!stage.optional&&stage.done).length;
-  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. You can save private drafts while finishing setup.');
+  const complete=Number(accepted)+Number(payoutsReady)+Number(hasListing)+Number(listingReady);
+  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. Delivery terms, Stripe verification, a saved piece and approval are required. You can save private drafts while finishing setup.');
   let next=byId('seller-next-action');
   if(!next&&summary){next=document.createElement('div');next.id='seller-next-action';summary.after(next);}
   if(next){
     next.replaceChildren();
-    const stage=stages.find(stage=>!stage.optional&&!stage.done)||stages.find(stage=>!stage.done);
+    const stage=[stages[2],stages[3],stages[0],stages[1]].find(stage=>!stage.done);
     if(stage&&profile&&stripe){const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent=stage.action;button.addEventListener('click',()=>{if(stage.run)stage.run();else scrollRoomTarget(byId(stage.target),{behavior:'smooth',block:'start'});});next.append(button);}
   }
 }
@@ -1640,8 +1666,31 @@ async function openStripeOnboarding(){
   catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
 }
 byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
-byId('welcome-stripe-setup')?.addEventListener('click',openStripeOnboarding);
+
 byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
+
+function syncHeaderDesignerAuth() {
+  const signout = byId('header-signout-btn');
+  const customerAuth = byId('header-customer-auth-btn');
+  if (signout) signout.hidden = !designerToken;
+  if (customerAuth) customerAuth.hidden = Boolean(designerToken);
+}
+
+function expireDesignerSession() {
+  designerToken = '';
+  ++designerListingsLoad;
+  ++designerAttentionRequest;
+  designerReadinessState = {profile:null,listings:[],stripe:null};
+  clearDesignerListImagePreviews();
+  designerProductsContainer?.replaceChildren();
+  loginPanel?.classList.remove('hidden');
+  designerWorkspace?.classList.add('hidden');
+  syncHeaderDesignerAuth();
+  setMessage(designerAuthMessage, 'Your designer session is no longer active. Sign in again to continue. Any unsaved form stays on this page.', 'error');
+  // Stop an older restore response from reopening the workspace after a rejection.
+  sessionStorage.setItem('house-of-briar:designer-signed-out','1');
+  if (location.pathname === DESIGNER_ROOM_PATH) designerAuthMessage?.scrollIntoView({block:'center'});
+}
 
 async function signIn(tokenValue) {
   const token = tokenValue.trim();
@@ -1657,7 +1706,7 @@ async function signIn(tokenValue) {
     sessionStorage.removeItem('house-of-briar:designer-signed-out');
     localStorage.removeItem('briarDesignerToken');
     sessionStorage.removeItem('briarDesignerToken');
-    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    syncHeaderDesignerAuth();
     if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     if (loginPanel) loginPanel.classList.add('hidden');
     if (designerWorkspace) designerWorkspace.classList.remove('hidden');
@@ -1702,7 +1751,7 @@ async function signOut() {
   clearDesignerListImagePreviews();
   resetListingForm();
   setMessage(designerAuthMessage, 'Signed out.', 'success');
-  if(byId('header-signout-btn'))byId('header-signout-btn').hidden=true;
+  syncHeaderDesignerAuth();
   if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=false;
   // Prevent an in-flight session restore or stale navigation from reopening private data.
   sessionStorage.setItem('house-of-briar:designer-signed-out','1');
@@ -1757,7 +1806,15 @@ function scrollRoomTarget(target, options = {}) {
   if (!target) return;
   for(let parent=target;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
   const dialog = target.closest('dialog[open]');
-  if (!dialog) { target.scrollIntoView(options); return; }
+  if (!dialog) {
+    if (target.closest('#designer-modal')) {
+      const bar = byId('hob-global-nav');
+      const roomHeader = document.querySelector('#designer-modal .designer-room-header');
+      const inset = (bar?.getBoundingClientRect().height || 0) + (roomHeader?.getBoundingClientRect().height || 0) + 16;
+      window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top + window.scrollY - inset),behavior:options.behavior || 'instant'});
+    } else target.scrollIntoView(options);
+    return;
+  }
   const header = dialog.querySelector('.dialog-header');
   const inset = header ? header.getBoundingClientRect().height : 0;
   const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
@@ -1883,41 +1940,36 @@ if (modalClose) modalClose.addEventListener('click', closeDesignerRoom);
 if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
 if (productForm) productForm.addEventListener('submit', handleSave);
 if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
-byId('start-profile-setup')?.addEventListener('click', () => byId('designer-brand-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+byId('start-profile-setup')?.addEventListener('click', () => scrollRoomTarget(byId('designer-brand-form'),{ behavior: 'smooth', block: 'start' }));
 byId('signout-btn')?.addEventListener('click', signOut);
 byId('header-signout-btn')?.addEventListener('click', signOut);
-if(byId('header-signout-btn'))byId('header-signout-btn').hidden=!designerToken;
+syncHeaderDesignerAuth();
 if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=!!designerToken;
 // Legacy bearer-token removal in another tab is a migration event, not a logout signal.
 byId('new-listing-btn')?.addEventListener('click', resetListingForm);
 byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
 
-byId('donation-form')?.addEventListener('submit', async (event) => {
+async function startHouseDonation(provider,event) {
   event.preventDefault();
-  const amount = Number(byId('donation-amount')?.value);
-  const message = byId('donation-message');
-  if (!Number.isFinite(amount) || amount < 1 || amount > 1000) {
-    setMessage(message, 'Choose a donation between $1 and $1,000.', 'error');
-    return;
-  }
-  const button = event.currentTarget.querySelector('button[type="submit"]');
-  if (button?.disabled) return;
-  if (button) button.disabled = true;
+  const form=byId('donation-form');if(!form?.reportValidity())return;
+  const amount=Number(byId('donation-amount')?.value),message=byId('donation-message');
+  if(!Number.isFinite(amount)||amount<1||amount>1000){setMessage(message,'Choose a donation between $1 and $1,000.','error');return;}
+  const buttons=[...form.querySelectorAll('button')];if(buttons.some(button=>button.disabled))return;
+  buttons.forEach(button=>button.disabled=true);
   try {
-    setMessage(message, 'Opening secure checkout…', '');
-    const payload = await apiRequest('/api/donations/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
-    });
-    if (!payload?.url) throw new Error('Donation checkout did not return a checkout link.');
+    setMessage(message,'Opening '+(provider==='paypal'?'PayPal':'secure checkout')+'…','');
+    const payload=await apiRequest(provider==='paypal'?'/api/paypal/donations/order':'/api/donations/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});
+    if(!payload?.url)throw new Error('Donation checkout did not return a checkout link.');
+    if(provider==='paypal'){
+      const url=new URL(payload.url);
+      if(url.protocol!=='https:'||!['www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)||url.port||url.username||url.password)throw new Error('PayPal did not return a valid approval link.');
+    }
     window.location.assign(payload.url);
-  } catch (error) {
-    setMessage(message, error.message || 'Donation checkout could not be started.', 'error');
-  } finally {
-    if (button) button.disabled = false;
-  }
-});
+  } catch(error){setMessage(message,error.message||'Donation checkout could not be started.','error');}
+  finally{buttons.forEach(button=>button.disabled=false);}
+}
+byId('donation-form')?.addEventListener('submit',event=>void startHouseDonation('paypal',event));
+
 
 byId('newsletter-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1942,7 +1994,7 @@ async function restoreDesignerSession() {
     designerToken=COOKIE_SESSION_MARKER;
     if(loginPanel)loginPanel.classList.add('hidden');
     if(designerWorkspace)designerWorkspace.classList.remove('hidden');
-    if(byId('header-signout-btn'))byId('header-signout-btn').hidden=false;
+    syncHeaderDesignerAuth();
     if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
     await loadDesignerListings();await loadDesignerBrand();await refreshStripePayoutStatus();
   }catch{}
@@ -2299,9 +2351,11 @@ async function renderAdminOverview(pendingItems) {
 }
 
 async function loadDesignerBrand() {
+  const pageLink=byId('designer-view-page');
+  if(pageLink){pageLink.classList.add('hidden');pageLink.removeAttribute('href');}
   try {
     const { designer } = await apiRequest('/api/my/designer-profile');
-    designerReadinessState.profile=designer;renderSellerReadiness();
+    designerReadinessState.profile=designer;renderSellerReadiness();renderDesignerPriceEstimate();
     const founding = byId('designer-founding-badge'); founding?.replaceChildren();
     if (designer.foundingBadge) founding?.append(createBadgePill('Founding Designer', 'badge founding-badge'));
     byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
@@ -2312,6 +2366,7 @@ async function loadDesignerBrand() {
     if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
     if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
     if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
+    if(pageLink&&designer.id){pageLink.href='/designers/'+encodeURIComponent(designer.id);pageLink.classList.remove('hidden');}
     await loadHouseStudio(designer.id);
     const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
     if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
@@ -2543,6 +2598,32 @@ async function refreshCustomerPurchases() {
   }
 }
 byId('visitor-orders-refresh')?.addEventListener('click',()=>void refreshCustomerPurchases());
+// Seamstresses share House email authentication and land in their sewing workspace.
+if(seamstressIntent){
+  byId('visitor-suite-title').textContent=seamstressIntent==='signin'?'Seamstress sign in':'Seamstress signup';
+  byId('visitor-suite-close').setAttribute('aria-label','Close seamstress account');
+  byId('customer-account-eyebrow').textContent='Your free sewing-services account';
+  byId('customer-account-title').textContent=seamstressIntent==='signin'?'Welcome back to your sewing studio.':'Love to sew? Make yourself at home.';
+  byId('customer-account-intro').textContent=seamstressIntent==='signin'?'Use your House account email. We’ll send a six-digit sign-in code, then open your service requests.':'Create your free House account, then add your sewing skills, service area and availability. You do not need a designer shop.';
+  byId('customer-email-help').textContent='No password to create or remember. We’ll email a six-digit code to verify your House account.';
+  byId('customer-reviewer-entry').hidden=true;
+  byId('customer-name-field').hidden=seamstressIntent==='signin';
+  byId('seamstress-auth-links').hidden=false;
+  byId('seamstress-continue').href=seamstressDestination;
+  byId('visitor-suite').hidden=true;
+  byId('customer-start-shopping').textContent='Back to sewing services';
+  byId('customer-start-shopping').addEventListener('click',()=>window.location.assign('/sewing-services.html'));
+}
+if(creativeDestination){
+ const label={model:'Model',photographer:'Photographer',dj:'DJ',venue:'Venue'}[creativeRole];
+ byId('visitor-suite-title').textContent=label+' sign in / signup';
+ byId('customer-account-eyebrow').textContent='Your Creative House account';
+ byId('customer-account-title').textContent='Welcome to the Creative House.';
+ byId('customer-account-intro').textContent='You’re entering as a '+label.toLowerCase()+'. Verify your House account email, then create or update your creative profile. Returning? Use the same email. No designer shop is required.';
+ byId('customer-reviewer-entry').hidden=true;byId('visitor-suite').hidden=true;
+ byId('customer-start-shopping').textContent='Back to account choices';
+ byId('customer-start-shopping').addEventListener('click',()=>window.location.assign('/join.html'));
+}
 let customerAccountRequest=0;
 async function refreshCustomerAccount() {
   const request=++customerAccountRequest;
@@ -2552,11 +2633,13 @@ async function refreshCustomerAccount() {
     void refreshCustomerPurchases();
     if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
     byId('customer-signed-in').hidden=!customerSignedIn;
+    if(customerSignedIn&&location.hash==='#measurement-profile-name'){const target=byId('measurement-profile-name');for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;target?.focus({preventScroll:true});target?.scrollIntoView({block:'center'});}
     for(const button of document.querySelectorAll('[data-passkey-signin=customer]'))button.hidden=customerSignedIn||!window.HousePasskeys?.supported();
     byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
     byId('customer-code-form').hidden=true;
     await refreshMeasurementProfiles(customerSignedIn);
     if(request!==customerAccountRequest)return;
+    if(customerSignedIn&&roleDestination&&!reviewerVerificationRequested){window.location.assign(roleDestination);return;}
     if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
   }catch{if(request!==customerAccountRequest)return;customerSignedIn=false;void refreshCustomerPurchases();byId('customer-signed-in').hidden=true;byId('customer-signup-form').hidden=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
 }
@@ -2567,7 +2650,7 @@ byId('customer-signup-form')?.addEventListener('submit',async event=>{
 });
 byId('customer-code-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
-  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');if(roleDestination&&customerSignedIn)window.location.assign(roleDestination);}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
 });
 byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
 byId('customer-delete-account')?.addEventListener('click',async()=>{
@@ -2592,6 +2675,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
   button.addEventListener('click', () => {
     const target = byId(button.dataset.roomTarget);
     if (!target) return;
+    if(button.dataset.roomTarget==='product-form')resetListingForm();
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
@@ -2668,18 +2752,18 @@ function calculateDesignerPriceEstimate(values) {
   };
   const price=hundredths(values.price,1000000),materials=hundredths(values.materials,1000000),postage=hundredths(values.postage,1000000),packaging=hundredths(values.packaging,1000000),hours=hundredths(values.hours,10000),rate=hundredths(values.rate,1000000);
   if([price,materials,postage,packaging,hours,rate].some(value=>value===null)||price<=0)return null;
-  const fee=Math.round(price*.09),earnings=price-fee,labor=Math.round(hours*rate/100);
+  const fee=Math.round(price*(values.basisPoints===500?500:700)/10000),earnings=price-fee,labor=Math.round(hours*rate/100);
   return {price,fee,earnings,materials,labor,postage,packaging,remaining:earnings-materials-labor-postage-packaging};
 }
 function renderDesignerPriceEstimate() {
   const output=byId('pricing-estimate');if(!output)return;
   const fields={price:'product-price',materials:'estimated-materials',hours:'estimated-labor-hours',rate:'estimated-hourly-pay',postage:'estimated-postage',packaging:'estimated-packaging'};
   const inputs=Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,byId(id)]));
-  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate(Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])));
+  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate({...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])),basisPoints:designerReadinessState.profile?.commissionBasisPoints});
   output.replaceChildren();
   if(!estimate){output.textContent='Enter a price above $0 and valid nonnegative costs (up to two decimal places) to see your estimate.';return;}
   const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
-  for(const [label,value]of [['House of Briar fee (9%)',estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
+  for(const [label,value]of [[`House of Briar fee (${designerReadinessState.profile?.commissionBasisPoints===500?5:7}%)`,estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
   if(estimate.remaining<0)output.append(makeElement('p','','This price does not cover all the costs entered.'));
 }
 for(const id of ['product-price','estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
@@ -2706,22 +2790,40 @@ function prepareDesignerRoomPanels() {
   workspace.dataset.panelsReady='true';
   const groups=[
     ['.seller-readiness-card','Getting started'],
-    ['.payout-setup-card','Payout setup'],
     ['#designer-listing-area','Your listings'],
-    ['#product-form','Create or edit a piece'],
-    ['#designer-brand-form','Brand & profile'],
-    ['.fabric-finder-card','Fabric Finder']
+    ['#product-form','Create a piece'],
+    ['#designer-brand-form','Brand & profile']
   ];
   for(const [selector,title] of groups){
     const content=workspace.querySelector(selector);
     if(!content||content.parentElement!==workspace)continue;
     const panel=document.createElement('details');
     panel.className='designer-room-panel';
+    panel.setAttribute('name','designer-workspace-panel');
+    if(selector==='#product-form')panel.id='designer-editor-panel';
     panel.open=selector==='.seller-readiness-card';
     if(selector==='.seller-readiness-card')panel.id='designer-setup-panel';
     const summary=document.createElement('summary');
     summary.textContent=title;
     content.before(panel);panel.append(summary,content);
+  }
+  const editor=byId('product-form');
+  if(editor){
+    const sections=[['label[for="product-name"]','Name & description'],['fieldset.listing-form-group','Price & shipping'],['section[aria-labelledby="pricing-helper-title"]','Cost estimate'],['fieldset.listing-form-group:has(#product-category)','Garment details & fit'],['fieldset.listing-enhancements','Presentation & gifting']];
+    const starts=sections.map(([selector,title])=>[editor.querySelector(':scope > '+selector),title]).filter(([node])=>node);
+    const children=[...editor.children];
+    for(let i=0;i<starts.length;i++){
+      const [start,title]=starts[i],end=starts[i+1]?.[0]||byId('listing-readiness');
+      const panel=document.createElement('details');panel.className='listing-edit-options';
+      const summary=document.createElement('summary');summary.textContent=title;panel.append(summary);
+      const fields=document.createElement('div');fields.className='stack-form';panel.append(fields);start.before(panel);
+      for(let n=children.indexOf(start);n<children.indexOf(end);n++)if(children[n].id!=='upload-message')fields.append(children[n]);
+    }
+    const toolbar=document.createElement('div');toolbar.className='listing-save-toolbar';
+    const save=document.createElement('button');save.type='submit';save.name='action';save.value='save';save.className='primary-button';save.textContent='Save changes';save.id='listing-save-changes';
+    toolbar.append(save,byId('upload-message'));byId('photo-preview').before(byId('photo-draft-title').closest('section'),toolbar);
+    const guidedLink=editor.querySelector('a[href="/account#designer-listings"]')?.parentElement;if(guidedLink)editor.append(guidedLink);
+    const style=document.createElement('style');style.textContent='.listing-save-toolbar{position:sticky;top:calc(var(--hob-bar-height,80px) + 8px);z-index:20;background:var(--briar-card,#fffdf8);color:var(--briar-ink,#292622);border:1px solid var(--briar-line,#888);border-radius:12px;padding:12px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}.listing-save-toolbar p{margin:0}.listing-edit-options{border:1px solid var(--briar-line,#888);border-radius:10px;padding:14px}.listing-edit-options>summary{cursor:pointer;min-height:44px;display:list-item;font-weight:600}.listing-edit-options>.stack-form{padding-top:14px}';document.head.append(style);
   }
   const setupPanel=byId('designer-setup-panel');
   const attention=byId('designer-attention');
@@ -2731,10 +2833,11 @@ function prepareDesignerRoomPanels() {
   actions.className='designer-start-actions';
   const addPiece=document.createElement('button');
   addPiece.type='button';addPiece.className='primary-button';
-  addPiece.id='designer-add-piece';addPiece.textContent='Add a piece';
+  addPiece.id='designer-add-piece';addPiece.textContent='Create a piece';
   addPiece.addEventListener('click',()=>byId('new-listing-btn')?.click());
   const help=makeElement('p','small-print','Start a draft now. Finish and submit it whenever you are ready.');
-  actions.append(addPiece,help);
+  const manage=document.createElement('button');manage.type='button';manage.className='secondary-button';manage.id='designer-edit-pieces';manage.textContent='Edit my listings';manage.addEventListener('click',()=>scrollRoomTarget(byId('designer-products'),{block:'start'}));
+  actions.append(addPiece,manage,help);
   if(attention)attention.before(actions);else workspace.prepend(actions);
   renderSellerReadiness();
   const reveal=target=>{
@@ -2746,7 +2849,7 @@ function prepareDesignerRoomPanels() {
   workspace.addEventListener('invalid',event=>reveal(event.target),true);
   byId('new-listing-btn')?.addEventListener('click',()=>{const form=byId('product-form');reveal(form);scrollRoomTarget(form,{block:'start'});});
   workspace.addEventListener('click',event=>{
-    if(event.target.closest('.designer-product-actions'))reveal(byId('product-form'));
+    if(event.target.closest('.designer-product-actions')&&/^(Edit|Edit & resubmit)$/.test(event.target.textContent.trim()))reveal(byId('product-form'));
   });
   const revealHash=()=>{const id=location.hash.slice(1);if(id)reveal(byId(id));};
   window.addEventListener('hashchange',revealHash);
@@ -2764,7 +2867,7 @@ prepareDesignerRoomPanels();
    const kind=menu.dataset.filterMenu;
    const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='presentation'?['shop-presentation-filter']:kind==='aesthetic'?['shop-aesthetic-filter']:kind==='pattern'?['shop-pattern-filter']:kind==='availability'?['shop-availability-filter']:['shop-designer-filter'];
    const chosen=ids.filter(id=>value(id)!=='all').map(label);
-   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||(kind==='category'?'All pieces':kind==='style'?'All styles & prints':'All designers');
+   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||({category:'All pieces',presentation:'All presentations',aesthetic:'All aesthetics',pattern:'All prints',availability:'All availability'}[kind]||'All designers');
   }
   const subcategorySelection=document.querySelector('#shop-subcategory-menu > summary .shop-filter-selection');
   if(subcategorySelection)subcategorySelection.textContent=value('shop-garment-filter')!=='all'?label('shop-garment-filter'):'All piece types';
@@ -2819,11 +2922,19 @@ function renderListingReadiness(){
  const host=byId('listing-readiness');if(!host)return;host.replaceChildren();
  host.append(makeElement('h3','','Listing readiness'),makeElement('p','small-print','A quick guide, not a submission guarantee. Final validation happens when you save or submit.'));
  const val=id=>byId(id)?.value?.trim()||'';
- const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Fix failed photo uploads',!selectedImages.some(image=>image.status==='failed'),'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const form=byId('product-form');
+ for(const input of Array.from(form?.elements||[])){if(input.id&&input.validity&&!input.validity.valid&&!required.some(row=>row[2]===input.id))required.push([input.validationMessage||'Check this field',false,input.id]);}
+ form?.querySelectorAll('.listing-needs-attention').forEach(node=>node.classList.remove('listing-needs-attention'));
+ form?.querySelectorAll('[aria-invalid="true"]').forEach(node=>node.removeAttribute('aria-invalid'));
+ form?.querySelectorAll('.listing-missing-label').forEach(node=>node.remove());
+ const missingBySection=new Map();
+ for(const [label,done,id]of required){if(done)continue;const input=byId(id);input?.setAttribute('aria-invalid','true');input?.classList.add('listing-needs-attention');const section=input?.closest('.listing-edit-options');if(section){missingBySection.set(section,(missingBySection.get(section)||0)+1);section.classList.add('listing-needs-attention');}}
+ for(const [section,count]of missingBySection){const label=makeElement('span','listing-missing-label',` · ${count} required item${count===1?'':'s'} missing`);section.querySelector(':scope > summary')?.append(label);}
  const suggested=[['Add body measurement ranges',Object.keys(readFitRanges()).length>0,'product-fit-bust-min'],['Add preparation time',Boolean(val('product-handling-min')||val('product-handling-max')),'product-handling-min']];
  for(const [heading,rows]of [['Before submission',required],['Helpful suggestions',suggested]]){
   host.append(makeElement('h4','',heading));const list=document.createElement('ul');
-  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','○ '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
+  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','Needs attention: '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
  }
  host.append(makeElement('h4','','Before going live'));const payout=makeElement('button','text-button','Review payout setup →');payout.type='button';payout.addEventListener('click',()=>{const target=byId('payout-setup-title');for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});});host.append(payout);
 }
@@ -2896,3 +3007,71 @@ document.addEventListener('DOMContentLoaded', () => {
   }).observe(type, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'disabled'] });
   refresh();
 });
+
+
+// Photo suggestions are reviewed in the editor; this flow never saves or submits a listing.
+(() => {
+  const form=byId('product-form'),button=byId('photo-draft-analyze'),consent=byId('photo-draft-consent'),results=byId('photo-draft-results'),status=byId('photo-draft-status');
+  if(!form||!button||!consent||!results||!status)return;
+  let version=0;
+  const firstPhoto=()=>selectedImages.find(image=>image.file)?.file;
+  const clear=()=>{version++;results.replaceChildren();results.hidden=true;status.textContent='';};
+  form.addEventListener('input',clear);
+  form.addEventListener('change',clear);
+  form.addEventListener('reset',clear);
+  button.addEventListener('click',async()=>{
+    const photo=firstPhoto();
+    if(!photo){status.textContent='Choose a design photo above first.';return;}
+    if(!consent.checked){status.textContent='Agree to send your photo to OpenAI before requesting suggestions.';return;}
+    const attempt=++version,listingId=currentListingId;
+    const current=()=>attempt===version&&consent.checked&&firstPhoto()===photo&&currentListingId===listingId;
+    button.disabled=true;results.replaceChildren();results.hidden=true;status.textContent='Examining your garment…';
+    try{
+      const body=new FormData();body.append('image',photo);body.append('consent','true');
+      for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type',size:'product-size'}))body.append(field,byId(id)?.value||'');
+      const data=await apiRequest('/api/my/studio/photo-listing',{method:'POST',body,credentials:'same-origin'});
+      if(!current())return;
+      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Print / Pattern',data.pattern],['Size',data.size||'Choose your size'],['Tags',(data.tags||[]).join(', ')]]){
+        const paragraph=makeElement('p','',label+': '+String(value||''));results.append(paragraph);
+      }
+      for(const note of data.reviewNotes||[])results.append(makeElement('p','small-print',String(note)));
+      results.append(makeElement('p','small-print','Using these details replaces the title and description. Available category, item type and aesthetic choices are filled only on an exact match. Review and edit the form before saving.'));
+      const apply=makeElement('button','secondary-button','Use these details');apply.type='button';
+      apply.addEventListener('click',()=>{
+        if(!current()){clear();return;}
+        byId('product-name').value=data.title;byId('product-description').value=data.description;
+        const department=byId('product-category');
+        if(Array.from(department.options).some(option=>option.value===data.category)){department.value=data.category;syncSellerTypes();}
+        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic],['product-pattern',data.pattern],['product-size',data.size]]){
+          const input=byId(id),option=Array.from(input?.options||[]).find(option=>option.value&&option.value.toLowerCase()===String(value||'').trim().toLowerCase());
+          if(option)input.value=option.value;
+        }
+        byId('product-size').dispatchEvent(new Event('change',{bubbles:true}));
+        form.dispatchEvent(new Event('input',{bubbles:true}));
+        status.textContent='Details added. Edit anything that needs correcting, complete the remaining fields, then save your private draft.';
+        scrollRoomTarget(byId('product-name'),{behavior:'smooth',block:'center'});
+      });
+      results.append(apply);results.hidden=false;status.textContent='Suggestions ready. Review them before using them.';
+    }catch(error){if(current())status.textContent=error.message||'Suggestions are unavailable. You can fill in your listing yourself.';}
+    finally{button.disabled=false;}
+  });
+})();
+
+// US women's chart defaults are suggestions; preserve manually edited measurements.
+(() => {
+ const size=byId('product-size');if(!size)return;
+ const note=makeElement('p','small-print','US women’s reference defaults are suggestions. Edit these ranges to match your garment; other sizing systems may differ.');note.id='product-size-reference-note';size.after(note);
+ size.addEventListener('change',()=>{
+  const key=size.value==='XXL'?'2XL':size.value;
+  const row=[...document.querySelectorAll('.size-reference-table tbody tr')].find(row=>row.querySelector('th')?.textContent.split('/').at(-1).trim()===key);
+  const cells=row?[...row.querySelectorAll('td')]:[];
+  for(const [index,field] of ['bust','waist','hips'].entries()){
+   const values=cells[index]?.textContent.match(/\d+(?:\.\d+)?/g)||[];
+   for(const [bound,i] of [['min',0],['max',1]]){const input=byId(`product-fit-${field}-${bound}`);if(!input.value||input.value===input.dataset.sizeDefault){input.value=values[i]||'';input.dataset.sizeDefault=input.value;}}
+  }
+  note.textContent=row?'Suggested US women’s '+row.querySelector('th').textContent+' body ranges filled below. Edit them to match your garment.':'Choose a size or enter the actual body ranges your garment fits.';
+  renderListingReadiness();
+ });
+})();
+
+{const style=document.createElement('style');style.textContent='.listing-needs-attention{outline:2px solid #d94759!important;outline-offset:2px}.listing-missing-label{display:inline-block;font-size:13px;font-weight:600;color:inherit}.listing-edit-options.listing-needs-attention>summary{border-bottom:2px solid #d94759}';document.head.append(style);}

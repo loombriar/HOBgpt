@@ -67,7 +67,10 @@ for(const mode of ['replay','webhook','timeout'])test('unknown Checkout '+mode+'
    process.env.STRIPE_WEBHOOK_SECRET='whsec_mock_recovery';
    const event=JSON.stringify({id:'evt_mock_recovery',type:'checkout.session.completed',data:{object:session}}),timestamp=Math.floor(Date.now()/1000),sig=crypto.createHmac('sha256',process.env.STRIPE_WEBHOOK_SECRET).update(timestamp+'.'+event).digest('hex');
    const send=()=>fetch(f.origin+'/api/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':`t=${timestamp},v1=${sig}`},body:event});
-   assert.equal((await send()).status,200);assert.equal((await send()).status,200);
+   assert.equal((await send()).status,200);assert.equal((await send()).status,200);assert.equal((await send()).status,200);
+   // Replaying a valid signed Stripe event must not duplicate purchase effects.
+   assert.equal(f.ctx.db.prepare("SELECT COUNT(*) n FROM analytics_events WHERE event_name='purchase'").get().n,1);
+   assert.equal(f.ctx.db.prepare('SELECT status FROM inventory_reservations').get().status,'sold');
   }else{
    await f.ctx.reconcileFinancialOperations();assert.equal(calls.length,2);assert.equal(calls[0].body,calls[1].body);assert.equal(calls[0].idempotencyKey,calls[1].idempotencyKey);
    f.ctx.db.prepare("UPDATE inventory_reservations SET expires_at='2000-01-01'").run();await f.ctx.reconcilePendingCheckouts();
@@ -129,4 +132,17 @@ test('rotating admin and legacy designer credentials revokes old cookies across 
   assert.equal((await fetch(origin+'/api/my/designer-profile',{headers:{Authorization:'Bearer seller-new'}})).status,200);
   assert.equal((await fetch(origin+'/api/admin/designers',{headers:{Authorization:'Bearer admin-new'}})).status,200);
  }finally{await stop();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+// Fresh isolated databases do not necessarily contain the configured Loom Briar designer.
+test('absent configured brand profile is a quiet no-op and is not auto-created',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-brand-absence-'));
+ const errors=[];const originalError=console.error;
+ let ctx;
+ try{
+  console.error=(...args)=>{errors.push(args.map(String).join(' '));};
+  ctx=createApp({dataDir:dir,seedProducts:[],adminToken:'admin'});
+  assert.equal(ctx.db.prepare("SELECT count(*) AS n FROM designer_profiles WHERE lower(trim(brand_name))='loom briar'").get().n,0);
+  assert.equal(errors.some(line=>line.includes('designer_profile_mapping_not_unique')),false);
+ }finally{console.error=originalError;ctx?.db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });

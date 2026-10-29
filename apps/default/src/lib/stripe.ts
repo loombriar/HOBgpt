@@ -44,6 +44,15 @@ export async function createDonationSession(amount: number, accessToken = '') {
   return result.url;
 }
 
+export async function createPayPalDonationSession(amount: number, accessToken = '') {
+  if(!Number.isFinite(amount)||amount<1||amount>1000)throw new Error('Choose a donation between $1 and $1,000.');
+  const result=await api<{url:string}>('/api/paypal/donations/order',{method:'POST',headers:accessToken?{Authorization:`Bearer ${accessToken}`}:undefined,body:JSON.stringify({amount})});
+  if(!result.url)throw new Error('PayPal did not return an approval link.');
+  const url=new URL(result.url);
+  if(url.protocol!=='https:'||!['www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)||url.port||url.username||url.password)throw new Error('PayPal did not return a valid approval link.');
+  return result.url;
+}
+
 export async function createRefund(_chargeOrPaymentIntent: string) {
   throw new Error('Refunds must be handled from the House of Briar administration flow.');
 }
