@@ -3844,10 +3844,7 @@ function createApp(options = {}) {
     try {
       const {orderId,scope,apply}=req.body||{};
       const result=await require('./lib/designer-verified-test-refund').postVerifiedTestRefund(
-        db,designerSettlementLedger,stripeApi,{orderId,scope,apply:apply===true});
-      designerTestRefundAudit.record({orderId,scope,refundId:result.refundId,
-        action:apply===true?'apply':'preview',outcome:apply===true?'posted':'verified',
-        detail:apply===true?'verified_test_refund_journal_applied':'verified_test_refund_preview'});
+        db,designerSettlementLedger,stripeApi,{orderId,scope,apply:apply===true},designerTestRefundAudit);
       return res.json(result);
     } catch(error) {
       console.error('Test refund journal review:',String(error.message||error));
