@@ -871,6 +871,17 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
+  // The owner-authorized supplier import is confined to the staging environment.
+  // Suspended draft identity has no login, terms acceptance, or payout account.
+  const atelierEnvironment=process.env.RAILWAY_ENVIRONMENT_NAME;
+  const atelierCatalog=atelierEnvironment==='staging'?require('./fixtures/atelier-emine/catalog.json'):null;
+  const atelierDrafts=require('./lib/atelier-staging-drafts');
+  let atelierImportError=null;
+  try{
+    const atelierImport=atelierDrafts.setupAtelierDrafts(db,{environment:atelierEnvironment,catalog:atelierCatalog});
+    if(!atelierImport.skipped)log('info','atelier_staging_drafts_imported',atelierImport);
+  }catch(error){atelierImportError=error;log('error','atelier_staging_import_requires_review',{message:error.message});}
+
   // This legacy seed identity represents the marketplace, not an independent designer.
   // Retain its rows for order history while removing it from public seller surfaces.
   db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='house-of-briar'").run();
@@ -3627,6 +3638,8 @@ function createApp(options = {}) {
     db.prepare("UPDATE listing_reports SET status='resolved',resolved_at=? WHERE id=?").run(new Date().toISOString(),report.id);
     res.json({ id: report.id, status: 'resolved' });
   });
+
+  atelierDrafts.registerAtelierDraftReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,importError:atelierImportError});
 
   app.get('/api/admin/listings', authAdmin, (_req, res) => {
     res.set('Cache-Control', 'no-store');
