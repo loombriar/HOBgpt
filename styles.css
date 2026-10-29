@@ -1719,6 +1719,19 @@ body h1,body h2,body h3,.brand-name,.product-section .shop-drop-window .category
 .paypal-button{border:0;border-radius:999px;background:#ffc439;color:#111820;font-weight:800;padding:.78rem 1.05rem;cursor:pointer}.paypal-button:hover{filter:brightness(.98)}.paypal-button:disabled{opacity:.55;cursor:wait}.donation-row .paypal-button{white-space:nowrap}
 /* Keep the payment action readable when the generic theme button colors swap. */
 #donation-form #paypal-donation-btn{background:#ffc439;color:#111820;transition:transform .2s ease,box-shadow .2s ease}
+/* Designer introduction stays separate from purchasable catalog records. */
+#atelier-emine{background:var(--briar-card,#fff);color:var(--briar-ink,#252126);border-block:1px solid var(--briar-line,#d6ccc7);padding:40px 0}
+#atelier-emine .atelier-emine-inner{display:grid;grid-template-columns:260px minmax(0,1fr);align-items:center;gap:36px}
+#atelier-emine .atelier-emine-logo{display:flex;align-items:center;justify-content:center;background:#fff;padding:16px}
+#atelier-emine .atelier-emine-logo img{display:block;width:224px;max-width:100%;height:auto;object-fit:contain}
+#atelier-emine .atelier-emine-copy{min-width:0}
+#atelier-emine h2{font-size:clamp(30px,4vw,42px);line-height:1.15;margin:10px 0 16px;color:inherit}
+#atelier-emine p{color:inherit;max-width:780px;font-size:15px;line-height:1.7}
+#atelier-emine .eyebrow{font-size:10px;letter-spacing:.13em}
+#atelier-emine .atelier-emine-status{font-weight:700;margin:20px 0 0}
+#atelier-emine .atelier-emine-links{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:14px}
+#atelier-emine a{display:inline-flex;align-items:center;min-height:44px;color:inherit;font-size:14px;font-weight:600;text-underline-offset:4px}
+@media(max-width:650px){#atelier-emine .atelier-emine-inner{grid-template-columns:minmax(0,1fr);gap:24px}#atelier-emine .atelier-emine-logo{max-width:260px;width:100%}}
 
 .seller-terms-check{display:flex!important;align-items:flex-start;gap:.65rem}.seller-terms-check input{width:auto;margin-top:.25rem}.seller-terms-check a{text-decoration:underline}.payout-setup-card{margin:1rem 0 1.5rem;padding:1.15rem;border:1px solid rgba(80,63,45,.22);border-radius:18px;background:rgba(255,250,240,.72)}.payout-setup-card h3{margin:.2rem 0 .5rem}.payout-setup-card p{max-width:70ch}
 
