@@ -20,7 +20,8 @@ const configured=secret&&refundId&&checkoutId&&orderId&&currency&&Number.isSafeI
 const sandbox=test;
 
 sandbox('real Stripe sandbox refund: verified multi-designer posting, replay, audit and failure rejection',
- {skip:!enabled?'opt-in only':!configured?'missing required Stripe sandbox fixtures':false},async()=>{
+ {skip:!enabled?'opt-in only':false},async()=>{
+ assert.ok(configured,'Required sandbox fixture environment variables must be set');
  assert.match(secret,/^sk_test_/,'Only Stripe test keys are permitted');
  assert.match(refundId,/^re_/);
  assert.match(checkoutId,/^cs_test_/);
