@@ -3808,6 +3808,29 @@ function createApp(options = {}) {
   });
 
   // Read-only staging accounting inspection; the journal is not yet populated from live orders.
+  // Explicit admin-only sandbox import; never import live, refunded or unverified orders.
+  app.post('/api/admin/designer-settlement-ledger/import-test-order', authAdmin, (req,res) => {
+    try {
+      const {orderId,designerId}=req.body||{};
+      const summary=require('./lib/designer-test-order-import').importPaidTestOrder(db,designerSettlementLedger,{orderId,designerId});
+      return res.json({summary,simulationOnly:true});
+    } catch(e) {
+      return res.status(409).json({error:{message:e.message}});
+    }
+  });
+
+  app.get('/api/admin/designer-settlement-ledger/reconcile', authAdmin, (req,res) => {
+    try {
+      if(!['true','false'].includes(req.query.testMode))return res.status(400).json({error:{message:'testMode required'}});
+      const result=require('./lib/designer-order-reconciliation').reconcileDesignerOrder(db,designerSettlementLedger,{
+        orderId:req.query.orderId,designerId:req.query.designerId,testMode:req.query.testMode==='true'
+      });
+      return res.json(result);
+    } catch(e) {
+      return res.status(400).json({error:{message:'Invalid reconciliation scope'}});
+    }
+  });
+
   app.get('/api/admin/designer-settlement-ledger', authAdmin, (req,res) => {
     const {orderId,designerId}=req.query;
     const testMode=req.query.testMode;
