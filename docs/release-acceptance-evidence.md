@@ -64,3 +64,12 @@ Source reviewed: main `7b8e710`. Earlier deployment observations above remain hi
 - #520: Node.js CI run 40009487569 passed on `40cda6b`; this establishes CI evidence only, not production donation configuration or deployed visual acceptance.
 
 Overall release signoff: INCOMPLETE.
+
+## Payment and release follow-up — October 29, 2026
+
+- PR #556 passed all three PR workflows and was merged as `19d3b9774d29d5f7bde2600ca53b9d7ab0fa0203`. Staging deployment `e14a34ab-ce23-4c79-b373-a6710dec8c5b` and production deployment `a10411eb-e0bd-4adf-91b7-641378f71ebf` succeeded. Guarded probes passed unique owner MFA login, owner reads, ambiguous legacy credential denial, logout and stale-cookie rejection in both environments. Credentials and MFA factors were not changed. These probes do not establish human authenticator enrollment or lost-device recovery.
+- Read-only inspection of the connected Stripe **sandbox** confirms exactly two enabled staging destinations (checkout/refund and Connect readiness) and three disabled historical duplicates. All six listed sandbox refunds have status `succeeded`; the latest is the previously tested $5 full refund. Its `refund.updated` event has zero pending webhooks. Several older events still have pending deliveries, so this is not blanket webhook acceptance or evidence of a new checkout/refund journey.
+- Isolated commerce, refund and payout suites passed **69 tests**. These use fixtures/provider mocks and do not clear provider-backed partial-refund or carrier-verified payout acceptance.
+- The prior PR browser suite reported a mobile PayPal contrast failure on its first attempt (ratio 1.90), then passed on retry. The follow-up isolates the PayPal button's foreground/background from generic themed buttons and samples contrast during repeated real theme toggles. Browser verification of this follow-up remains required before integration; do not mask the issue by lowering the 4.5 contrast threshold or relying on retries.
+
+Remaining launch gates include incident credential retirement, human MFA recovery signoff, provider-backed partial refunds and successful verified payout reconciliation, a deployed moderation/notification journey, and physical Android/Play acceptance. No live charge, refund, transfer, postage purchase or provider configuration change was made during this follow-up.
