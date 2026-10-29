@@ -3605,6 +3605,9 @@ function createApp(options = {}) {
     res.json({ id: report.id, status: 'resolved' });
   });
 
+  const atelierSellerReview=require('./lib/atelier-seller-review');
+  atelierSellerReview.setupSellerReview(db,{environment:atelierEnvironment,initialInvite:atelierEnvironment==='staging'?require('./fixtures/atelier-emine/review-invite.json'):null});
+  atelierSellerReview.registerSellerReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,trustedAppOrigin,rateLimit});
   atelierDrafts.registerAtelierDraftReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,importError:atelierImportError});
 
   app.get('/api/admin/listings', authAdmin, (_req, res) => {
