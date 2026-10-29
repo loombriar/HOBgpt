@@ -1710,7 +1710,7 @@ function createApp(options = {}) {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
         connectSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://www.atelieremine.com'],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'data:'],
@@ -4625,7 +4625,7 @@ function createApp(options = {}) {
       res.set('Cache-Control', 'public, max-age=60');
       return res.type('html').send(html);
     });
-    app.get(['/shop','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
+    app.get(['/shop','/atelier-emine','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
   for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });

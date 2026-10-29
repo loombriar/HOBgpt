@@ -9,7 +9,8 @@ for(const react of [false,true])for(const width of [320,1280]){
   const feature=page.locator('#atelier-emine');
   await expect(feature.getByRole('heading',{name:'Meet Atelier Emine',exact:true})).toBeVisible();
   await expect(feature).toContainText('65-year family craft heritage');
-  await expect(feature).toContainText('Collection in preparation');
+  await expect(feature).toContainText('Collection preview · Purchasing coming soon');
+  await expect(feature.getByRole('link',{name:'Preview the collection →',exact:true})).toHaveAttribute('href','/atelier-emine');
   await expect(feature).toContainText('Pieces are not available to purchase yet.');
   const image=feature.getByRole('img',{name:'Atelier Emine',exact:true});
   await feature.scrollIntoViewIfNeeded();
