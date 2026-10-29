@@ -19,7 +19,9 @@ for(const react of [false,true])for(const width of [320,1280]){
   await expect(feature.getByRole('button')).toHaveCount(0);
   await expect(feature.locator('a[href*="checkout"],a[href*="/shop/"]')).toHaveCount(0);
   for(const theme of ['dark','light']){
-   const toggle=page.locator('#hob-theme-toggle');
+   const toggle=react
+    ? page.getByRole('button',{name:theme==='dark'?'Use dark theme':'Use light theme',exact:true})
+    : page.locator('#hob-theme-toggle');
    if(await page.locator('html').getAttribute('data-hob-theme')!==theme)await toggle.click();
    await feature.scrollIntoViewIfNeeded();
    await expect(page.locator('html')).toHaveAttribute('data-hob-theme',theme);
