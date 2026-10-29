@@ -2308,6 +2308,8 @@ function createApp(options = {}) {
   }});
 
   const postageAccounting=require('./lib/postage-accounting').createPostageAccounting(db);
+  // Initialize the append-only settlement journal schema. No automatic backfill or transfers.
+  const designerSettlementLedger=require('./lib/designer-settlement-ledger').createDesignerSettlementLedger(db);
 
   async function finishDepositRefund(offer) {
       if(offer.stripe_transfer_id && !offer.stripe_reversal_id){
@@ -3803,6 +3805,20 @@ function createApp(options = {}) {
     const respondedAt=new Date().toISOString();
     db.prepare("UPDATE support_messages SET status='answered',response_text=?,responded_at=? WHERE id=?").run(text,respondedAt,message.id);
     return res.json({message:{id:message.id,status:'answered',responseText:text,respondedAt}});
+  });
+
+  // Read-only staging accounting inspection; the journal is not yet populated from live orders.
+  app.get('/api/admin/designer-settlement-ledger', authAdmin, (req,res) => {
+    const {orderId,designerId}=req.query;
+    const testMode=req.query.testMode;
+    if(typeof orderId!=='string'||typeof designerId!=='string'||!['true','false'].includes(testMode))
+      return res.status(400).json({error:{message:'orderId, designerId and testMode are required.'}});
+    try {
+      return res.json({summary:designerSettlementLedger.summary(orderId,designerId,testMode==='true'),
+        entries:designerSettlementLedger.entries(orderId,designerId,testMode==='true')});
+    } catch {
+      return res.status(400).json({error:{message:'Invalid settlement ledger lookup.'}});
+    }
   });
 
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
