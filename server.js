@@ -1737,7 +1737,7 @@ function createApp(options = {}) {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
         connectSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', ...(atelierEnvironment==='staging'?['https://www.atelieremine.com']:[])],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'data:'],

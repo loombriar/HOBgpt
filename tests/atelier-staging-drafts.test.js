@@ -33,7 +33,7 @@ test('staging startup imports into the actual authenticated app while gallery an
   try{ctx=createApp({dataDir:dir,seedProducts:[],designerTokens:{},adminToken:'atelier-real-admin',stripeApi:async()=>{throw Error('Unexpected Stripe request')}})}finally{if(previous===undefined)delete process.env.RAILWAY_ENVIRONMENT_NAME;else process.env.RAILWAY_ENVIRONMENT_NAME=previous;}
   server=ctx.app.listen(0,'127.0.0.1');await once(server,'listening');const origin='http://127.0.0.1:'+server.address().port;
   assert.equal((await fetch(origin+'/api/admin/atelier-emine/drafts')).status,401);
-  const response=await fetch(origin+'/api/admin/atelier-emine/drafts',{headers:{Authorization:'Bearer atelier-real-admin'}});assert.equal(response.status,200);const data=await response.json();assert.equal(data.items.length,89);
+  const response=await fetch(origin+'/api/admin/atelier-emine/drafts',{headers:{Authorization:'Bearer atelier-real-admin'}});assert.equal(response.status,200);assert.match(response.headers.get('content-security-policy'),/img-src[^;]*https:\/\/www\.atelieremine\.com/);const data=await response.json();assert.equal(data.items.length,89);
   const catalogResponse=await fetch(origin+'/api/admin/listings',{headers:{Authorization:'Bearer atelier-real-admin'}});assert.equal((await catalogResponse.json()).items.length,89);
   const gallery=await (await fetch(origin+'/api/gallery')).json();assert.equal(gallery.items.length,0);
   assert.equal((await fetch(origin+'/api/designers/'+DESIGNER_ID)).status,404);
