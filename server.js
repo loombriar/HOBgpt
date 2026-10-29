@@ -1724,6 +1724,22 @@ function createApp(options = {}) {
             if (badgeSubject) awardBadge(badgeSubject,'verified_buyer','order',order.id);
             markOrderInventorySold(order.id);
             await prepareDesignerTransfers(order.id);
+            // Signed Stripe webhook, test checkout only, opt-in. Never fail payment acknowledgement
+            // because the secondary journal is unavailable; flag the failure for reconciliation.
+            if (process.env.ENABLE_TEST_SETTLEMENT_JOURNAL === 'true' &&
+                session.livemode === false && typeof session.id === 'string' &&
+                session.id.startsWith('cs_test_') && order.stripe_session_id === session.id) {
+              const designerIds=db.prepare('SELECT DISTINCT designer_id FROM order_items WHERE order_id=?').all(order.id);
+              for (const {designer_id} of designerIds) {
+                try {
+                  require('./lib/designer-test-order-import').importPaidTestOrder(db,designerSettlementLedger,{
+                    orderId:order.id,designerId:designer_id
+                  });
+                } catch (error) {
+                  console.error('Test settlement journal needs reconciliation:',order.id,designer_id,error.message);
+                }
+              }
+            }
             await patterns.releaseDigital(order.id);
             await notifySale(order.id);
           }

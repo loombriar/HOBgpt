@@ -50,3 +50,22 @@ test('flags payout mismatch and rejects changed source allocations',()=>{
   assert.throws(()=>importPaidTestOrder(f.db,f.ledger,f.scope),/conflicts/);
  }finally{f.db.close();}
 });
+
+test('shipping fee, refund and payout reversal are preserved as distinct journal events',()=>{
+ const f=fixture();try{
+  importPaidTestOrder(f.db,f.ledger,f.scope);
+  const record=(eventId,type,amountCents)=>f.ledger.record({
+    eventId,orderId:'o',designerId:'atelier',currency:'usd',type,amountCents,
+    sourceReference:'sandbox:'+eventId,testMode:true
+  });
+  record('shipping','shipping',600);
+  record('refund','refund',1200);
+  record('payout','payout',6700);
+  record('reversal','payout_reversal',6700);
+  const balance=f.ledger.summary('o','atelier',true);
+  assert.equal(balance.availableCents,6700);
+  assert.equal(balance.paidCents,0);
+  assert.equal(balance.entryCount,6);
+  assert.equal(reconcileDesignerOrder(f.db,f.ledger,{...f.scope,testMode:true}).status,'reconciled');
+ }finally{f.db.close();}
+});
