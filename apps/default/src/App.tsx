@@ -6,6 +6,7 @@ import { HouseAuth } from '@/lib/house-auth';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
+const AtelierEminePage = lazy(() => import('@/pages/AtelierEminePage'));
 const ShopPage = lazy(() => import('@/pages/ShopPage'));
 const ProductPage = lazy(() => import('@/pages/ProductPage'));
 const DesignerStorefrontPage = lazy(() => import('@/pages/DesignerStorefrontPage'));
@@ -40,6 +41,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Section name="Home"><HomePage /></Section>} />
       <Route path="/shop" element={<Section name="Shop"><ShopPage /></Section>} />
+      <Route path="/atelier-emine" element={<Section name="Atelier Emine collection preview"><AtelierEminePage /></Section>} />
       <Route path="/shop/:productId" element={<Section name="Product"><ProductPage /></Section>} />
       <Route path="/designers" element={<Section name="Designers"><DesignersPage /></Section>} />
       <Route path="/designers/:designerId" element={<Section name="Designer storefront"><DesignerStorefrontPage /></Section>} />
