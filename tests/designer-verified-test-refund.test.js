@@ -44,3 +44,23 @@ test('rejects payout activity across any seller before atomic posting',async()=>
   assert.equal(f.ledger.entries('o','a',true).length,2);
  }finally{f.db.close();}
 });
+
+test('audit failure rolls back every designer refund journal entry',async()=>{
+ const f=setup();try{
+  const audit={record(){throw new Error('simulated audit write failure');}};
+  await assert.rejects(postVerifiedTestRefund(f.db,f.ledger,f.api,{...f.args,apply:true},audit),/simulated audit/);
+  assert.equal(f.ledger.entries('o','a',true).length,2);
+  assert.equal(f.ledger.entries('o','b',true).length,2);
+ }finally{f.db.close();}
+});
+test('successful multi-designer posting commits audit with journal and retries safely',async()=>{
+ const f=setup();try{
+  const {createTestRefundAudit}=require('../lib/designer-test-refund-audit');
+  const audit=createTestRefundAudit(f.db);
+  await postVerifiedTestRefund(f.db,f.ledger,f.api,{...f.args,apply:true},audit);
+  await postVerifiedTestRefund(f.db,f.ledger,f.api,{...f.args,apply:true},audit);
+  assert.equal(f.ledger.entries('o','a',true).filter(x=>x.entry_type==='refund').length,1);
+  assert.equal(f.ledger.entries('o','b',true).filter(x=>x.entry_type==='refund').length,1);
+  assert.equal(audit.list('o','full').filter(x=>x.action==='apply').length,2);
+ }finally{f.db.close();}
+});
