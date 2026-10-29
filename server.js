@@ -15,6 +15,7 @@ const Database = require('better-sqlite3');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
+const creatorCommissions = require('./lib/creator-commissions');
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -824,7 +825,6 @@ function createApp(options = {}) {
     ensureLegacyDesigner.run(designerId, `${designerId}@legacy.houseofbriar.invalid`, designerId, designerId, legacyProfileNow);
   }
   const adminEntries = parseAdminTokens(options);
-  const adminTokens = adminEntries.map(entry => entry.token);
   const adminConfigurationErrors = productionConfigurationErrors({adminEntries});
   if (adminConfigurationErrors.length) throw new Error(`Production configuration is incomplete: ${adminConfigurationErrors.join(' ')}`);
   const designerIdentityMap = parseDesignerTokens(options.designerIdentityMap ?? process.env.DESIGNER_IDENTITY_MAP_JSON);
@@ -871,6 +871,17 @@ function createApp(options = {}) {
     }
   });
   seedTx(seedProducts);
+  // The owner-authorized supplier import is confined to the staging environment.
+  // Suspended draft identity has no login, terms acceptance, or payout account.
+  const atelierEnvironment=process.env.RAILWAY_ENVIRONMENT_NAME;
+  const atelierCatalog=atelierEnvironment==='staging'?require('./fixtures/atelier-emine/catalog.json'):null;
+  const atelierDrafts=require('./lib/atelier-staging-drafts');
+  let atelierImportError=null;
+  try{
+    const atelierImport=atelierDrafts.setupAtelierDrafts(db,{environment:atelierEnvironment,catalog:atelierCatalog});
+    if(!atelierImport.skipped)log('info','atelier_staging_drafts_imported',atelierImport);
+  }catch(error){atelierImportError=error;log('error','atelier_staging_import_requires_review',{message:error.message});}
+
   // This legacy seed identity represents the marketplace, not an independent designer.
   // Retain its rows for order history while removing it from public seller surfaces.
   db.prepare("UPDATE designer_profiles SET status='suspended' WHERE id='house-of-briar'").run();
@@ -980,20 +991,9 @@ function createApp(options = {}) {
 
   async function resolveDesignerIdentity(req, token) {
     if (typeof options.resolveIdentity === 'function') return options.resolveIdentity({ req, token });
-    // OIDC discovery is a privileged outbound request: its target must be
-    // configured, never derived from an untrusted HTTP Host header.
-    const origin = configuredAppOrigin;
-    if (!origin) return null;
-    const discovery = await fetch(`${origin}/_genesis/auth/.well-known/openid-configuration`, { redirect: 'manual' });
-    if (!discovery.ok || (discovery.status >= 300 && discovery.status < 400)) return null;
-    const metadata = await discovery.json();
-    if (typeof metadata.userinfo_endpoint !== 'string' || !isSameOriginUrl(metadata.userinfo_endpoint, origin)) return null;
-    const userInfo = await fetch(metadata.userinfo_endpoint, {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: 'manual'
-    });
-    if (!userInfo.ok || (userInfo.status >= 300 && userInfo.status < 400)) return null;
-    return userInfo.json();
+    // House sessions and configured credentials are authoritative. Unknown bearer
+    // credentials must not trigger requests to a retired external identity service.
+    return null;
   }
 
   function designerBadgeSubject(designerId) {
@@ -1109,6 +1109,7 @@ function createApp(options = {}) {
   }
   async function authenticateDesigner(req, res, next) {
     const sessionToken=cookieValue(req,DESIGNER_SESSION_COOKIE);
+    let sessionFailure = sessionToken ? 'unknown_session' : 'missing_cookie';
     if(sessionToken){
       const sessionHash=crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session=db.prepare("SELECT s.session_hash,s.designer_id,p.status,s.expires_at,s.credential_hash FROM designer_sessions s JOIN designer_profiles p ON p.id=s.designer_id WHERE s.session_hash=?").get(sessionHash);
@@ -1117,10 +1118,19 @@ function createApp(options = {}) {
         req.designerId=session.designer_id;req.designerSessionHash=sessionHash;req.designerAuthMethod='session';
         return requireDesignerRequestOrigin(req,res,next);
       }
-      if(session)db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
+      if(session) {
+        sessionFailure = session.expires_at <= new Date().toISOString() ? 'expired_session' : 'invalid_session';
+        db.prepare('DELETE FROM designer_sessions WHERE session_hash=?').run(sessionHash);
+      }
     }
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (!token) return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+    if (!token) {
+      if (['/api/my/stripe-status','/api/my/stripe-onboarding'].includes(req.path)) {
+        // Fixed enums only: never log cookies, credentials, account IDs or provider URLs.
+        console.warn('Designer payout authentication rejected:', JSON.stringify({reason:sessionFailure}));
+      }
+      return fail(res, 401, 'unauthorized', 'Sign in to your designer account.');
+    }
     const tokenHash=crypto.createHash('sha256').update(token).digest('hex');
     const issued=db.prepare("SELECT t.designer_id,p.status FROM designer_access_tokens t JOIN designer_profiles p ON p.id=t.designer_id WHERE t.token_hash=? AND COALESCE(t.expires_at,strftime('%Y-%m-%dT%H:%M:%fZ',t.created_at,'+30 days'))>? AND t.revoked_at IS NULL AND p.bearer_disabled_at IS NULL").get(tokenHash,new Date().toISOString());
     if(issued){
@@ -1186,12 +1196,15 @@ function createApp(options = {}) {
 
   const ADMIN_SESSION_COOKIE = 'hob_admin_session';
   const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+  function unambiguousAdminEntry(entry) {
+    // Shared credentials cannot establish which actor/role authenticated.
+    // Labels must also be unique across legacy and named configuration sources.
+    return adminEntries.filter(candidate => safeEqual(candidate.token, entry.token)).length === 1 &&
+      adminEntries.filter(candidate => candidate.label === entry.label).length === 1;
+  }
   function adminEntryForToken(token) {
     const entry = adminEntries.find(candidate => safeEqual(token, candidate.token));
-    if (entry) return entry;
-    // Keep the compatibility check explicit while legacy ADMIN_TOKENS are migrated.
-    if (adminTokens.some(candidate => safeEqual(token, candidate))) return {label: 'admin', role: 'operator', token};
-    return null;
+    return entry && unambiguousAdminEntry(entry) ? entry : null;
   }
   function setAdminSessionCookie(req, res, token, maxAgeSeconds = Math.floor(ADMIN_SESSION_TTL_MS / 1000)) {
     const secure = trustedAppOrigin(req).startsWith('https://');
@@ -1229,12 +1242,19 @@ function createApp(options = {}) {
     return false;
   }
   db.exec('CREATE TABLE IF NOT EXISTS admin_totp_used (actor TEXT NOT NULL, counter INTEGER NOT NULL, used_at TEXT NOT NULL, PRIMARY KEY(actor,counter))');
+  function adminSessionCredentialHash(entry) {
+    // Bind persisted sessions to the factor that authenticated them. Rotating a
+    // lost device or enabling MFA must invalidate previously issued cookies.
+    const required = process.env.ADMIN_TOTP_REQUIRED === 'true';
+    const factor = required ? String(adminTotpSecrets[entry.label] || '').toUpperCase().replace(/=+$/, '') : null;
+    return crypto.createHash('sha256').update(JSON.stringify(['admin-session-v2', entry.token, required, factor])).digest('hex');
+  }
   function issueAdminSession(req, res, entry) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = new Date(), expires = new Date(now.getTime() + ADMIN_SESSION_TTL_MS);
     db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?').run(now.toISOString());
     db.prepare('INSERT INTO admin_sessions(session_hash,actor,role,created_at,expires_at,credential_hash) VALUES (?,?,?,?,?,?)')
-      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString(), crypto.createHash('sha256').update(entry.token).digest('hex'));
+      .run(crypto.createHash('sha256').update(token).digest('hex'), entry.label, entry.role, now.toISOString(), expires.toISOString(), adminSessionCredentialHash(entry));
     setAdminSessionCookie(req, res, token);
   }
   function clearAdminSession(req, res) {
@@ -1255,13 +1275,37 @@ function createApp(options = {}) {
     if (!origin && !fetchSite) return fail(res, 403, 'invalid_origin', 'A trusted request origin is required.');
     return next();
   }
+  // All privileged handlers share this boundary, including handlers mounted by modules.
+  // Keep the existing operator role compatible; additional roles have explicit allowlists.
+  function authorizeAdminRole(req, res, next) {
+    const role = req.adminRole;
+    const route = req.originalUrl.split('?')[0];
+    const method = req.method === 'HEAD' ? 'GET' : req.method;
+    if (role === 'operator' || role === 'owner') return next();
+    const reviewRead = method === 'GET' && (
+      route === '/api/admin/listings' || route === '/api/admin/listings/review-queue' ||
+      route === '/api/admin/listing-reports' ||
+      /^\/api\/admin\/listings\/[^/]+\/images\/[^/]+\/content$/.test(route)
+    );
+    const reviewWrite = method === 'POST' && (
+      /^\/api\/admin\/listings\/[^/]+\/(approve|reject)$/.test(route) ||
+      /^\/api\/admin\/listing-reports\/[^/]+\/resolve$/.test(route)
+    );
+    const sessionRead = method === 'GET' && route === '/api/admin/session';
+    if (sessionRead && ['reviewer','support'].includes(role)) return next();
+    const supportRead = method === 'GET' && route === '/api/admin/support';
+    const supportWrite = method === 'POST' && /^\/api\/admin\/support\/[^/]+\/reply$/.test(route);
+    if ((role === 'reviewer' && (reviewRead || reviewWrite)) ||
+        (role === 'support' && (supportRead || supportWrite))) return next();
+    return fail(res, 403, 'admin_role_forbidden', 'Your administrator role does not permit this action.');
+  }
   function authAdmin(req, res, next) {
     const sessionToken = cookieValue(req, ADMIN_SESSION_COOKIE);
     if (sessionToken) {
       const sessionHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
       const session = db.prepare('SELECT actor,role,expires_at,credential_hash FROM admin_sessions WHERE session_hash=?').get(sessionHash);
-      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && crypto.createHash('sha256').update(entry.token).digest('hex')===session.credential_hash)) {
-        req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return requireAdminRequestOrigin(req, res, next);
+      if (session && session.expires_at > new Date().toISOString() && adminEntries.some(entry => entry.label === session.actor && entry.role === session.role && unambiguousAdminEntry(entry) && adminSessionCredentialHash(entry)===session.credential_hash)) {
+        req.adminActor = session.actor; req.adminRole = session.role; recordAdminAudit(req, res); return authorizeAdminRole(req, res, () => requireAdminRequestOrigin(req, res, next));
       }
       if (session) db.prepare('DELETE FROM admin_sessions WHERE session_hash=?').run(sessionHash);
     }
@@ -1271,8 +1315,8 @@ function createApp(options = {}) {
     req.adminActor = entry.label; req.adminRole = entry.role; recordAdminAudit(req, res);
     // MFA-enforced deployments must not allow bearer credentials to bypass session verification.
     if (process.env.ADMIN_TOTP_REQUIRED === 'true') return fail(res, 403, 'mfa_session_required', 'Sign in with administrator verification to access this resource.');
-    // Legacy bearer callers are not browser-cookie authenticated; retain their API compatibility.
-    return next();
+    // Legacy bearer callers retain authentication compatibility, but must satisfy the same role policy.
+    return authorizeAdminRole(req, res, next);
   }
 
   function getListing(id) {
@@ -1487,71 +1531,6 @@ function createApp(options = {}) {
   const {createAnalyticsIngest,validateEvent:validateAnalyticsEvent}=require('./lib/analytics-ingest');
   const analyticsIngest=createAnalyticsIngest({db,dataDir,trustedAppOrigin,options:options.analyticsIngest||{}});
   app.use('/api/analytics/events',analyticsIngest.gate);
-
-  app.post('/api/easypost/webhook', express.raw({ type: 'application/json', limit: '64kb' }), async (req, res) => {
-    try {
-      const secret = process.env.EASYPOST_WEBHOOK_SECRET;
-      const timestamp = req.get('x-timestamp') || '';
-      const signedPath = req.get('x-path') || '';
-      const supplied = req.get('x-hmac-signature-v2') || '';
-      if (!secret || !timestamp || !signedPath || !supplied) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook signature headers are missing.' } });
-      }
-
-      // EasyPost HMAC v2 signs timestamp + uppercase method + x-path + exact raw body.
-      const sentAt = Date.parse(timestamp);
-      const now = Date.now();
-      if (!Number.isFinite(sentAt) || sentAt < now - 60_000 || sentAt > now + 30_000) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook timestamp is outside the allowed window.' } });
-      }
-      if (signedPath !== req.originalUrl) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook path does not match.' } });
-      }
-      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
-      const stringToSign = Buffer.concat([
-        Buffer.from(timestamp + req.method.toUpperCase() + signedPath, 'utf8'),
-        rawBody
-      ]);
-      const expected = crypto.createHmac('sha256', secret).update(stringToSign).digest('hex');
-      const signature = supplied.replace(/^hmac-sha256-hex=/i, '').toLowerCase();
-      if (!/^[a-f0-9]{64}$/.test(signature) || !safeEqual(expected, signature)) {
-        return res.status(401).json({ error: { code: 'invalid_webhook', message: 'Invalid EasyPost webhook signature.' } });
-      }
-
-      let event;
-      try {
-        event = JSON.parse(rawBody.toString('utf8'));
-      } catch {
-        return res.status(400).json({ error: { code: 'invalid_webhook', message: 'EasyPost webhook body is not valid JSON.' } });
-      }
-      if (event?.object !== 'Event' || event?.description !== 'tracker.updated') return res.json({ received: true, ignored: true });
-
-      const tracker = event.result;
-      if (!tracker?.id) return res.json({ received: true, ignored: true });
-
-      const transfer = db.prepare('SELECT * FROM designer_transfers WHERE tracking_provider_id = ?').get(tracker.id);
-      if (!transfer) return res.json({ received: true, ignored: true });
-
-      // Fulfillment continues after payout. Keep delivery status current without
-      // re-entering payout processing or sending another verification notice.
-      if (transfer.status === 'paid') {
-        db.prepare('UPDATE designer_transfers SET tracking_status = ? WHERE id = ?').run(tracker.status || 'unknown', transfer.id);
-        return res.json({ received: true });
-      }
-
-      const accepted = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
-      const hasEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
-      const verifiedAt = accepted.has(tracker.status) && hasEvent ? new Date().toISOString() : null;
-      db.prepare('UPDATE designer_transfers SET tracking_status = ?, tracking_verified_at = COALESCE(tracking_verified_at, ?) WHERE id = ?').run(tracker.status || 'unknown', verifiedAt, transfer.id);
-      if (verifiedAt) notifyDesigner(transfer.designer_id,'tracking_verified','Tracking verified',`Carrier tracking for order ${transfer.order_id} is verified. Payout release also requires current Seller Terms acceptance.`,{orderId:transfer.order_id,actionPath:'/account#orders',eventKey:`tracking-verified:${transfer.id}`});
-      if (verifiedAt && payoutSellerTermsAcceptance(transfer.designer_id)) await processDesignerTransfers(transfer.order_id, transfer.designer_id, 'tracking_verified');
-      else if(verifiedAt)notifyDesigner(transfer.designer_id,'seller_terms_required','Seller Terms acceptance needed','Tracking is verified. Review and accept the current Seller Terms in your Designer’s Room before your held payout can be released.',{orderId:transfer.order_id,actionPath:'/designers/room',eventKey:`terms-hold:${transfer.id}:${SELLER_TERMS_VERSION}`});
-      return res.json({ received: true });
-    } catch (error) {
-      console.error('EasyPost webhook failed:', error);
-      return res.status(500).json({ error: { code: 'webhook_failed', message: 'Tracking update could not be processed.' } });
-    }
-  });
 
   // Shippo sends track_updated events. Treat the payload as a hint only:
   // independently retrieve tracking status from Shippo before updating any order.
@@ -1791,9 +1770,14 @@ function createApp(options = {}) {
       });
     });
   }
+  app.get('/api/admin/session', authAdmin, (req,res) => {
+    res.set('Cache-Control','no-store');
+    return res.json({admin:{label:req.adminActor,role:req.adminRole}});
+  });
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  require('./lib/founding-schools').installFoundingSchools({app,db,authAdmin,requireAdminRequestOrigin,rateLimit});
   app.use(customerRouter);
   const specialDepositReview=require('./special-deposit-review').createSpecialDepositReview({db,stripeApi});
   const reconcileSpecialDeposits=()=>specialDepositReview.reconcile();
@@ -2030,14 +2014,14 @@ function createApp(options = {}) {
   });
 
   app.get('/api/my/designer-profile', authDesigner, (req,res)=>{
-    const designer=db.prepare(`SELECT dp.id,dp.email,dp.display_name,dp.brand_name,dp.status,dp.bio,dp.location,dp.production_method,dp.categories,dp.portfolio_url,dp.social_url,dp.social_links,dp.logo_storage_key,
+    const designer=db.prepare(`SELECT dp.id,dp.email,dp.display_name,dp.brand_name,dp.status,dp.bio,dp.location,dp.production_method,dp.categories,dp.portfolio_url,dp.social_url,dp.social_links,dp.logo_storage_key,dp.portrait_storage_key,
       (SELECT pending_email FROM designer_email_changes ec WHERE ec.designer_id=dp.id AND ec.expires_at>?) pending_email
       FROM designer_profiles dp
       WHERE dp.id=? AND dp.status='active'`).get(new Date().toISOString(),req.designerId);
     if(!designer)return fail(res,404,'designer_not_found','Active designer profile not found.');
     let categories=[]; try{categories=JSON.parse(designer.categories||'[]')}catch{}
     const acceptance=sellerTermsAcceptance(designer.id);
-    return res.json({designer:{id:designer.id,email:designer.email,pendingEmail:designer.pending_email||null,foundingBadge:foundingDesignerBadge(designer.id),displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
+    return res.json({designer:{id:designer.id,email:designer.email,commissionBasisPoints:creatorCommissions.commissionBasisPoints(db,designer.id),pendingEmail:designer.pending_email||null,foundingBadge:foundingDesignerBadge(designer.id),displayName:designer.display_name,brandName:designer.brand_name,status:designer.status,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories,portfolioUrl:designer.portfolio_url||'',socialUrl:designer.social_url||'',socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return links&&typeof links==='object'&&!Array.isArray(links)?links:{}}catch{return{}}})(),logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,sellerTermsAccepted:Boolean(acceptance),sellerTermsVersion:SELLER_TERMS_VERSION,sellerTermsAcceptedAt:acceptance?.accepted_at||null}});
   });
 
   app.post('/api/my/seller-terms', authDesigner, (req,res) => {
@@ -2435,7 +2419,8 @@ function createApp(options = {}) {
     for(const [brandName,profile] of Object.entries(configuredBrandProfiles)){
       if(!brandName||!profile||typeof profile!=='object')continue;
       const matches=db.prepare("SELECT id,brand_defaults_initialized FROM designer_profiles WHERE lower(trim(brand_name))=lower(trim(?)) AND status='active'").all(brandName);
-      if(matches.length!==1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
+      if(matches.length===0)continue; // Brand defaults are optional in fresh or isolated databases.
+      if(matches.length>1){log('error','designer_profile_mapping_not_unique',{brandName,matchCount:matches.length});continue;}
       if(matches[0].brand_defaults_initialized)continue;
       const bio=String(profile.bio||'').trim().slice(0,2000);
       const categories=Array.isArray(profile.categories)?profile.categories.map(v=>String(v).trim()).filter(Boolean).slice(0,12):[];
@@ -2477,45 +2462,32 @@ function createApp(options = {}) {
     const shippoKey = process.env.SHIPPO_API_KEY || process.env.Shippo_Test;
     if (shippoKey) {
       const testMode = shippoKey.startsWith('shippo_test_');
-      const response = await fetch('https://api.goshippo.com/tracks/', {
+      const requestedCarrier = testMode ? 'shippo' : carrier.trim().toLowerCase();
+      const response = await (options.fetch || fetch)('https://api.goshippo.com/tracks/', {
         method: 'POST',
         headers: {
           Authorization: `ShippoToken ${shippoKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({tracking_number:trackingNumber,carrier:testMode?'shippo':carrier.trim().toLowerCase(),metadata:'House of Briar designer shipment'})
+        body: JSON.stringify({tracking_number:trackingNumber,carrier:requestedCarrier,metadata:'House of Briar designer shipment'})
       });
       const tracker = await response.json().catch(()=>({}));
       if(!response.ok){
         log('error','shippo_tracking_api_failed',{status:response.status,providerMessage:String(tracker?.detail||tracker?.message||'').slice(0,300)});
         throw Object.assign(new Error('Shippo could not accept this carrier and tracking number. Check the carrier name and tracking number.'),{statusCode:422,code:'tracking_verification_failed'});
       }
+      if (String(tracker.tracking_number || '') !== trackingNumber || String(tracker.carrier || '').trim().toLowerCase() !== requestedCarrier) {
+        throw Object.assign(new Error('Shippo returned tracking for a different shipment. Your payout remains held.'), {statusCode:502,code:'tracking_response_mismatch'});
+      }
       const status=String(tracker.tracking_status?.status||'UNKNOWN').toLowerCase();
       const acceptedStatuses=new Set(['transit','out_for_delivery','delivered','available_for_pickup']);
       const hasCarrierEvent=Array.isArray(tracker.tracking_history)&&tracker.tracking_history.some(event=>Boolean(event?.status_date));
       // Shippo test tracking is simulated. Never release real payouts from simulated events.
-      const verified=!testMode&&acceptedStatuses.has(status)&&hasCarrierEvent;
-      return {verified,id:tracker.object_id||'',carrier:tracker.carrier||carrier,status:testMode?`test_${status}`:status};
+      const simulated = testMode || tracker.test === true;
+      const verified=!simulated&&acceptedStatuses.has(status)&&hasCarrierEvent;
+      return {verified,id:tracker.object_id||'',carrier:tracker.carrier,status:simulated?`test_${status}`:status};
     }
-    const apiKey = process.env.EASYPOST_API_KEY;
-    if (!apiKey) throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in the testing environment.'), { statusCode: 503 });
-    const response = await fetch('https://api.easypost.com/v2/trackers', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ tracker: { tracking_code: trackingNumber, carrier } })
-    });
-    const tracker = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      log('error','easypost_api_failed',{status:response.status,providerMessage:String(tracker?.error?.message||'').slice(0,300)});
-      throw Object.assign(new Error('Carrier could not verify this tracking number.'), { statusCode: 422, code:'tracking_verification_failed' });
-    }
-    const acceptedStatuses = new Set(['in_transit','out_for_delivery','delivered','available_for_pickup']);
-    const hasCarrierEvent = Array.isArray(tracker.tracking_details) && tracker.tracking_details.length > 0;
-    const verified = acceptedStatuses.has(tracker.status) && hasCarrierEvent;
-    return { verified, id: tracker.id || '', carrier: tracker.carrier || carrier, status: tracker.status || 'unknown' };
+    throw Object.assign(new Error('Shipment verification is not configured. Add a Shippo API key in this environment.'), { statusCode: 503 });
   }
 
   async function processDesignerTransfers(orderId, designerId, releaseReason = 'tracking_submitted') {
@@ -2717,7 +2689,8 @@ function createApp(options = {}) {
           }
         }
       }
-      if(results.checked)log('info','donation_badges_reconciled',results);
+      results.paypal = await paypalDonationRecovery.reconcile();
+      if(results.checked || results.paypal.checked)log('info','donation_badges_reconciled',results);
       return results;
     }finally{donationReconciliationRunning=false;}
   }
@@ -2809,7 +2782,7 @@ function createApp(options = {}) {
       }
       const merchandiseTotalCents=Math.max(0,grossCents-discountCents);
       const lineTotalCents=merchandiseTotalCents+giftWrapCents;
-      const platformFeeCents = Math.round(lineTotalCents * 0.09);
+      const platformFeeCents = creatorCommissions.platformCommissionCents(lineTotalCents, creatorCommissions.commissionBasisPoints(db, listing.designer_id));
       rows.push({ patternFormat:listing.category==='patterns'?(patterns.digital(listing)?'pdf':'paper'):null, giftNote,shippingCostCents:listing.shipping_cost_cents,freeShippingThresholdCents:listing.free_shipping_threshold_cents,handlingDaysMin:listing.handling_days_min,handlingDaysMax:listing.handling_days_max,designerName:db.prepare('SELECT brand_name FROM designer_profiles WHERE id=?').get(listing.designer_id)?.brand_name||listing.designer_id, id: listing.id, title: listing.title, designerId: listing.designer_id, quantity, unitAmountCents, grossCents, discountCents, promoCodeId, promoCode, giftWrapSelected, giftWrapCents, lineTotalCents, platformFeeCents, designerAmountCents: lineTotalCents - platformFeeCents });
     }
     const merchandiseCents=rows.reduce((sum,item)=>sum+item.lineTotalCents,0);
@@ -2851,12 +2824,13 @@ function createApp(options = {}) {
     if(paypalTokenCache.token && Date.now()<paypalTokenCache.expiresAt-60000)return paypalTokenCache.token;
     const clientId=process.env.PAYPAL_CLIENT_ID,secret=process.env.PAYPAL_CLIENT_SECRET;
     if(!clientId||!secret)throw Object.assign(new Error('PayPal is not configured.'),{statusCode:503});
-    const response=await fetch(paypalBaseUrl()+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+Buffer.from(clientId+':'+secret).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
+    const response=await fetch(paypalBaseUrl()+'/v1/oauth2/token',{signal:AbortSignal.timeout(30000),method:'POST',headers:{Authorization:'Basic '+Buffer.from(clientId+':'+secret).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
     const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_auth_failed',{status:response.status,providerMessage:String(data?.error_description||'').slice(0,300)});throw Object.assign(new Error('Payment provider authentication failed.'),{statusCode:502,code:'payment_provider_unavailable'});}
     paypalTokenCache={token:data.access_token,expiresAt:Date.now()+Number(data.expires_in||300)*1000};return data.access_token;
   }
   async function paypalApi(path,{method='GET',body,idempotencyKey}={}){
-    const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
+    if (options.paypalApi) return options.paypalApi(path,{method,body,idempotencyKey});
+    const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{signal:AbortSignal.timeout(30000),method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
     const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_api_failed',{path,status:response.status,providerMessage:String(data?.details?.[0]?.description||data?.message||'').slice(0,300)});throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});}return data;
   }
   function paypalApprovalUrl(order){return order?.links?.find(link=>link.rel==='payer-action'||link.rel==='approve')?.href||null;}
@@ -2867,20 +2841,22 @@ function createApp(options = {}) {
     return {buyerSubject,buyerEmail};
   }
   function paypalExperience(origin,kind,id){
-    const success=kind==='donation'?origin+'/?donation=paypal-success&paypal_order_id='+encodeURIComponent(id):origin+'/?checkout=paypal-success&paypal_order_id='+encodeURIComponent(id);
+    const success=kind==='donation'?origin+'/?donation=paypal-success':origin+'/?checkout=paypal-success&paypal_order_id='+encodeURIComponent(id);
     const cancel=kind==='donation'?origin+'/?donation=canceled':origin+'/?checkout=canceled';
     return {brand_name:'House of Briar',user_action:'PAY_NOW',return_url:success,cancel_url:cancel,shipping_preference:kind==='order'?'GET_FROM_FILE':'NO_SHIPPING'};
   }
   // Merchandise payments must share the seller payout rail. Donations have no seller payouts.
-  const paypalMerchandiseUnavailable = (_req,res) => fail(res,503,'payment_method_unavailable','PayPal and Venmo merchandise checkout are temporarily unavailable. Please pay by card or bank.');
+  const paypalMerchandiseUnavailable = (_req,res) => fail(res,503,'payment_method_unavailable','This payment option is currently unavailable. Please choose an available payment method at checkout.');
   app.post('/api/paypal/checkout/order',checkoutLimiter,paypalMerchandiseUnavailable);
   app.post('/api/paypal/checkout/capture',checkoutLimiter,paypalMerchandiseUnavailable);
   app.post('/api/paypal/donations/order',requireDesignerRequestOrigin,checkoutLimiter,async(req,res,next)=>{
     try{const amountCents=Math.round(Number(req.body?.amount)*100);if(!Number.isInteger(amountCents)||amountCents<100||amountCents>100000)return fail(res,422,'invalid_donation','Choose a donation between $1 and $1,000.');const {buyerSubject,buyerEmail}=await paypalBuyerIdentity(req);const id=makeId(),now=new Date().toISOString(),origin=trustedAppOrigin(req);db.prepare("INSERT INTO donations (id,buyer_subject,buyer_email,amount_cents,currency,status,created_at,payment_provider) VALUES (?,?,?,?,'usd','pending',?,'paypal')").run(id,buyerSubject,buyerEmail,amountCents,now);
       const pp=await paypalApi('/v2/checkout/orders',{method:'POST',idempotencyKey:'hob-paypal-donation-'+id,body:{intent:'CAPTURE',purchase_units:[{reference_id:id,custom_id:id,description:'Support House of Briar',amount:{currency_code:'USD',value:(amountCents/100).toFixed(2)}}],payment_source:{paypal:{experience_context:paypalExperience(origin,'donation',id)}}}});db.prepare('UPDATE donations SET paypal_order_id=? WHERE id=?').run(pp.id,id);return res.status(201).json({donationId:id,paypalOrderId:pp.id,url:paypalApprovalUrl(pp)});}catch(error){next(error);}
   });
+  const paypalDonationRecovery = require('./paypal-donation-recovery').registerPayPalDonationRecovery({app,db,paypalApi,donationBadgeSubject,awardBadge});
   app.post('/api/paypal/donations/capture',requireDesignerRequestOrigin,checkoutLimiter,async(req,res,next)=>{
-    try{const paypalOrderId=String(req.body?.paypalOrderId||'');const donation=db.prepare("SELECT * FROM donations WHERE paypal_order_id=? AND payment_provider='paypal'").get(paypalOrderId);if(!donation)return fail(res,404,'not_found','PayPal donation not found.');const pp=await paypalApi('/v2/checkout/orders/'+encodeURIComponent(paypalOrderId)+'/capture',{method:'POST',idempotencyKey:'hob-paypal-donation-capture-'+donation.id});const capture=pp.purchase_units?.[0]?.payments?.captures?.[0],amount=capture?.amount||pp.purchase_units?.[0]?.amount,cents=Math.round(Number(amount?.value)*100);if(pp.status!=='COMPLETED'||String(amount?.currency_code||'').toLowerCase()!=='usd'||cents!==donation.amount_cents)throw Object.assign(new Error('PayPal donation payment does not match.'),{statusCode:409});if(donation.status!=='paid'){const email=paypalPayerEmail(pp);db.prepare("UPDATE donations SET status='paid',paid_at=?,buyer_email=COALESCE(buyer_email,?),paypal_capture_id=? WHERE id=?").run(new Date().toISOString(),email,capture?.id||null,donation.id);const subject=donationBadgeSubject(donation,email);if(subject&&donation.amount_cents>=500)awardBadge(subject,'supporter','donation',donation.id);}return res.json({status:'paid'});}catch(error){next(error);}
+    try { return res.json(await paypalDonationRecovery.recover(String(req.body?.paypalOrderId||''))); }
+    catch(error) { next(error); }
   });
 
   app.post('/api/checkout/session', requireDesignerRequestOrigin, checkoutLimiter, async (req, res, next) => {
@@ -3500,9 +3476,10 @@ function createApp(options = {}) {
 
   app.get('/api/admin/listings/:listingId/images/:imageId/content', authAdmin, (req, res) => {
     const row = db.prepare(`
-      SELECT storage_key, mime_type
-      FROM listing_images
-      WHERE id = ? AND listing_id = ? AND upload_status = 'ready'
+      SELECT i.storage_key, i.mime_type, l.designer_id, l.paused_by_designer
+      FROM listing_images i
+      JOIN listings l ON l.id = i.listing_id
+      WHERE i.id = ? AND i.listing_id = ? AND i.upload_status = 'ready' AND l.status != 'deleted'
     `).get(req.params.imageId, req.params.listingId);
     if (!row || row.paused_by_designer || !db.prepare("SELECT 1 FROM designer_profiles WHERE id=? AND status='active'").get(row.designer_id)) return fail(res, 404, 'not_found', 'Image not found.');
     res.type(row.mime_type);
@@ -3627,6 +3604,8 @@ function createApp(options = {}) {
     db.prepare("UPDATE listing_reports SET status='resolved',resolved_at=? WHERE id=?").run(new Date().toISOString(),report.id);
     res.json({ id: report.id, status: 'resolved' });
   });
+
+  atelierDrafts.registerAtelierDraftReview({app,db,authAdmin,fail,environment:atelierEnvironment,catalog:atelierCatalog,importError:atelierImportError});
 
   app.get('/api/admin/listings', authAdmin, (_req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -3955,7 +3934,10 @@ function createApp(options = {}) {
     const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
     const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state!='applied' ORDER BY updated_at DESC LIMIT 100").all();
-    const postageReviews=db.prepare('SELECT DISTINCT order_id,designer_id FROM postage_charges').all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
+    // An uncertain purchase can hold payout before a confirmed charge exists.
+    // Include those labels so the review queue cannot hide the held order.
+    const postageReviews=db.prepare(`SELECT order_id,designer_id FROM postage_charges
+      UNION SELECT order_id,designer_id FROM shipping_labels WHERE status IN ('processing','review_required')`).all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
     return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews});
   });
 
@@ -4338,12 +4320,12 @@ function createApp(options = {}) {
   require('./lib/shipping-labels').mountShippingLabels({app,db,authDesigner,fetch:options.fetch || fetch,sellerTermsVersion:SELLER_TERMS_VERSION});
 
   app.get('/api/my/orders', authDesigner, (req, res) => {
-    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.gift_note,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
+    const rows = db.prepare(`SELECT o.id order_id,o.status order_status,o.refund_status,o.currency,o.created_at,o.paid_at,o.shipping_details_json,oi.shipping_cents,oi.gift_note,oi.title,oi.quantity,oi.line_total_cents,oi.designer_amount_cents,
       dt.status payout_status,dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.paid_at payout_paid_at
       FROM orders o JOIN order_items oi ON oi.order_id=o.id LEFT JOIN designer_transfers dt ON dt.order_id=o.id AND dt.designer_id=oi.designer_id
       WHERE oi.designer_id=? ORDER BY o.created_at DESC`).all(req.designerId);
     const map=new Map();
-    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails:row.shipping_details_json?JSON.parse(row.shipping_details_json):null,shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({giftNote:row.gift_note||null,title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
+    for(const row of rows){if(!map.has(row.order_id)){let fulfillmentStatus=row.order_status;if(row.order_status==='paid')fulfillmentStatus='awaiting_shipment';if(row.tracking_number)fulfillmentStatus='tracking_submitted';if(row.tracking_verified_at)fulfillmentStatus='tracking_verified';if(row.payout_status==='paid')fulfillmentStatus='payout_released';if(row.order_status==='refunded'||row.refund_status==='succeeded')fulfillmentStatus='refunded';map.set(row.order_id,{id:row.order_id,orderStatus:row.order_status,fulfillmentStatus,currency:row.currency,createdAt:row.created_at,paidAt:row.paid_at,payoutStatus:row.payout_status||'pending',trackingCarrier:row.tracking_carrier,trackingNumber:row.tracking_number,trackingStatus:row.tracking_status,payoutPaidAt:row.payout_paid_at,shippingDetails:row.shipping_details_json?JSON.parse(row.shipping_details_json):null,shippingCents:0,earningsCents:0,items:[]});}const order=map.get(row.order_id);order.shippingCents+=row.shipping_cents;order.earningsCents+=row.designer_amount_cents;order.items.push({giftNote:row.gift_note||null,title:row.title,quantity:row.quantity,lineTotalCents:row.line_total_cents,earningsCents:row.designer_amount_cents});}
     for(const order of map.values())order.earnings=postageAccounting.summary(order.id,req.designerId);
     return res.json({orders:[...map.values()]});
   });
@@ -4465,17 +4447,19 @@ function createApp(options = {}) {
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   if(!db.prepare('PRAGMA table_info(creative_profiles)').all().some(column=>column.name==='specialties'))db.exec("ALTER TABLE creative_profiles ADD COLUMN specialties TEXT NOT NULL DEFAULT ''");
+  const networking=require('./creative-networking').createCreativeNetworking({app,db,authBuyer,origin:requireDesignerRequestOrigin,rateLimit});
   const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
   app.get('/api/creative-house/profiles/:slug',authDesigner,(req,res)=>{
     const profile=db.prepare('SELECT slug,display_name,role,location,bio,specialties,updated_at FROM creative_profiles WHERE slug=? AND published=1').get(req.params.slug);
     if(!profile)return res.status(404).json({error:'Profile not found'});
-    res.json({profile});
+    res.json({profile:networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent')});
   });
   app.get('/api/creative-house/my-profile',authBuyer,(req,res)=>{
     const profile=db.prepare('SELECT slug,display_name,role,location,bio,specialties,published,updated_at FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
-    res.json({profile:profile||null});
+    res.json({profile:networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent')});
   });
   app.put('/api/creative-house/my-profile',authBuyer,(req,res)=>{
+    if(!networking.validPreferences(req.body?.openTo))return res.status(422).json({error:'Choose valid Open to options.'});
     const v=req.body||{};
     const clean=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
     const displayName=clean('display_name',80),role=clean('role',20),location=clean('location',100),bio=clean('bio',800);
@@ -4486,14 +4470,16 @@ function createApp(options = {}) {
     const slug=previous?.slug||portfolioSlug(displayName)+'-'+crypto.randomBytes(4).toString('hex');
     db.prepare(`INSERT INTO creative_profiles(owner_subject,slug,display_name,role,location,bio,specialties,published) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(owner_subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,location=excluded.location,bio=excluded.bio,specialties=excluded.specialties,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,displayName,role,location,bio,specialties,v.published?1:0);
-    res.json({profile:{slug,display_name:displayName,role,location,bio,specialties,published:v.published}});
+    networking.savePreferences(req.buyerSubject,v.openTo);
+    res.json({profile:{openTo:v.openTo,slug,display_name:displayName,role,location,bio,specialties,published:v.published}});
   });
-  app.get('/api/creative-house/profiles',authDesigner,(_req,res)=>{
+  app.get('/api/creative-house/profiles',authDesigner,(req,res)=>{
     const profiles=db.prepare('SELECT slug,display_name,role,location,bio,specialties FROM creative_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
-    res.json({profiles});
+    res.json({profiles:profiles.map(profile=>networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent'))});
   });
   const patterns=require('./pattern-commerce').mountPatternCommerce({app,db,dataDir,authBuyer,authDesigner,authAdmin,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter,releaseTransfer:processDesignerTransfers});
   const sewingServices=require('./sewing-services').mountSewingServices({app,db,authBuyer,authDesigner,origin:requireDesignerRequestOrigin,limiter:checkoutLimiter});
+  require('./design-projects').mountDesignProjects({app,db,authBuyer,origin:requireDesignerRequestOrigin,rateLimit,imageWork,moderateDesignerImage,fail});
   // Public project-intake forms do not expose talent portfolios or contact details.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_project_requests (
     id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('hire-talent','commission-designer')),
@@ -4532,20 +4518,21 @@ function createApp(options = {}) {
     amenities TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
-  app.get('/api/creative-house/event-profiles',authDesigner,(_req,res)=>{
+  app.get('/api/creative-house/event-profiles',authDesigner,(req,res)=>{
     const profiles=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 60').all();
-    res.json({profiles});
+    res.json({profiles:profiles.map(profile=>networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent'))});
   });
   app.get('/api/creative-house/event-profiles/:slug',authDesigner,(req,res)=>{
     const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities FROM creative_event_profiles WHERE published=1 AND slug=?').get(req.params.slug);
     if(!profile)return res.status(404).json({error:'Profile not found.'});
-    res.json({profile});
+    res.json({profile:networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent')});
   });
   app.get('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
     const profile=db.prepare('SELECT slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published FROM creative_event_profiles WHERE owner_subject=?').get(req.buyerSubject);
-    res.json({profile:profile||null});
+    res.json({profile:networking.decorate(profile,req.path.includes('event-profile')?'event-partner':'talent')});
   });
   app.put('/api/creative-house/my-event-profile',authBuyer,(req,res)=>{
+    if(!networking.validPreferences(req.body?.openTo))return res.status(422).json({error:'Choose valid Open to options.'});
     const v=req.body||{},clean=(k,n)=>typeof v[k]==='string'?v[k].trim().slice(0,n):'';
     const role=clean('role',20),name=clean('display_name',80),location=clean('location',100),description=clean('description',1000),specialties=clean('specialties',250),pricing=clean('pricing',100),capacity=clean('capacity',60),amenities=clean('amenities',350);
     if(!['dj','venue'].includes(role)||!name||!location||description.length<20||typeof v.published!=='boolean')return res.status(400).json({error:'Provide a role, name, region, description (20+ characters), and visibility preference.'});
@@ -4554,7 +4541,8 @@ function createApp(options = {}) {
     db.prepare(`INSERT INTO creative_event_profiles(owner_subject,slug,role,display_name,location,description,specialties,pricing,capacity,amenities,published)
     VALUES(?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(owner_subject) DO UPDATE SET role=excluded.role,display_name=excluded.display_name,location=excluded.location,description=excluded.description,specialties=excluded.specialties,pricing=excluded.pricing,capacity=excluded.capacity,amenities=excluded.amenities,published=excluded.published,updated_at=CURRENT_TIMESTAMP`).run(req.buyerSubject,slug,role,name,location,description,specialties,pricing,capacity,amenities,v.published?1:0);
-    res.json({profile:{slug,role,display_name:name,location,description,specialties,pricing,capacity,amenities,published:v.published}});
+    networking.savePreferences(req.buyerSubject,v.openTo);
+    res.json({profile:{openTo:v.openTo,slug,role,display_name:name,location,description,specialties,pricing,capacity,amenities,published:v.published}});
   });
   // Private inquiries: authenticated designer to opt-in creative, visible only to the sender and recipient.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_inquiries (
@@ -4564,20 +4552,25 @@ function createApp(options = {}) {
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  ensureColumn('creative_inquiries','collaboration_json',"TEXT");
   app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
     const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
     if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
     const table=kind==='talent'?'creative_profiles':'creative_event_profiles';
     const target=db.prepare('SELECT owner_subject FROM '+table+' WHERE slug=? AND published=1').get(slug);
     if(!target)return res.status(404).json({error:'Creative profile not found.'});
+    if(networking.blocked(target.owner_subject,req.designerId))return res.status(404).json({error:'Creative profile is unavailable for inquiries.'});
+    const collaboration=require('./creative-networking').collaborationDetails(v);
+    if(collaboration.error)return res.status(422).json({error:collaboration.error});
     const count=db.prepare("SELECT COUNT(*) AS n FROM creative_inquiries WHERE designer_id=? AND created_at>datetime('now','-1 day')").get(req.designerId).n;
     if(count>=15)return res.status(429).json({error:'Daily inquiry limit reached.'});
     const id=crypto.randomUUID();
     db.prepare('INSERT INTO creative_inquiries(id,designer_id,recipient_subject,recipient_kind,recipient_slug,subject,message) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,target.owner_subject,kind,slug,subject,message);
+    if(collaboration.details)db.prepare('UPDATE creative_inquiries SET collaboration_json=? WHERE id=?').run(JSON.stringify(collaboration.details),id);
     res.status(201).json({sent:true,message:'Private inquiry sent. The creative can review it in their House account.'});
   });
   app.get('/api/creative-house/my-inquiries',authBuyer,(req,res)=>{
-    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE recipient_subject=? ORDER BY created_at DESC LIMIT 100').all(req.buyerSubject);
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at,collaboration_json,(SELECT COALESCE(brand_name,display_name) FROM designer_profiles WHERE id=creative_inquiries.designer_id) sender_name,EXISTS(SELECT 1 FROM creative_inquiry_blocks b WHERE b.recipient_subject=creative_inquiries.recipient_subject AND b.designer_id=creative_inquiries.designer_id) blocked FROM creative_inquiries WHERE recipient_subject=? ORDER BY created_at DESC LIMIT 100').all(req.buyerSubject);
     res.json({inquiries});
   });
   app.post('/api/creative-house/my-inquiries/:id/respond',authBuyer,(req,res)=>{
@@ -4587,7 +4580,7 @@ function createApp(options = {}) {
     res.json({updated:true});
   });
   app.get('/api/creative-house/sent-inquiries',authDesigner,(req,res)=>{
-    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at FROM creative_inquiries WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
+    const inquiries=db.prepare('SELECT id,recipient_kind,recipient_slug,subject,message,status,created_at,collaboration_json FROM creative_inquiries WHERE designer_id=? ORDER BY created_at DESC LIMIT 100').all(req.designerId);
     res.json({inquiries});
   });
   // Fashion event briefs: only active designers may publish or close events.
@@ -4648,6 +4641,8 @@ function createApp(options = {}) {
     if(!result.changes)return res.status(404).json({error:'Opportunity not found.'});
     res.json({ok:true});
   });
+  app.use('/payment-logos', express.static(path.join(rootDir, 'public', 'payment-logos'), { index: false }));
+  app.get('/payment-methods.json',(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,'public','payment-methods.json')));
   app.get('/api/frontend-config', (_req,res)=>res.set('Cache-Control','no-store').json({authMode:'house-session'}));
   const sendHouseStorefront=(req,res)=>{
     // Preserve old Stripe callbacks, including the private cancellation token.
@@ -4666,10 +4661,6 @@ function createApp(options = {}) {
     let database = 'ok';
     try { db.prepare('SELECT 1').get(); } catch { database = 'error'; }
     const persistentStorageConfigured = Boolean(options.dataDir || process.env.DATA_DIR);
-    const directorDependencies = {
-      genesisAuth: 'external',
-      taskadeGateway: 'external'
-    };
     const backupConfigured = process.env.OFFSITE_BACKUP_ENABLED === 'true' &&
       ['BACKUP_S3_ENDPOINT','BACKUP_S3_BUCKET','BACKUP_S3_ACCESS_KEY_ID','BACKUP_S3_SECRET_ACCESS_KEY'].every(name => Boolean(process.env[name]));
     const ready = database === 'ok' && (process.env.NODE_ENV !== 'production' || (persistentStorageConfigured && (process.env.RAILWAY_ENVIRONMENT_NAME === 'staging' || backupConfigured) && !adminConfigurationErrors.length));
@@ -4678,7 +4669,6 @@ function createApp(options = {}) {
     res.set('X-HOB-Persistent-Storage', persistentStorageConfigured ? 'configured' : 'default');
     res.set('X-HOB-Offsite-Backup', backupConfigured ? 'configured' : 'missing');
     res.set('X-HOB-React-Build', hasReactBuild ? 'present' : 'absent');
-    res.set('X-HOB-Director-Dependencies', Object.keys(directorDependencies).join(','));
     return res.status(ready ? 200 : 503).json({ ok: ready });
   });
 
@@ -4772,7 +4762,7 @@ function createApp(options = {}) {
       res.set('Cache-Control', 'public, max-age=60');
       return res.type('html').send(html);
     });
-    app.get(['/shop','/designers','/cart','/admin','/sell'], sendFrontend);
+    app.get(['/shop','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
   for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
@@ -4800,7 +4790,7 @@ function createApp(options = {}) {
     res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(rootDir, 'public', 'House of Briar Enchanted Boutique.png'));
   });
-  for(const asset of ['sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
+  for(const asset of ['join.html','join.js','join.css','design-projects.html','design-projects-ui.js','creator-room.js','sewing-services.html','sewing-services-ui.js','sewing-services.css','pattern-studio.html','pattern-studio.js'])app.get('/'+asset,(_req,res)=>res.set('Cache-Control','no-cache, must-revalidate').sendFile(path.join(rootDir,asset)));
   app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'briar-seamless-background-v1.webp',

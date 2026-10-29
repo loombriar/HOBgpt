@@ -7,7 +7,6 @@
  *
  * Uses the same singleton highlighter as `@/lib/shiki`.
  *
- * @see https://github.com/taskade/taskcade/issues/26056
  */
 
 import type { CodeHighlighterPlugin, HighlightOptions } from "streamdown";

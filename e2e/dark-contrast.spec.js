@@ -4,7 +4,7 @@ for (const width of [390, 1280]) {
   test(`dark mode keeps creative descriptions and activity buttons readable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/creative-house.html');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
@@ -60,12 +60,12 @@ for(const width of [390,1280]) {
   test(`dark customer, product and cart headers and controls are readable at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:844});
     await page.goto('/');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');
     await expectReadable(page.locator('.sewing-hero-actions .primary-button,.hob-customer-access button'));
-    await page.locator('#header-customer-auth-btn').click();
+    await page.locator('.hob-shop-menu > summary').click();await page.locator('#hob-global-nav .hob-global-join').click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
     await expectReadable(page.locator('#visitor-suite-modal .dialog-header h2,#visitor-suite-modal .dialog-header p,#visitor-suite-close,#customer-signup-form label,#customer-signup-form .primary-button,#customer-signup-email'));
     await page.locator('#visitor-suite-close').click();
     await page.getByRole('button',{name:'View Moonlit E2E Piece details',exact:true}).click();
@@ -84,7 +84,7 @@ for (const width of [393,1280]) {
     const asset = await page.request.get(stylesheet);
     expect(asset.status()).toBe(200);
     expect(asset.headers()['content-type']).toContain('text/css');
-    // Dark is the first-visit default; exercise the explicit light-to-dark toggle.
+    // Exercise the explicit light-to-dark toggle.
     await page.evaluate(() => { localStorage.setItem('house-of-briar-theme', 'light'); document.documentElement.dataset.hobTheme = 'light'; document.documentElement.classList.remove('dark'); });
     await page.locator('#hob-theme-toggle').click();
     await expect(page.locator('html')).toHaveAttribute('data-hob-theme','dark');

@@ -1,0 +1,67 @@
+{
+  "primary": [
+    "Credit & debit cards",
+    "Apple Pay",
+    "Google Pay",
+    "Samsung Pay",
+    "Amazon Pay",
+    "Cash App Pay",
+    "Klarna",
+    "Afterpay",
+    "Link",
+    "US bank account (ACH)",
+    "Pay by bank"
+  ],
+  "regional": [
+    "Bancontact",
+    "BLIK",
+    "EPS",
+    "MB WAY",
+    "Pix",
+    "Satispay"
+  ],
+  "note": "Available options appear at checkout and depend on your device, location, currency and order eligibility.",
+  "donations": "PayPal donations only.",
+  "logos": [
+    {
+      "name": "Visa",
+      "file": "visa.svg"
+    },
+    {
+      "name": "Mastercard",
+      "file": "mastercard.svg"
+    },
+    {
+      "name": "American Express",
+      "file": "amex.svg"
+    },
+    {
+      "name": "Discover",
+      "file": "discover.svg"
+    },
+    {
+      "name": "Apple Pay",
+      "file": "applepay.svg"
+    },
+    {
+      "name": "Google Pay",
+      "file": "googlepay.svg"
+    },
+    {
+      "name": "Samsung Pay",
+      "file": "samsungpay.svg"
+    },
+    {
+      "name": "Cash App Pay",
+      "file": "cashapp.svg"
+    },
+    {
+      "name": "Klarna",
+      "file": "klarna.svg"
+    },
+    {
+      "name": "Afterpay",
+      "file": "afterpay.svg"
+    }
+  ]
+}

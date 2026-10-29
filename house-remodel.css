@@ -150,6 +150,13 @@ html body.blackberry-house #shop .shop-nested-filters{display:grid!important;wid
 .shop-filter-child .shop-filter-field{margin:0;padding:0 12px 12px}
 .shop-filter-child .shop-filter-field>span{display:none}
 
+/* Equal card tracks replace the retired twelve-column staggered layout.
+   Reset every nth-child span so no implicit columns push photos out of line. */
+html body.blackberry-house #product-grid{width:100%;max-width:100%;box-sizing:border-box;align-items:stretch}
+html body.blackberry-house #product-grid>.product-card{grid-column:auto!important;grid-row:auto!important;width:100%!important;max-width:none!important;min-width:0;align-self:stretch}
+html body.blackberry-house #shop>.container{width:calc(100% - 32px)!important;max-width:1312px!important;margin-inline:auto!important;box-sizing:border-box}
+@media(min-width:801px){html body.blackberry-house #shop>.container{width:calc(100% - 64px)!important}}
+
 /* Product cards: photo, name, maker, price, fit, then details. */
 html body.blackberry-house #product-grid .product-card{min-width:0;background:var(--briar-card)!important}
 html body.blackberry-house #product-grid .product-image{position:relative;isolation:isolate;aspect-ratio:4/5!important;overflow:hidden;background:var(--briar-paper)!important}

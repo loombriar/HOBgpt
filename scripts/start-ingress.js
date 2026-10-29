@@ -6,6 +6,13 @@ const {createIngressProxy}=require('../ingress-proxy');
 
 // Opt-in launcher: public proxy, authenticated backend on loopback only.
 // Keep the existing origin, cookies, and webhook URLs on the public port.
+// Enforce least privilege at the actual Railway start command, not only in Docker metadata.
+// The backend inherits this UID because it is spawned without a uid override.
+if(process.env.NODE_ENV==='production'&&typeof process.getuid==='function'){
+  const uid=process.getuid();
+  if(uid!==1000)throw new Error('Refusing to start production ingress with unexpected UID '+uid);
+  console.log('Runtime least-privilege check passed: UID '+uid);
+}
 const publicPort=Number(process.env.PORT||3000);
 if(!Number.isInteger(publicPort)||publicPort<0||publicPort>65535) throw new Error('Invalid public PORT');
 const secret=randomBytes(32).toString('hex');

@@ -3,6 +3,8 @@ for(const width of [390,1280]) {
  test(`House windows and rooms fit a ${width}px screen`,async({page})=>{
   await page.setViewportSize({width,height:850});
   await page.goto('/');
+  // Exercise the dormant filters as they will behave when browsing is restored.
+  await page.locator('.shop-search-controls').evaluate(el=>el.hidden=false);
   const menus=page.locator('.shop-filter-menu');
   await expect(menus).toHaveCount(5);
   await expect(page.locator('#shop-designer-filter')).not.toBeVisible();
@@ -21,12 +23,17 @@ for(const width of [390,1280]) {
   }
   await page.locator('.shop-drop-windows').scrollIntoViewIfNeeded();
   await page.screenshot({path:`/tmp/hob-windows-${width}.png`});
+  // Earlier tests may approve a piece for this shared fixture designer.
+  // Keep this layout scenario in the intended first-listing state.
+  await page.route('**/api/my/studio',route=>route.fulfill({json:{items:[]}}));
   await page.goto('/designers/room');
   await page.getByText('Have an older access token?',{exact:true}).click();
   await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
   await page.locator('#designer-login-form button[type="submit"]').click();
   await expect(page.getByRole('navigation',{name:'Designer room sections'})).toBeVisible();
-  await expect(page.locator('#designer-workspace > .designer-room-panel')).toHaveCount(6);
+  await expect(page.locator('#designer-workspace > .designer-room-panel > summary')).toHaveText([
+   'Your path to selling', 'Your listings', 'Create a piece', 'Brand & profile'
+  ]);
   await expect(page.locator('#product-form')).not.toBeVisible();
   await expect(page.locator('#designer-add-piece')).toBeVisible();
   expect(await page.locator('#designer-workspace').evaluate(el=>{
@@ -36,17 +43,26 @@ for(const width of [390,1280]) {
   await expect(page.locator('#designer-dialog-title')).toBeInViewport();
   await page.locator('#designer-add-piece').click();
   await expect(page.locator('#product-form')).toBeVisible();
-  await page.getByRole('button',{name:'Create a piece',exact:true}).click();
+  await expect(page.locator('#product-form .designer-size-reference')).toHaveCount(1);
+  await expect(page.locator('#designer-settings .payout-setup-card')).toHaveCount(1);
+  await expect(page.getByText('The Briar Runway — Coming Soon',{exact:true})).toHaveCount(0);
+  await expect(page.locator('#product-form .fabric-finder-card')).toHaveCount(1);
+  await expect(page.locator('#designer-workspace > .fabric-finder-card')).toHaveCount(0);
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
   await expect(page.locator('#product-form')).toBeFocused();
+  await expect(page.locator('.listing-edit-options[open]')).toHaveCount(0);
+  for(const summary of await page.locator('.listing-edit-options > summary').all())await summary.click();
   const checkbox=await page.locator('#product-international').boundingBox();
   expect(checkbox.width).toBeLessThanOrEqual(24);
   await expect(page.locator('#product-form fieldset').filter({has:page.getByText('Price & shipping',{exact:true})})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-  await expect(page.locator('#product-name')).toBeInViewport();
+  // New garment drafts now begin with listing photos; the name remains editable below.
+  await expect(page.locator('#product-photos')).toBeVisible();
+  await expect(page.locator('#product-name')).toBeVisible();
   for(const [id,value]of [['product-price','100'],['estimated-materials','20'],['estimated-labor-hours','2'],['estimated-hourly-pay','15'],['estimated-postage','8'],['estimated-packaging','2']])await page.locator('#'+id).fill(value);
-  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (9%): $9.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('House of Briar fee (7%): $7.00');
   await expect(page.locator('#pricing-estimate')).toContainText('Labor (hours × hourly pay): $30.00');
-  await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $31.00');
+  await expect(page.locator('#pricing-estimate')).toContainText('Amount left after listed costs: $33.00');
   await expect(page.locator('#product-price')).toHaveValue('100');
   await page.locator('#product-name').fill('Unsaved design');
   const panel=page.locator('.designer-room-panel').filter({has:page.locator('#product-form')});
@@ -93,7 +109,7 @@ for(const width of [390,1280]) {
   expect(session.ok()).toBeTruthy();
   await page.goto('/account');
   await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
-  await expect(page.locator('details').filter({has:page.getByText('Your Customer account',{exact:true})})).not.toHaveAttribute('open');
+  await expect(page.locator('details').filter({has:page.getByText('Personal shopping & support',{exact:true})})).not.toHaveAttribute('open');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-studio-${width}.png`});
   await page.goto('/admin');

@@ -14,10 +14,17 @@ for(const room of ['dashboard','standalone'])test(`designer onboarding opens the
  if(room==='dashboard'){
  
   const checklist=page.getByRole('region',{name:'Your path to selling',exact:true});
+  await expect(checklist.locator('ol > li')).toHaveCount(4);
+  await expect(checklist).toContainText('2. Connect your payouts');
+  await expect(checklist).toContainText('Delivery terms: Complete');
+  await expect(checklist).toContainText('Stripe verification: Complete');
   await expect(checklist).toContainText('2 of 4 required selling steps complete.');
   await checklist.locator('[data-next-action]').getByRole('link',{name:'Create your first draft',exact:true}).click();
-  await expect(page.locator('#designer-listings').locator('xpath=ancestor::details[1]')).toHaveAttribute('open','');await expect(page.getByRole('textbox',{name:'Piece name',exact:true})).toBeVisible();
+  await expect(page.locator('#designer-listings').locator('xpath=ancestor::details[1]')).toHaveAttribute('open','');await expect(page.getByRole('heading',{name:'Photos',exact:true})).toBeVisible();
  }else{
+  await expect(page.locator('#seller-readiness-list > .seller-readiness-item')).toHaveCount(4);
+  await expect(page.locator('#seller-readiness-list')).toContainText('2. Connect your payouts');
+  await expect(page.locator('#seller-readiness-list')).toContainText('Delivery terms: Complete · Stripe verification: Complete');
   await expect(page.locator('#seller-readiness-badge')).toHaveText('Account ready · prepare your first approved piece');
   await page.locator('#seller-next-action').getByRole('button',{name:'Create a draft',exact:true}).click();await expect(page.locator('#product-form')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Getting started',exact:true}).click();

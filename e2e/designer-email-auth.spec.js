@@ -2,7 +2,18 @@ const {test,expect}=require('@playwright/test');
 test('mobile designer signup verifies email before opening the room',async({page,request})=>{
   await page.setViewportSize({width:390,height:844});
   const email=`designer-mobile-${Date.now()}@example.test`;
-  await page.goto('/designers/room#designer-signup');
+  await page.goto('/');
+  // The visible entry must navigate even when the retired header control cannot act.
+  await page.locator('#designer-login-btn').evaluate(button=>button.disabled=true);
+  await page.locator('.hob-shop-menu > summary').click();await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in / Join',exact:true}).click();
+  await Promise.all([
+    page.waitForRequest(request=>request.isNavigationRequest()&&new URL(request.url()).pathname==='/designers/room'),
+    page.getByRole('link',{name:'Designer sign in',exact:true}).click()
+  ]);
+  await expect(page).toHaveURL(/designers\/room/);
+  await expect(page.locator('#designer-login-panel')).toBeInViewport();
+  await expect(page.locator('.briar-invitation')).not.toBeVisible();
+  await expect(page.locator('#creative-house-feature')).not.toBeVisible();
   const form=page.locator('#designer-signup-form');
   await form.getByLabel('Your name',{exact:true}).fill('Mobile Maker');
   await form.getByLabel('Designer or brand name',{exact:true}).fill('Mobile Atelier');
@@ -17,6 +28,42 @@ test('mobile designer signup verifies email before opening the room',async({page
   await page.locator('#designer-code-form button[type=submit]').click();
   await expect(page.locator('#designer-workspace')).toBeVisible();
   expect((await page.request.get('/api/my/designer-profile')).status()).toBe(200);
+  await page.goto('/');
+  await page.locator('#hob-global-nav .hob-backstage-menu summary').click();
+  const dashboard=page.locator('#hob-global-nav').getByRole('link',{name:'Sign in as designer',exact:true});
+  await expect(dashboard).toBeVisible();
+  await dashboard.click();
+  await expect(page.locator('#designer-workspace')).toBeVisible();
+  await page.goto('/creative-house.html');
+  await page.locator('#hob-global-nav .hob-backstage-menu summary').click();
+  await page.locator('#hob-global-nav').getByRole('link',{name:'Sign in as designer',exact:true}).click();
+  await expect(page.locator('#designer-workspace')).toBeVisible();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Brand & profile',exact:true}).click();
+  const profile=page.locator('#designer-brand-form');
+  await expect(profile).toBeVisible();
+  await expect(profile).toBeInViewport();
+  await expect.poll(()=>profile.evaluate(el=>{
+    const bar=document.getElementById('hob-global-nav').getBoundingClientRect();
+    const heading=document.querySelector('#designer-modal .designer-room-header').getBoundingClientRect();
+    return el.getBoundingClientRect().top >= Math.max(bar.bottom,heading.bottom)-2;
+  })).toBe(true);
+  await page.locator('.hob-backstage-menu > summary').click();
+  const signout=page.locator('#hob-global-signout');
+  await expect(signout).toBeVisible();
+  await expect(signout).toBeInViewport();
+  await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  await page.locator('.listing-edit-options').filter({has:page.locator('#product-materials')}).locator(':scope > summary').click();
+  const listing=page.locator('#product-form');
+  const finder=listing.locator('.fabric-finder-card');
+  await finder.locator('summary').click();
+  await expect(finder.locator('#fabric-finder-submit')).toBeVisible();
+  expect(await listing.locator('form').count()).toBe(0);
+  await page.route('**/api/my/fabric-finder',route=>route.fulfill({json:{analysis:{fabricFamily:'Woven fabric',listingMaterialSuggestion:'Possible cotton; verify fiber content',careConsiderations:['Follow the fabric label']},disclaimer:'Visual estimate only.'}}));
+  await finder.locator('input[type=file]').setInputFiles({name:'fabric.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
+  await finder.getByRole('button',{name:'Identify fabric',exact:true}).click();
+  await finder.getByRole('button',{name:'Use material & care in my listing',exact:true}).click();
+  await expect(listing.locator('#product-materials')).toHaveValue('Possible cotton; verify fiber content');
+  await expect(listing.locator('#product-care')).toHaveValue('Follow the fabric label');
   const cookies=await page.context().cookies();expect(cookies.find(c=>c.name==='hob_designer_session').httpOnly).toBe(true);
   expect(await page.evaluate(()=>localStorage.getItem('briarDesignerToken'))).toBeNull();
 });
@@ -37,6 +84,7 @@ test('marketplace mobile signup continues through a private draft and review sub
   await expect(page).toHaveURL(/designers\/room/);
   await expect(page.locator('#designer-workspace')).toBeVisible();
   await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  for(const summary of await page.locator('.listing-edit-options > summary').all())await summary.click();
   const design=page.locator('#product-form');
   await design.getByLabel('Design name',{exact:true}).fill('First Mobile Dress');
   await design.getByLabel('Price',{exact:true}).fill('75');

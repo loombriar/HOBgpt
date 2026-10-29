@@ -1,3 +1,6 @@
+import AcceptedPayments from '@/components/AcceptedPayments';
+import { readCartIds } from '@/lib/cart-storage';
+import { readCheckoutSnapshot as readSnapshot, type CheckoutSnapshot } from '@/lib/checkout-snapshot';
 import BuyerOrderCard, {type BuyerOrder} from '@/components/BuyerOrderCard';
 import ShippingSummary from '@/components/ShippingSummary';
 import { useShippingQuote } from '@/lib/shipping';
@@ -6,34 +9,13 @@ import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, BadgeCheck, CreditCard, LockKeyhole, ShieldCheck, Truck } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import { getCatalogProducts, money } from '@/lib/marketplace';
 import { cancelCheckoutOrder, createCheckoutSession, verifyCheckoutSession, type CheckoutItem } from '@/lib/stripe';
 import { trackCommerceEvent } from '@/lib/analytics';
 
-type SnapshotItem = { id: string; name: string; amount: number; quantity: number };
-type CheckoutSnapshot = { ids: string[]; items: SnapshotItem[]; subtotal: number };
-
 const CART_KEY = 'house-of-briar:cart';
 const PENDING_KEY = 'house-of-briar:checkout-pending';
-
-function readCartIds(): string[] {
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(CART_KEY) ?? '[]');
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function readSnapshot(): CheckoutSnapshot | null {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(PENDING_KEY) ?? 'null') as CheckoutSnapshot | null;
-    return value && Array.isArray(value.ids) && Array.isArray(value.items) ? value : null;
-  } catch {
-    return null;
-  }
-}
 
 export default function CheckoutPage() {
   const auth = useAuth();
@@ -43,7 +25,7 @@ export default function CheckoutPage() {
   const canceledOrderId = searchParams.get('order_id');
   const cancelToken = searchParams.get('cancel_token');
   const [cartIds, setCartIds] = useState<string[]>(readCartIds);
-  const [products, setProducts] = useState<GenesisNode[]>([]);
+  const [products, setProducts] = useState<CatalogItem[]>([]);
   const [snapshot] = useState<CheckoutSnapshot | null>(readSnapshot);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -187,9 +169,9 @@ export default function CheckoutPage() {
             <div className="mt-6 rounded-2xl border border-border p-4"><p className="font-medium">Separate fulfillment by designer</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Shipping charges and lead times belong to each seller shipment—not to the cart as a whole. House of Briar keeps the payment combined while tracking fulfillment and payouts per designer.</p></div>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">Delivery is currently available to US addresses. Preparation time and carrier transit are separate; we do not promise an exact delivery date.</p>
           </section>
-          <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="payment-heading">
-            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CreditCard size={19} /></span><div><h2 id="payment-heading" className="font-serif text-2xl">Payment that feels right</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Pay securely by card or bank through Stripe.</p></div></div>
-            <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><ShieldCheck size={16} /> Protected by Stripe</span><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><LockKeyhole size={16} /> Card details never touch this app</span></div>
+          <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="payment-heading"><AcceptedPayments/>
+            <div className="flex items-start gap-4"><span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><CreditCard size={19} /></span><div><h2 id="payment-heading" className="font-serif text-2xl">Payment that feels right</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Choose a familiar payment method at secure checkout. You do not need a Stripe account.</p></div></div>
+            <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><ShieldCheck size={16} /> Secure checkout</span><span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2"><LockKeyhole size={16} /> Card details never touch this app</span></div>
           </section>
         </div>
 

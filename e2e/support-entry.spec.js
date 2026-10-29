@@ -16,3 +16,28 @@ test('guest support offers email help and closes the bubble when continuing',asy
   await expect(page.getByRole('link',{name:'Sign in or create customer account'})).toBeVisible();
   await expect(support).toContainText('AI support requires a signed-in House account');
 });
+
+test('AI support uses the signed-in cookie without a synthetic bearer credential',async({page})=>{
+  const session=await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+  expect(session.ok()).toBeTruthy();
+  let calls=0;
+  await page.route('**/api/my/support-agent',async route=>{
+    calls++;
+    const request=route.request();
+    const headers=await request.allHeaders();
+    expect(headers.authorization).toBeUndefined();
+    expect(headers.cookie).toContain('hob_designer_session=');
+    expect(request.postDataJSON()).toMatchObject({consent:true,allowEscalation:false});
+    await route.fulfill({json:{answer:'Policy-only test answer.',ticketId:null,actions:[]}});
+  });
+  await page.goto('/account#house-support-agent');
+  await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
+  const support=page.locator('#house-support-agent');
+  await support.getByLabel('Your question',{exact:true}).fill('Is US delivery free for shoppers?');
+  await expect(support.getByRole('button',{name:'Ask House support',exact:true})).toBeDisabled();
+  expect(calls).toBe(0);
+  await support.getByRole('checkbox',{name:'Send my question and relevant order summary to OpenAI for support.',exact:true}).check();
+  await support.getByRole('button',{name:'Ask House support',exact:true}).click();
+  await expect(support.getByRole('status')).toContainText('Policy-only test answer.');
+  expect(calls).toBe(1);
+});

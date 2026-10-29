@@ -1,5 +1,5 @@
 const {test,expect}=require('@playwright/test');
-test('sticky mailbox appears on designer sign-in and clears only when marked read',async({page})=>{
+test('designer menu mailbox appears on designer sign-in and clears only when marked read',async({page})=>{
  let signedIn=false,read=false;
  await page.route(/\/api\/my\/designer-notifications(?:\/.*)?$/,async route=>{
   if(!signedIn)return route.fulfill({status:401,json:{}});
@@ -8,7 +8,7 @@ test('sticky mailbox appears on designer sign-in and clears only when marked rea
  });
  await page.setViewportSize({width:390,height:850});
  await page.goto('/designers/room');
- await expect(page.locator('.hob-mailbox-wrap')).toBeHidden();
+ await expect(page.locator('.hob-mailbox-wrap')).toBeVisible();
  await page.getByText('Have an older access token?',{exact:true}).click();
  await page.getByLabel('Designer access token',{exact:true}).fill('e2e-designer-token');
  signedIn=true;

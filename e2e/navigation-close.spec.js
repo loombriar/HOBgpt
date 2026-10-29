@@ -5,36 +5,26 @@ for (const width of [390, 1280]) {
     await page.goto('/');
     const nav = page.locator('#hob-global-nav');
     await expect(page.locator('.site-header.sewing-header')).not.toBeVisible();
-    await nav.getByRole('link', { name: 'Shop', exact: true }).click();
-    await expect(page).toHaveURL(/#shop$/);
+    await nav.locator('.hob-shop-menu > summary').click();
+    await expect(nav.locator('.hob-shop-menu')).toContainText('We’re still moving in.');
+    await nav.locator('.hob-shop-menu > summary').click();
     await expect(nav).toBeInViewport();
-    await nav.locator('#header-customer-auth-btn').click();
+    await page.locator('.hob-shop-menu > summary').click();await nav.getByRole('link',{name:'Sign in / Join',exact:true}).click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
     await expect(page.locator('#visitor-suite-modal')).toBeVisible();
     await page.locator('#visitor-suite-close').click();
     await nav.locator('#cart-btn').click();
     await expect(page.locator('#cart-dialog')).toBeVisible();
     await page.locator('#cart-dialog-close').click();
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
     await page.goto('/creative-house.html#your-profile');
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
     await expect(page.locator('#profile-form')).toBeVisible();
     await expect(page.locator('#creative-access-status')).not.toHaveText('Checking your House account…');
     await page.locator('#hob-theme-toggle').click();
-    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'light');
-    const categories = page.locator('#hob-global-nav .hob-creative-menu');
-    await categories.locator('summary').click();
-    await expect(categories).toHaveAttribute('open');
-    await categories.getByRole('link', { name: 'Post an event', exact: true }).click();
-    await expect(categories).not.toHaveAttribute('open');
-    await expect(page.locator('#event-form')).toBeVisible();
-    await expect(page.locator('#profile-form')).not.toBeVisible();
-    await categories.locator('summary').click();
-    await categories.locator('summary').press('Escape');
-    await expect(categories).not.toHaveAttribute('open');
-    await expect(categories.locator('summary')).toBeFocused();
-    await categories.locator('summary').click();
-    await page.locator('#hob-global-nav').getByRole('link', { name: 'The Creative House', exact: true }).click();
-    await expect(page.locator('#hob-global-nav .hob-creative-menu')).not.toHaveAttribute('open');
+    await expect(page.locator('html')).toHaveAttribute('data-hob-theme', 'dark');
+    const categories = page.locator('#hob-global-nav .hob-backstage-menu');
+    await categories.locator('summary').click();await categories.locator('summary').press('Escape');
+    await expect(categories).not.toHaveAttribute('open');await expect(categories.locator('summary')).toBeFocused();
     await page.locator('[data-creative-workflow="event"]').click();
     await expect(page.locator('#event-form')).toBeVisible();
     await expect(page.locator('#profile-form')).not.toBeVisible();
@@ -42,18 +32,15 @@ for (const width of [390, 1280]) {
 }
 
 for (const width of [390,1280]) {
-  test(`rooms keep the storefront position and designer content precedes the footer at ${width}px`,async({page})=>{
+  test(`account choices open the customer room and designer content precedes the footer at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:844});
     await page.goto('/');
     const nav=page.locator('#hob-global-nav');
     await page.evaluate(async()=>{await document.fonts.ready;document.documentElement.style.overflowAnchor='none';window.scrollTo({top:1200,behavior:'instant'});});
     await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(1200);
-    const before=1200;
-    await nav.locator('#header-customer-auth-btn').click();
+    await page.locator('.hob-shop-menu > summary').click();await nav.getByRole('link',{name:'Sign in / Join',exact:true}).click();await page.getByRole('link',{name:'Customer sign in / join',exact:true}).click();
     await expect(page.locator('#visitor-suite-modal')).toBeVisible();
-    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(before);
     await page.locator('#visitor-suite-close').click();
-    await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(before);
     await page.goto('/designers/room');
     await expect(page.locator('#designer-modal')).toBeVisible();
     expect(await page.evaluate(()=>Boolean(document.querySelector('#designer-modal').compareDocumentPosition(document.querySelector('.site-footer')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);

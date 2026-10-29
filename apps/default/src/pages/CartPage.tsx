@@ -1,10 +1,11 @@
+import { readCartIds } from '@/lib/cart-storage';
 import ShippingSummary from '@/components/ShippingSummary';
 import { useShippingQuote } from '@/lib/shipping';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { ArrowLeft, ArrowRight, ShoppingBag, Trash2 } from '@/lib/icons';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getFieldNumber, getFieldValue, getTitle, type GenesisNode } from '@/lib/genesis-data';
+import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import HouseShell from '@/components/HouseShell';
 import { trackCommerceEvent } from '@/lib/analytics';
 import { getCatalogProducts, getProductImages, money } from '@/lib/marketplace';
@@ -62,19 +63,16 @@ function EmptyBagCrickets() {
 
 export default function CartPage() {
   const auth = useAuth();
-  const [ids, setIds] = useState<string[]>([]); const [products, setProducts] = useState<GenesisNode[]>([]); const [searchParams] = useSearchParams();
+  const [ids, setIds] = useState<string[]>([]); const [products, setProducts] = useState<CatalogItem[]>([]); const [searchParams] = useSearchParams();
   const donationState = searchParams.get('donation');
   const [catalogLoading,setCatalogLoading]=useState(true);
   const [catalogError,setCatalogError]=useState('');
   const [soldRemoved,setSoldRemoved]=useState(0);
-  useEffect(() => { let active = true; const raw = window.localStorage.getItem('house-of-briar:cart'); let parsed: string[] = []; try { const value = raw ? JSON.parse(raw) : []; parsed = Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []; } catch {} const unique = Array.from(new Set(parsed)); setIds(unique); if (unique.length !== parsed.length) window.localStorage.setItem('house-of-briar:cart', JSON.stringify(unique)); setCatalogLoading(true); setCatalogError(''); void getCatalogProducts(auth.isAuthenticated).then((rows) => { if (!active) return; setProducts(rows); const soldIds = new Set(rows.filter(item => getFieldValue(item, '@statx', 'Status') === 'Sold Out').map(item => item.id)); if (soldIds.size) { const current = (() => { try { const value = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]'); return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []; } catch { return []; } })(); const remaining = current.filter(id => !soldIds.has(id)); if (remaining.length !== current.length) { setSoldRemoved(current.length - remaining.length); setIds(remaining); window.localStorage.setItem('house-of-briar:cart', JSON.stringify(remaining)); window.dispatchEvent(new Event('house-of-briar-cart')); } } }).catch(() => { if (!active) return; setCatalogError('We could not load your saved pieces. Your cart has not been changed. Please try again.'); }).finally(() => { if (active) setCatalogLoading(false); }); return () => { active = false; }; }, [auth.isAuthenticated]);
+  useEffect(() => { let active = true; const parsed = readCartIds(); const unique = Array.from(new Set(parsed)); setIds(unique); if (unique.length !== parsed.length) window.localStorage.setItem('house-of-briar:cart', JSON.stringify(unique)); setCatalogLoading(true); setCatalogError(''); void getCatalogProducts(auth.isAuthenticated).then((rows) => { if (!active) return; setProducts(rows); const soldIds = new Set(rows.filter(item => getFieldValue(item, '@statx', 'Status') === 'Sold Out').map(item => item.id)); if (soldIds.size) { const current = readCartIds(); const remaining = current.filter(id => !soldIds.has(id)); if (remaining.length !== current.length) { setSoldRemoved(current.length - remaining.length); setIds(remaining); window.localStorage.setItem('house-of-briar:cart', JSON.stringify(remaining)); window.dispatchEvent(new Event('house-of-briar-cart')); } } }).catch(() => { if (!active) return; setCatalogError('We could not load your saved pieces. Your cart has not been changed. Please try again.'); }).finally(() => { if (active) setCatalogLoading(false); }); return () => { active = false; }; }, [auth.isAuthenticated]);
   // Keep the visible cart synchronized when logout clears browser storage.
   useEffect(() => {
     const sync = () => {
-      try {
-        const value: unknown = JSON.parse(window.localStorage.getItem('house-of-briar:cart') ?? '[]');
-        setIds(Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []);
-      } catch { setIds([]); }
+      setIds(readCartIds());
     };
     window.addEventListener('house-of-briar-cart', sync);
     window.addEventListener('storage', sync);
@@ -85,7 +83,7 @@ export default function CartPage() {
   const missingIds = useMemo(() => ids.filter(id => !products.some(product => product.id === id)), [ids, products]);
   const total = items.reduce((sum, item) => sum + (getFieldNumber(item, '@price', 'Price') ?? 0), 0);
   const shipments = useMemo(() => {
-    const groups = new Map<string, GenesisNode[]>();
+    const groups = new Map<string, CatalogItem[]>();
     items.forEach(item => { const designer=getFieldValue(item,'@desig','Designer') ?? 'Independent designer'; groups.set(designer,[...(groups.get(designer)??[]),item]); });
     return [...groups.entries()];
   }, [items]);

@@ -64,9 +64,9 @@ export default function SellPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Why make a home here?</p>
         <h2 id="designer-benefits-heading" className="mt-3 font-serif text-4xl">A place for the maker behind the piece.</h2>
         <div className="mt-7 grid gap-4 md:grid-cols-3">
-          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">91% / 9%</p><h3 className="mt-3 font-semibold">Your craft, your earnings</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Designers retain 91% of qualifying sales before other applicable costs; House of Briar retains a 9% marketplace fee. Review the seller terms for full payment details.</p></article>
+          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">93% / 7%</p><h3 className="mt-3 font-semibold">Your craft, your earnings</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Designers retain 93% of qualifying sales before other applicable costs; House of Briar retains a 7% marketplace fee. Verified students and recent graduates can apply for a permanent 5% school rate. Review the seller terms for full payment details.</p></article>
           <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">Your story</p><h3 className="mt-3 font-semibold">A storefront with personality</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Create a designer presence where shoppers can discover your original pieces and get to know the creative mind behind them.</p></article>
-          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">Free to begin</p><h3 className="mt-3 font-semibold">No listing fees</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your profile and draft your pieces at your own pace. The 9% marketplace fee applies to qualifying sales, not to uploading a listing.</p></article>
+          <article className="rounded-3xl border border-border bg-card p-6"><p className="font-serif text-4xl text-primary">Free to begin</p><h3 className="mt-3 font-semibold">No listing fees</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your profile and draft your pieces at your own pace. The 7% marketplace fee applies to qualifying sales, not to uploading a listing.</p></article>
         </div>
       </section>
 
@@ -74,7 +74,7 @@ export default function SellPage() {
         <h2 id="designer-steps-heading" className="font-serif text-4xl">Your place in the House, in three steps.</h2>
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
           <li><span className="text-sm font-semibold text-primary">01 · Introduce yourself</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Create your free profile and verify your email. You do not need a portfolio or a designer application.</p></li>
-          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Tell your story, connect Stripe for payouts, and draft your first piece. You can prepare drafts while payment setup is in progress.</p></li>
+          <li><span className="text-sm font-semibold text-primary">02 · Open your studio</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Tell your story and draft your first piece. No card, bank or payment details are needed to join or save drafts.</p></li>
           <li><span className="text-sm font-semibold text-primary">03 · Share your work</span><p className="mt-2 text-sm leading-6 text-muted-foreground">Submit your finished listings for review. Approved pieces can go on sale once your selling setup is ready.</p></li>
         </ol>
       </section>
@@ -83,15 +83,15 @@ export default function SellPage() {
         <h2 id="designer-delivery-heading" className="font-serif text-3xl">What happens when a piece sells?</h2>
         <div className="mt-5 grid gap-6 sm:grid-cols-2">
           <div><h3 className="font-semibold">You cover postage. Customers get free US delivery.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Include postage, packaging, materials, and your time in your price. For eligible paid orders, a live label purchased through House is deducted from your earnings only after you confirm its cost; you can also purchase postage separately from a carrier. Live in-app labels may not yet be enabled. Add your preparation time and measurements so shoppers know what to expect.</p></div>
-          <div><h3 className="font-semibold">Earnings stay held until shipment tracking is verified.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">Connect Stripe to verify your seller details and payout account. After a sale, add tracking in your dashboard. Verified shipment tracking is required before earnings can be released; bank processing time may still apply.</p></div>
+          <div><h3 className="font-semibold">Earnings stay held until shipment tracking is verified.</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">When you choose to set up payouts, open Payout settings to verify your seller details securely. After a sale, add tracking in your dashboard. Verified shipment tracking is required before earnings can be released; bank processing time may still apply.</p></div>
         </div>
-        <p className="mt-5 text-sm leading-7 text-muted-foreground">You retain 91% of qualifying sales before postage and other applicable costs. <a className="underline underline-offset-4" href="/rules#seller-terms">Read the full seller terms →</a></p>
+        <p className="mt-5 text-sm leading-7 text-muted-foreground">You retain 93% of qualifying sales before postage and other applicable costs. <a className="underline underline-offset-4" href="/rules#seller-terms">Read the full seller terms →</a> · <a className="underline" href="/founding-schools">Founding Schools Initiative →</a></p>
       </section>
 
       <section id="designer-signup" className="mx-auto mt-14 max-w-3xl scroll-mt-24" aria-labelledby="designer-signup-heading">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Your invitation starts here</p>
         <h2 id="designer-signup-heading" className="mt-3 font-serif text-4xl">Designer sign up</h2>
-        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email to create your profile. Individual listings are reviewed before appearing in the Shop.</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Designer signup is open—no application or portfolio required. Verify your email, then open your designer room to complete your profile and create your first draft. No payment details are requested during signup. Open Payout settings later when you choose to get ready to sell. Individual listings are reviewed before appearing in the Shop.</p>
       {requestId ? <form onSubmit={e=>void verify(e)} className="mt-10 space-y-5 rounded-3xl border border-border bg-card p-6">
         <p role="status">{message}</p><label className="block text-sm font-medium">Six-digit code from your email<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} className={field}/></label>
         <button disabled={loading} className="min-h-12 rounded-full bg-primary px-6 text-primary-foreground">Verify email and open my room</button>
@@ -118,10 +118,10 @@ export default function SellPage() {
             </label>)}
           </div>
         </fieldset>
-        <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>, including paying postage and offering free US delivery (version {form.sellerTermsVersion}).</span></label>
+        <label className="flex items-start gap-3 text-sm"><input type="checkbox" required checked={form.sellerTermsAccepted} onChange={e=>setForm({...form,sellerTermsAccepted:e.target.checked})}/><span>I have read and agree to the <a href="/rules#seller-terms" target="_blank" rel="noopener noreferrer" className="underline">House of Briar Seller Terms</a>.</span></label>
         {message&&<p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{message}</p>}
         <button disabled={loading||form.categories.length===0} type="submit" className="min-h-12 rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground disabled:opacity-50">{loading?'Joining…':'Email me a verification code'}</button>
-        <p className="text-xs leading-5 text-muted-foreground">No application. No portfolio required. Your designer profile is created after you verify your email.</p>
+        <p className="text-xs leading-5 text-muted-foreground">No application or portfolio required. Your designer profile is created after email verification. Students and recent graduates can separately apply for the 5% school commission through the Founding Schools Initiative; eligibility approval is required and payment processing fees are separate.</p>
       </form>}
       </section>
     </div>

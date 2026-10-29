@@ -7,7 +7,7 @@ function registerDesignerAccountDeletion({app,db,authDesigner,authAdmin,fail,tru
   const quote=name=>'"'+name.replaceAll('"','""')+'"';
   // Only these private, non-financial records can be erased automatically.
   // Any new feature containing an account reference requires an explicit review.
-  const removable=new Set(['designer_access_tokens','designer_sessions','designer_identities','designer_terms_acceptances','designer_email_changes','founding_designers','designer_notifications','seller_tool_usage','designer_stories','buyer_favorites','house_ai_usage','support_agent_runs','designer_account_activity']);
+  const removable=new Set(['designer_access_tokens','designer_sessions','designer_identities','designer_terms_acceptances','designer_email_changes','founding_designers','designer_notifications','seller_tool_usage','designer_stories','buyer_favorites','house_ai_usage','support_agent_runs','designer_account_activity','creative_network_preferences','creative_inquiry_blocks']);
   function origin(req,res,next){return isTrustedRequestOrigin(req,trustedAppOrigin(req))?next():fail(res,403,'invalid_origin','This request did not come from House of Briar.');}
   function remove(id,activityId){
     return db.transaction(()=>{

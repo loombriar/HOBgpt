@@ -1,6 +1,6 @@
-import { type GenesisNode } from '@/lib/genesis-data';
+import { readProductIds } from './product-id-storage';
+import { type CatalogItem } from '@/lib/catalog-fields';
 
-export const PRODUCTS_PROJECT_ID = 'Jh4hJjUDzfNiMHaH';
 
 type GalleryItem = {
   id: string;
@@ -23,7 +23,7 @@ type GalleryItem = {
   productionType?: 'One of a Kind'|'Upcycled'|'Made in Multiple'|'Limited Quantity'|'Made to Order'; stockQuantity?: number; availableQuantity?: number|null; soldQuantity?: number; reservedQuantity?: number;
 };
 
-function galleryItemToGenesis(item: GalleryItem): GenesisNode {
+function galleryItemToCatalog(item: GalleryItem): CatalogItem {
   const images = Array.isArray(item.images) ? item.images.map((image) => image.url).filter(Boolean) : [];
   return {
     id: item.id,
@@ -61,12 +61,12 @@ function galleryItemToGenesis(item: GalleryItem): GenesisNode {
   };
 }
 
-export async function getCatalogProducts(_isAuthenticated: boolean): Promise<GenesisNode[]> {
+export async function getCatalogProducts(_isAuthenticated: boolean): Promise<CatalogItem[]> {
   const response = await fetch('/api/gallery', { headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error('Marketplace gallery unavailable.');
   const data = await response.json();
   if (!Array.isArray(data?.items)) throw new Error('Marketplace gallery unavailable.');
-  return data.items.map(galleryItemToGenesis);
+  return data.items.map(galleryItemToCatalog);
 }
 export const DESIGNERS_PROJECT_ID = 'WEttcv6jabX2q9a9';
 export const PRIVATE_DESIGNER_LISTINGS_PROJECT_ID = 'QUQPuN1aFvGorkJ3';
@@ -117,14 +117,7 @@ export function getProductImages(imageUrl?: string | null, galleryUrls?: string 
 export const SAVED_PRODUCTS_KEY = 'house-of-briar:saved-products';
 
 export function getSavedProductIds() {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(SAVED_PRODUCTS_KEY);
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
+  return readProductIds(SAVED_PRODUCTS_KEY);
 }
 
 export function setSavedProductIds(ids: string[]) {
@@ -137,7 +130,8 @@ export async function getPersistentFavoriteIds(accessToken?: string | null) {
   if (!accessToken) return getSavedProductIds();
   const guestIds = getSavedProductIds();
   if (guestIds.length) {
-    await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    const mergeResponse=await fetch('/api/my/favorites/merge', { method:'POST', headers:{ ...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}), 'Content-Type':'application/json' }, body:JSON.stringify({listingIds:guestIds}) });
+    if(!mergeResponse.ok) throw new Error('Saved pieces could not be transferred. Please try again.');
   }
   const response=await fetch('/api/my/favorites',{headers:{...(accessToken==='__house_session__'?{}:{Authorization:`Bearer ${accessToken}`}),Accept:'application/json'}});
   if(!response.ok) throw new Error('Saved pieces could not be loaded.');

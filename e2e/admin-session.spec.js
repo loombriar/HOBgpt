@@ -12,6 +12,11 @@ test('admin exchanges its token for a cookie and sign out revokes access',async(
   const cookies=await page.context().cookies();
   expect(cookies.find(c=>c.name==='hob_admin_session').httpOnly).toBe(true);
   await expect(page.getByRole('button',{name:'Sign out of admin'})).toBeVisible();
+  await page.getByRole('link',{name:'House of Briar home',exact:true}).click();
+  await page.goto('/admin');
+  await expect(page.getByRole('heading',{name:'Needs Attention'})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Needs Attention'})).toBeVisible();
   await page.getByRole('button',{name:'Sign out of admin'}).click();
   await expect(page.getByRole('button',{name:'Open dashboard'})).toBeVisible();
   expect((await page.request.get('/api/admin/operations')).status()).toBe(401);

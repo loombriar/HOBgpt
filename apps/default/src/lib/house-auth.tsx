@@ -4,10 +4,11 @@ import {AuthContext,type AuthContextProps} from 'react-oidc-context';
 import {User,UserManager} from 'oidc-client-ts';
 
 export async function revokeHouseSessions(request:typeof fetch=fetch):Promise<void>{
- for(const endpoint of ['/api/session','/api/customer/session']){
+ const results=await Promise.allSettled(['/api/session','/api/customer/session'].map(async endpoint=>{
   const response=await request(endpoint,{method:'DELETE',credentials:'same-origin'});
-  if(!response.ok)throw new Error('Sign-out could not be completed. Please try again.');
- }
+  if(!response.ok)throw new Error('Session revocation failed');
+ }));
+ if(results.some(result=>result.status==='rejected'))throw new Error('Sign-out could not be completed. Please try again.');
 }
 
 export async function validateHouseSession(request:typeof fetch=fetch):Promise<User|null>{

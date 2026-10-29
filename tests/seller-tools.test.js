@@ -16,3 +16,25 @@ test('photo clarity preview validates decoded bytes, preserves dimensions and do
  assert.equal((await enhance(original,'image/png','')).status,401);assert.equal((await enhance(Buffer.from('not an image'))).status,422);
  const response=await enhance(original);assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/webp/);assert.equal(response.headers.get('cache-control'),'no-store');const image=Buffer.from(await response.arrayBuffer()),metadata=await sharp(image).metadata();assert.equal(metadata.width,800);assert.equal(metadata.height,600);assert.equal(metadata.format,'webp');assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM listing_images').get().n,0);assert.equal(ctx.db.prepare("SELECT title FROM listings WHERE id='piece'").get().title,'Original title');
 }));
+test('photo autofill uses real departments and matching item types, including print and aesthetic',async()=>{
+ let photoRequest;
+ const suggestion={title:'Striped bag',category:'accessories',style:'Purse / Bag',pattern:'Stripes',description:'A bag with visible stripes.',tags:['striped bag'],aesthetic:'Vintage / Retro',reviewNotes:['Confirm materials.']};
+ await fixture(async({ctx,origin,calls})=>{
+  const image=await sharp({create:{width:32,height:32,channels:3,background:'#ab4567'}}).png().toBuffer();
+  async function analyze(){const body=new FormData();body.append('image',new Blob([image],{type:'image/png'}),'bag.png');body.append('consent','true');return fetch(origin+'/api/my/studio/photo-listing',{method:'POST',headers:{Authorization:'Bearer seller'},body});}
+  const response=await analyze();assert.equal(response.status,200);const result=await response.json();assert.equal(result.pattern,'Stripes');assert.equal(result.aesthetic,'Vintage / Retro');assert.equal(result.draftOnly,true);
+  const schema=JSON.parse(photoRequest.body).text.format.schema;assert.ok(schema.properties.category.enum.includes('accessories'));assert.ok(schema.properties.style.enum.includes('Purse / Bag'));
+  suggestion.category='apparel';assert.equal((await analyze()).status,502);
+  assert.equal(ctx.db.prepare("SELECT title FROM listings WHERE id='piece'").get().title,'Original title');
+ },{houseAiFetch:async(url,request)=>{photoRequest=request;return {ok:true,json:async()=>({output_text:JSON.stringify(suggestion)})};}});
+});
+test('photo size is an explicit editable suggestion and is bounded to supported sizes',async()=>{
+ let requestBody;let size='L';
+ await fixture(async({origin})=>{
+ const image=await sharp({create:{width:8,height:8,channels:3,background:'#abc'}}).png().toBuffer();
+ const analyze=async()=>{const body=new FormData();body.append('image',new Blob([image],{type:'image/png'}),'dress.png');body.append('consent','true');body.append('title','Large dress');return fetch(origin+'/api/my/studio/photo-listing',{method:'POST',headers:{Authorization:'Bearer seller'},body});};
+ const response=await analyze();assert.equal(response.status,200);assert.equal((await response.json()).size,'L');const schema=requestBody.text.format.schema;assert.ok(schema.required.includes('size'));assert.ok(schema.properties.size.enum.includes(''));
+ assert.match(requestBody.input[0].content,/never infer size from body shape/);
+ size='unsupported';assert.equal((await analyze()).status,502);
+ },{houseAiFetch:async(url,request)=>{requestBody=JSON.parse(request.body);return {ok:true,json:async()=>({output_text:JSON.stringify({title:'Large dress',category:'apparel',style:'Dress',pattern:'',description:'A dress.',tags:['dress'],aesthetic:'Other',reviewNotes:[],size})})};}});
+});

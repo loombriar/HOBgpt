@@ -1,8 +1,8 @@
 import { lazy, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics';
-import { GenesisSection } from '@/lib/genesis';
-import { GenesisAuth } from '@/lib/genesis-auth';
+import { HouseSection } from '@/lib/house-boundary';
+import { HouseAuth } from '@/lib/house-auth';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -15,10 +15,12 @@ const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
 const SellPage = lazy(() => import('@/pages/SellPage'));
+const FoundingSchoolsPage = lazy(() => import('@/pages/FoundingSchoolsPage'));
+const FoundingSchoolsAdminPage = lazy(() => import('@/pages/FoundingSchoolsAdminPage'));
 const FashionPersonalityPage = lazy(() => import('@/pages/FashionPersonalityPage'));
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
-  return <GenesisSection name={name}>{children}</GenesisSection>;
+  return <HouseSection name={name}>{children}</HouseSection>;
 }
 
 function TrafficTracker() {
@@ -47,6 +49,8 @@ function AppRoutes() {
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
       <Route path="/fashion-personality" element={<Section name="Fashion personality"><FashionPersonalityPage /></Section>} />
       <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
+      <Route path="/founding-schools" element={<Section name="Founding Schools"><FoundingSchoolsPage /></Section>} />
+      <Route path="/admin/founding-schools" element={<Section name="Founding Schools admin"><FoundingSchoolsAdminPage /></Section>} />
       <Route path="*" element={<main style={{ minHeight: "60vh", padding: "5rem 1.5rem", textAlign: "center" }}><h1>Page not found</h1><p>That page does not exist or may have moved.</p><a href="/shop">Explore the shop</a></main>} />
     </Routes>
   </BrowserRouter>;
@@ -67,18 +71,18 @@ export default function App() {
     themeColor.setAttribute('content', '#c9ae72');
     if (!themeColor.parentNode) document.head.appendChild(themeColor);
 
-    const logoUrl = '/icons/briar-icon.svg';
+    const logoUrl = '/icons/house-of-briar-32.png?v=silver-mint-6';
     const favicon = document.querySelector('link[rel="icon"]') ?? document.createElement('link');
     favicon.setAttribute('rel', 'icon');
-    favicon.setAttribute('type', 'image/svg+xml');
+    favicon.setAttribute('type', 'image/png');
     favicon.setAttribute('href', logoUrl);
     if (!favicon.parentNode) document.head.appendChild(favicon);
 
     const appleIcon = document.querySelector('link[rel="apple-touch-icon"]') ?? document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
-    appleIcon.setAttribute('href', '/icons/briar-icon.svg');
+    appleIcon.setAttribute('href', '/icons/house-of-briar-192.png?v=silver-mint-6');
     if (!appleIcon.parentNode) document.head.appendChild(appleIcon);
   }, []);
 
-  return <GenesisAuth><AppRoutes /></GenesisAuth>;
+  return <HouseAuth><AppRoutes /></HouseAuth>;
 }
