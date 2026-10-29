@@ -3835,6 +3835,18 @@ function createApp(options = {}) {
     }
   });
 
+  // Explicit admin-only sandbox review; never posts ambiguous refund/reversal events.
+  app.post('/api/admin/designer-settlement-ledger/reconcile-test-adjustments', authAdmin, (req,res) => {
+    try {
+      const {orderId,designerId,apply}=req.body||{};
+      const result=require('./lib/designer-test-adjustment-reconciliation').reconcileTestAdjustments(
+        db,designerSettlementLedger,{orderId,designerId,apply:apply===true});
+      return res.json(result);
+    } catch(error) {
+      return res.status(409).json({error:{message:error.message}});
+    }
+  });
+
   app.get('/api/admin/designer-settlement-ledger/reconcile', authAdmin, (req,res) => {
     try {
       if(!['true','false'].includes(req.query.testMode))return res.status(400).json({error:{message:'testMode required'}});
