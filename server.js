@@ -1907,7 +1907,11 @@ function createApp(options = {}) {
     return res.json({applications});
   });
 
-  async function createStripeOnboarding(designer, req) {
+  async function createStripeOnboarding(designer, req, defaultPath = '/designers/room') {
+    const origin=trustedAppOrigin(req);
+    const refreshUrl=String(req.body?.refreshUrl||`${origin}${defaultPath}?stripe=refresh`);
+    const returnUrl=String(req.body?.returnUrl||`${origin}${defaultPath}?stripe=return`);
+    if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     let accountId=designer.stripe_account_id;
     if(accountId){
       try{ await stripeApi(`accounts/${encodeURIComponent(accountId)}`); }
@@ -1935,13 +1939,9 @@ function createApp(options = {}) {
       if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
       db.prepare('UPDATE designer_profiles SET stripe_account_id=?,stripe_payouts_enabled=0,stripe_details_submitted=0,stripe_requirements_due=? WHERE id=?').run(accountId,'[]',designer.id);
     }
-    const origin=trustedAppOrigin(req);
-    const refreshUrl=String(req.body?.refreshUrl||`${origin}/designers/room?stripe=refresh`);
-    const returnUrl=String(req.body?.returnUrl||`${origin}/designers/room?stripe=return`);
-    if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return {error:'invalid_return_url'};
     const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
     const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
-    return {designerId:designer.id,onboardingUrl:link.url,expiresAt:link.expires_at||null};
+    return {designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null};
   }
 
   async function stripeStatus(designer) {
@@ -2113,29 +2113,9 @@ function createApp(options = {}) {
     try{
       const designer=db.prepare("SELECT * FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
       if(!designer)return fail(res,404,'designer_not_found','Active designer not found.');
-      let accountId=designer.stripe_account_id;
-      if(!accountId){
-        const accountBody=JSON.stringify({
-          contact_email:designer.email,
-          identity:{country:process.env.STRIPE_CONNECTED_ACCOUNT_COUNTRY||'US'},
-          display_name:designer.brand_name||designer.display_name||designer.email,
-          dashboard:'express',
-          configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
-          defaults:{responsibilities:{fees_collector:'application',losses_collector:'application'}},
-          metadata:{designer_id:designer.id}
-        });
-        const account=await stripeApi('v2/core/accounts',{method:'POST',body:accountBody,idempotencyKey:`hob-connect-account-${designer.id}-accounts-v2-admin`});
-        accountId=account.id;
-        if(typeof accountId!=='string'||!accountId.startsWith('acct_'))throw new Error('Stripe did not return a valid connected account.');
-        db.prepare('UPDATE designer_profiles SET stripe_account_id=? WHERE id=?').run(accountId,designer.id);
-      }
-      const origin=trustedAppOrigin(req);
-      const refreshUrl=String(req.body?.refreshUrl||`${origin}/account?stripe=refresh`);
-      const returnUrl=String(req.body?.returnUrl||`${origin}/account?stripe=return`);
-      if(!isSameOriginUrl(refreshUrl,origin)||!isSameOriginUrl(returnUrl,origin))return fail(res,422,'invalid_return_url','Stripe onboarding return URLs must use this House of Briar origin.');
-      const linkBody=new URLSearchParams({account:accountId,refresh_url:refreshUrl,return_url:returnUrl,type:'account_onboarding'});
-      const link=await stripeApi('account_links',{method:'POST',body:linkBody.toString()});
-      return res.json({designerId:designer.id,stripeAccountId:accountId,onboardingUrl:link.url,expiresAt:link.expires_at||null});
+      const result=await createStripeOnboarding(designer,req,'/account');
+      if(result.error)return fail(res,422,result.error,'Stripe onboarding return URLs must use this House of Briar origin.');
+      return res.json(result);
     }catch(error){return next(error);}
   });
 
