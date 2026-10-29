@@ -3838,6 +3838,19 @@ function createApp(options = {}) {
   // Explicit admin-only sandbox review; never posts ambiguous refund/reversal events.
   // Read-only provider evidence; never books a refund or transfer reversal.
   // Read-only per-designer allocation for an existing test-mode refund record.
+  // Explicit, verified, test-only refund journaling; no Stripe write operations.
+  app.post('/api/admin/designer-settlement-ledger/post-verified-test-refund', authAdmin, async (req,res) => {
+    try {
+      const {orderId,scope,apply}=req.body||{};
+      const result=await require('./lib/designer-verified-test-refund').postVerifiedTestRefund(
+        db,designerSettlementLedger,stripeApi,{orderId,scope,apply:apply===true});
+      return res.json(result);
+    } catch(error) {
+      console.error('Test refund journal review:',String(error.message||error));
+      return res.status(409).json({error:{message:'Verified test refund posting blocked; manual review required'}});
+    }
+  });
+
   app.post('/api/admin/designer-settlement-ledger/preview-refund-allocation', authAdmin, (req,res) => {
     try {
       const {orderId,scope}=req.body||{};
