@@ -3836,6 +3836,19 @@ function createApp(options = {}) {
   });
 
   // Explicit admin-only sandbox review; never posts ambiguous refund/reversal events.
+  // Read-only provider evidence; never books a refund or transfer reversal.
+  app.post('/api/admin/designer-settlement-ledger/review-provider-adjustments', authAdmin, async (req,res) => {
+    try {
+      const {orderId,designerId}=req.body||{};
+      const result=await require('./lib/designer-provider-adjustment-review').reviewProviderAdjustments(
+        db,stripeApi,{orderId,designerId});
+      return res.json(result);
+    } catch(error) {
+      console.error('Provider adjustment review failed:',String(error.message||error));
+      return res.status(409).json({error:{message:'Provider adjustment review could not be verified'}});
+    }
+  });
+
   app.post('/api/admin/designer-settlement-ledger/reconcile-test-adjustments', authAdmin, (req,res) => {
     try {
       const {orderId,designerId,apply}=req.body||{};
