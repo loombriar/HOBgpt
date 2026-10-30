@@ -79,6 +79,7 @@
   };
   links.querySelectorAll('a:not(.hob-global-cart-link)').forEach(link=>link.remove());
   const shopMenu=makeMenu('Shop the Runway','shop',[
+    ['/atelier-emine','Browse the collection preview'],
     ['/?visitors=signup','Create your room'],['/?visitors=signup#measurement-profile-name','Save your measurements'],['/design-projects.html#creator-room','Create an outfit'],
   ]);
   const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
