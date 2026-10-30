@@ -53,7 +53,7 @@
 
 
   const wordmark=nav.querySelector('.hob-global-wordmark');
-  if(wordmark)wordmark.innerHTML='<img src="/house-monogram-rosegold-v4.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
+  if(wordmark)wordmark.innerHTML='<img src="/house-logo-floral-transparent-v5.webp" width="48" height="48" alt="" aria-hidden="true"> <span>HOUSE <i>of</i> BRIAR</span>';
   const search=document.createElement('form');
   search.className='hob-sticky-search';search.setAttribute('role','search');search.setAttribute('aria-label','Search the shop');search.action='/shop';search.method='get';
   search.innerHTML='<input type="search" name="q" aria-label="Search pieces, designers or materials" placeholder="Search the runway"><button type="submit">Search</button>';

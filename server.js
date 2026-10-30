@@ -4660,6 +4660,7 @@ function createApp(options = {}) {
     'atelier-emine-campaign-v1.webp',
     'house-logo-rosegold-v4.webp',
     'house-monogram-rosegold-v4.webp',
+    'house-logo-floral-transparent-v5.webp',
     'briar-seamless-background-v1.webp',
     'briar-portrait-green-v2.webp', 'briar-portrait-green-v2-mobile.webp',
     'briar-couture-v1.webp', 'briar-couture-v1-mobile.webp',

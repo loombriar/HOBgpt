@@ -358,3 +358,6 @@ html:root:root body .house-footer-link-row {
 }
 html:root:root body .house-footer-link-row :is(a,button,summary,p,span,.brand-name,.footer-kicker){color:var(--studio-ink)!important;opacity:1!important}
 html:root:root body .house-footer-link-row .house-footer-link-panel{color:var(--studio-ink)!important;background:var(--studio-card)!important;border-color:var(--studio-line)!important}
+
+/* Transparent floral crest: preserve ornament tips and native colors in both themes. */
+.house-hero-logo,.house-footer-logo img,.hob-global-wordmark img{object-fit:contain!important;border-radius:0!important;background:transparent!important;filter:none!important;box-shadow:none!important}
