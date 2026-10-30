@@ -2004,3 +2004,12 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 @media(max-width:740px){#product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#product-grid>.product-card,#product-grid>.product-card:nth-child(8n + 1),#product-grid>.product-card:nth-child(8n + 6){grid-column:span 1}#product-grid>.product-card:nth-child(5n + 1){grid-column:span 2}#product-grid>.product-card .product-body{backdrop-filter:none;-webkit-backdrop-filter:none}#product-grid>.product-card:hover{transform:none}#product-grid>.product-card .product-image img{transition:none}#product-grid>.product-card:hover .product-image img{transform:none}}
 @media(max-width:390px){#product-grid{grid-template-columns:1fr}#product-grid>.product-card,#product-grid>.product-card:nth-child(5n + 1){grid-column:span 1}}
 @media(prefers-reduced-motion:reduce){#product-grid>.product-card,#product-grid>.product-card .product-image img{transition:none!important}#product-grid>.product-card:hover,#product-grid>.product-card:hover .product-image img{transform:none!important}}
+
+/* A separate campaign placement above the homepage editorial content. */
+.house-designer-ad{width:100%;background:var(--briar-card,#fff);color:var(--briar-ink,#252126);border-bottom:1px solid var(--briar-line,#d6ccc7)}
+.house-designer-ad .house-designer-ad-image{display:block;width:100%;line-height:0}
+.house-designer-ad-image img{display:block;width:100%;height:auto;aspect-ratio:1143/569;object-fit:contain}
+.house-designer-ad-caption{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:16px clamp(20px,5vw,72px);font-size:13px;line-height:1.5}
+.house-designer-ad-caption a{display:inline-flex;align-items:center;min-height:44px;color:inherit;font-weight:700;text-underline-offset:4px}
+.house-designer-ad-image:focus-visible{outline:3px solid currentColor;outline-offset:-3px}
+@media(max-width:600px){.house-designer-ad-caption{align-items:flex-start;flex-direction:column;gap:0}.house-designer-ad-caption>span:last-child{font-size:12px}}
