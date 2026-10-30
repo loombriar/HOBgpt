@@ -4553,7 +4553,7 @@ function createApp(options = {}) {
   app.get('/sitemap.xml', (req, res) => {
     const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
     const origin = trustedAppOrigin(req);
-    const paths = ['/', '/shop', '/designers', '/rules', '/shipping.html', '/collections/autumn-atelier', '/collections/winter-briar', '/collections/garden-party', '/collections/independent-by-design'];
+    const paths = ['/', '/shop', '/atelier-emine', '/designers', '/rules', '/shipping.html', '/collections/autumn-atelier', '/collections/winter-briar', '/collections/garden-party', '/collections/independent-by-design'];
     const designers = db.prepare("SELECT id FROM designer_profiles WHERE status='active'").all();
     paths.push(...designers.map(row => '/designers/' + encodeURIComponent(row.id)));
     if (hasReactBuild) paths.push(...db.prepare("SELECT l.* FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.status='published' AND l.moderation_status='approved' AND p.status='active' AND COALESCE(l.paused_by_designer,0)=0").all().filter(customerListingVisible).map(row => '/shop/' + encodeURIComponent(row.id)));
@@ -4580,7 +4580,26 @@ function createApp(options = {}) {
       .replace(/(<meta name="twitter:description" content=")[^"]*/,`$1${page.description}`);
     return res.type('html').send(html);
   });
-  app.get('/designers/:designerId', sendFrontend);
+  const searchPages = require('./lib/search-pages');
+  const publicSearchListings = () => db.prepare("SELECT * FROM listings WHERE status='published' AND moderation_status='approved' ORDER BY published_at DESC, created_at DESC").all().filter(customerListingVisible);
+  const sendSearchPage = (req, res, page) => res.type('html').set('Cache-Control','no-cache').send(searchPages.renderSearchPage(fs.readFileSync(reactIndexFile,'utf8'), {...page,url:trustedAppOrigin(req)+req.path}));
+  app.get('/designers/:designerId', (req,res) => {
+    if(!hasReactBuild)return sendFrontend(req,res);
+    const designer=db.prepare("SELECT id,brand_name,display_name,bio FROM designer_profiles WHERE id=? AND status='active'").get(req.params.designerId);
+    if(!designer)return fail(res,404,'designer_not_found','Designer storefront not found.');
+    return sendSearchPage(req,res,{title:designer.brand_name||designer.display_name,description:designer.bio||'Discover original work from an independent designer at House of Briar.',body:searchPages.listingLinks(publicSearchListings().filter(row=>row.designer_id===designer.id))});
+  });
+  if(hasReactBuild){
+    app.get('/shop',(req,res)=>sendSearchPage(req,res,{title:'Shop independent fashion',description:'Discover original clothing and accessories by independent designers. Made by someone, not everyone.',body:'<h2>Atelier Emine</h2><p>Handcrafted couture handbags from Istanbul. Collection preview — purchasing coming soon.</p>'+searchPages.link('/atelier-emine','Explore the Atelier Emine collection')+searchPages.listingLinks(publicSearchListings())}));
+    app.get('/designers',(req,res)=>{
+      const designers=db.prepare("SELECT id,brand_name,display_name,bio FROM designer_profiles WHERE status='active' ORDER BY brand_name").all();
+      return sendSearchPage(req,res,{title:'Meet independent designers',description:'Explore independent labels and their original collections at House of Briar.',body:'<h2>'+searchPages.link('/atelier-emine','Atelier Emine')+'</h2><p>Handcrafted couture handbags from Istanbul. Collection preview.</p><ul>'+designers.map(d=>'<li>'+searchPages.link('/designers/'+encodeURIComponent(d.id),d.brand_name||d.display_name)+'<p>'+searchPages.escapeHtml(d.bio)+'</p></li>').join('')+'</ul>'});
+    });
+    app.get('/atelier-emine',(req,res)=>{
+      const collection=require('./shared/atelier-emine-preview.json');
+      return sendSearchPage(req,res,{title:'Atelier Emine Collection Preview',description:'Handcrafted couture handbags from Istanbul, featuring pearls, crystals, velvet, mother-of-pearl and wood. Collection preview — purchasing coming soon.',body:'<p>Each bag is made to order. These pieces are not available to purchase yet.</p>'+collection.map(piece=>'<article id="preview-'+searchPages.escapeHtml(piece.sku)+'"><h2>'+searchPages.escapeHtml(piece.name)+'</h2><p>'+searchPages.escapeHtml(piece.description)+'</p></article>').join('')});
+    });
+  }
   app.get('/account', hasReactBuild ? sendFrontend : (_req, res) => res.redirect('/#visitor-suite'));
   app.get('/checkout', sendFrontend);
 
