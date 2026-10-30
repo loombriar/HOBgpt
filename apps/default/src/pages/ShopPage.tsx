@@ -6,6 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Heart, Search, SlidersHorizontal } from '@/lib/icons';
 import { getFieldNumber, getFieldValue, getTitle, type CatalogItem } from '@/lib/catalog-fields';
 import HouseShell from '@/components/HouseShell';
+import AtelierEminePage from '@/pages/AtelierEminePage';
 import VisualSearch from '@/components/VisualSearch';
 import { MARKET_STYLES, getCatalogProducts, getSavedProductIds, getPersistentFavoriteIds, isPublicProduct, getProductImages, getProductVisual, money, setPersistentFavorite } from '@/lib/marketplace';
 import { trackCommerceEvent } from '@/lib/analytics';
@@ -165,7 +166,8 @@ export default function ShopPage() {
   const hasCatalogPieces = products.some(product => isPublicProduct(product) || getFieldValue(product, '@statx', 'Status') === 'Sold Out');
   const foundingCollection = !savedOnly && !searchParams.toString() && visible.length > 0 && visible.length <= 4;
   const noCatalogPieces = !catalogError && !savedOnly && !hasCatalogPieces;
-  const invitation = <aside className="my-10 rounded-3xl border border-border bg-card px-6 py-9 text-center shadow-sm sm:px-12" aria-labelledby="house-invitation-title"><p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">An invitation from the House</p><h2 id="house-invitation-title" className="mt-3 font-serif text-3xl sm:text-4xl">The House is getting dressed</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">Our first pieces are only the beginning. We're welcoming independent designers to bring their own vision to the House.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/sell" className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">Join as a designer</Link><a href="/#journal" className="inline-flex min-h-12 items-center justify-center rounded-full border border-border px-6 text-sm font-semibold hover:bg-accent">Get notified when pieces arrive</a></div></aside>;
+  if(noCatalogPieces)return <AtelierEminePage/>;
+  const invitation = <aside className="my-10 rounded-3xl border border-border bg-card px-6 py-9 text-center shadow-sm sm:px-12" aria-labelledby="house-invitation-title"><p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">Handcrafted couture handbags</p><h2 id="house-invitation-title" className="mt-3 font-serif text-3xl sm:text-4xl">Explore Atelier Emine</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">Discover 88 approved bags from the Istanbul design house. Browse photos, details and USD prices now. Purchasing is coming soon.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link to="/atelier-emine" className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground">View all 88 bags →</Link></div></aside>;
   const activeFilters = [category !== 'All pieces', subcategory !== 'All subcategories', priceRange !== 'all-prices', style !== 'All styles', designerFilter !== 'All designers',presentation!=='all',pattern!=='all',availability!=='all'].filter(Boolean).length;
   return <HouseShell>
     <section className="house-shop mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">

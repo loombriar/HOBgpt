@@ -243,5 +243,11 @@ html body.blackberry-house #product-grid .house-shop-invitation h3{font:400 clam
 html body.blackberry-house #product-grid .house-shop-invitation>p:not(.eyebrow){max-width:620px;margin:12px auto;font-size:14px;line-height:1.7}
 .house-shop-invitation-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
 .house-shop-invitation-actions a{min-height:44px;box-sizing:border-box;white-space:normal;text-align:center}
+.house-preview-pieces{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:24px 0}
+.house-preview-piece{display:flex;min-width:0;flex-direction:column;gap:8px;color:inherit;text-decoration:none;text-align:left}
+.house-preview-piece img{display:block;width:100%;height:260px;object-fit:contain;background:#fff;border-radius:12px}
+.house-preview-piece span{font-size:13px}
+.house-preview-piece:focus-visible{outline:3px solid currentColor;outline-offset:4px}
+@media(max-width:600px){.house-preview-pieces{grid-template-columns:1fr}.house-preview-piece img{height:240px}}
 html body.blackberry-house #product-grid .house-founding-collection{grid-column:1/-1;margin:12px 0 0;font:400 30px/1.2 'Cormorant Garamond',Georgia,serif;color:var(--briar-ink)}
 @media(max-width:600px){.house-shop-invitation-actions a{width:100%}}
