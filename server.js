@@ -4657,6 +4657,9 @@ function createApp(options = {}) {
   app.get('/house-taxonomy.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-cache').send('window.HouseTaxonomy='+JSON.stringify(HOUSE_TAXONOMY)+';'));
   const illustratedPublicAssets = [
     'atelier-emine-logo-v1.webp',
+    'atelier-emine-campaign-v1.webp',
+    'house-logo-rosegold-v4.webp',
+    'house-monogram-rosegold-v4.webp',
     'briar-seamless-background-v1.webp',
     'briar-portrait-green-v2.webp', 'briar-portrait-green-v2-mobile.webp',
     'briar-couture-v1.webp', 'briar-couture-v1-mobile.webp',
