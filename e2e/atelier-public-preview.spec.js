@@ -24,3 +24,14 @@ for(const width of [320,1280])test(`approved Atelier Emine preview is searchable
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
   }
 });
+
+test('empty shopping galleries show the approved bags',async({page})=>{
+  await page.route('**/api/gallery**',route=>route.fulfill({json:{items:[]}}));
+  await page.goto('/#shop');
+  await expect(page.locator('#product-grid .house-preview-piece')).toHaveCount(3);
+  await expect(page.getByText('The House is getting dressed',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'View all 88 bags →',exact:true})).toBeVisible();
+  await page.goto('/shop');
+  await expect(page.getByRole('article')).toHaveCount(88);
+  await expect(page.getByRole('button',{name:/add to (cart|suitcase)|buy now/i})).toHaveCount(0);
+});
