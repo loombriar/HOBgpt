@@ -1,0 +1,68 @@
+/* Shopping edit, shared by collection, product, cart and account surfaces. */
+:root:root:root{--background:40 40% 94%;--foreground:40 4% 14%;--card:43 100% 99%;--card-foreground:40 4% 14%;--popover:43 100% 99%;--popover-foreground:40 4% 14%;--primary:34 47% 32%;--primary-foreground:44 60% 99%;--muted:40 18% 90%;--muted-foreground:37 5% 40%;--border:38 16% 80%;--input:38 16% 80%;--accent:40 23% 89%;--accent-foreground:40 4% 14%}
+html.dark.dark.dark{--background:0 0% 13%;--foreground:42 35% 94%;--card:0 0% 16%;--card-foreground:42 35% 94%;--popover:0 0% 16%;--popover-foreground:42 35% 94%;--primary:35 42% 73%;--primary-foreground:40 3% 10%;--muted:40 4% 20%;--muted-foreground:40 12% 76%;--border:40 6% 43%;--input:40 6% 43%;--accent:35 7% 22%;--accent-foreground:42 35% 94%}
+.fashion-app.fashion-app :is(.rounded-2xl,.rounded-3xl){border-radius:6px}
+.fashion-app.fashion-app .house-compact-header>div{min-height:76px;gap:16px!important}
+.house-compact-header .house-compact-links{gap:18px!important;align-items:center}
+.house-compact-header .house-compact-links>a{font-size:12px}
+.house-shop-heading{display:flex;align-items:end;justify-content:space-between;gap:24px}
+.house-outline-link{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:10px 18px;border:1px solid hsl(var(--border));font-size:12px;font-weight:500;white-space:nowrap}
+.house-shop-note{display:flex;flex-wrap:wrap;gap:12px 28px;margin:28px 0;padding:15px 0;border-block:1px solid hsl(var(--border));font-size:11px;color:hsl(var(--muted-foreground))}
+.house-shop-note a{text-decoration:underline;text-underline-offset:3px}
+.house-shop-toolbar{display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;align-items:end}
+.house-search-field{display:flex;gap:12px;align-items:center;min-height:50px;padding:0 16px;border:1px solid hsl(var(--border));background:hsl(var(--card))}
+.fashion-app .house-search-field input{width:100%;min-width:0;border:0;outline:none;padding:12px 0;background:transparent;font-size:14px;box-shadow:none}
+.house-search-field:focus-within{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.house-filter-label{display:grid;gap:6px;font-size:11px;font-weight:500;color:hsl(var(--muted-foreground))}
+.fashion-app .house-filter-label select{width:100%;min-width:0;min-height:50px;padding:10px 12px;border:1px solid hsl(var(--border));border-radius:0;background:hsl(var(--card));color:hsl(var(--foreground));font-size:13px}
+.house-shop-filters{padding:18px 0;border-bottom:1px solid hsl(var(--border))}
+.house-shop-filters summary{display:flex;align-items:center;gap:8px;min-height:36px;width:fit-content;cursor:pointer;list-style:none;font-size:12px}
+.house-shop-filters summary::after{content:'+';margin-left:14px;font-size:18px}.house-shop-filters[open] summary::after{content:'−'}
+.house-filter-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:16px 0}
+.house-results-line{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0;font-size:12px;color:hsl(var(--muted-foreground))}
+.house-results-line button{min-height:44px;text-decoration:underline;text-underline-offset:3px}
+.house-shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.fashion-app.fashion-app .house-product-card{border-radius:3px;box-shadow:none}
+.house-product-card>a{background:hsl(var(--muted))!important}
+.house-product-card>a>div.absolute{display:none}.house-product-card>a>div.relative{background:hsl(var(--card));color:hsl(var(--foreground));border:1px solid hsl(var(--border));backdrop-filter:none;font-size:9px;letter-spacing:.1em}
+.house-product-card img{mix-blend-mode:normal}.house-product-card .space-y-3{padding:18px}.house-product-card h2{line-height:1.25;overflow-wrap:anywhere}
+.house-shop-empty{padding:64px 20px;text-align:center;border:1px dashed hsl(var(--border));background:hsl(var(--card))}.house-shop-empty>svg{margin:auto}
+.house-photo-search{margin-top:48px;padding:20px;border:1px solid hsl(var(--border));font-size:13px}.house-photo-search>summary{min-height:28px;cursor:pointer}
+@media(max-width:1150px){.fashion-app.fashion-app .house-compact-header>div{flex-wrap:wrap!important;gap:4px!important}.house-compact-header .house-compact-links{width:100%;flex-wrap:wrap!important;overflow:visible;padding:0;gap:4px 18px!important}.house-compact-header .house-compact-links>a{min-height:40px}.house-shop-grid{gap:18px}}
+@media(max-width:680px){.house-shop-heading{align-items:start;flex-direction:column;gap:16px}.house-shop-heading h1{font-size:42px}.house-shop-toolbar{grid-template-columns:1fr 1fr;gap:12px}.house-search-field{grid-column:1/-1}.house-filter-options{grid-template-columns:1fr}.house-shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.house-product-card .space-y-3{padding:12px}.house-product-card .space-y-3>div:first-child{flex-direction:column;gap:8px}.house-product-card h2{font-size:20px}.house-product-card .border-t{flex-wrap:wrap;gap:4px}.house-product-card .border-t>div{flex-wrap:wrap}.house-shop-note{gap:8px 16px;margin:22px 0}.house-shop-note a{flex-basis:100%}.house-compact-header .house-compact-links{gap:2px 14px!important}}
+@media(max-width:360px){.house-shop-grid{grid-template-columns:1fr}}
+/* Match the remodeled storefront without altering collection or account controls. */
+.fashion-app .house-shop-heading{position:relative;isolation:isolate;padding-block:12px 24px;border-bottom:1px solid hsl(var(--border))}
+.fashion-app .house-shop-heading h1{font-weight:400;letter-spacing:-.04em}
+.fashion-app .house-shop-note{background:hsl(var(--card));padding:16px;border:1px solid hsl(var(--border))}
+.fashion-app .house-product-card{transition:border-color .2s}
+.fashion-app .house-product-card:hover{border-color:hsl(var(--foreground))}
+.fashion-app .house-outline-link{background:hsl(var(--card))}
+
+/* Readable collection cards, including long titles on narrow screens. */
+.house-product-card{display:flex;flex-direction:column;min-width:0}
+.house-card-photo{flex-shrink:0;isolation:isolate}
+.house-card-photo img{object-fit:contain}
+.house-card-stock,.house-card-photo-count{position:absolute;z-index:1;border-radius:4px;padding:6px 9px;background:hsl(var(--card));color:hsl(var(--foreground));font-size:12px;line-height:1.4;border:1px solid hsl(var(--border))}
+.house-card-stock{top:12px;left:12px;font-weight:600}.house-card-photo-count{bottom:12px;right:12px}
+.house-card-info{display:flex;flex-direction:column;flex:1;min-width:0}
+.house-card-info>div:first-child{display:block}.house-card-info h2{font-size:25px;line-height:1.2}
+.house-card-info h2 a{display:block;min-height:44px}
+.house-card-info h2+p{overflow-wrap:anywhere;line-height:1.5}
+.house-card-info h2+p a{display:inline-flex;align-items:center;min-height:44px}
+.house-card-price{color:hsl(var(--foreground));font-size:17px;line-height:1.4}
+.house-card-size,.house-card-type{overflow-wrap:anywhere;line-height:1.5}
+.house-card-actions{margin-top:auto;padding-top:10px}.house-card-actions>div{display:flex;width:100%;justify-content:space-between;gap:0}.house-card-actions button{padding-inline:8px}
+.house-shop-toolbar>details{align-self:stretch;padding:0;border:1px solid hsl(var(--border));background:hsl(var(--card));min-width:0}
+.house-shop-toolbar>details>summary{padding:10px 12px;min-height:48px;box-sizing:border-box;width:100%;font-size:13px;overflow-wrap:anywhere}
+.house-shop-toolbar>details .house-filter-options{grid-template-columns:1fr;padding:12px}
+@media(max-width:680px){.house-card-info h2{font-size:21px}.house-card-photo{padding:12px}.house-card-stock,.house-card-photo-count{font-size:11px;padding:5px 7px}.house-card-stock{top:8px;left:8px}.house-card-photo-count{bottom:8px;right:8px}.house-card-info h2+p{font-size:12px}.house-card-actions button{font-size:11px;gap:4px;padding-inline:5px}.fashion-app .house-search-field input,.fashion-app .house-filter-label select{font-size:16px}}
+
+@media(max-width:680px){.house-compact-header .house-seamstress-menu{position:static}.house-compact-header .house-seamstress-menu-panel{top:100%;left:1rem;right:1rem;width:auto}}
+
+.house-seamstress-menu-panel{max-width:calc(100vw - 2rem);max-height:70vh;overflow:auto}
+.house-seamstress-menu-panel>a{display:flex;align-items:center;min-height:44px;padding:6px 8px;color:inherit;text-decoration:none}
+.house-seamstress-menu-panel>a:hover{text-decoration:underline}
+.house-seamstress-menu>summary:focus-visible,.house-seamstress-menu-panel>a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.house-compact-header .house-compact-links{width:100%;justify-content:center}
+.house-join-button{font-size:13px}

@@ -1,0 +1,53 @@
+const {test,expect}=require('@playwright/test');
+for(const room of ['dashboard','standalone'])test('photo-first details are reviewed and editable in '+room,async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  expect((await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}})).ok()).toBeTruthy();
+  const suggestions={size:'L',title:'Rose wrap dress',category:'apparel',style:'Dress',description:'A wrap dress with a visible floral print.',tags:['floral','wrap dress'],aesthetic:'Romantic',pattern:'Floral',reviewNotes:['Confirm measurements and materials.'],draftOnly:true};
+  if(room==='standalone')Object.assign(suggestions,{size:'',title:'Floral bag',category:'accessories',style:'Purse / Bag'});
+  let calls=0,writes=0;
+  await page.route('**/api/my/studio/photo-listing',async route=>{
+    calls++;
+    const headers=await route.request().allHeaders();
+    expect(headers.authorization).toBeUndefined();
+    expect(headers.cookie).toBeTruthy();
+    expect(route.request().postDataBuffer().toString()).toContain('name="consent"');
+    await route.fulfill({json:suggestions});
+  });
+  page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/listings')writes++;});
+  await page.goto(room==='dashboard'?'/account#designer-listings':'/designers/room');
+  if(room==='standalone')await page.getByRole('navigation',{name:'Designer room sections'}).getByRole('button',{name:'Create a piece',exact:true}).click();
+  if(room==='standalone')for(const summary of await page.locator('.listing-edit-options > summary').all())await summary.click();
+  const form=page.locator(room==='dashboard'?'#designer-listings':'#product-form');
+  const upload=room==='dashboard'?form.locator('input[type=file]').first():page.locator('#product-photos');
+  const image=await require('sharp')({create:{width:32,height:32,channels:3,background:'#9b4359'}}).png().toBuffer();
+  await upload.setInputFiles({name:'dress.png',mimeType:'image/png',buffer:image});
+  const title=page.locator(room==='dashboard'?'#draft-piece-name':'#product-name');
+  const description=room==='dashboard'?form.getByRole('textbox',{name:'Description',exact:true}):page.locator('#product-description');
+  const price=page.locator(room==='dashboard'?'#draft-piece-price':'#product-price');
+  if(room==='dashboard')await form.getByRole('button',{name:'4. Price & shipping',exact:true}).click();
+  await price.fill('123');
+  if(room==='dashboard')await form.getByRole('button',{name:'1. Photos',exact:true}).click();
+  const consent=room==='dashboard'?form.getByRole('checkbox',{name:/Send these listing details to OpenAI/}):page.locator('#photo-draft-consent');
+  const analyze=room==='dashboard'?form.getByRole('button',{name:'Fill in details from photo',exact:true}):page.locator('#photo-draft-analyze');
+  expect(calls).toBe(0);
+  await consent.check();
+  await analyze.click();
+  const apply=form.getByRole('button',{name:'Use these details',exact:true});
+  await expect(apply).toBeVisible();
+  await expect(title).toHaveValue('');
+  expect(writes).toBe(0);
+  await apply.click();
+  await expect(title).toHaveValue(suggestions.title);
+  if(room==='dashboard')await form.getByRole('button',{name:'2. Details',exact:true}).click();
+  await expect(description).toHaveValue(suggestions.description);
+  await expect(price).toHaveValue('123');
+  if(room==='standalone'){await expect(page.locator('#product-style')).toHaveValue('Purse / Bag');await expect(page.locator('#product-category')).toHaveValue('accessories');await expect(page.locator('#product-pattern')).toHaveValue('Floral');}
+  await title.fill('My edited rose dress');
+  await description.fill('Designer-checked description.');
+  await expect(title).toHaveValue('My edited rose dress');
+  await expect(description).toHaveValue('Designer-checked description.');
+  if(room==='dashboard'){await form.getByRole('button',{name:'3. Measurements',exact:true}).click();await expect(page.getByRole('textbox',{name:/^Fit notes/})).toHaveValue(/US women’s size L \(12–14\)/);await page.getByRole('textbox',{name:/^Fit notes/}).fill('My actual fit notes');await expect(page.getByRole('textbox',{name:/^Fit notes/})).toHaveValue('My actual fit notes');}
+  expect(calls).toBe(1);
+  expect(writes).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+});

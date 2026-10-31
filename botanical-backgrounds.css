@@ -1,0 +1,31 @@
+/* Quiet editorial surfaces replace the repeating campaign artwork. */
+html body:is(.blackberry-house,.creative-makeover){
+  --briar-paper:var(--house-paper);--briar-card:var(--house-card);--briar-ink:var(--house-ink);--briar-muted:var(--house-muted);--briar-line:var(--house-line);--briar-gold:var(--house-gold);
+  --briar-mint:var(--house-soft);--briar-coral:var(--house-soft);
+  background:var(--house-paper)!important;color:var(--house-ink)!important;
+}
+html body.blackberry-house :is(.page-shell,#top,#shop,#designer-modal,#creative-house-feature,.site-footer),
+html body.blackberry-house #top>:is(section,.house-shopping-promises),
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero,
+html body.creative-makeover main>section,
+html body.creative-makeover main>.hero.briar-creative-hero.briar-text-hero{
+  background:var(--house-paper)!important;background-image:none!important;color:var(--house-ink)!important;
+}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy :is(h1,h1 em,p:not(.eyebrow),p.eyebrow),
+html body.creative-makeover .briar-text-hero :is(h1,h1 em,p,a){color:var(--house-ink)!important;text-shadow:none!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button{
+  color:var(--house-ink)!important;border-color:var(--house-line)!important;background:var(--house-card)!important;
+}
+/* Keep the original layout and product photography; retire only backdrop ornaments. */
+html body.blackberry-house :is(.fashion-cover-copy,.briar-invitation,.briar-editorial-poster,#support,#journal,.designer-callout-section,.site-footer,.sewing-hero)::before,
+html body.blackberry-house :is(.fashion-cover-copy,.briar-invitation,.briar-editorial-poster,#support,#journal,.designer-callout-section,.site-footer,.sewing-hero)::after,
+html body.creative-makeover main>.hero::after{content:none!important;display:none!important;background:none!important}
+html body .house-botanical-accent{display:none!important}
+html body.blackberry-house .site-footer,
+html body.blackberry-house .site-footer :is(a,p,summary,button,h2,span){color:var(--house-ink)!important}
+html body.blackberry-house :is(.house-shopping-promises,.site-footer),html body.creative-makeover .hero{border-color:var(--house-line)!important}
+/* Override the older campaign's green/rust copy colors in both themes. */
+html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1{color:var(--house-ink)!important}
+html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy h1 em{color:var(--house-gold)!important}
+html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy>p:not(.eyebrow){color:var(--house-muted)!important}
+html[data-hob-theme] body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .secondary-button{color:var(--house-ink)!important;background:var(--house-card)!important;border-color:var(--house-gold)!important}

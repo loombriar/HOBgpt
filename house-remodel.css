@@ -1,0 +1,253 @@
+/* House remodel: deliberate editorial hierarchy, shared accessible surfaces. */
+body.blackberry-house{--briar-paper:#f7f4ee;--briar-card:#fffdf8;--briar-ink:#292622;--briar-muted:#6c625b;--briar-line:#d9d0c5;--briar-mint:#e0e6dd;--briar-coral:#ead1c6}
+html body.blackberry-house .hero.sewing-hero.fashion-cover{gap:0;padding:0!important;margin:24px auto 0;max-width:1360px;border:1px solid var(--briar-line);grid-template-columns:1fr 1fr!important}
+html body.blackberry-house .fashion-cover .fashion-cover-copy{padding:clamp(28px,5vw,76px)!important}
+html body.blackberry-house .fashion-cover-copy h1{font-size:clamp(46px,5.6vw,82px)!important;letter-spacing:-.045em!important;line-height:1.04!important;font-weight:400!important}
+html body.blackberry-house .fashion-cover .fashion-cover-art{aspect-ratio:auto;min-height:510px!important;background:var(--briar-coral)!important}
+html body.blackberry-house .briar-editorial-poster{height:100%;min-height:510px;padding:36px!important;box-sizing:border-box;background:var(--briar-coral)!important;color:var(--briar-ink)!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+html body.blackberry-house .briar-poster-title{font-size:clamp(58px,7vw,106px)!important;line-height:.95!important;font-weight:400!important;letter-spacing:-.05em}
+html body.blackberry-house .house-shopping-promises{max-width:1360px;margin:auto;padding:18px 24px;justify-content:space-around;border-top:0}
+html body.blackberry-house .briar-invitation{max-width:1360px;margin:0 auto;padding:64px 28px;border-top:1px solid var(--briar-line)}
+html body.blackberry-house .briar-invitation-heading{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;align-items:center;margin-bottom:30px;max-width:none}
+.briar-invitation-heading>.eyebrow{grid-column:1/-1}.briar-invitation-heading h2{margin:12px 0!important;font-weight:400!important}
+html body.blackberry-house .briar-invite{min-height:250px;box-shadow:none!important;border:1px solid var(--briar-line);border-radius:0!important;padding:28px;transition:transform .2s}
+html body.blackberry-house .briar-invite strong{font-size:34px;font-weight:400}.briar-invite:hover{transform:translateY(-4px)}
+html body.blackberry-house #shop{padding:64px 0!important}
+html body.blackberry-house #shop .shop-drop-windows{gap:10px!important}
+html body.blackberry-house .product-card{border-radius:4px!important;box-shadow:none!important;border:1px solid var(--briar-line)!important;overflow:hidden}
+html body.blackberry-house .product-card .card-title{font-weight:400!important;letter-spacing:-.025em}
+html body.blackberry-house .product-card .product-body{padding:20px!important}
+html body.blackberry-house :is(.primary-button,.secondary-button){border-radius:0!important;box-shadow:none!important}
+html body.blackberry-house .primary-button{background:var(--briar-ink)!important;color:var(--briar-paper)!important;border:1px solid var(--briar-ink)!important}
+html body.blackberry-house .secondary-button{background:transparent!important;color:var(--briar-ink)!important;border:1px solid var(--briar-line)!important}
+/* The invitation already contains both shopping and designer entry points. */
+body.blackberry-house .hob-two-doors{display:none!important}
+body.creative-makeover{--remodel-surface:#fffdf8;--remodel-ink:#292622;--remodel-line:#d9d0c5;background:#f7f4ee;color:var(--remodel-ink)}
+html[data-hob-theme=dark] body.creative-makeover{--remodel-surface:#252523;--remodel-ink:#f4f0e7;--remodel-line:#5c5952}
+body.creative-makeover>header{display:none}
+body.creative-makeover main>.hero{padding:64px 32px!important;border-bottom:1px solid var(--remodel-line);text-align:left!important}
+body.creative-makeover .hero h1{font-weight:400!important;font-size:clamp(44px,7vw,84px)!important;line-height:1.03!important;letter-spacing:-.04em}
+body.creative-makeover main>section:not(.hero){margin:28px auto!important;padding:32px!important;border:1px solid var(--remodel-line);border-radius:4px!important;background:var(--remodel-surface);color:var(--remodel-ink);box-sizing:border-box}
+body.creative-makeover .creative-jump-links{display:flex;flex-wrap:wrap;gap:10px!important}
+body.creative-makeover .creative-jump-links a{padding:12px 16px!important;border:1px solid var(--remodel-line)!important;border-radius:0!important;text-decoration:none;min-height:44px;box-sizing:border-box}
+body.creative-makeover main h2{font-weight:400!important;letter-spacing:-.025em}
+body.creative-makeover :is(input,select,textarea){max-width:100%;box-sizing:border-box}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+@media(max-width:700px){
+ html body.blackberry-house .hero.sewing-hero.fashion-cover{grid-template-columns:1fr!important;margin:12px;border:1px solid var(--briar-line)}
+ html body.blackberry-house .fashion-cover .fashion-cover-copy{grid-column:1;grid-row:1;padding:32px 24px!important}
+ html body.blackberry-house .fashion-cover .fashion-cover-art{grid-column:1;grid-row:2;min-height:300px!important;max-height:360px}
+ html body.blackberry-house .briar-editorial-poster{min-height:300px;padding:24px!important}
+ html body.blackberry-house .briar-poster-title{font-size:64px!important}
+ html body.blackberry-house .briar-invitation-heading{display:block}.briar-invitation-heading>p{max-width:100%}
+ html body.blackberry-house .briar-invitation{padding:36px 20px}.briar-invitation-grid{grid-template-columns:1fr!important}
+ html body.blackberry-house .briar-invite{min-height:220px}
+ html body.blackberry-house #shop{padding:36px 0!important}
+ body.creative-makeover main>.hero{padding:40px 20px!important}
+ body.creative-makeover main>section:not(.hero){margin:16px 12px!important;padding:22px 18px!important}
+ body.creative-makeover .creative-jump-links a{flex:1 1 135px}
+}
+@media(prefers-reduced-motion:reduce){.briar-invite{transition:none!important}.briar-invite:hover{transform:none}}
+/* Thorn embroidery stays decorative and never intercepts controls. */
+html body.blackberry-house .briar-editorial-poster{position:relative;isolation:isolate;overflow:hidden}
+html body.blackberry-house .briar-editorial-poster::before{content:'';position:absolute;inset:0 0 0 auto;width:26%;background:url('/briar-thorn-vine.svg') center/contain no-repeat;opacity:.65;z-index:-1;pointer-events:none}
+html body.blackberry-house .briar-poster-title{max-width:85%}
+html body.blackberry-house .briar-invitation::before{content:'';display:block;height:45px;margin:0 auto 28px;background:url('/briar-thorn-vine.svg') center/12px 48px repeat-x;opacity:.5;max-width:160px;pointer-events:none}
+body.creative-makeover main>.hero{position:relative;isolation:isolate;overflow:hidden}
+body.creative-makeover main>.hero::after{content:'';position:absolute;right:3%;top:20px;bottom:20px;width:100px;background:url('/briar-thorn-vine.svg') center/contain no-repeat;opacity:.4;pointer-events:none;z-index:-1}
+@media(max-width:700px){body.creative-makeover main>.hero::after{right:0;width:56px;opacity:.18}}
+html[data-hob-theme=dark] .briar-editorial-poster::before,html[data-hob-theme=dark] body.creative-makeover main>.hero::after{filter:brightness(1.8)}
+/* Center the opening copy and keep the frame inside narrow Android screens. */
+html body.blackberry-house .hero.sewing-hero.fashion-cover{width:calc(100% - 32px)!important;box-sizing:border-box!important;margin-inline:auto!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{min-width:0!important;width:100%!important;box-sizing:border-box!important;text-align:center!important;align-self:center;isolation:isolate}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy :is(h1,p){margin-inline:auto!important;max-width:100%!important;overflow-wrap:break-word}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions{justify-content:center!important}
+html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-art{min-width:0!important;width:100%!important;box-sizing:border-box!important}
+/* Matching vines frame the opening copy without covering text or buttons. */
+html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{content:'';position:absolute;top:20px;bottom:20px;width:24px;background:url('/briar-thorn-vine.svg') center/contain repeat-y;opacity:.7;pointer-events:none;z-index:-1}
+html body.blackberry-house .fashion-cover-copy::before{left:6px;transform:scaleX(-1)}
+html body.blackberry-house .fashion-cover-copy::after{right:6px}
+html body.blackberry-house .briar-editorial-poster::before{width:32%;opacity:.9}
+html body.blackberry-house .briar-editorial-poster::after{content:'';inset:0 auto 0 0;width:17%;height:auto;border:0;border-radius:0;background:url('/briar-thorn-vine.svg') center/contain repeat-y;transform:scaleX(-1);opacity:.65;pointer-events:none;z-index:-1}
+html body.blackberry-house .briar-invitation::before{height:64px;max-width:280px;background-size:24px 64px;opacity:.8}
+html[data-hob-theme=dark] body.blackberry-house .fashion-cover-copy::before,html[data-hob-theme=dark] body.blackberry-house .fashion-cover-copy::after,html[data-hob-theme=dark] body.blackberry-house .briar-editorial-poster::after{filter:brightness(1.9)}
+@media(max-width:700px){
+ html body.blackberry-house .hero.sewing-hero.fashion-cover{width:calc(100% - 24px)!important;grid-template-columns:minmax(0,1fr)!important;margin:12px auto!important;gap:0!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy{padding:36px 30px!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy h1{font-size:clamp(34px,9.5vw,58px)!important;max-width:100%!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy .eyebrow{letter-spacing:.15em!important;font-size:10px!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .fashion-cover-copy .fashion-cover-footnote{letter-spacing:.1em!important}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions{width:100%;box-sizing:border-box}
+ html body.blackberry-house .hero.sewing-hero.fashion-cover .sewing-hero-actions a{min-width:0;max-width:100%;box-sizing:border-box;justify-content:center}
+ html body.blackberry-house #hob-global-nav>nav{justify-content:center!important}
+ html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:18px;opacity:.65}
+}
+
+/* Compact badges and a thorn-lined lower House. */
+html body.blackberry-house .footer-story{grid-column:1/-1;width:100%;border-block:1px solid var(--briar-line);color:var(--briar-ink)}
+html body.blackberry-house .footer-story>summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer;min-height:48px;padding:12px 0;font-size:16px;list-style:none}
+.footer-story>summary::-webkit-details-marker{display:none}
+.footer-story[open]>summary span{transform:rotate(45deg)}
+html body.blackberry-house .footer-story .story-section{padding:24px 0!important;margin:0!important;background:transparent!important}
+html body.blackberry-house .footer-story .story-grid{width:100%!important;padding:0!important;gap:24px!important}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer){position:relative;isolation:isolate}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{content:''!important;display:block!important;position:absolute;top:12px;bottom:12px;width:clamp(18px,4vw,52px);background:url('/briar-thorn-vine.svg') center/100% auto repeat-y;opacity:.8;pointer-events:none;z-index:-1}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before{left:2px;transform:scaleX(-1)}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{right:2px}
+html[data-hob-theme=dark] body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html[data-hob-theme=dark] body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{filter:brightness(2)}
+@media(max-width:700px){
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)>.container{max-width:calc(100% - 48px)!important;margin-inline:auto!important}
+}
+
+/* Sculpted briar: individual climbing branches, never tiled stitching. */
+html body.blackberry-house .fashion-cover-copy::before,
+html body.blackberry-house .fashion-cover-copy::after,
+html body.blackberry-house .briar-editorial-poster::before,
+html body.blackberry-house .briar-editorial-poster::after,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after,
+body.creative-makeover main>.hero::after{background-repeat:no-repeat!important;background-size:contain!important}
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{width:clamp(26px,5vw,72px);opacity:.85}
+html body.blackberry-house .fashion-cover-copy::before,
+html body.blackberry-house .fashion-cover-copy::after{width:28px;opacity:.75}
+html body.blackberry-house .briar-invitation::before{width:200px;max-width:60%;height:72px;background-repeat:no-repeat;background-size:contain;transform:rotate(78deg);margin-block:24px 48px}
+html body.blackberry-house .site-footer::before{top:0;bottom:auto;height:230px;transform:rotate(20deg)}
+html body.blackberry-house .site-footer::after{top:auto;bottom:0;height:230px;transform:rotate(200deg)}
+@media(max-width:700px){
+ html body.blackberry-house .fashion-cover-copy::before,
+ html body.blackberry-house .fashion-cover-copy::after{width:24px}
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::before,
+ html body.blackberry-house :is(#support,#journal,.designer-callout-section,.site-footer)::after{width:26px}
+}
+
+/* Two main windows, with subcategories inside their parent. */
+html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start;gap:12px!important}
+.shop-filter-menu{min-width:0;border:1px solid var(--briar-line);background:var(--briar-card);color:var(--briar-ink)}
+.shop-filter-menu>summary{display:flex;flex-direction:column;gap:6px;padding:14px 36px 14px 16px;min-height:64px;box-sizing:border-box;cursor:pointer;position:relative;list-style:none;font:600 13px/1.4 Inter,Arial,sans-serif}
+.shop-filter-menu>summary::-webkit-details-marker,.shop-filter-child>summary::-webkit-details-marker{display:none}
+.shop-filter-menu>summary::after{content:'+';position:absolute;right:16px;top:20px;font-size:20px;font-weight:400}
+.shop-filter-menu[open]>summary::after{content:'−'}
+.shop-filter-selection{font-size:12px;font-weight:400;color:var(--briar-muted);overflow-wrap:anywhere}
+.shop-filter-panel{padding:0 12px 12px;border-top:1px solid var(--briar-line)}
+.shop-filter-child{margin-top:10px;border:1px solid var(--briar-line);background:var(--briar-paper)}
+.shop-filter-child>summary{padding:12px;cursor:pointer;list-style:none;font:500 13px/1.5 Inter,Arial,sans-serif}
+.shop-filter-child>summary::before{content:'›';display:inline-block;margin-right:10px}
+.shop-filter-child[open]>summary::before{transform:rotate(90deg)}
+html body.blackberry-house #shop .shop-filter-panel .shop-drop-window{min-height:0!important;padding:8px 12px!important;border:0!important;background:transparent!important}
+html body.blackberry-house #shop .shop-filter-panel select{min-width:0;max-width:100%}
+@media(max-width:560px){html body.blackberry-house #shop .shop-nested-filters{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Plain controls isolate browsing from retired illustrated-window styles. */
+html body.blackberry-house #shop .shop-nested-filters{display:grid!important;width:100%!important;max-width:100%!important}
+.shop-filter-menu{border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgb(0 0 0 / .04)}
+.shop-filter-panel .shop-filter-field{display:grid;gap:7px;margin:14px 0;font:500 13px/1.5 Inter,Arial,sans-serif;color:var(--briar-ink)}
+.shop-filter-panel .shop-filter-field select{position:static!important;inset:auto!important;display:block!important;width:100%!important;min-height:46px!important;height:auto!important;max-height:none!important;opacity:1!important;appearance:auto!important;padding:10px 12px!important;border:1px solid var(--briar-line)!important;border-radius:8px!important;background:var(--briar-paper)!important;color:var(--briar-ink)!important;font:400 16px/1.5 Inter,Arial,sans-serif!important;box-sizing:border-box!important;cursor:pointer}
+.shop-filter-field select:focus-visible,.shop-filter-menu summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.shop-filter-help{margin:12px 0;color:var(--briar-muted);font:400 12px/1.6 Inter,Arial,sans-serif}
+.shop-filter-child .shop-filter-field{margin:0;padding:0 12px 12px}
+.shop-filter-child .shop-filter-field>span{display:none}
+
+/* Equal card tracks replace the retired twelve-column staggered layout.
+   Reset every nth-child span so no implicit columns push photos out of line. */
+html body.blackberry-house #product-grid{width:100%;max-width:100%;box-sizing:border-box;align-items:stretch}
+html body.blackberry-house #product-grid>.product-card{grid-column:auto!important;grid-row:auto!important;width:100%!important;max-width:none!important;min-width:0;align-self:stretch}
+html body.blackberry-house #shop>.container{width:calc(100% - 32px)!important;max-width:1312px!important;margin-inline:auto!important;box-sizing:border-box}
+@media(min-width:801px){html body.blackberry-house #shop>.container{width:calc(100% - 64px)!important}}
+
+/* Product cards: photo, name, maker, price, fit, then details. */
+html body.blackberry-house #product-grid .product-card{min-width:0;background:var(--briar-card)!important}
+html body.blackberry-house #product-grid .product-image{position:relative;isolation:isolate;aspect-ratio:4/5!important;overflow:hidden;background:var(--briar-paper)!important}
+html body.blackberry-house #product-grid .product-image>img{display:block;width:100%!important;height:100%!important;object-fit:contain!important}
+.product-image-open{position:absolute;inset:0;z-index:1;width:100%;height:100%;border:0;background:transparent;cursor:pointer}
+.product-image-open:focus-visible{outline-offset:-5px}
+html body.blackberry-house #product-grid .favorite-button{position:absolute;top:10px;right:10px;z-index:3;min-width:44px;min-height:44px;border-radius:50%!important;background:var(--briar-card)!important;color:var(--briar-ink)!important;border:1px solid var(--briar-line)!important}
+.product-stock-label{position:absolute;top:12px;left:12px;z-index:2;pointer-events:none;padding:7px 10px;background:var(--briar-ink);color:var(--briar-card);font:600 12px/1.3 Inter,Arial,sans-serif;border-radius:4px}
+html body.blackberry-house #product-grid .photo-count-badge{z-index:2;pointer-events:none}
+html body.blackberry-house #product-grid .product-body{display:flex;flex-direction:column;align-items:stretch;gap:9px;padding:18px!important;min-width:0}
+html body.blackberry-house #product-grid .card-title{font-size:25px!important;line-height:1.2!important;margin:0!important;min-height:44px;overflow-wrap:anywhere}
+html body.blackberry-house #product-grid .designer-card-link{font:400 13px/1.4 Inter,Arial,sans-serif!important;color:var(--briar-muted)!important;margin:0;min-height:44px}
+html body.blackberry-house #product-grid .house-card-price{font:600 17px/1.4 Inter,Arial,sans-serif!important;color:var(--briar-ink)!important;margin:0;letter-spacing:0;font-variant-numeric:tabular-nums}
+html body.blackberry-house #product-grid .house-card-size{font:400 13px/1.5 Inter,Arial,sans-serif;color:var(--briar-muted);overflow-wrap:anywhere}
+html body.blackberry-house #product-grid .meta-row{justify-content:flex-start;gap:6px;flex-wrap:wrap;margin:0}
+@media(max-width:600px){
+ html body.blackberry-house #product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ html body.blackberry-house #product-grid .product-body{padding:12px!important;gap:6px}
+ html body.blackberry-house #product-grid .card-title{font-size:21px!important}
+ html body.blackberry-house #shop .section-heading{display:block}
+ html body.blackberry-house #shop .shop-search-controls{width:100%;min-width:0;margin-top:20px}
+ html body.blackberry-house #shop input[type=search]{font-size:16px!important;width:100%;box-sizing:border-box}
+ html body.blackberry-house #shop .shop-discovery-links{flex-wrap:wrap;gap:8px 16px}
+}
+@media(max-width:359px){html body.blackberry-house #product-grid{grid-template-columns:minmax(0,1fr)!important}}
+html body.blackberry-house #product-grid .product-image{padding:0!important;border-radius:0!important;box-sizing:border-box}
+html body.blackberry-house #product-grid .product-image>img{position:absolute;inset:0;aspect-ratio:auto!important;border:0!important;border-radius:0!important;background:transparent!important}
+html body.blackberry-house #product-grid .product-image-open{background:transparent!important;border:0!important;border-radius:0!important;margin:0;padding:0}
+
+.product-stock-label{max-width:calc(100% - 76px);box-sizing:border-box;overflow-wrap:anywhere}
+
+/* Footer: grouped navigation and one centered closing row. */
+html body.blackberry-house .site-footer{--briar-ink:#f4e8e4;--briar-muted:#d8ced4;--briar-line:#766770;padding:44px 0 24px!important;overflow:hidden}
+html body.blackberry-house .site-footer>.footer-inner{display:block!important;width:calc(100% - 80px)!important;max-width:1200px!important;margin-inline:auto!important;padding:0!important;box-sizing:border-box}
+html body.blackberry-house .footer-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:40px;align-items:start;padding-bottom:28px}
+html body.blackberry-house .footer-brand{padding-top:4px;min-width:0}
+html body.blackberry-house .footer-brand .brand-name{display:inline-block;margin:0;font:400 30px/1.2 'Cormorant Garamond',Georgia,serif;text-decoration:none}
+html body.blackberry-house .footer-copy{margin:12px 0 0;font:400 14px/1.7 Inter,Arial,sans-serif;color:var(--briar-muted)!important}
+html body.blackberry-house .footer-links{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start!important;justify-content:normal!important;min-width:0}
+html body.blackberry-house .footer-link-group{display:flex;flex-direction:column;min-width:0;gap:0}
+html body.blackberry-house .footer-link-group h2{margin:0 0 8px;font:600 12px/1.5 Inter,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--briar-muted)}
+html body.blackberry-house .footer-link-group a{display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 0;font:400 14px/1.5 Inter,Arial,sans-serif;text-decoration:none;overflow-wrap:anywhere}
+html body.blackberry-house .footer-links a:hover,html body.blackberry-house .footer-utilities :is(a,button):hover{text-decoration:underline;text-underline-offset:4px}
+html body.blackberry-house .footer-story{margin:0;box-sizing:border-box}
+html body.blackberry-house .footer-story>summary{box-sizing:border-box;padding:14px 0;min-height:52px;color:var(--briar-ink)}
+html body.blackberry-house .footer-story .story-grid{max-width:100%!important;margin:0!important;box-sizing:border-box}
+html body.blackberry-house .footer-bottom{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:18px;text-align:center}
+html body.blackberry-house .footer-utilities{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 28px}
+html body.blackberry-house .footer-utilities :is(a,button){display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 0;margin:0;font:400 13px/1.5 Inter,Arial,sans-serif;text-decoration:none;background:transparent;border:0;cursor:pointer}
+html body.blackberry-house .site-footer .copyright{grid-column:auto;width:100%;margin:0;text-align:center!important;font:400 12px/1.5 Inter,Arial,sans-serif;color:var(--briar-muted)!important}
+html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:28px!important;height:140px!important;background:url('/briar-thorn-vine.svg') center/contain no-repeat!important;opacity:.55;pointer-events:none}
+html body.blackberry-house .site-footer::before{inset:24px auto auto 8px!important;transform:scaleX(-1)}
+html body.blackberry-house .site-footer::after{inset:auto 8px 24px auto!important;transform:rotate(180deg)}
+@media(max-width:700px){
+ html body.blackberry-house .site-footer>.footer-inner{width:calc(100% - 64px)!important;max-width:1200px!important}
+ html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1fr);gap:28px;padding-bottom:22px}
+ html body.blackberry-house .footer-brand{text-align:center}
+ html body.blackberry-house .footer-links{gap:18px}
+ html body.blackberry-house .footer-link-group a{font-size:13px}
+ html body.blackberry-house .footer-story .story-grid{grid-template-columns:minmax(0,1fr)!important}
+ html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:20px!important}
+}
+
+/* Sculpted branches: deeper relief, gentle finite motion, generous footer spacing. */
+html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:36px!important;opacity:.85;filter:drop-shadow(2px 4px 3px rgb(35 20 12 / .22))}
+html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:44px!important;height:230px!important;opacity:.8;filter:none!important}
+html[data-hob-theme=dark] body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster)::before,html[data-hob-theme=dark] body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster)::after{filter:brightness(1.2) drop-shadow(2px 4px 3px rgb(0 0 0 / .3))!important}
+.footer-kicker{font:500 11px/1.5 Inter,Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;margin:0 0 12px;color:var(--briar-muted)}
+html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1.25fr) minmax(0,1.4fr);gap:clamp(32px,6vw,90px);padding-block:6px 32px}
+.footer-brand-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:16px}.footer-brand-actions a{display:inline-flex;align-items:center;min-height:44px;font:400 13px/1.5 Inter,Arial,sans-serif;text-underline-offset:4px}
+html body.blackberry-house .footer-bottom{flex-direction:row;justify-content:space-between;align-items:center;gap:18px;padding-top:20px}
+html body.blackberry-house .site-footer .copyright{width:auto;text-align:left!important}
+@keyframes briar-drift{0%,100%{translate:0 0}50%{translate:0 -4px}}
+@media(prefers-reduced-motion:no-preference){
+ html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .briar-editorial-poster::after{animation:briar-drift 2.2s ease-in-out 2}
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){html body.blackberry-house .site-footer:is(:hover,:focus-within)::after{animation:briar-drift 2.2s ease-in-out 2}}
+@media(prefers-reduced-motion:reduce){html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::before,html body.blackberry-house :is(.fashion-cover-copy,.briar-editorial-poster,.site-footer)::after{animation:none!important;translate:none!important}}
+@media(max-width:700px){html body.blackberry-house .footer-main{grid-template-columns:minmax(0,1fr);gap:28px}.footer-brand-actions{justify-content:center}.footer-kicker{text-align:center}html body.blackberry-house .footer-bottom{flex-direction:column;gap:8px}html body.blackberry-house .site-footer .copyright{text-align:center!important}html body.blackberry-house .site-footer::before,html body.blackberry-house .site-footer::after{width:26px!important;height:170px!important}html body.blackberry-house .fashion-cover-copy::before,html body.blackberry-house .fashion-cover-copy::after{width:24px!important}}
+
+/* Welcome while the House's first collection grows. */
+html body.blackberry-house #product-grid .house-shop-invitation{grid-column:1/-1;text-align:center;border:1px solid var(--briar-line);border-radius:18px;padding:clamp(24px,4vw,40px);background:var(--briar-card);color:var(--briar-ink)}
+html body.blackberry-house #product-grid .house-shop-invitation h3{font:400 clamp(28px,4vw,42px)/1.15 'Cormorant Garamond',Georgia,serif;margin:10px 0}
+html body.blackberry-house #product-grid .house-shop-invitation>p:not(.eyebrow){max-width:620px;margin:12px auto;font-size:14px;line-height:1.7}
+.house-shop-invitation-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
+.house-shop-invitation-actions a{min-height:44px;box-sizing:border-box;white-space:normal;text-align:center}
+.house-preview-pieces{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:24px 0}
+.house-preview-piece{display:flex;min-width:0;flex-direction:column;gap:8px;color:inherit;text-decoration:none;text-align:left}
+.house-preview-piece img{display:block;width:100%;height:260px;object-fit:contain;background:#fff;border-radius:12px}
+.house-preview-piece span{font-size:13px}
+.house-preview-piece:focus-visible{outline:3px solid currentColor;outline-offset:4px}
+@media(max-width:600px){.house-preview-pieces{grid-template-columns:1fr}.house-preview-piece img{height:240px}}
+html body.blackberry-house #product-grid .house-founding-collection{grid-column:1/-1;margin:12px 0 0;font:400 30px/1.2 'Cormorant Garamond',Georgia,serif;color:var(--briar-ink)}
+@media(max-width:600px){.house-shop-invitation-actions a{width:100%}}

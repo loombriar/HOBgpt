@@ -1,0 +1,139 @@
+import SellerPhotoEnhance from './SellerPhotoEnhance';
+import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
+import { ImagePlus } from '@/lib/icons';
+
+export type StudioPhoto = {
+  key: string;
+  id?: string;
+  name: string;
+  url?: string;
+  file?: File;
+  previewUrl: string;
+};
+
+const MAX_STUDIO_IMAGES = 10;
+const ACCEPTED_IMAGE_NAME = /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i;
+
+export function releaseStudioPhotoPreviews(photos: StudioPhoto[]) {
+  photos.forEach((photo) => {
+    if (photo.file && photo.previewUrl.startsWith('blob:')) URL.revokeObjectURL(photo.previewUrl);
+  });
+}
+
+type StudioPhotoPickerProps = {
+  token?:string;
+  photos: StudioPhoto[];
+  setPhotos: Dispatch<SetStateAction<StudioPhoto[]>>;
+  onRemoveSaved?: (photo: StudioPhoto) => void;
+};
+
+export default function StudioPhotoPicker({ photos, setPhotos, onRemoveSaved,token }: StudioPhotoPickerProps) {
+  const [error, setError] = useState('');
+
+  const addPhotos = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = '';
+    const slots = MAX_STUDIO_IMAGES - photos.length;
+    const accepted = files.slice(0, Math.max(0, slots));
+    const additions: StudioPhoto[] = [];
+    const issues: string[] = [];
+
+    if (files.length > slots) issues.push(`Only ${Math.max(0, slots)} more photo${slots === 1 ? '' : 's'} can be added.`);
+    accepted.forEach((file, index) => {
+      if ((file.type && !file.type.startsWith('image/')) || (!file.type && !ACCEPTED_IMAGE_NAME.test(file.name))) {
+        issues.push(`${file.name} is not a supported image.`);
+        return;
+      }
+      additions.push({
+        key: `${Date.now()}-${index}-${file.name}`,
+        name: file.name,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    });
+
+    if (additions.length) setPhotos((current) => [...current, ...additions]);
+    setError(issues.join(' '));
+  };
+
+  const movePhoto = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= photos.length) return;
+    setPhotos((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const makeMainPhoto = (key: string) => {
+    setPhotos(current => {
+      const photo = current.find(item => item.key === key);
+      return photo ? [photo, ...current.filter(item => item.key !== key)] : current;
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    const photo = photos[index];
+    if (photo) { releaseStudioPhotoPreviews([photo]); if (!photo.file && photo.url) onRemoveSaved?.(photo); }
+    setPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
+  };
+
+  return (
+    <section aria-labelledby="studio-photos-heading" className="space-y-3">
+      <div>
+        <h3 id="studio-photos-heading" className="text-sm font-medium">Listing photos</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">Add up to 10 photos. Choose Make main photo on the image shoppers should see first. Save your listing to keep the choice.</p>
+      </div>
+      <aside className="rounded-xl border border-border bg-accent/20 p-4 text-sm" aria-label="Photo guide">
+        <strong>Four useful views</strong>
+        <ul className="mt-2 grid list-disc gap-2 pl-5 sm:grid-cols-2">
+          <li><b>Front:</b> the whole piece, clearly lit—ideal for your cover.</li>
+          <li><b>Back:</b> show the shape and closures.</li>
+          <li><b>Detail:</b> fabric, stitching, texture, and any imperfections.</li>
+          <li><b>Fit:</b> on a person, mannequin, or styled flat to show proportion.</li>
+        </ul>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">Use a simple background and natural light. Keep colors true to the piece. These are suggestions, not four required uploads.</p>
+      </aside>
+      <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 text-sm font-medium transition hover:border-primary hover:text-primary focus-within:ring-2 focus-within:ring-primary/30">
+        <ImagePlus size={17} /> Choose photos
+        <input
+          id="draft-piece-photos"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/heic,image/heif"
+          multiple
+          onChange={addPhotos}
+          className="sr-only"
+          aria-label="Choose up to ten listing photos"
+        />
+      </label>
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+      {photos.length > 0 && (
+        <ol className="space-y-2">
+          {photos.map((photo, index) => {
+            const isHeic = /\.(heic|heif)$/i.test(photo.name) || photo.file?.type === 'image/heic' || photo.file?.type === 'image/heif';
+            return (
+              <li key={photo.key} className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl sm:flex-nowrap border border-border bg-background p-2">
+                {isHeic ? (
+                  <span className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><ImagePlus size={20} /></span>
+                ) : (
+                  <img src={photo.previewUrl} alt={index === 0 ? 'Listing cover preview' : `Listing photo ${index + 1} preview`} className="size-16 shrink-0 rounded-lg object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{photo.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{index === 0 ? 'Main photo' : `Photo ${index + 1}`}{photo.file ? ' · Ready to upload' : ' · Saved photo'}</p>{token&&<SellerPhotoEnhance photo={photo} token={token} full={photos.length>=MAX_STUDIO_IMAGES} onAdd={enhanced=>setPhotos(current=>current.length<MAX_STUDIO_IMAGES?[...current,enhanced]:current)}/>}
+                </div>
+                <div className="flex w-full shrink-0 flex-wrap justify-end gap-1 sm:w-auto">
+                  <button type="button" onClick={() => makeMainPhoto(photo.key)} disabled={index === 0} aria-label={index === 0 ? "Main photo, photo 1" : `Make photo ${index + 1} the main photo`} className="min-h-11 rounded-lg border border-primary px-3 text-xs font-semibold text-primary disabled:opacity-70">{index === 0 ? "Main photo" : "Make main photo"}</button>
+                  <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} aria-label={`Move ${photo.name} up`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-primary disabled:opacity-40">Move up</button>
+                  <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === photos.length - 1} aria-label={`Move ${photo.name} down`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-primary disabled:opacity-40">Move down</button>
+                  <button type="button" onClick={() => removePhoto(index)} aria-label={`Remove ${photo.name}`} className="min-h-11 rounded-lg px-2 text-xs text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">Remove</button>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+}

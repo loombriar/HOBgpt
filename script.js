@@ -1,0 +1,3071 @@
+// Match anchor offsets to the wrapped navigation height on desktop and mobile.
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+const scrollingHeader = document.querySelector('.sewing-header');
+if (scrollingHeader) {
+  const syncHeaderHeight = () => document.documentElement.style.setProperty('--house-header-height', `${Math.ceil(scrollingHeader.getBoundingClientRect().height)}px`);
+  syncHeaderHeight();
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncHeaderHeight).observe(scrollingHeader);
+  else window.addEventListener('resize', syncHeaderHeight);
+}
+
+let customerSignedIn = false;
+let customerSigninRequest = '';
+let reviewerVerificationRequested = new URLSearchParams(window.location.search).get('reviewerVerify') === '1';
+const seamstressIntent = ['signin','signup'].includes(new URLSearchParams(window.location.search).get('seamstress')) ? new URLSearchParams(window.location.search).get('seamstress') : '';
+const seamstressDestination = seamstressIntent === 'signin' ? '/sewing-services.html#service-inbox' : '/sewing-services.html#offer-services';
+const creativeRole=new URLSearchParams(window.location.search).get('creative');
+const creativeDestination=['model','photographer','dj','venue'].includes(creativeRole)?'/creative-house.html?join='+creativeRole+(['dj','venue'].includes(creativeRole)?'#event-profile-editor':'#your-profile'):'';
+const roleDestination=seamstressIntent?seamstressDestination:creativeDestination;
+
+const MAX_IMAGES = 10;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const FAVORITE_KEY = 'house-of-briar:favorites';
+const ANALYTICS_SESSION_KEY = 'house-of-briar:analytics-session';
+
+function trackStorefrontPageView() {
+  if (navigator.globalPrivacyControl === true || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+  if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) return;
+  let sessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem(ANALYTICS_SESSION_KEY, sessionId);
+  }
+  const params = new URLSearchParams(location.search);
+  let referrer;
+  try { referrer = document.referrer ? new URL(document.referrer).origin : undefined; } catch {}
+  const payload = JSON.stringify({
+    event: 'page_view',
+    sessionId,
+    path: location.pathname,
+    referrer,
+    utmSource: params.get('utm_source') || undefined,
+    utmMedium: params.get('utm_medium') || undefined,
+    utmCampaign: params.get('utm_campaign') || undefined,
+    deviceCategory: /tablet|ipad/i.test(navigator.userAgent) ? 'tablet' : /mobile|iphone|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+  });
+  try {
+    if (navigator.sendBeacon) navigator.sendBeacon('/api/analytics/events', new Blob([payload], { type: 'application/json' }));
+    else fetch('/api/analytics/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+  } catch {}
+}
+
+trackStorefrontPageView();
+
+function showCheckoutReturnStatus() {
+  const params = new URLSearchParams(window.location.search);
+  const checkout = params.get('checkout');
+  const donation = params.get('donation');
+  if (!checkout && !donation) return;
+  const notice = document.createElement('div');
+  notice.className = 'checkout-return-notice';
+  notice.setAttribute('role', 'status');
+  if (checkout === 'success') notice.textContent = 'Thank you. Your payment was submitted. Bank payments may remain pending until Stripe confirms they have cleared.';
+  else if (checkout === 'canceled') notice.textContent = 'Checkout was canceled. Your payment was not completed.';
+  else if (donation === 'success') notice.textContent = 'Thank you for supporting House of Briar. Bank donations may remain pending until Stripe confirms they have cleared.';
+  else if (donation === 'pending' || donation === 'paypal-success') notice.textContent = 'Your PayPal donation is awaiting confirmation. Please do not pay again; we will check its status automatically.';
+  else notice.textContent = 'Your donation checkout was canceled.';
+  document.body.prepend(notice);
+  history.replaceState({}, '', window.location.pathname + window.location.hash);
+}
+window.addEventListener('DOMContentLoaded', async()=>{const params=new URLSearchParams(location.search);const pp=params.get('token')||params.get('paypal_order_id');if(pp&&params.get('checkout')==='paypal-success'){try{await apiRequest('/api/paypal/checkout/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('checkout','success');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}else if(pp&&params.get('donation')==='paypal-success'){try{const result=await apiRequest('/api/paypal/donations/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paypalOrderId:pp})});params.set('donation',result.status==='paid'?'success':'pending');history.replaceState({},'',location.pathname+'?'+params.toString()+location.hash);}catch{}}showCheckoutReturnStatus();});
+
+const byId = (id) => document.getElementById(id);
+const year = byId('year');
+if (year) year.textContent = new Date().getFullYear();
+
+const productGrid = byId('product-grid');
+const shopStatus = byId('shop-status');
+const designerModal = byId('designer-modal');
+const storefrontMain = document.querySelector('main');
+const DESIGNER_ROOM_PATH = '/designers/room';
+function syncDesignerRoomRoute({focus=true}={}) {
+  if(!designerModal)return;
+  const open=location.pathname===DESIGNER_ROOM_PATH;
+  designerModal.classList.toggle('hidden',!open);
+  document.body.classList.toggle('designer-room-open',open);
+  if(storefrontMain)storefrontMain.classList.toggle('hidden',open);
+  if(open){
+    if(!designerToken){loginPanel?.classList.remove('hidden');designerWorkspace?.classList.add('hidden');}
+    else{loginPanel?.classList.add('hidden');designerWorkspace?.classList.remove('hidden');}
+    if(focus){designerModal.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});}
+  }
+}
+function openDesignerRoom(target=''){
+  if(location.pathname!==DESIGNER_ROOM_PATH)history.pushState({room:'designer'},'',DESIGNER_ROOM_PATH+location.search+(target||''));
+  syncDesignerRoomRoute();
+  if(target)requestAnimationFrame(()=>document.querySelector(target)?.scrollIntoView({behavior:'smooth',block:'start'}));
+}
+function closeDesignerRoom(event){
+  event?.preventDefault();
+  window.location.assign('/#shop');
+}
+window.addEventListener('popstate',()=>syncDesignerRoomRoute());
+
+const designerLoginBtn = byId('designer-login-btn');
+const designerSignupLink = byId('designer-signup-link');
+const designerSignupForm = byId('designer-signup-form');
+const designerSignupMessage = byId('designer-signup-message');
+const designerLoginForm = byId('designer-login-form');
+const designerTokenInput = byId('designer-token');
+const designerAuthMessage = byId('designer-auth-message');
+const loginPanel = byId('designer-login-panel');
+const designerWorkspace = byId('designer-workspace');
+const designerProductsContainer = byId('designer-products');
+const productForm = byId('product-form');
+const photoInput = byId('product-photos');
+const photoPreview = byId('photo-preview');
+const uploadMessage = byId('upload-message');
+const fabricFinderPhotos = byId('fabric-finder-photos');
+const fabricFinderMessage = byId('fabric-finder-message');
+const fabricFinderResult = byId('fabric-finder-result');
+const modalClose = byId('modal-close');
+const productDialog = byId('product-dialog');
+const productDetailTitle = byId('product-detail-title');
+const productDetailContent = byId('product-detail-content');
+const productIdInput = byId('product-id');
+const listingFormTitle = byId('listing-form-title');
+const cartButton = byId('cart-btn');
+const cartDialog = byId('cart-dialog');
+const cartItems = byId('cart-items');
+const checkoutButton = byId('checkout-btn');
+const paypalCheckoutButton = byId('paypal-checkout-btn');
+const adminReviewBtn = byId('admin-review-btn');
+const adminReviewDialog = byId('admin-review-dialog');
+const adminReviewClose = byId('admin-review-close');
+const adminLoginForm = byId('admin-login-form');
+const adminTokenInput = byId('admin-token');
+const adminLoginPanel = byId('admin-login-panel');
+const adminReviewWorkspace = byId('admin-review-workspace');
+const adminReviewList = byId('admin-review-list');
+const adminReviewMessage = byId('admin-review-message');
+const adminSignoutBtn = byId('admin-signout-btn');
+const CART_KEY = 'house-of-briar:cart';
+const GIFT_WRAP_KEY = 'house-of-briar:gift-wrap';
+
+const COOKIE_SESSION_MARKER = '__house_session__';
+// Do not restore bearer credentials from browser storage. Use the HttpOnly session cookie.
+localStorage.removeItem('briarDesignerToken');
+sessionStorage.removeItem('briarDesignerToken');
+let designerToken = '';
+let adminSessionActive = false;
+sessionStorage.removeItem('briarAdminToken');
+let currentListingId = '';
+let currentIdempotencyKey = '';
+let galleryItems = [];
+let activePattern = 'all';
+let activeShopWindow = 'all';
+let shopSearch = '';
+let activeAccessory = 'all';
+let selectedImages = [];
+let activeFilter = 'all';
+let activeShopCategory = 'all';
+let activePresentation='all', activeProductionType='all';
+let activeDesigner = 'all';
+let galleryRequest = 0;
+let activeMeasurements = null;
+let searchTimer;
+let activeAesthetic = 'all';
+const designerListImageUrls = new Set();
+
+function getCartIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function getGiftWrapIds(){try{const parsed=JSON.parse(localStorage.getItem(GIFT_WRAP_KEY)||'[]');return Array.isArray(parsed)?parsed.filter(id=>typeof id==='string'):[]}catch{return[]}}
+function setGiftWrapIds(ids){localStorage.setItem(GIFT_WRAP_KEY,JSON.stringify([...new Set(ids)]));}
+
+function setCartIds(ids) {
+  localStorage.setItem(CART_KEY, JSON.stringify([...new Set(ids)]));
+  updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
+}
+
+function clearCustomerCart() {
+  localStorage.removeItem(CART_KEY);
+  localStorage.removeItem(GIFT_WRAP_KEY);
+  localStorage.removeItem('house-of-briar:checkout-pending');
+  for (const id of Object.keys(cartGiftNotes)) delete cartGiftNotes[id];
+  cartShippingQuote = null;
+  cartShippingKey = '';
+  ++cartShippingSequence;
+  if (checkoutButton) checkoutButton.disabled = true;
+  cartItems?.replaceChildren();
+  cartDialog?.close();
+  updateCartButton();
+  window.dispatchEvent(new Event('house-of-briar-cart'));
+}
+
+function updateCartButton() {
+  if (!cartButton) return;
+  const count = getCartIds().length;
+  const label = byId('suitcase-label');
+  if (label) label.textContent = `Cart (${count})`;
+  else cartButton.textContent = `Cart (${count})`;
+  cartButton.setAttribute('aria-label', `Cart, ${count} ${count === 1 ? 'item' : 'items'}`);
+}
+
+function getFavoriteIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function setFavoriteIds(ids) {
+  localStorage.setItem(FAVORITE_KEY, JSON.stringify([...new Set(ids)]));
+}
+
+async function toggleFavorite(item) {
+  const ids = getFavoriteIds();
+  const saving = !ids.includes(item.id);
+  const next = saving ? [...ids, item.id] : ids.filter((id) => id !== item.id);
+  setFavoriteIds(next);
+  renderGallery();
+  renderVisitorFavorites();
+  if (!designerToken && !customerSignedIn) return;
+  try {
+    await apiRequest(`/api/my/favorites/${encodeURIComponent(item.id)}`, { method: saving ? 'POST' : 'DELETE' });
+  } catch (error) {
+    setMessage(byId('visitor-favorites-message'), 'Saved on this device. Account sync will retry when you sign in again.', '');
+  }
+}
+
+async function syncAccountFavorites() {
+  if (!designerToken && !customerSignedIn) return;
+  const localIds = getFavoriteIds();
+  try {
+    if (localIds.length) {
+      await apiRequest('/api/my/favorites/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingIds: localIds })
+      });
+    }
+    const data = await apiRequest('/api/my/favorites');
+    setFavoriteIds([...(data.ids || []), ...localIds]);
+    renderGallery();
+    renderVisitorFavorites(data.items || []);
+  } catch {}
+}
+
+function favoriteItemById(id, accountItems = []) {
+  return accountItems.find((item) => item.id === id) || galleryItems.find((item) => item.id === id);
+}
+
+function renderVisitorFavorites(accountItems = []) {
+  const host = byId('visitor-favorites-list');
+  const count = byId('visitor-favorites-count');
+  if (!host) return;
+  const ids = getFavoriteIds();
+  host.replaceChildren();
+  if (count) count.textContent = `${ids.length} saved`;
+  if (!ids.length) {
+    host.appendChild(makeElement('p', 'empty-state', 'No favorites yet. Tap a heart in the Shop to save a piece here.'));
+    return;
+  }
+  for (const id of ids) {
+    const item = favoriteItemById(id, accountItems);
+    const card = makeElement('article', 'wishlist-card');
+    if (!item) {
+      card.classList.add('wishlist-card-unavailable');
+      card.append(makeElement('div', 'wishlist-card-copy', 'This saved piece is currently unavailable.'));
+      const remove = makeElement('button', 'text-button', 'Remove');
+      remove.type = 'button';
+      remove.addEventListener('click', () => { setFavoriteIds(getFavoriteIds().filter((value) => value !== id)); renderVisitorFavorites(accountItems); renderGallery(); });
+      card.append(remove); host.append(card); continue;
+    }
+    const images = getProductImages(item);
+    if (images[0]?.url) {
+      const img = document.createElement('img'); img.src = images[0].url; img.alt = item.title || 'Saved piece'; card.append(img);
+    }
+    const copy = makeElement('div', 'wishlist-card-copy');
+    copy.append(makeElement('strong', '', item.title), makeElement('span', '', item.designerName || item.designer_name || ''), makeElement('span', 'price', `${Number(item.price || 0).toFixed(2)}`));
+    const actions = makeElement('div', 'wishlist-card-actions');
+    const view = makeElement('button', 'secondary-button', 'View piece'); view.type='button'; view.addEventListener('click',()=>openProductDetails(item));
+    const move = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Cart' : 'Move to Cart'); move.type='button'; move.disabled=getCartIds().includes(item.id); move.addEventListener('click',()=>{ addToCart(item); renderVisitorFavorites(accountItems); });
+    const remove = makeElement('button', 'text-button', 'Remove'); remove.type='button'; remove.addEventListener('click',()=>toggleFavorite(item));
+    actions.append(view,move,remove); copy.append(actions); card.append(copy); host.append(card);
+  }
+}
+
+function getItemBadges(item = {}) {
+  const badges = [];
+  const normalized = Array.isArray(item.badges) ? item.badges.map((value) => String(value).toLowerCase()) : [];
+  const supportFlag = item.supporterBadge || item.donationBadge || item.supporter || item.hasSupporterBadge || item.supporterBadge === true || normalized.includes('supporter') || normalized.includes('donation');
+  const verifiedFlag = item.verifiedBadge || item.verified || item.isVerified || item.verifiedBuyer || normalized.includes('verified');
+
+  if (supportFlag) badges.push({ key: 'supporter', label: 'House Supporter' });
+  if (verifiedFlag) badges.push({ key: 'verified', label: 'Verified Buyer' });
+  if (normalized.includes('founding_designer')) badges.push({ key: 'founding_designer', label: 'Founding Designer' });
+  return badges;
+}
+
+function createBadgePill(label, className = 'badge') {
+  const pill = makeElement('span', className, label);
+  pill.title = label;
+  if (className.includes('supporter-badge')) {
+    pill.title = 'You helped keep the House in stitches. Thank you.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/heart-of-the-house-berry-v1.webp';
+    artwork.alt = '';
+    artwork.setAttribute('aria-hidden', 'true');
+    pill.prepend(artwork);
+  }
+  if (className.includes('verified-badge')) {
+    pill.title = 'Excellent taste. Receipt to prove it.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/verified-buyer-berry-v1.webp';
+    artwork.alt = '';
+    artwork.setAttribute('aria-hidden', 'true');
+    pill.prepend(artwork);
+  }
+  if (className.includes('founding-badge')) {
+    pill.title = 'A recognition of the designers helping shape the House.';
+    const artwork = makeElement('img', 'supporter-badge-art');
+    artwork.src = '/founding-designer-berry-v1.webp'; artwork.alt = ''; artwork.setAttribute('aria-hidden', 'true'); pill.prepend(artwork);
+  }
+  return pill;
+}
+
+function renderItemBadges(target, item) {
+  if (!target) return;
+  target.replaceChildren();
+  const badges = getItemBadges(item);
+  badges.forEach(({ label }) => {
+    target.appendChild(createBadgePill(label, label === 'Founding Designer' ? 'badge founding-badge' : label === 'Verified Buyer' ? 'badge verified-badge' : 'badge supporter-badge'));
+  });
+}
+
+function addToCart(item) {
+  if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
+    setMessage(shopStatus, Number(item.soldQuantity) > 0 ? 'This piece has sold.' : 'This piece is currently unavailable.', 'error');
+    return;
+  }
+  const ids = getCartIds();
+  if (!ids.includes(item.id)) ids.push(item.id);
+  setCartIds(ids);
+  if (productDialog?.open) productDialog.close();
+  setMessage(shopStatus, `${item.title} added to your Cart. Select Cart to check out.`, 'success');
+}
+
+function removeFromCart(item) {
+  setCartIds(getCartIds().filter((id) => id !== item.id));
+  setGiftWrapIds(getGiftWrapIds().filter((id) => id !== item.id));
+  setMessage(shopStatus, `${item.title} removed from your Cart.`, 'success');
+  renderGallery();
+}
+
+async function checkoutCart() {
+  const ids = getCartIds();
+  if (!ids.length) {
+    setMessage(shopStatus, 'Your Cart is empty. Open a piece and choose Add to Cart.', 'error');
+    document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  if (cartButton) {
+    cartButton.disabled = true;
+    cartButton.textContent = 'Opening checkout…';
+  }
+  try {
+    if(!cartShippingQuote?.shippingReady||cartShippingKey!==JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))}))throw Error('Review shipping in your Cart before continuing.');
+    const payload = await apiRequest('/api/checkout/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: ids.map((id) => ({ id, quantity: 1, giftWrap: getGiftWrapIds().includes(id), giftNote:cartGiftNotes[id]||undefined })),expectedTotalBeforeTaxCents:cartShippingQuote.totalBeforeTaxCents })
+    });
+    if (!payload?.url) throw new Error('Stripe checkout did not return a checkout link.');
+    window.location.assign(payload.url);
+  } catch (error) {
+    setMessage(shopStatus, error.message || 'Checkout could not be started.', 'error');
+    document.querySelector('#shop')?.scrollIntoView({ behavior: 'smooth' });
+    updateCartButton();
+    if (cartButton) cartButton.disabled = false;
+  }
+}
+
+let cartShippingQuote=null,cartShippingKey='',cartShippingSequence=0;
+const cartGiftNotes = {};
+function openCart() {
+  if (!cartDialog || !cartItems) return checkoutCart();
+  const ids = getCartIds();
+  cartItems.replaceChildren();
+  const badgeReward = byId('cart-badge-reward');
+  if (badgeReward) badgeReward.hidden = !ids.length;
+  if (!ids.length) {
+    cartItems.appendChild(makeElement('p', 'notice', 'Your Cart is empty.'));
+    if (checkoutButton) checkoutButton.disabled = true;
+  } else {
+    if (checkoutButton) checkoutButton.disabled = true;
+    ids.forEach((id) => {
+      const item = galleryItems.find((entry) => entry.id === id) || { id, title: 'Saved piece outside the current collection' };
+      const row = makeElement('div', 'designer-product');
+      const copy = makeElement('div');
+      copy.appendChild(makeElement('strong', '', item.title));
+      if (item.price != null) copy.appendChild(makeElement('p', 'price', `${Number(item.price).toFixed(2)}`));
+      if(item.giftNoteAvailable){const label=makeElement('label','','Free gift note');const input=document.createElement('textarea');input.maxLength=500;input.value=cartGiftNotes[item.id]||'';input.placeholder='Optional message for the gift recipient';input.addEventListener('input',()=>{cartGiftNotes[item.id]=input.value;});label.append(input);copy.append(label);}
+      if (item.giftWrapAvailable) {
+        const wrapLabel=makeElement('label','cart-gift-wrap');
+        const wrap=document.createElement('input'); wrap.type='checkbox'; wrap.checked=getGiftWrapIds().includes(item.id);
+        const wrapPrice=Number(item.giftWrapPrice||0);
+        wrap.addEventListener('change',()=>{const ids=getGiftWrapIds().filter(v=>v!==item.id);if(wrap.checked)ids.push(item.id);setGiftWrapIds(ids);openCart();});
+        wrapLabel.append(wrap,document.createTextNode(` Gift wrap${wrapPrice>0?` (+${wrapPrice.toFixed(2)})`:' (complimentary)'}`)); copy.appendChild(wrapLabel);
+      }
+      const remove = makeElement('button', 'text-button cart-remove-button', 'Remove from Cart');
+      remove.type = 'button';
+      remove.addEventListener('click', () => { removeFromCart(item); openCart(); });
+      row.append(copy, remove);
+      cartItems.appendChild(row);
+    });
+  }
+  if (!cartDialog.open) cartDialog.showModal();
+  const sequence = ++cartShippingSequence;
+  cartShippingQuote=null;
+  cartShippingKey=JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))});
+  if (!ids.length) return;
+  const summary=makeElement('section','notice','Calculating shipping…');summary.setAttribute('aria-live','polite');cartItems.append(summary);
+  apiRequest('/api/checkout/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:cartShippingKey}).then(quote=>{
+    if(sequence!==cartShippingSequence)return;
+    cartShippingQuote=quote;summary.replaceChildren();
+    summary.append(makeElement('strong','','US shipping'));
+    for(const designer of quote.designers)summary.append(makeElement('p','',`${designer.designerName}: ${designer.shippingReady ? designer.shippingCents===0 ? 'Free shipping' : '$'+(designer.shippingCents/100).toFixed(2) : 'Shipping price not set — checkout unavailable'}`));
+    for(const item of quote.items)summary.append(makeElement('p','',`${item.title}: ${item.handlingDaysMin == null && item.handlingDaysMax == null ? 'Preparation time not provided; ask the designer.' : (item.handlingDaysMin == null ? 'Up to '+item.handlingDaysMax : item.handlingDaysMax == null ? 'At least '+item.handlingDaysMin : item.handlingDaysMin + (item.handlingDaysMax!==item.handlingDaysMin ? '–'+item.handlingDaysMax : ''))+' business days before shipment.'}`));
+    if(quote.shippingReady)summary.append(makeElement('strong','',`Total before tax: $${(quote.totalBeforeTaxCents/100).toFixed(2)}`));
+    summary.append(makeElement('p','','Tax calculation is not enabled. Designers ship separately. Preparation excludes carrier transit.'));
+    const link=makeElement('a','','Shipping & delivery details');link.href='/shipping.html';summary.append(link);
+    if(checkoutButton)checkoutButton.disabled=!quote.shippingReady;
+  }).catch(error=>{if(sequence===cartShippingSequence)summary.textContent=error.message || 'Shipping could not load.';});
+}
+
+updateCartButton();
+renderVisitorFavorites();
+cartButton?.addEventListener('click', openCart);
+checkoutButton?.addEventListener('click', () => { cartDialog?.close(); checkoutCart(); });
+paypalCheckoutButton?.addEventListener('click', async()=>{const ids=getCartIds();if(!ids.length)return;paypalCheckoutButton.disabled=true;paypalCheckoutButton.textContent='Opening PayPal…';try{const payload=await apiRequest('/api/paypal/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:ids.map(id=>({id,quantity:1,giftWrap:getGiftWrapIds().includes(id)}))})});if(!payload?.url)throw new Error('PayPal did not return an approval link.');window.location.assign(payload.url);}catch(error){setMessage(shopStatus,error.message||'PayPal checkout could not be started.','error');paypalCheckoutButton.disabled=false;paypalCheckoutButton.textContent='PayPal';}});
+byId('cart-dialog-close')?.addEventListener('click', () => cartDialog?.close());
+byId('continue-shopping-btn')?.addEventListener('click', () => cartDialog?.close());
+
+const MEASUREMENTS_KEY = 'house-of-briar:measurements';
+
+function loadMeasurements() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MEASUREMENTS_KEY) || '{}');
+    [
+      ['measure-bust', 'bust'],
+      ['measure-waist', 'waist'],
+      ['measure-hips', 'hips'],
+      ['measure-inseam', 'inseam'],
+      ['measure-height', 'height'],
+      ['measure-unit', 'unit'],
+      ['measure-notes', 'notes']
+    ].forEach(([id, key]) => {
+      const field = byId(id);
+      if (field && saved[key] != null) field.value = saved[key];
+    });
+  } catch {}
+}
+
+byId('measurements-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const measurements = {
+    bust: byId('measure-bust')?.value || '',
+    waist: byId('measure-waist')?.value || '',
+    hips: byId('measure-hips')?.value || '',
+    inseam: byId('measure-inseam')?.value || '',
+    height: byId('measure-height')?.value || '',
+    unit: byId('measure-unit')?.value || 'in',
+    notes: byId('measure-notes')?.value?.trim() || ''
+  };
+  localStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(measurements));
+  setMessage(byId('measurements-message'), 'Measurements saved on this device.', 'success');
+});
+loadMeasurements();
+
+function setMessage(element, message = '', kind = '') {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.kind = kind;
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function categoryLabel(category) {
+  return {
+    apparel: 'Clothing',
+    menswear: 'Masculine',
+    womenswear: 'Womenswear',
+    unisex: 'Unisex',
+    other: 'Other'
+  }[category] || 'Other';
+}
+
+function makeElement(tag, className = '', text = '') {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text) el.textContent = text;
+  return el;
+}
+
+function authorizationHeaders(extra = {}) {
+  const headers = new Headers(extra);
+  if (designerToken && designerToken !== COOKIE_SESSION_MARKER) headers.set('Authorization', `Bearer ${designerToken}`);
+  return headers;
+}
+
+async function loadPrivateImagePreview(url, trackForList = false) {
+  const response = await fetch(url, { headers: authorizationHeaders() });
+  if (!response.ok) throw new Error(`Image preview failed (${response.status}).`);
+  const objectUrl = URL.createObjectURL(await response.blob());
+  if (trackForList) designerListImageUrls.add(objectUrl);
+  return objectUrl;
+}
+
+function clearDesignerListImagePreviews() {
+  designerListImageUrls.forEach((url) => URL.revokeObjectURL(url));
+  designerListImageUrls.clear();
+}
+
+async function apiRequest(url, options = {}) {
+  if(window.Capacitor?.getPlatform?.()==='android'){options={...options,headers:{...options.headers,'X-House-Client':'android'}};}
+
+  const response = await fetch(url, {
+    ...options,
+    headers: authorizationHeaders(options.headers || {})
+  });
+
+  let payload = {};
+  try { payload = await response.json(); } catch {}
+
+  if (!response.ok) {
+    if (response.status === 401 && designerToken && url.startsWith('/api/my/')) {
+      expireDesignerSession();
+    }
+    const message = payload?.error?.message || `Request failed (${response.status})`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = payload?.error?.code;
+    throw error;
+  }
+
+  return payload;
+}
+
+function getProductImages(product) {
+  if (Array.isArray(product.images) && product.images.length) {
+    return [...product.images].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }
+  if (product.imageUrl) return [{ id: `legacy-${product.id}`, url: product.imageUrl, legacy: true, position: 0 }];
+  return [];
+}
+
+function renderGallery() {
+  if (!productGrid) return;
+  productGrid.replaceChildren();
+
+  const items = galleryItems;
+  if (shopStatus) setMessage(shopStatus, `${items.length} ${items.length === 1 ? 'piece matches' : 'pieces match'} your filters.${activeMeasurements ? ' Only pieces with matching designer-supplied body ranges are shown.' : ''}`, 'success');
+
+  const browsingAll=[activeFilter,activeAccessory,activeShopCategory,activePresentation,activeProductionType,activeAesthetic,activePattern,activeDesigner].every(value=>value==='all')&&!shopSearch.trim()&&!activeMeasurements&&!location.pathname.startsWith('/collections/');
+  if(browsingAll&&items.length<=4){
+    const preview=byId('atelier-gallery-preview');
+    if(preview)productGrid.append(preview.content.cloneNode(true));
+    if(items.length){const collection=makeElement('h3','house-founding-collection','The Founder’s Collection');productGrid.append(collection);}
+    else{if(shopStatus)setMessage(shopStatus,'88 bags to preview · Purchasing coming soon.','');return;}
+  }
+  if (!items.length) {
+    productGrid.appendChild(makeElement('p','empty-gallery','No pieces match these filters yet. Try another search or clear your filters.'));
+    return;
+  }
+
+  for (const item of items) {
+    const images = getProductImages(item);
+    const card = document.createElement('article');
+    card.className = 'product-card';
+
+    const favoriteIds = getFavoriteIds();
+    const isFavorited = favoriteIds.includes(item.id);
+
+    const favoriteButton = document.createElement('button');
+    favoriteButton.type = 'button';
+    favoriteButton.className = `favorite-button ${isFavorited ? 'is-favorite' : ''}`;
+    favoriteButton.setAttribute('aria-label', isFavorited ? `Remove ${item.title} from favorites` : `Add ${item.title} to favorites`);
+    favoriteButton.textContent = isFavorited ? '♥' : '♡';
+    favoriteButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleFavorite(item);
+    });
+
+    const imageWrap = makeElement('div', 'product-image');
+    if (images[0]?.url) {
+      const img = document.createElement('img');
+      img.src = images[0].url;
+      img.alt = `${item.title} cover photo`;
+      img.loading = 'lazy';
+      imageWrap.appendChild(img);
+      if (images.length > 1) {
+        const photoBadge = makeElement('span', 'photo-count-badge', `${images.length} photos`);
+        imageWrap.appendChild(photoBadge);
+      }
+    } else {
+      imageWrap.classList.add('product-image-fallback');
+      imageWrap.textContent = 'House of Briar';
+    }
+    const imageButton = makeElement('button', 'product-image-open');
+    imageButton.type = 'button';
+    imageButton.setAttribute('aria-label', `View photos and details of ${item.title}`);
+    imageWrap.appendChild(imageButton);
+    const unavailable = item.productionType !== 'Made to Order' && item.availableQuantity != null && Number(item.availableQuantity) <= 0;
+    if (unavailable) imageWrap.appendChild(makeElement('span', 'product-stock-label', Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable'));
+    imageWrap.appendChild(favoriteButton);
+
+    const body = makeElement('div', 'product-body');
+    const meta = makeElement('div', 'meta-row');
+    const badgeRow = makeElement('div', 'listing-badges');
+    renderItemBadges(badgeRow, item);
+    meta.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
+    if (item.aesthetic) meta.appendChild(makeElement('span', 'badge', item.aesthetic));
+    const price = makeElement('p', 'price house-card-price', `$${Number(item.price || 0).toFixed(2)}`);
+    const maker = makeElement('a', 'designer-card-link', item.designerName || 'Independent designer');
+    maker.href = `/designers/${encodeURIComponent(item.designerId)}`;
+    if (item.designerLogoUrl) { const logo = document.createElement('img'); logo.src = item.designerLogoUrl; logo.alt = ''; logo.loading = 'lazy'; maker.prepend(logo); }
+    maker.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); void openDesignerStorefront(item.designerId); });
+    maker.addEventListener('keydown', event => event.stopPropagation());
+
+    const titleButton = makeElement('button', 'card-title', item.title);
+    titleButton.type = 'button';
+    titleButton.setAttribute('aria-label', `View ${item.title} details`);
+    body.append(titleButton, maker, price);
+    body.appendChild(makeElement('span', 'house-card-size', item.size ? `Size ${item.size}` : item.productionType === 'Made to Order' ? 'Made to order · see measurements' : 'See garment measurements'));
+    body.appendChild(meta);
+    if (badgeRow.children.length) body.appendChild(badgeRow);
+    body.appendChild(makeElement('span', 'card-description', item.description || 'A one-of-a-kind designation from an independent designer.'));
+
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('.favorite-button')) return;
+      openProductDetails(item);
+    });
+
+    card.append(imageWrap, body);
+    productGrid.appendChild(card);
+  }
+}
+
+async function loadGallery() {
+  const request = ++galleryRequest;
+  const params = new URLSearchParams();
+  if (activeAccessory !== 'all') {
+    params.set('category', 'accessories');
+    if (activeAccessory !== 'accessories') params.set('style', activeAccessory);
+  } else if (activeFilter !== 'all') {
+    if (['apparel','patterns','menswear','womenswear','unisex','costumes'].includes(activeFilter)) params.set('category', activeFilter);
+    else params.set('style', activeFilter);
+  }
+  if (activeShopCategory !== 'all') params.set('category', activeShopCategory);
+  for (const [key, value] of [['presentation',activePresentation],['productionType',activeProductionType],['aesthetic', activeAesthetic], ['pattern', activePattern], ['designer', activeDesigner], ['sort', activeShopWindow]]) {
+    if (value !== 'all') params.set(key, value);
+  }
+  if (shopSearch) params.set('q', shopSearch.slice(0, 200));
+  productGrid?.setAttribute('aria-busy', 'true');
+  if (shopStatus) setMessage(shopStatus, 'Finding your next favorite…', '');
+  try {
+    const payload = activeMeasurements
+      ? await apiRequest('/api/gallery/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filters: Object.fromEntries(params), measurements: activeMeasurements }) })
+      : await apiRequest(`/api/gallery?${params}`);
+    if (request !== galleryRequest) return;
+    galleryItems = Array.isArray(payload.items) ? payload.items : [];
+    const collectionSlug = (typeof location === 'object' ? location.pathname : '').match(/^\/collections\/([^/]+)/)?.[1];
+    if (collectionSlug && typeof houseCollections !== 'undefined' && houseCollections[collectionSlug]) galleryItems = galleryItems.filter(houseCollections[collectionSlug].match);
+    renderGallery();
+  } catch (error) {
+    if (request !== galleryRequest) return;
+    galleryItems = [];
+    productGrid?.replaceChildren();
+    if (shopStatus) setMessage(shopStatus, `Unable to load the gallery: ${error.message}`, 'error');
+  } finally {
+    if (request === galleryRequest) productGrid?.setAttribute('aria-busy', 'false');
+  }
+}
+
+async function loadShopDesigners() {
+  const select = byId('shop-designer-filter');
+  if (!select) return;
+  try {
+    const { designers } = await apiRequest('/api/designers');
+    for (const designer of designers || []) {
+      const option = document.createElement('option');
+      option.value = designer.id;
+      option.textContent = designer.brandName || designer.displayName;
+      select.append(option);
+    }
+  } catch (error) {
+    select.disabled = true;
+    if (shopStatus) setMessage(shopStatus, `Unable to load designers: ${error.message}`, 'error');
+  }
+}
+
+function openPhotoLightbox(src, alt) {
+  const lightbox = byId('photo-lightbox');
+  const lightboxImage = byId('photo-lightbox-image');
+  if (!lightbox || !lightboxImage) return;
+  lightboxImage.src = src;
+  lightboxImage.alt = alt || 'Full product photo';
+  lightbox.showModal();
+}
+
+byId('photo-lightbox-close')?.addEventListener('click', () => byId('photo-lightbox')?.close());
+byId('photo-lightbox')?.addEventListener('click', (event) => {
+  if (event.target === byId('photo-lightbox')) byId('photo-lightbox')?.close();
+});
+
+const MEASUREMENT_PROFILES_KEY = 'house-of-briar:measurement-profiles';
+let accountMeasurementProfiles = [];
+let measurementAccountActive = false;
+let measurementProfilesReady = false;
+let measurementRefreshVersion = 0;
+function loadMeasurementProfiles(){
+  if (measurementAccountActive) return accountMeasurementProfiles;
+  try { const rows=JSON.parse(localStorage.getItem(MEASUREMENT_PROFILES_KEY)||'[]');return Array.isArray(rows)?rows:[]; } catch { return []; }
+}
+function updateMeasurementProfiles(rows) {
+  accountMeasurementProfiles = rows;
+  renderMeasurementProfiles();
+  refreshShopFitProfiles();
+}
+async function refreshMeasurementProfiles(signedIn) {
+  const version = ++measurementRefreshVersion;
+  measurementAccountActive = signedIn;
+  measurementProfilesReady = false;
+  updateMeasurementProfiles([]);
+  if (!signedIn) {
+    setMessage(byId('measurement-profile-message'), 'Sign in to save new profiles securely in your account. Older browser profiles stay on this device.', '');
+    return;
+  }
+  try {
+    const data = await apiRequest('/api/customer/measurements', {cache:'no-store'});
+    if (version !== measurementRefreshVersion) return;
+    measurementProfilesReady = true;
+    updateMeasurementProfiles(data.profiles);
+    setMessage(byId('measurement-profile-message'), '', '');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  }
+}
+async function removeMeasurementProfile(profile, button) {
+  button.disabled = true;
+  const version = measurementRefreshVersion;
+  try {
+    if (measurementAccountActive) {
+      await apiRequest('/api/customer/measurements/' + encodeURIComponent(profile.id), {method:'DELETE'});
+      if (version !== measurementRefreshVersion) return;
+      updateMeasurementProfiles(accountMeasurementProfiles.filter(item => item.id !== profile.id));
+    } else {
+      localStorage.setItem(MEASUREMENT_PROFILES_KEY, JSON.stringify(loadMeasurementProfiles().filter(item => item.id !== profile.id)));
+      renderMeasurementProfiles();
+      refreshShopFitProfiles();
+    }
+  } catch (error) { setMessage(byId('measurement-profile-message'), error.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
+function renderMeasurementProfiles(){const list=byId('measurement-profile-list');if(!list)return;list.replaceChildren();loadMeasurementProfiles().forEach(p=>{const row=makeElement('div','designer-product');const info=makeElement('div');info.appendChild(makeElement('strong','',p.label));if(p.bust||p.waist||p.hips||p.height){const text=[];if(p.bust)text.push(`Bust ${p.bust}`);if(p.waist)text.push(`Waist ${p.waist}`);if(p.hips)text.push(`Hips ${p.hips}`);if(p.height)text.push(`Height ${p.height}`);info.appendChild(makeElement('p','',text.join(' · ')));}const remove=document.createElement('button');remove.type='button';remove.className='text-button';remove.textContent='Delete';remove.addEventListener('click',()=>void removeMeasurementProfile(p, remove));row.append(info,remove);list.appendChild(row);});}
+byId('measurement-profile-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  if (!measurementAccountActive || !measurementProfilesReady) {
+    setMessage(byId('measurement-profile-message'), measurementAccountActive ? 'Wait for your saved profiles to load, or sign in again.' : 'Sign in to save measurements securely in your account.', 'error');
+    return;
+  }
+  const version = measurementRefreshVersion;
+  const profile = {label:byId('measurement-profile-name').value.trim(), notes:byId('measurement-profile-notes').value};
+  for (const key of ['bust','waist','hips','height','inseam']) profile[key] = byId(`measurement-profile-${key}`).value;
+  button.disabled = true;
+  try {
+    const data = await apiRequest('/api/customer/measurements', {method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
+    if (version !== measurementRefreshVersion) return;
+    updateMeasurementProfiles([...accountMeasurementProfiles, data.profile]);
+    form.reset();
+    setMessage(byId('measurement-profile-message'), 'Measurement profile saved securely in your account.', 'success');
+  } catch (error) {
+    if (version === measurementRefreshVersion) setMessage(byId('measurement-profile-message'), error.message, 'error');
+  } finally { button.disabled = false; }
+});
+renderMeasurementProfiles();
+
+function openSupportDialog(prefill=''){
+  const dialog=byId('support-dialog'); if(!dialog)return;
+  const message=byId('support-message'); if(message && prefill)message.value=prefill;
+  setMessage(byId('support-form-status'),'',''); dialog.showModal(); message?.focus();
+}
+byId('support-dialog-close')?.addEventListener('click',()=>byId('support-dialog')?.close());
+byId('support-form')?.addEventListener('submit',async event=>{
+  event.preventDefault(); const status=byId('support-form-status'); const message=byId('support-message')?.value.trim()||''; const orderId=byId('support-order-id')?.value.trim()||'';
+  try{const result=await apiRequest('/api/support/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,orderId:orderId||null})}); setMessage(status,result.message?.autoReply?'Message sent. We also emailed the available order or shipping information to you.':'Message sent to House of Briar Customer Support.','success');}
+  catch(error){setMessage(status,error.message==='Sign in to view your orders.'?'Please sign in through the Customer account to send an in-site support message, or use the email link below.':error.message,'error');}
+});
+
+function openProductDetails(item) {
+  if (!productDialog) return;
+  const images = getProductImages(item);
+  productDetailTitle.textContent = item.title;
+  productDetailContent.replaceChildren();
+
+  const imageGrid = makeElement('div', 'product-detail-images');
+  images.forEach((image, index) => {
+    const img = document.createElement('img');
+    img.src = image.url;
+    img.alt = `${item.title} ${image.angle || `image ${index + 1}`}`;
+    img.loading = index === 0 ? 'eager' : 'lazy';
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', `View full photo ${index + 1} of ${item.title}`);
+    img.addEventListener('click', () => openPhotoLightbox(image.url, img.alt));
+    img.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openPhotoLightbox(image.url, img.alt);
+      }
+    });
+    imageGrid.appendChild(img);
+  });
+
+  const copy = makeElement('div', 'product-detail-copy');
+  const badgeRow = makeElement('div', 'detail-badge-row');
+  renderItemBadges(badgeRow, item);
+  if (badgeRow.children.length) copy.appendChild(badgeRow);
+  copy.appendChild(makeElement('span', 'badge', item.style || categoryLabel(item.category)));
+  if (item.aesthetic) copy.appendChild(makeElement('span', 'badge', item.aesthetic));
+  if (item.pattern) copy.appendChild(makeElement('span', 'badge', item.pattern));
+  if (item.productionType) {
+    const productionButton = makeElement('button', 'badge production-info-button', item.productionType);
+    productionButton.type = 'button';
+    productionButton.addEventListener('click', () => {
+      const info = {
+        'One of a Kind': 'This is a unique piece. Only one is available. Adding it to your Cart does not reserve it; it is secured when checkout begins.',
+        'Upcycled': 'This piece gives existing materials or garments a new life through the designer’s creative work.',
+        'Made in Multiple': 'This design can be made more than once. Individual pieces may still vary because they are independently made.'
+      };
+      byId('production-info-title').textContent = item.productionType;
+      byId('production-info-content').replaceChildren(makeElement('p', '', info[item.productionType] || 'Ask the designer for details about this piece.'));
+      byId('production-info-dialog')?.showModal();
+    });
+    copy.appendChild(productionButton);
+  }
+  if (item.alterationsAvailable) copy.appendChild(makeElement('p', 'notice', 'Alterations available — this designer can adjust this piece.'));
+  if (item.takesRequests) copy.appendChild(makeElement('p', 'notice', 'Takes requests — this designer welcomes inquiries about custom or related work.'));
+  if (item.giftWrapAvailable) copy.appendChild(makeElement('p', 'notice', `Gift wrapping available${Number(item.giftWrapPrice || 0) > 0 ? ` · ${Number(item.giftWrapPrice).toFixed(2)}` : ' · complimentary'}.`));
+  const clips = [[item.tryOnVideoUrl,'Try-on / fit'],[item.movementVideoUrl,'Movement / detail']].filter(([url])=>url);
+  clips.forEach(([url,label]) => {
+    const wrap=makeElement('figure','product-video');
+    const video=document.createElement('video'); video.controls=true; video.preload='metadata'; video.playsInline=true; video.src=url; video.setAttribute('aria-label',`${item.title} — ${label} clip`);
+    wrap.append(video,makeElement('figcaption','',label)); imageGrid.appendChild(wrap);
+  });
+  const sellerBlock = makeElement('div', 'product-seller-block');
+  sellerBlock.appendChild(makeElement('span', 'eyebrow', 'Designed & sold by'));
+  const sellerLink = makeElement('button', 'product-seller-name', item.designerName || 'Independent designer');
+  sellerLink.type = 'button';
+  if (item.designerId) sellerLink.addEventListener('click', () => { productDialog.close(); void openDesignerStorefront(item.designerId); });
+  sellerBlock.appendChild(sellerLink);
+  copy.appendChild(sellerBlock);
+  copy.appendChild(makeElement('h3', '', item.title));
+  copy.appendChild(makeElement('strong', 'price', `$${Number(item.price || 0).toFixed(2)}`));
+  copy.appendChild(makeElement('p', '', item.shippingCostCents == null ? 'Shipping price not set — checkout unavailable.' : Number(item.shippingCostCents)===0 ? 'Free US shipping.' : `US shipping per piece: $${(item.shippingCostCents/100).toFixed(2)}`));
+  if(item.freeShippingThresholdCents>0)copy.appendChild(makeElement('p','',`Free shipping for this piece when this designer’s merchandise before discounts reaches $${(item.freeShippingThresholdCents/100).toFixed(2)}.`));
+  const prepMin=item.handlingDaysMin, prepMax=item.handlingDaysMax;
+  copy.appendChild(makeElement('p','', prepMin==null && prepMax==null ? 'Preparation time not provided; ask the designer before ordering.' : `${prepMin==null ? 'Up to '+prepMax : prepMax==null ? 'At least '+prepMin : prepMin+(prepMax!==prepMin?'–'+prepMax:'')} business days before shipment. Carrier transit comes afterward.`));
+  if (item.size) copy.appendChild(makeElement('p', 'product-size', `Size: ${item.size}`));
+  const ranges = Object.entries(item.fitMeasurements || {}).map(([key, range]) => `${key}: ${range.min}–${range.max} in`);
+  if (ranges.length) copy.appendChild(makeElement('p', 'product-fit', `Fits body measurements — ${ranges.join(' · ')}`));
+  if (item.materials) copy.appendChild(makeElement('p', 'product-materials', `Materials: ${item.materials}`));
+  if (item.careInstructions) copy.appendChild(makeElement('p', 'product-care', `Care: ${item.careInstructions}`));
+  copy.appendChild(makeElement('p', '', item.description || 'A carefully made piece from an independent designer.'));
+
+  const help = makeElement('div', 'product-help-links');
+  const contact = document.createElement('button'); contact.type='button'; contact.className='support-link-button'; contact.textContent = 'Contact Customer Support'; contact.addEventListener('click',()=>openSupportDialog(`Question about ${item.title} by ${item.designerName || 'an independent designer'}: `));
+  const shipping = document.createElement('a'); shipping.href = '/rules#shipping-and-delays'; shipping.textContent = 'Shipping & Delivery';
+  const rules = document.createElement('a'); rules.href = '/rules'; rules.textContent = 'House Rules & Returns';
+  help.append(contact, shipping, rules); copy.appendChild(help);
+
+  const reportSection = document.createElement('details'); reportSection.className = 'listing-report';
+  reportSection.append(makeElement('summary', 'text-button', 'Report listing'));
+  const reportForm = document.createElement('form'); reportForm.className = 'stack-form';
+  const reasonLabel = makeElement('label', '', 'Why are you reporting this piece?');
+  const reason = document.createElement('select'); reason.required = true; reason.setAttribute('aria-label', 'Report reason');
+  for (const [value, label] of [['', 'Choose a reason'], ['misleading', 'Misleading listing'], ['copyright', 'Copied work / copyright concern'], ['prohibited', 'Prohibited item'], ['inappropriate', 'Inappropriate content'], ['other', 'Other']]) { const option = document.createElement('option'); option.value = value; option.textContent = label; reason.append(option); }
+  reasonLabel.append(reason);
+  const notesLabel = makeElement('label', '', 'Details (optional, required for Other)');
+  const notes = document.createElement('textarea'); notes.rows = 3; notes.maxLength = 2000; notes.setAttribute('aria-label', 'Report details'); notesLabel.append(notes);
+  const submit = makeElement('button', 'secondary-button', 'Send report'); submit.type = 'submit';
+  const reportMessage = makeElement('p', 'form-message'); reportMessage.setAttribute('role', 'status');
+  reportForm.append(makeElement('p', 'small-print', 'Reports are reviewed privately by House of Briar. Reporting does not automatically remove a piece.'), reasonLabel, notesLabel, submit, reportMessage);
+  reportForm.addEventListener('submit', async event => {
+    event.preventDefault(); submit.disabled = true;
+    try { await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason.value, notes: notes.value.trim() }) }); setMessage(reportMessage, 'Thank you. Your report is saved for the House team to review.', 'success'); }
+    catch (error) { setMessage(reportMessage, error.message, 'error'); submit.disabled = false; }
+  }); reportSection.append(reportForm); copy.append(reportSection);
+  const sizingBox = makeElement('div', 'measurement-request');
+  sizingBox.appendChild(makeElement('h4', '', 'Send measurements for this piece'));
+  sizingBox.appendChild(makeElement('p', 'small-print', 'Choose a saved Customer account profile or enter measurements here. They are attached only to this piece.'));
+
+  const profileSelect = document.createElement('select');
+  profileSelect.setAttribute('aria-label', 'Saved measurement profile');
+  profileSelect.innerHTML = '<option value="">Choose saved profile (optional)</option>';
+  loadMeasurementProfiles().forEach((p) => {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.label;
+    profileSelect.appendChild(option);
+  });
+
+  const bust = document.createElement('input');
+  const waist = document.createElement('input');
+  const hips = document.createElement('input');
+  const height = document.createElement('input');
+  const note = document.createElement('textarea');
+  bust.placeholder = 'Bust / chest';
+  waist.placeholder = 'Waist';
+  hips.placeholder = 'Hips';
+  height.placeholder = 'Height';
+  note.placeholder = 'Sizing request for this piece';
+  for (const input of [bust, waist, hips, height]) {
+    input.type = 'number'; input.min = '0.01'; input.max = '150'; input.step = '0.01';
+    input.setAttribute('aria-label', `${input.placeholder} in inches`);
+  }
+  note.maxLength = 500;
+  note.setAttribute('aria-label', 'Sizing request for this piece');
+  const sizingMessage = makeElement('p', 'form-message');
+  sizingMessage.setAttribute('role', 'status');
+  sizingMessage.setAttribute('aria-live', 'polite');
+  profileSelect.addEventListener('change', () => {
+    const match = loadMeasurementProfiles().find((x) => x.id === profileSelect.value);
+    if (!match) return;
+    bust.value = match.bust || '';
+    waist.value = match.waist || '';
+    hips.value = match.hips || '';
+    height.value = match.height || '';
+    note.value = match.notes || '';
+  });
+  const send = makeElement('button', 'secondary-button', 'Send measurement request');
+  send.type = 'button';
+  send.addEventListener('click', async () => {
+    const measurements = {};
+    for (const [key, input] of Object.entries({ bust, waist, hips, height })) {
+      if (!input.value.trim()) continue;
+      if (!input.checkValidity()) { setMessage(sizingMessage, 'Enter positive measurements up to 150 inches with at most two decimal places.', 'error'); return; }
+      measurements[key] = Number(input.value);
+    }
+    if (!Object.keys(measurements).length) { setMessage(sizingMessage, 'Add at least one measurement in inches before sending.', 'error'); return; }
+    send.disabled = true;
+    try {
+      await apiRequest(`/api/listings/${encodeURIComponent(item.id)}/inquiries`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ measurements, message: note.value.trim() }) });
+      setMessage(sizingMessage, `Your measurement request for ${item.title} was saved and sent to the designer.`, 'success');
+    } catch (error) { setMessage(sizingMessage, error.status === 401 ? 'Sign in to your Customer account or Designer dashboard to send measurements.' : error.message, 'error'); }
+    finally { send.disabled = false; }
+  });
+  sizingBox.append(profileSelect, bust, waist, hips, height, note, send, sizingMessage);
+  copy.appendChild(sizingBox);
+
+  const addButton = makeElement('button', 'primary-button', getCartIds().includes(item.id) ? 'In Cart' : 'Add to Cart');
+  addButton.type = 'button';
+  addButton.disabled = getCartIds().includes(item.id) || item.shippingCostCents == null;
+  if (item.shippingCostCents == null) addButton.textContent = 'Awaiting shipping price';
+  if (item.availableQuantity != null && Number(item.availableQuantity) <= 0) {
+    addButton.disabled = true;
+    addButton.textContent = Number(item.soldQuantity) > 0 ? 'Sold' : 'Currently unavailable';
+  }
+  addButton.addEventListener('click', () => addToCart(item));
+  copy.appendChild(addButton);
+  // Photo try-on is temporarily hidden while its visual quality is improved.
+  if (images.length > 1) copy.appendChild(makeElement('p', 'small-print', `${images.length} photos · first image is the cover`));
+
+  productDetailContent.append(imageGrid, copy);
+  productDialog.showModal();
+}
+
+function resetListingForm() {
+  if (productForm) {productForm.reset();syncSellerTypes();}
+  productForm?.querySelectorAll('.listing-edit-options').forEach(panel=>{panel.open=false;});
+  currentListingId = '';
+  currentIdempotencyKey = '';
+  if (productIdInput) productIdInput.value = '';
+  if (listingFormTitle) listingFormTitle.textContent = 'Add a design';
+  const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent='Create a piece';
+  selectedImages.forEach((item) => {
+    if (item.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(item.objectUrl);
+  });
+  selectedImages = [];
+  if (photoPreview) photoPreview.replaceChildren();
+  setMessage(uploadMessage, '', '');
+}
+
+function validateSelectedImage(file) {
+  const isAllowedMime = ALLOWED_MIME_TYPES.has(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+  if (!isAllowedMime) return /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/i.test(file.type) ? 'iPhone HEIC/HEIF photos are not supported yet. Export or share this photo as JPEG, then upload the JPEG.' : 'Unsupported photo format. Choose a JPEG, PNG, or WebP image.';
+  if (file.size > MAX_IMAGE_BYTES) return 'Each image must be 10 MiB or smaller.';
+  return '';
+}
+
+function renderSelectedImages() {
+  if (!photoPreview) return;
+  photoPreview.replaceChildren();
+  selectedImages.forEach((image, index) => {
+    const item = makeElement('div', 'photo-preview-item');
+    const img = document.createElement('img');
+    img.src = image.objectUrl || image.url;
+    img.alt = image.name || `Image ${index + 1}`;
+    item.appendChild(img);
+    item.appendChild(makeElement('span', 'photo-order-label', index === 0 ? 'Main photo' : String(index + 1)));
+
+    const info = makeElement('div', 'photo-preview-meta');
+    info.appendChild(makeElement('strong', '', image.name || `Image ${index + 1}`));
+    const statusText = image.status === 'uploading' ? 'Uploading…' : image.status === 'ready' ? 'Ready' : image.status === 'failed' ? (image.error || 'Failed') : 'Queued';
+    info.appendChild(makeElement('span', '', `${statusText}${image.size ? ` · ${formatBytes(image.size)}` : ''}`));
+    item.appendChild(info);
+    const mainPhoto=document.createElement('button');mainPhoto.type='button';mainPhoto.className='secondary-button photo-main-button';
+    mainPhoto.textContent=index===0?'Main photo':'Make main photo';mainPhoto.disabled=index===0;
+    mainPhoto.setAttribute('aria-label',index===0?'Main photo, photo 1':`Make photo ${index+1} the main photo`);
+    mainPhoto.addEventListener('click',()=>{const current=selectedImages.indexOf(image);if(current<1)return;selectedImages.splice(current,1);selectedImages.unshift(image);renderSelectedImages();setMessage(uploadMessage,'Main photo selected. Choose Save changes to keep this photo order.','success');photoPreview.querySelector('.photo-main-button')?.focus();});
+    item.append(mainPhoto);
+    const angle = document.createElement('select');
+    angle.className = 'photo-angle-select';
+    angle.setAttribute('aria-label', `Photo ${index + 1} angle`);
+    [['','Angle / view'],['Front','Front'],['Back','Back'],['Left','Left side'],['Right','Right side'],['Detail','Detail / close-up'],['Other','Other view']].forEach(([value,label]) => {
+      const option=document.createElement('option'); option.value=value; option.textContent=label; angle.appendChild(option);
+    });
+    angle.value=image.angle || ''; angle.addEventListener('change',()=>{ image.angle=angle.value; });
+    const options=document.createElement('details');options.className='photo-options';const optionsTitle=document.createElement('summary');optionsTitle.textContent='Arrange or remove';options.append(optionsTitle,angle);item.append(options);
+
+    const actions = makeElement('div', 'photo-preview-actions');
+    const moveUp = document.createElement('button');
+    moveUp.type = 'button';
+    moveUp.textContent = 'Move up';
+    moveUp.disabled = index === 0;
+    moveUp.addEventListener('click', () => {
+      if (index > 0) {
+        [selectedImages[index], selectedImages[index - 1]] = [selectedImages[index - 1], selectedImages[index]];
+        renderSelectedImages();
+      }
+    });
+    actions.appendChild(moveUp);
+
+    const moveDown = document.createElement('button');
+    moveDown.type = 'button';
+    moveDown.textContent = 'Move down';
+    moveDown.disabled = index === selectedImages.length - 1;
+    moveDown.addEventListener('click', () => {
+      if (index < selectedImages.length - 1) {
+        [selectedImages[index], selectedImages[index + 1]] = [selectedImages[index + 1], selectedImages[index]];
+        renderSelectedImages();
+      }
+    });
+    actions.appendChild(moveDown);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', async () => {
+      remove.disabled = true;
+      try {
+        if (image.id && currentListingId) {
+          await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/images/${encodeURIComponent(image.id)}`, { method: 'DELETE' });
+        }
+        if (image.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(image.objectUrl);
+        const currentIndex = selectedImages.indexOf(image);
+        if (currentIndex >= 0) selectedImages.splice(currentIndex, 1);
+        renderSelectedImages();
+      } catch (error) {
+        remove.disabled = false;
+        setMessage(uploadMessage, error.message, 'error');
+      }
+    });
+    actions.appendChild(remove);
+
+    options.appendChild(actions);
+    photoPreview.appendChild(item);
+  });
+  if(byId('listing-preview')?.open)renderListingDraftPreview();
+  renderListingReadiness();
+}
+
+function addFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const remainingSlots = MAX_IMAGES - selectedImages.length;
+  const nextFiles = files.slice(0, Math.max(0, remainingSlots));
+  const issues = [];
+
+  nextFiles.forEach((file) => {
+    const problem = validateSelectedImage(file);
+    if (problem) {
+      issues.push(`${file.name}: ${problem}`);
+      return;
+    }
+    selectedImages.push({
+      id: '',
+      file,
+      name: file.name,
+      size: file.size,
+      status: 'queued',
+      objectUrl: URL.createObjectURL(file),
+      url: '',
+      angle: ''
+    });
+  });
+
+  if (files.length > remainingSlots) {
+    issues.push(`Only ${Math.max(0, remainingSlots)} more image slot(s) remain.`);
+  }
+
+  renderSelectedImages();
+  setMessage(uploadMessage, issues.length ? issues.join(' ') : 'Photos selected. Save or submit to upload them.', issues.length ? 'error' : 'success');
+  if (photoInput) photoInput.value = '';
+}
+
+function renderFabricFinderResult(analysis = {}, disclaimer = '') {
+  if (!fabricFinderResult) return;
+  fabricFinderResult.replaceChildren();
+  const title = makeElement('h4', '', analysis.fabricFamily || 'Fabric estimate');
+  fabricFinderResult.appendChild(title);
+  const rows = [
+    ['Likely fibers', Array.isArray(analysis.likelyFibers) ? analysis.likelyFibers.join(', ') : 'Not enough visual evidence'],
+    ['Construction', analysis.construction], ['Texture', analysis.texture], ['Weight', analysis.weight], ['Drape', analysis.drape],
+    ['Likely uses', Array.isArray(analysis.likelyUses) ? analysis.likelyUses.join(', ') : ''],
+    ['Care', Array.isArray(analysis.careConsiderations) ? analysis.careConsiderations.join(' · ') : ''], ['Confidence', analysis.confidence], ['Notes', analysis.notes]
+  ];
+  for (const [label, value] of rows) if (value) {
+    const p = document.createElement('p'); const strong = document.createElement('strong'); strong.textContent = label + ': ';
+    p.append(strong, document.createTextNode(String(value))); fabricFinderResult.appendChild(p);
+  }
+  const use = document.createElement('button'); use.type = 'button'; use.className = 'primary-button'; use.textContent = 'Use material & care in my listing';
+  use.addEventListener('click', () => {
+    if (byId('product-materials') && analysis.listingMaterialSuggestion) byId('product-materials').value = analysis.listingMaterialSuggestion;
+    if (byId('product-care') && Array.isArray(analysis.careConsiderations)) byId('product-care').value = analysis.careConsiderations.join('; ');
+    for (const id of ['product-materials', 'product-care']) byId(id)?.dispatchEvent(new Event('input', { bubbles: true }));
+    scrollRoomTarget(byId('product-materials'), { block: 'center' });
+  });
+  fabricFinderResult.appendChild(use);
+  if (disclaimer) fabricFinderResult.appendChild(makeElement('p', 'small-print', disclaimer));
+  fabricFinderResult.classList.remove('hidden');
+}
+
+byId('fabric-finder-submit')?.addEventListener('click', async (event) => {
+  event.preventDefault();
+  const files = Array.from(fabricFinderPhotos?.files || []);
+  if (!files.length || files.length > 3) { setMessage(fabricFinderMessage, 'Choose between one and three fabric photos.', 'error'); return; }
+  if (files.some(file => !ALLOWED_MIME_TYPES.has(file.type) || file.size > MAX_IMAGE_BYTES)) { setMessage(fabricFinderMessage, 'Use JPEG, PNG, or WebP photos up to 10 MiB each.', 'error'); return; }
+  const button = byId('fabric-finder-submit'); if (button) button.disabled = true;
+  setMessage(fabricFinderMessage, 'Looking closely at the fabric…', 'success');
+  fabricFinderResult?.classList.add('hidden');
+  try {
+    const data = new FormData(); files.forEach(file => data.append('photos', file, file.name));
+    const payload = await apiRequest('/api/my/fabric-finder', { method: 'POST', body: data });
+    renderFabricFinderResult(payload.analysis || {}, payload.disclaimer || 'Visual estimate only.');
+    setMessage(fabricFinderMessage, 'Fabric estimate ready.', 'success');
+  } catch (error) { setMessage(fabricFinderMessage, error.message, 'error'); }
+  finally { if (button) button.disabled = false; }
+});
+
+function readFitRanges() {
+  const ranges = {};
+  for (const key of ['bust', 'waist', 'hips', 'inseam']) {
+    const min = byId(`product-fit-${key}-min`)?.value || '';
+    const max = byId(`product-fit-${key}-max`)?.value || '';
+    if (min || max) ranges[key] = { min: min ? Number(min) : null, max: max ? Number(max) : null };
+  }
+  return ranges;
+}
+
+function readFormValues() {
+  return {
+    title: byId('product-name').value.trim(),
+    description: byId('product-description').value.trim(),
+    price: byId('product-price').value,
+    internationalShipping: Boolean(byId('product-international')?.checked),
+    shippingCostCents: 0,
+    freeShippingThresholdCents: null,
+    handlingDaysMin: byId('product-handling-min').value === '' ? null : Number(byId('product-handling-min').value),
+    handlingDaysMax: byId('product-handling-max').value === '' ? null : Number(byId('product-handling-max').value),
+    category: byId('product-category')?.value || 'apparel',
+    presentation: byId('product-presentation')?.value || '',
+    style: byId('product-style')?.value || '',
+    size: byId('product-size')?.value || '',
+    fitMeasurements: readFitRanges(),
+    aesthetic: byId('product-aesthetic')?.value || '',
+    pattern: byId('product-pattern')?.value || '',
+    materials: byId('product-materials')?.value.trim() || '',
+    careInstructions: byId('product-care')?.value.trim() || '',
+    productionType: byId('product-production-type')?.value || '',
+    alterationsAvailable: Boolean(byId('product-alterations')?.checked),
+    takesRequests: Boolean(byId('product-requests')?.checked),
+    giftWrapAvailable: Boolean(byId('product-gift-wrap')?.checked),
+    giftWrapPrice: byId('product-gift-wrap-price')?.value || '0',
+    tryOnVideoUrl: byId('product-video-tryon')?.value.trim() || '',
+    movementVideoUrl: byId('product-video-movement')?.value.trim() || '',
+    photoAngles: selectedImages.map((image) => image.angle || '')
+  };
+}
+
+function validateListingValues(values) {
+  if (!values.title || values.title.length > 120) return 'Add a design name (1–120 characters).';
+  if (values.description.length > 2000) return 'Description must be 2,000 characters or fewer.';
+  if (!values.style) return 'Choose a garment type.';
+  if (!values.size) return 'Choose a size.';
+  if (!values.aesthetic) return 'Choose an aesthetic style.';
+  if (values.materials.length > 500) return 'Materials must be 500 characters or fewer.';
+  if (values.careInstructions.length > 1000) return 'Care instructions must be 1,000 characters or fewer.';
+  if (!values.productionType) return 'Choose One of a Kind, Upcycled, or Made in Multiple.';
+  if (values.giftWrapAvailable && (!Number.isFinite(Number(values.giftWrapPrice)) || Number(values.giftWrapPrice) < 0 || Number(values.giftWrapPrice) > 250)) return 'Gift-wrap price must be between $0 and $250.';
+  for (const url of [values.tryOnVideoUrl, values.movementVideoUrl]) if (url && !/^https:\/\//i.test(url)) return 'Video clips must use secure HTTPS links.';
+  if (!Number.isFinite(Number(values.price)) || Number(values.price) < 0) return 'Provide a valid price.';
+  if (selectedImages.length < 1) return 'At least one photo is required.';
+  return '';
+}
+
+async function ensureListing(values) {
+  if (currentListingId) {
+    return (await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values)
+    })).item;
+  }
+
+  const existingKey = currentIdempotencyKey || (currentIdempotencyKey = crypto.randomUUID());
+  const payload = await apiRequest('/api/listings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': existingKey },
+    body: JSON.stringify(values)
+  });
+
+  currentListingId = payload.item.id;
+  if (productIdInput) productIdInput.value = payload.item.id;
+  return payload.item;
+}
+
+async function uploadQueuedImages() {
+  for (const image of selectedImages) {
+    if (!image.file || image.status === 'ready' || image.status === 'uploading') continue;
+    const knownImageIds = new Set(selectedImages.filter((selected) => selected.id).map((selected) => selected.id));
+    image.status = 'uploading';
+    renderSelectedImages();
+
+    const formData = new FormData();
+    formData.append('image', image.file, image.name);
+    const key = image.clientImageKey || (image.clientImageKey = crypto.randomUUID());
+
+    try {
+      const payload = await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/images`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: formData
+      });
+      const uploaded = payload.item.images.find((entry) => entry.url && !entry.legacy && !knownImageIds.has(entry.id));
+      if (uploaded) {
+        image.id = uploaded.id;
+        image.url = uploaded.url;
+        image.status = 'ready';
+        image.error = '';
+      } else {
+        image.status = 'failed';
+        image.error = 'Upload returned no image reference.';
+      }
+    } catch (error) {
+      image.status = 'failed';
+      image.error = error.message;
+    }
+
+    renderSelectedImages();
+  }
+}
+
+async function handleSave(event) {
+  event.preventDefault();
+  if (!designerToken) {
+    setMessage(uploadMessage, 'Sign in to save a listing.', 'error');
+    return;
+  }
+
+  const values = readFormValues();
+  const validationError = validateListingValues(values);
+  if (validationError) {
+    renderListingReadiness();
+    const missing=productForm?.querySelector('[aria-invalid="true"]:required')||productForm?.querySelector('[aria-invalid="true"]');if(missing){for(let p=missing.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;missing.scrollIntoView({block:'center',behavior:'smooth'});missing.focus({preventScroll:true});}
+    setMessage(uploadMessage, validationError, 'error');
+    return;
+  }
+
+  const action = event.submitter?.value || 'draft';
+  setMessage(uploadMessage, 'Saving the listing…', 'success');
+
+  try {
+    await ensureListing(values);
+    await uploadQueuedImages();
+    await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/enhancements`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ giftWrapAvailable: values.giftWrapAvailable, giftWrapPrice: values.giftWrapPrice, tryOnVideoUrl: values.tryOnVideoUrl, movementVideoUrl: values.movementVideoUrl, photoAngles: selectedImages.map(image => image.angle || '') })
+    });
+    const failed = selectedImages.filter((image) => image.status === 'failed');
+    if (failed.length && action === 'submit') {
+      setMessage(uploadMessage, 'Fix or remove failed images before submitting.', 'error');
+      return;
+    }
+
+    const order = selectedImages.filter((image) => image.status === 'ready' && image.id).map((image) => image.id);
+    if (order.length) {
+      await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/images/order`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageIds: order })
+      });
+    }
+
+    if (action === 'submit') {
+      const rulesAccepted = byId('marketplace-rules-accepted')?.checked === true;
+      if (!rulesAccepted) {
+        setMessage(uploadMessage, 'Confirm that this listing follows House of Briar marketplace rules before submitting.', 'error');
+        return;
+      }
+      const payload = await apiRequest(`/api/listings/${encodeURIComponent(currentListingId)}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketplaceRulesAccepted: true })
+      });
+      const confirmation=payload.item.status === 'pending_review' ? 'Submitted for review. It will appear in the Shop after approval.' : 'Published to the Shop gallery.';
+      await loadDesignerListings();
+      await loadGallery();
+      resetListingForm();
+      setMessage(uploadMessage, confirmation, 'success');
+      return;
+    }
+
+    const failedPhotos=selectedImages.filter(image=>image.status==='failed');
+    setMessage(uploadMessage, failedPhotos.length ? 'Draft text saved, but some photos could not be uploaded. Keep this form open and choose Save draft to retry, or remove the failed photos.' : (action === 'save' ? 'Changes saved successfully.' : 'Draft saved successfully.'), failedPhotos.length ? 'error' : 'success');
+    await loadDesignerListings();
+  } catch (error) {
+    setMessage(uploadMessage, error.message, 'error');
+  }
+}
+
+// Display groups keep approval separate from stock availability.
+function designerListingGroup(item) {
+  if (item.status === 'draft') return 'Drafts';
+  if (item.status === 'pending_review') return 'Pending approval';
+  if (item.status === 'published' && item.moderationStatus === 'approved' && !item.pausedByDesigner) {
+    if (item.productionType !== 'Made to Order' && item.availableQuantity === 0 && !item.reservedQuantity) return Number(item.soldQuantity) > 0 ? 'Sold' : 'Other';
+    return 'Live';
+  }
+  return 'Other';
+}
+function designerOrderAttention(order) {
+  if (order.orderStatus !== 'paid') return [];
+  const reasons = [];
+  if (order.fulfillmentStatus === 'awaiting_shipment') reasons.push('Add shipment tracking');
+  if (order.payoutStatus === 'failed') reasons.push('Review failed payout');
+  return reasons;
+}
+
+let designerListingsLoad = 0;
+let designerListingFilter = 'All';
+async function loadDesignerAttention(loadId = designerListingsLoad) {
+  const status=byId('designer-attention-status'),counts=byId('designer-attention-counts'),list=byId('designer-attention-orders');
+  if(!designerToken||!status||!counts||!list)return;
+  const request=++designerAttentionRequest;
+  status.textContent='Checking your orders…';
+  try{
+    const payload=await apiRequest('/api/my/orders',{cache:'no-store'});
+    if(request!==designerAttentionRequest||loadId!==designerListingsLoad||!designerToken)return;
+    if(!Array.isArray(payload.orders))throw new Error('Order information could not be read.');
+    const orders=payload.orders.filter(order=>designerOrderAttention(order).length);
+    counts.replaceChildren();list.replaceChildren();
+    for(const [title,count] of [['Awaiting shipment',orders.filter(order=>order.fulfillmentStatus==='awaiting_shipment').length],['Failed payouts',orders.filter(order=>order.payoutStatus==='failed').length]]){
+      const card=makeElement('div','designer-attention-count');card.append(makeElement('strong','',String(count)),makeElement('span','',title));counts.append(card);
+    }
+    status.textContent=orders.length?`${orders.length} paid ${orders.length===1?'order needs':'orders need'} follow-up.`:'No paid orders need shipment or failed-payout follow-up.';
+    for(const order of orders.slice(0,5)){
+      const row=makeElement('a','designer-attention-order');row.href='/account#orders';
+      row.append(makeElement('strong','',`Order ${String(order.id).slice(-8).toUpperCase()}`),makeElement('span','',designerOrderAttention(order).join(' · ')));list.append(row);
+    }
+    if(orders.length>5)list.append(makeElement('p','small-print',`${orders.length-5} more — open Manage orders & tracking to review all.`));
+  }catch(error){
+    if(request!==designerAttentionRequest||loadId!==designerListingsLoad||!designerToken)return;
+    counts.replaceChildren();list.replaceChildren();status.textContent='Orders could not be checked. Refresh or open Manage orders & tracking.';
+  }
+}
+let designerAttentionRequest=0;
+byId('designer-attention-refresh')?.addEventListener('click',()=>void loadDesignerAttention());
+async function loadDesignerListings() {
+  const loadId = ++designerListingsLoad;
+  if (!designerToken) return;
+  try {
+    const payload = await apiRequest('/api/my/studio', { cache: 'no-store' });
+    if (loadId !== designerListingsLoad) return;
+    clearDesignerListImagePreviews();
+    if (designerProductsContainer) designerProductsContainer.replaceChildren();
+    const allListings = payload.items || [];
+    const overview=byId('designer-studio-overview');
+    if(overview){
+      overview.replaceChildren();
+      const filters=makeElement('div','designer-listing-filters');filters.setAttribute('role','group');filters.setAttribute('aria-label','Filter your listings');
+      for(const status of ['All','Drafts','Pending approval','Live','Sold','Other']){
+        const count=status==='All'?allListings.length:allListings.filter(item=>designerListingGroup(item)===status).length;
+        const button=makeElement('button','secondary-button',`${status} (${count})`);button.type='button';button.dataset.listingGroup=status;
+        button.setAttribute('aria-pressed',String(status===designerListingFilter));
+        button.addEventListener('click',()=>{designerListingFilter=status;void loadDesignerListings();});filters.append(button);
+      }
+      const notice=makeElement('p','small-print',designerListingFilter==='Other'?'Paused, expired, unavailable, or returned for changes.':designerListingFilter==='All'?'Drafts stay private. Only approved, published pieces can appear in the shop.':`Showing ${designerListingFilter.toLowerCase()} listings.`);notice.setAttribute('role','status');
+      overview.append(filters,notice,makeElement('p','small-print',`${payload.ordersCount ?? 0} orders · ${payload.messages ?? 0} item requests · ${payload.views?.events ?? 0} tracked product views in the last 30 days`));
+    }
+    void loadDesignerAttention(loadId);
+    const listings=allListings.filter(item=>designerListingFilter==='All'||designerListingGroup(item)===designerListingFilter);
+    designerReadinessState.listings=allListings;renderSellerReadiness();
+    if (!listings.length) {
+      if (designerProductsContainer) designerProductsContainer.appendChild(makeElement('p', 'empty-state', designerListingFilter==='All'?'No listings yet. Create a new design above.':`No ${designerListingFilter.toLowerCase()} listings.`));
+      return;
+    }
+
+    for (const listing of listings) {
+      const row = makeElement('div', 'designer-product-item');row.id=`listing-${listing.id}`;
+      const images = getProductImages(listing);
+      const preview = document.createElement('img');
+      preview.alt = `${listing.title} preview`;
+      preview.loading = 'lazy';
+      if (images[0]?.url) {
+        try {
+          preview.src = await loadPrivateImagePreview(images[0].url, true);
+        } catch {}
+      }
+      if (loadId !== designerListingsLoad) return;
+      if (preview.getAttribute('src')) row.appendChild(preview);
+      else row.appendChild(makeElement('span', 'designer-image-placeholder', 'No photo'));
+
+      const info = makeElement('div', 'designer-product-info');
+      info.appendChild(makeElement('h4', '', listing.title));
+      const giftLabel=makeElement('label','','Offer a free gift note');const gift=document.createElement('input');gift.type='checkbox';gift.checked=Boolean(listing.giftNoteAvailable);giftLabel.prepend(gift);info.append(giftLabel);
+      gift.addEventListener('change',async()=>{gift.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/studio-options`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({giftNoteAvailable:gift.checked})});await loadDesignerListings();}catch(error){gift.checked=!gift.checked;setMessage(uploadMessage,error.message,'error');gift.disabled=false;}});
+      if(['Active','Expired'].includes(listing.studioStatus)){const action=makeElement('button','text-button',listing.studioStatus==='Expired'?'Renew as draft':'Expire listing');action.type='button';action.addEventListener('click',async()=>{action.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/${listing.studioStatus==='Expired'?'renew':'expire'}`,{method:'POST'});await loadDesignerListings();}catch(error){setMessage(uploadMessage,error.message,'error');action.disabled=false;}});info.append(action);}
+
+
+      const itemBadges = makeElement('div', 'listing-badges');
+      renderItemBadges(itemBadges, listing);
+      if (itemBadges.children.length) info.appendChild(itemBadges);
+
+      info.appendChild(makeElement('p', '', `${images.length} photo${images.length === 1 ? '' : 's'} · ${categoryLabel(listing.category)}`));
+      row.appendChild(info);
+
+      const actions = makeElement('div', 'designer-product-actions');
+      const group=designerListingGroup(listing);
+      const badge = makeElement('span', 'status-badge', group === 'Other' ? listing.status === 'rejected' ? 'Changes requested' : listing.pausedByDesigner ? 'Paused' : listing.studioStatus || 'Unavailable' : group === 'Drafts' ? 'Draft' : group);
+      actions.appendChild(badge);
+      if(listing.moderationReason)info.appendChild(makeElement('p','review-feedback',`Changes requested: ${listing.moderationReason}`));
+      if(listing.status==='pending_review')info.appendChild(makeElement('p','small-print','Your piece is awaiting review and is not public yet.'));
+      if(listing.status==='rejected')info.appendChild(makeElement('p','small-print','Edit your piece, save the changes, then submit it for review again.'));
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = listing.status === 'rejected' ? 'Edit & resubmit' : 'Edit';
+      edit.className = 'text-button';
+      edit.addEventListener('click', () => editListing(listing.id));
+      if (['draft', 'rejected', 'published'].includes(listing.status)) actions.appendChild(edit);
+      if(['draft','rejected'].includes(listing.status)){
+        const confirm=makeElement('label','check-label small-print');const consent=document.createElement('input');consent.type='checkbox';confirm.append(consent,document.createTextNode('I confirm this is my original or independently designed work and follows the marketplace rules.'));
+        const submit=makeElement('button','secondary-button','Submit for review');submit.type='button';submit.disabled=true;consent.addEventListener('change',()=>{submit.disabled=!consent.checked;});
+        submit.addEventListener('click',async()=>{submit.disabled=true;try{await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketplaceRulesAccepted:true})});await loadDesignerListings();setMessage(byId('designer-listings-message'),'Submitted for review. Your piece stays private until approved.','success');}catch(error){setMessage(byId('designer-listings-message'),error.message,'error');submit.disabled=!consent.checked;}});
+        actions.append(confirm,submit);
+      }
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Delete';
+      remove.className = 'text-button';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Delete "${listing.title}" permanently? This also removes its uploaded photos.`)) return;
+        remove.disabled = true;
+        try {
+          await apiRequest(`/api/listings/${encodeURIComponent(listing.id)}`, { method: 'DELETE' });
+          ++designerListingsLoad;
+          row.remove();
+          setMessage(byId('designer-listings-message'), 'Listing deleted.', 'success');
+          if (currentListingId === listing.id) resetListingForm();
+          await loadDesignerListings();
+          await loadGallery();
+        } catch (error) {
+          setMessage(byId('designer-listings-message'), `Could not delete listing: ${error.message}`, 'error');
+          remove.disabled = false;
+        }
+      });
+      actions.appendChild(remove);
+      row.appendChild(actions);
+      if (designerProductsContainer) designerProductsContainer.appendChild(row);
+    }
+  } catch (error) {
+    if (error.status === 401) signOut();
+    setMessage(designerAuthMessage, `Could not load listings: ${error.message}`, 'error');
+  }
+}
+
+async function editListing(listingId) {
+  try {
+    const payload = await apiRequest(`/api/listings/${encodeURIComponent(listingId)}`);
+    const listing = payload.item;
+    currentListingId = listing.id;
+    for(const id of ['estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])if(byId(id))byId(id).value='';
+    if (productIdInput) productIdInput.value = listing.id;
+    if (byId('product-name')) byId('product-name').value = listing.title;
+    if (byId('product-description')) byId('product-description').value = listing.description;
+    if (byId('product-price')) byId('product-price').value = listing.price;
+    renderDesignerPriceEstimate();
+    byId('product-international').checked = Boolean(listing.internationalShipping);
+    byId('product-shipping').value = 0;
+    byId('product-free-shipping').value = listing.freeShippingThresholdCents == null ? '' : listing.freeShippingThresholdCents/100;
+    byId('product-handling-min').value = listing.handlingDaysMin ?? '';
+    byId('product-handling-max').value = listing.handlingDaysMax ?? '';
+    if (byId('product-category')) {byId('product-category').value = listing.category === 'patterns'?'patterns':listing.category === 'accessories'?'accessories':'apparel'; syncSellerTypes();}
+    if(byId('product-presentation'))byId('product-presentation').value=listing.presentation||(['menswear','womenswear','unisex'].includes(listing.category)?listing.category:'');
+    setExistingTaxonomyValue('product-style',listing.style || '');
+    if (byId('product-size')) byId('product-size').value = listing.size || '';
+    for (const key of ['bust','waist','hips','inseam']) for (const bound of ['min','max']) {
+      const input = byId(`product-fit-${key}-${bound}`); if (input) input.value = listing.fitMeasurements?.[key]?.[bound] ?? '';
+    }
+    setExistingTaxonomyValue('product-aesthetic',listing.aesthetic || '');
+    setExistingTaxonomyValue('product-pattern',listing.pattern || '');
+    if (byId('product-materials')) byId('product-materials').value = listing.materials || '';
+    if (byId('product-care')) byId('product-care').value = listing.careInstructions || '';
+    setExistingTaxonomyValue('product-production-type',listing.productionType || '');
+    if (byId('product-alterations')) byId('product-alterations').checked = Boolean(listing.alterationsAvailable);
+    if (byId('product-requests')) byId('product-requests').checked = Boolean(listing.takesRequests);
+    if (byId('product-gift-wrap')) byId('product-gift-wrap').checked = Boolean(listing.giftWrapAvailable);
+    if (byId('product-gift-wrap-price')) byId('product-gift-wrap-price').value = Number(listing.giftWrapPrice || 0).toFixed(2);
+    if (byId('product-video-tryon')) byId('product-video-tryon').value = listing.tryOnVideoUrl || '';
+    if (byId('product-video-movement')) byId('product-video-movement').value = listing.movementVideoUrl || '';
+    if (listingFormTitle) listingFormTitle.textContent = 'Edit a design';
+
+    selectedImages.forEach((image) => {
+      if (image.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(image.objectUrl);
+    });
+    selectedImages = [];
+    renderSelectedImages();
+
+    const images = getProductImages(listing);
+    for (const image of images) {
+      let objectUrl = image.url;
+      if (!image.legacy) {
+        try {
+          objectUrl = await loadPrivateImagePreview(image.url);
+        } catch {}
+      }
+      selectedImages.push({
+        id: image.id,
+        file: null,
+        name: image.legacy ? 'Existing image' : 'Existing image',
+        size: 0,
+        status: 'ready',
+        url: image.url,
+        objectUrl,
+        angle: image.angle || ''
+      });
+    }
+    renderSelectedImages();
+    const editorSummary=byId('designer-editor-panel')?.querySelector(':scope > summary');if(editorSummary)editorSummary.textContent=`Editing: ${listing.title}`;
+    scrollRoomTarget(byId('product-form'),{behavior:'smooth',block:'start'});
+    setMessage(uploadMessage, listing.moderationReason ? `Changes requested: ${listing.moderationReason}. Save your changes, then submit for review again.` : listing.status === 'published' ? 'Published design loaded. Changes stay live when saved.' : 'Draft loaded. You can add new images or remove existing ones.', 'success');
+  } catch (error) {
+    setMessage(uploadMessage, error.message, 'error');
+  }
+}
+
+let designerReadinessState={profile:null,listings:[],stripe:null};
+function renderSellerReadiness(){
+  const list=byId('seller-readiness-list'),badge=byId('seller-readiness-badge'),summary=byId('seller-readiness-summary');
+  if(!list)return;
+  const {profile,listings,stripe}=designerReadinessState;
+  byId('seller-terms-form')?.classList.toggle('hidden',!profile || Boolean(profile.sellerTermsAccepted));
+  if(byId('seller-terms-version'))byId('seller-terms-version').textContent=profile?.sellerTermsVersion||'';
+  const accepted=Boolean(profile?.sellerTermsAccepted);
+  const accountReady=accepted&&Boolean(stripe?.readyToSell);
+  const payoutsReady=Boolean(stripe?.connected&&stripe?.onboardingComplete&&stripe?.payoutsEnabled&&stripe?.readyToSell);
+  const listingReady=Array.isArray(listings)&&listings.some(item=>item.status==='published' && item.moderationStatus==='approved');
+  const hasListing=listings.some(item=>!['deleted','archived'].includes(item.status));
+  const pending=listings.some(item=>item.status==='pending_review');
+  const profileReady=Boolean(profile?.brandName?.trim()&&profile?.bio?.trim()&&profile?.location?.trim());
+  const stages=[
+    {label:'1. Prepare your profile · recommended',optional:true,done:profileReady,hint:'Add your brand name, story and location. Recommended; this does not block selling.',action:'Edit designer profile',target:'designer-brand-form'},
+    {label:'2. Connect your payouts',done:accepted&&payoutsReady,hint:'No bank or payment details are needed to join or save drafts. Open payout settings when you choose to get ready to sell.',detail:'Delivery terms: '+(accepted?'Complete':'Action needed')+' · Stripe verification: '+(!stripe?'Checking…':payoutsReady?'Complete':'Action needed'),action:!accepted?'Review and accept terms':'Open payout settings',target:!accepted?'seller-terms-form':'designer-payout-settings'},
+    {label:'3. List your first piece',done:hasListing,hint:'Add photos, garment measurements, fit, stock and preparation time. Save whenever you like; drafts stay private.',action:'Create a draft',target:'product-form'},
+    {label:'4. Get ready to sell',done:listingReady,hint:pending?'Your piece is awaiting review. Approval is required before it appears in the shop.':'Open Your listings, confirm the originality checkbox, then choose Submit for review. If changes are requested, edit and submit again.',action:pending?'View review status':'Submit a piece for review',target:'designer-listing-area'}
+  ];
+  list.replaceChildren();
+  for(const stage of stages){
+    const row=document.createElement('div');row.className='seller-readiness-item '+(stage.done?'is-complete':'is-pending');
+    const mark=document.createElement('span');mark.className='seller-readiness-mark';mark.textContent=stage.done?'✓':'○';mark.setAttribute('aria-hidden','true');
+    const copy=document.createElement('div');copy.append(makeElement('strong','',stage.label));
+    if(stage.detail)copy.append(makeElement('span','seller-readiness-hint',stage.detail));
+    if(!stage.done){
+      copy.append(makeElement('span','seller-readiness-hint',stage.hint));
+      const action=document.createElement('button');action.type='button';action.className='text-button seller-readiness-action';action.textContent=stage.action;
+      action.addEventListener('click',()=>{
+        if(stage.run){stage.run();return;}
+        const target=stage.target||stages.find(item=>!item.done&&item.target)?.target;
+        if(target)scrollRoomTarget(byId(target),{behavior:'smooth',block:'start'});
+        else if(!payoutsReady)scrollRoomTarget(byId('designer-payout-settings'),{behavior:'smooth',block:'start'});
+      });
+      copy.append(action);
+    }
+    row.append(mark,copy);list.append(row);
+  }
+  const ready=accountReady&&listingReady;
+  const setupPanel=byId('designer-setup-panel');
+  if(setupPanel){
+    const setupSummary=setupPanel.querySelector('summary');
+    if(setupSummary)setupSummary.textContent=ready?'Selling setup complete':'Your path to selling';
+    if(profile&&stripe&&setupPanel.dataset.ready!==String(ready)){
+      setupPanel.open=!ready;
+      setupPanel.dataset.ready=String(ready);
+    }
+  }
+  if(badge){badge.textContent=ready?'Selling setup complete':!profile||!stripe?'Checking your setup…':accountReady?'Account ready · prepare your first approved piece':'Finish your selling setup';badge.dataset.ready=ready?'true':'false';}
+  const complete=Number(accepted)+Number(payoutsReady)+Number(hasListing)+Number(listingReady);
+  if(summary)summary.textContent=`${complete} of 4 required selling steps complete. `+(ready?'Approved pieces with available stock appear in the shop unless paused or you are on vacation.':accountReady&&pending?'Your piece is awaiting review. You can keep working on other private drafts.':'Your profile is recommended. Delivery terms, Stripe verification, a saved piece and approval are required. You can save private drafts while finishing setup.');
+  let next=byId('seller-next-action');
+  if(!next&&summary){next=document.createElement('div');next.id='seller-next-action';summary.after(next);}
+  if(next){
+    next.replaceChildren();
+    const stage=[stages[2],stages[3],stages[0],stages[1]].find(stage=>!stage.done);
+    if(stage&&profile&&stripe){const button=document.createElement('button');button.type='button';button.className='primary-button';button.textContent=stage.action;button.addEventListener('click',()=>{if(stage.run)stage.run();else scrollRoomTarget(byId(stage.target),{behavior:'smooth',block:'start'});});next.append(button);}
+  }
+}
+async function refreshStripePayoutStatus() {
+  const status=byId('stripe-payout-status'),button=byId('stripe-onboarding-btn');
+  if(!designerToken)return;
+  try{
+    const data=await apiRequest('/api/my/stripe-status');
+    designerReadinessState.stripe=data;renderSellerReadiness();
+    if(data.readyToSell){setMessage(status,'Stripe payout account connected and ready. Your approved pieces can be sold through House of Briar.','success');if(button)button.textContent='Review Stripe payout setup';}
+    else if(data.connected){setMessage(status,'Stripe payout setup still needs attention. Finish the requested verification before your pieces can go on sale.','');if(button)button.textContent='Continue Stripe setup';}
+    else{setMessage(status,'Set up Stripe payouts before your pieces can go on sale. You can keep building your profile and drafting listings now.','');}
+  }catch(error){designerReadinessState.stripe=null;renderSellerReadiness();setMessage(status,error.message||'Payout status could not be checked.','error');}
+}
+async function openStripeOnboarding(){
+  const button=byId('stripe-onboarding-btn');if(button){button.disabled=true;button.textContent='Opening Stripe…';}
+  try{const data=await apiRequest('/api/my/stripe-onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!data?.onboardingUrl)throw new Error('Stripe did not return an onboarding link.');location.assign(data.onboardingUrl);}
+  catch(error){setMessage(byId('stripe-payout-status'),error.message||'Stripe payout setup could not be opened.','error');if(button){button.disabled=false;button.textContent='Set up payouts with Stripe';}}
+}
+byId('stripe-onboarding-btn')?.addEventListener('click',openStripeOnboarding);
+
+byId('stripe-status-btn')?.addEventListener('click',refreshStripePayoutStatus);
+
+function syncHeaderDesignerAuth() {
+  const signout = byId('header-signout-btn');
+  const customerAuth = byId('header-customer-auth-btn');
+  if (signout) signout.hidden = !designerToken;
+  if (customerAuth) customerAuth.hidden = Boolean(designerToken);
+}
+
+function expireDesignerSession() {
+  designerToken = '';
+  ++designerListingsLoad;
+  ++designerAttentionRequest;
+  designerReadinessState = {profile:null,listings:[],stripe:null};
+  clearDesignerListImagePreviews();
+  designerProductsContainer?.replaceChildren();
+  loginPanel?.classList.remove('hidden');
+  designerWorkspace?.classList.add('hidden');
+  syncHeaderDesignerAuth();
+  setMessage(designerAuthMessage, 'Your designer session is no longer active. Sign in again to continue. Any unsaved form stays on this page.', 'error');
+  // Stop an older restore response from reopening the workspace after a rejection.
+  sessionStorage.setItem('house-of-briar:designer-signed-out','1');
+  if (location.pathname === DESIGNER_ROOM_PATH) designerAuthMessage?.scrollIntoView({block:'center'});
+}
+
+async function signIn(tokenValue) {
+  const token = tokenValue.trim();
+  if (!token) {
+    setMessage(designerAuthMessage, 'Enter your designer access token.', 'error');
+    return;
+  }
+
+  designerToken = token;
+  try {
+    await apiRequest('/api/session', { method: 'POST' });
+    designerToken = COOKIE_SESSION_MARKER;
+    sessionStorage.removeItem('house-of-briar:designer-signed-out');
+    localStorage.removeItem('briarDesignerToken');
+    sessionStorage.removeItem('briarDesignerToken');
+    syncHeaderDesignerAuth();
+    if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
+    if (loginPanel) loginPanel.classList.add('hidden');
+    if (designerWorkspace) designerWorkspace.classList.remove('hidden');
+    setMessage(designerAuthMessage, '', '');
+    await loadDesignerListings();
+    await loadDesignerBrand();
+    await refreshStripePayoutStatus();
+    if(new URLSearchParams(location.search).get('stripe')==='refresh'){
+      history.replaceState({},'',DESIGNER_ROOM_PATH);
+      await openStripeOnboarding();
+    }
+  } catch (error) {
+    designerToken = '';
+    localStorage.removeItem('briarDesignerToken');
+    sessionStorage.removeItem('briarDesignerToken');
+    setMessage(designerAuthMessage, error.message, 'error');
+  }
+}
+
+async function signOut() {
+  const signoutButton=byId('signout-btn');
+  if(signoutButton)signoutButton.disabled=true;
+  try {
+    const response=await fetch('/api/session',{method:'DELETE',credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error(`Server returned ${response.status}`);
+    // Verify that the server no longer recognizes the designer cookie before leaving.
+    const verify=await fetch('/api/my/designer-profile',{credentials:'same-origin',cache:'no-store'});
+    if(verify.status!==401)throw new Error('Your designer session is still active.');
+  } catch(error) {
+    if(signoutButton)signoutButton.disabled=false;
+    setMessage(designerAuthMessage,`Could not sign out: ${error.message}. Please try again.`, 'error');
+    window.alert('Sign out did not complete. Please try again.');
+    return;
+  }
+  designerToken = '';
+  designerReadinessState={profile:null,listings:[],stripe:null};renderSellerReadiness();
+  localStorage.removeItem('briarDesignerToken');
+  sessionStorage.removeItem('briarDesignerToken');
+  if (loginPanel) loginPanel.classList.remove('hidden');
+  if (designerWorkspace) designerWorkspace.classList.add('hidden');
+  if (designerTokenInput) designerTokenInput.value = '';
+  clearDesignerListImagePreviews();
+  resetListingForm();
+  setMessage(designerAuthMessage, 'Signed out.', 'success');
+  syncHeaderDesignerAuth();
+  if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=false;
+  // Prevent an in-flight session restore or stale navigation from reopening private data.
+  sessionStorage.setItem('house-of-briar:designer-signed-out','1');
+  location.replace('/designers/room');
+}
+
+const clothingSubcategories = window.HouseTaxonomy.clothingTypes.map(item=>[item.value,item.label]);
+const accessorySubcategories = window.HouseTaxonomy.accessoryTypes.map(item=>[item.value,item.label]);
+function syncShopSubcategories() {
+  const select=byId('shop-garment-filter');if(!select)return;
+  select.replaceChildren();
+  const add=(parent,value,label)=>{const option=makeElement('option','',label);option.value=value;parent.appendChild(option);};
+  add(select,'all',activeShopCategory==='accessories'?'All accessories':activeShopCategory==='costumes'?'All costumes':'All piece types');
+  const groups=activeShopCategory==='patterns'?[['Sewing Patterns',window.HouseTaxonomy.patternTypes.map(x=>[x.value,x.label])]]:activeShopCategory==='costumes'?[['Costumes',[['Costume','Costumes']]]]:activeShopCategory==='accessories'?[['Accessories',accessorySubcategories]]:activeShopCategory==='all'?[['Clothing',clothingSubcategories],['Accessories',accessorySubcategories],['Sewing Patterns',window.HouseTaxonomy.patternTypes.map(x=>[x.value,x.label])]]:[['Clothing',clothingSubcategories]];
+  for(const [name,items] of groups){const group=document.createElement('optgroup');group.label=name;for(const [value,label] of items)add(group,value,label);select.appendChild(group);}
+  select.dispatchEvent(new Event('shop-caption'));
+}
+byId('shop-category-filter')?.addEventListener('change',event=>{
+  activeShopCategory=event.target.value||'all';
+  activeFilter=activeShopCategory==='accessories'?'all':activeShopCategory;
+  activeAccessory=activeShopCategory==='accessories'?'accessories':'all';
+  syncShopSubcategories();loadGallery();
+});
+syncShopSubcategories();
+
+function applyFilterButtons() {
+  const garmentSelect = byId('shop-garment-filter');
+  const aestheticSelect = byId('shop-aesthetic-filter');
+  if (garmentSelect) garmentSelect.value = activeFilter;
+  if (aestheticSelect) aestheticSelect.value = activeAesthetic;
+}
+
+byId('shop-garment-filter')?.addEventListener('change', (event) => {
+  const value=event.target.value||'all';
+  if(typeof activeShopCategory!=='undefined' && (activeShopCategory==='accessories' || (activeShopCategory==='all' && typeof accessorySubcategories!=='undefined' && accessorySubcategories.some(([id])=>id===value)))){
+    activeFilter='all';activeAccessory=value==='all'?'accessories':value;
+  }else{
+    activeFilter=value==='all'&&typeof activeShopCategory!=='undefined'?activeShopCategory:value;
+    activeAccessory='all';
+  }
+  byId('shop-accessory-filter').value=activeAccessory;
+  byId('shop-accessory-filter').dispatchEvent(new Event('shop-caption'));
+  loadGallery();
+});
+byId('shop-aesthetic-filter')?.addEventListener('change', (event) => {
+  activeAesthetic = event.target.value || 'all';
+  loadGallery();
+});
+
+// Scroll within open rooms without dragging the storefront behind them to the footer.
+function scrollRoomTarget(target, options = {}) {
+  if (!target) return;
+  for(let parent=target;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}
+  const dialog = target.closest('dialog[open]');
+  if (!dialog) {
+    if (target.closest('#designer-modal')) {
+      const bar = byId('hob-global-nav');
+      const roomHeader = document.querySelector('#designer-modal .designer-room-header');
+      const inset = (bar?.getBoundingClientRect().height || 0) + (roomHeader?.getBoundingClientRect().height || 0) + 16;
+      window.scrollTo({top:Math.max(0,target.getBoundingClientRect().top + window.scrollY - inset),behavior:options.behavior || 'instant'});
+    } else target.scrollIntoView(options);
+    return;
+  }
+  const header = dialog.querySelector('.dialog-header');
+  const inset = header ? header.getBoundingClientRect().height : 0;
+  const top = target.getBoundingClientRect().top - dialog.getBoundingClientRect().top + dialog.scrollTop - inset - 16;
+  dialog.scrollTo({top:Math.max(0,top),behavior:options.behavior || 'instant'});
+}
+
+byId('header-customer-auth-btn')?.addEventListener('click', () => {
+  byId('visitor-suite-btn')?.click();
+  requestAnimationFrame(() => {
+    const target = customerSignedIn ? byId('customer-signed-in') : byId('customer-signup-email');
+    scrollRoomTarget(target,{block:'nearest'});
+    if (!customerSignedIn) target?.focus({preventScroll:true});
+  });
+});
+byId('visitor-suite-btn')?.addEventListener('click', () => {
+  renderVisitorFavorites();
+  byId('visitor-suite-modal')?.showModal();
+  refreshCustomerAccount();
+  syncAccountFavorites();
+});
+byId('visitor-suite-close')?.addEventListener('click', () => byId('visitor-suite-modal')?.close());
+byId('shop-pattern-filter')?.addEventListener('change', (event) => { activePattern = event.target.value || 'all'; loadGallery(); });
+byId('shop-accessory-filter')?.addEventListener('change', (event) => { activeAccessory = event.target.value || 'all'; activeFilter = 'all'; byId('shop-garment-filter').value = 'all'; byId('shop-garment-filter').dispatchEvent(new Event('shop-caption')); loadGallery(); });
+byId('shop-search-input')?.addEventListener('input', (event) => { shopSearch = event.target.value.trim(); clearTimeout(searchTimer); searchTimer = setTimeout(loadGallery, 200); });
+
+byId('shop-designer-filter')?.addEventListener('change', event => { activeDesigner = event.target.value || 'all'; loadGallery(); });
+byId('shop-clear-filters')?.addEventListener('click', () => {
+  clearTimeout(searchTimer);
+  activeShopCategory = 'all';
+  byId('shop-category-filter').value = 'all';
+  syncShopSubcategories();
+  activeFilter = activeAccessory = activeAesthetic = activePattern = activeShopWindow = activeDesigner = activePresentation = activeProductionType = 'all';
+  shopSearch = '';
+  activeMeasurements = null;
+  byId('shop-fit-form')?.reset();
+  setMessage(byId('shop-fit-message'), '', '');
+  byId('shop-search-input').value = '';
+  for (const id of ['shop-garment-filter', 'shop-accessory-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-designer-filter','shop-presentation-filter','shop-availability-filter']) {
+    const select = byId(id); select.value = 'all'; select.dispatchEvent(new Event('shop-caption'));
+  }
+  loadGallery();
+});
+
+for (const id of ['shop-garment-filter', 'shop-aesthetic-filter', 'shop-pattern-filter', 'shop-accessory-filter', 'shop-designer-filter']) {
+  const select = byId(id);
+  const windowLabel = select?.closest('.shop-drop-window');
+  const caption = windowLabel?.querySelector('.category-window-current');
+  if (!select || !windowLabel || !caption) continue;
+  const syncCaption = () => {
+    const selected = select.options[select.selectedIndex];
+    caption.textContent = selected?.textContent?.trim() || '';
+    windowLabel.classList.toggle('has-changed-selection', select.selectedIndex !== 0);
+  };
+  select.addEventListener('change', syncCaption);
+  select.addEventListener('shop-caption', syncCaption);
+  syncCaption();
+}
+
+byId('shop-clear-filters')?.addEventListener('click',()=>{activeShopCategory='all';byId('shop-category-filter').value='all';syncShopSubcategories();});
+
+if (designerSignupLink) {
+  designerSignupLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    openDesignerRoom('#designer-signup');
+  });
+}
+
+let designerEmailRequest='';
+async function requestDesignerCode(endpoint,body) {
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error?.message||'The email code could not be sent.');
+  designerEmailRequest=payload.requestId;
+  byId('designer-code-form').hidden=false;
+  byId('designer-email-login-form').hidden=true;
+  if(designerSignupForm)designerSignupForm.hidden=true;
+  setMessage(designerAuthMessage,payload.message,'success');
+  byId('designer-signin-code').focus();
+}
+byId('designer-email-login-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{await requestDesignerCode('/api/designer/signin-code',{email:byId('designer-login-email').value});}
+  catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+byId('designer-code-back')?.addEventListener('click',()=>{
+  designerEmailRequest='';byId('designer-signin-code').value='';byId('designer-code-form').hidden=true;
+  byId('designer-email-login-form').hidden=false;if(designerSignupForm)designerSignupForm.hidden=false;
+});
+byId('designer-code-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;
+  try{
+    const response=await fetch('/api/designer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:designerEmailRequest,code:byId('designer-signin-code').value})});
+    const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error?.message||'Email verification failed.');
+    byId('designer-code-form').hidden=true;designerEmailRequest='';byId('designer-signin-code').value='';
+    designerToken=COOKIE_SESSION_MARKER;await signIn(COOKIE_SESSION_MARKER);
+  }catch(error){setMessage(designerAuthMessage,error.message,'error');}finally{button.disabled=false;}
+});
+if (designerSignupForm) designerSignupForm.addEventListener('submit',async event=>{
+  event.preventDefault();const form=new FormData(designerSignupForm),button=designerSignupForm.querySelector('button[type="submit"]');if(button)button.disabled=true;
+  try{
+    await requestDesignerCode('/api/designer-applications',{
+      displayName:String(form.get('displayName')||'').trim(),brandName:String(form.get('brandName')||'').trim(),email:String(form.get('email')||'').trim(),
+      categories:String(form.get('categories')||'').split(',').map(v=>v.trim()).filter(Boolean),sellerTermsAccepted:form.get('sellerTermsAccepted')==='on',sellerTermsVersion:'2026-10-17-live-postage'
+    });
+    setMessage(designerSignupMessage,'Check your email and enter the code above to finish joining.','success');
+  }catch(error){setMessage(designerSignupMessage,error.message,'error');}finally{if(button)button.disabled=false;}
+});
+
+if (designerLoginBtn) {
+  designerLoginBtn.addEventListener('click', () => {
+    if (!designerToken) {
+      if (loginPanel) loginPanel.classList.remove('hidden');
+      if (designerWorkspace) designerWorkspace.classList.add('hidden');
+      setMessage(designerAuthMessage, '🔒 Designer dashboard is locked. Designer access is required to enter.', '');
+    } else {
+      if (loginPanel) loginPanel.classList.add('hidden');
+      if (designerWorkspace) designerWorkspace.classList.remove('hidden');
+    }
+    openDesignerRoom();
+  });
+}
+if (modalClose) modalClose.addEventListener('click', closeDesignerRoom);
+if (designerLoginForm) designerLoginForm.addEventListener('submit', (event) => { event.preventDefault(); signIn(designerTokenInput.value); });
+if (productForm) productForm.addEventListener('submit', handleSave);
+if (photoInput) photoInput.addEventListener('change', (event) => addFiles(event.target.files));
+byId('start-profile-setup')?.addEventListener('click', () => scrollRoomTarget(byId('designer-brand-form'),{ behavior: 'smooth', block: 'start' }));
+byId('signout-btn')?.addEventListener('click', signOut);
+byId('header-signout-btn')?.addEventListener('click', signOut);
+syncHeaderDesignerAuth();
+if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=!!designerToken;
+// Legacy bearer-token removal in another tab is a migration event, not a logout signal.
+byId('new-listing-btn')?.addEventListener('click', resetListingForm);
+byId('product-dialog-close')?.addEventListener('click', () => productDialog.close());
+
+async function startHouseDonation(provider,event) {
+  event.preventDefault();
+  const form=byId('donation-form');if(!form?.reportValidity())return;
+  const amount=Number(byId('donation-amount')?.value),message=byId('donation-message');
+  if(!Number.isFinite(amount)||amount<1||amount>1000){setMessage(message,'Choose a donation between $1 and $1,000.','error');return;}
+  const buttons=[...form.querySelectorAll('button')];if(buttons.some(button=>button.disabled))return;
+  buttons.forEach(button=>button.disabled=true);
+  try {
+    setMessage(message,'Opening '+(provider==='paypal'?'PayPal':'secure checkout')+'…','');
+    const payload=await apiRequest(provider==='paypal'?'/api/paypal/donations/order':'/api/donations/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount})});
+    if(!payload?.url)throw new Error('Donation checkout did not return a checkout link.');
+    if(provider==='paypal'){
+      const url=new URL(payload.url);
+      if(url.protocol!=='https:'||!['www.paypal.com','www.sandbox.paypal.com'].includes(url.hostname)||url.port||url.username||url.password)throw new Error('PayPal did not return a valid approval link.');
+    }
+    window.location.assign(payload.url);
+  } catch(error){setMessage(message,error.message||'Donation checkout could not be started.','error');}
+  finally{buttons.forEach(button=>button.disabled=false);}
+}
+byId('donation-form')?.addEventListener('submit',event=>void startHouseDonation('paypal',event));
+
+
+byId('newsletter-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const email = byId('email');
+  const button = event.currentTarget.querySelector('button');
+  const message = byId('newsletter-message');
+  if (!email?.checkValidity() || !byId('newsletter-consent')?.checked) return;
+  button.disabled = true;
+  try {
+    await apiRequest('/api/newsletter/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.value.trim(), consent: true }) });
+    email.value = '';
+    setMessage(message, 'Thanks for joining! Your signup has been saved.', 'success');
+  } catch (error) { setMessage(message, error.message || 'Your signup could not be saved. Please try again.', 'error'); }
+  finally { button.disabled = false; }
+});
+
+async function restoreDesignerSession() {
+  if(sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
+  try{
+    const response=await fetch('/api/my/designer-profile',{cache:'no-store',credentials:'same-origin'});
+    if(!response.ok || sessionStorage.getItem('house-of-briar:designer-signed-out')==='1')return;
+    designerToken=COOKIE_SESSION_MARKER;
+    if(loginPanel)loginPanel.classList.add('hidden');
+    if(designerWorkspace)designerWorkspace.classList.remove('hidden');
+    syncHeaderDesignerAuth();
+    if(byId('header-designer-auth-link'))byId('header-designer-auth-link').hidden=true;
+    await loadDesignerListings();await loadDesignerBrand();await refreshStripePayoutStatus();
+  }catch{}
+}
+void restoreDesignerSession();
+syncDesignerRoomRoute({focus:false});
+
+applyFilterButtons();
+loadShopDesigners();
+loadGallery();
+
+function adminHeaders(extra = {}) {
+  const headers = new Headers(extra);
+  return headers;
+}
+
+async function adminRequest(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: adminHeaders(options.headers) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error?.message || `Request failed (${response.status}).`);
+  return payload;
+}
+
+async function adminImagePreview(url) {
+  const response = await fetch(url, { headers: adminHeaders() });
+  if (!response.ok) throw new Error('Image preview unavailable.');
+  return URL.createObjectURL(await response.blob());
+}
+
+async function renderAdminQueue() {
+  if (!adminReviewList) return;
+  adminReviewList.replaceChildren();
+  setMessage(adminReviewMessage, 'Loading pending clothing…');
+  try {
+    const view = byId('admin-listing-view')?.value || 'pending_review';
+    const payload = await adminRequest(view === 'pending_review' ? '/api/admin/listings/review-queue' : '/api/admin/listings');
+    if (view !== 'all') payload.items = (payload.items || []).filter(item => item.status === view);
+    adminSessionActive = true;
+    void renderAdminOverview(view === 'pending_review' ? payload.items : undefined);
+    adminLoginPanel?.classList.add('hidden');
+    adminReviewWorkspace?.classList.remove('hidden');
+    setMessage(adminReviewMessage, '');
+    if (!payload.items?.length) {
+      adminReviewList.appendChild(makeElement('p', 'empty-state', 'No listings in this view.'));
+      return;
+    }
+    for (const item of payload.items) {
+      const card = makeElement('article', 'admin-review-card');
+      const media = makeElement('div', 'admin-review-media');
+      const image = document.createElement('img');
+      image.alt = `${item.title} submitted clothing`;
+      if (item.images?.[0]?.url) {
+        adminImagePreview(item.images[0].url).then((url) => {
+          image.src = url;
+        }).catch(() => {
+          media.textContent = 'Preview unavailable';
+        });
+        media.appendChild(image);
+      } else media.textContent = 'No image';
+      const body = makeElement('div', 'admin-review-copy');
+      body.append(makeElement('span', 'status-badge', item.status.replaceAll('_', ' ')));
+      body.append(makeElement('h3', '', item.title));
+      body.append(makeElement('p', 'admin-review-meta', `${item.designerName || item.designerId || 'Designer'} · $${Number(item.price).toFixed(2)} · ${categoryLabel(item.category)}`));
+      body.append(makeElement('p', '', item.description || 'No description provided.'));
+      if(item.patternFormat==='pdf'){const reviewFile=makeElement('a','secondary-button','Download submitted PDF for review');reviewFile.href='/api/admin/listings/'+encodeURIComponent(item.id)+'/pattern-file';body.append(reviewFile);}
+      const reason = document.createElement('textarea');
+      reason.rows = 2; reason.maxLength = 1000; reason.placeholder = 'Reason required only if rejecting';
+      reason.setAttribute('aria-label', `Rejection reason for ${item.title}`);
+      const actions = makeElement('div', 'form-actions');
+      const approve = makeElement('button', 'primary-button', 'Approve');
+      approve.type = 'button';
+      approve.addEventListener('click', async () => {
+        approve.disabled = true;
+        try {
+          await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/approve`, { method: 'POST' });
+          await renderAdminQueue();
+          await loadGallery();
+        } catch (error) {
+          setMessage(adminReviewMessage, error.message, 'error');
+          approve.disabled = false;
+        }
+      });
+      const reject = makeElement('button', 'secondary-button', 'Reject');
+      reject.type = 'button';
+      reject.addEventListener('click', async () => {
+        const why = reason.value.trim();
+        if (!why) {
+          setMessage(adminReviewMessage, 'Enter a reason before rejecting a listing.', 'error');
+          reason.focus();
+          return;
+        }
+        reject.disabled = true;
+        try {
+          await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: why }) });
+          await renderAdminQueue();
+        } catch (error) {
+          setMessage(adminReviewMessage, error.message, 'error');
+          reject.disabled = false;
+        }
+      });
+      const remove = makeElement('button', 'secondary-button', 'Delete');
+      remove.type = 'button';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Delete "${item.title}" permanently? This also removes its uploaded photos.`)) return;
+        remove.disabled = true;
+        try {
+          await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+          await renderAdminQueue();
+          await loadGallery();
+        } catch (error) {
+          setMessage(adminReviewMessage, error.message, 'error');
+          remove.disabled = false;
+        }
+      });
+      if (item.status === 'pending_review') { actions.append(approve, reject); body.append(reason); }
+      if (item.status === 'published') {
+        const hide = makeElement('button', 'secondary-button', 'Take off the floor');
+        hide.type = 'button';
+        hide.addEventListener('click', async () => {
+          hide.disabled = true;
+          try { await adminRequest(`/api/admin/listings/${encodeURIComponent(item.id)}/unpublish`, { method: 'POST' }); await renderAdminQueue(); await loadGallery(); }
+          catch (error) { setMessage(adminReviewMessage, error.message, 'error'); hide.disabled = false; }
+        });
+        actions.append(hide);
+      }
+      actions.append(remove);
+      body.append(actions);
+      card.append(media, body);
+      adminReviewList.appendChild(card);
+    }
+  } catch (error) {
+    adminReviewWorkspace?.classList.add('hidden');
+    adminLoginPanel?.classList.remove('hidden');
+    setMessage(adminReviewMessage, error.message, 'error');
+  }
+}
+
+function openAdminReview() {
+  adminReviewDialog?.showModal();
+  renderAdminQueue();
+}
+
+byId('founder-signup-link')?.addEventListener('click', event => { event.preventDefault(); openDesignerRoom('#designer-signup'); });
+
+
+adminReviewBtn?.addEventListener('click', openAdminReview);
+if (window.location.hash === '#admin-review') openAdminReview();
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#admin-review' && !adminReviewDialog?.open) openAdminReview();
+});
+adminReviewClose?.addEventListener('click', () => adminReviewDialog?.close());
+adminLoginForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const token = adminTokenInput?.value.trim() || '';
+  if (!token) return;
+  try {
+    const code = byId('admin-authenticator-code')?.value.trim() || '';
+    const response = await fetch('/api/admin/session', {method:'POST',headers:{Authorization:`Bearer ${token}`,'X-Admin-TOTP':code}});
+    const payload = await response.json().catch(()=>({}));
+    if (!response.ok) throw new Error(payload?.error?.message || 'Administrator sign in failed.');
+    adminSessionActive = true;
+    sessionStorage.removeItem('briarAdminToken');
+    if (adminTokenInput) adminTokenInput.value = '';
+    if (byId('admin-authenticator-code')) byId('admin-authenticator-code').value = '';
+    await renderAdminQueue();
+  } catch (error) { setMessage(adminReviewMessage,error.message,'error'); }
+});
+adminSignoutBtn?.addEventListener('click', async () => {
+  try {
+    const response = await fetch('/api/admin/session',{method:'DELETE'});
+    if (!response.ok) throw new Error('Admin sign out did not complete. Please try again.');
+    ++adminOverviewLoad;
+    byId('admin-overview')?.replaceChildren();
+    byId('admin-attention-cards')?.replaceChildren();
+    if(byId('admin-attention-status'))byId('admin-attention-status').textContent='Sign in to check the House.';
+    adminReviewList?.replaceChildren();
+    adminSessionActive = false;
+    sessionStorage.removeItem('briarAdminToken');
+    if (adminTokenInput) adminTokenInput.value = '';
+    adminReviewWorkspace?.classList.add('hidden');
+    adminLoginPanel?.classList.remove('hidden');
+    setMessage(adminReviewMessage, '');
+  } catch (error) { setMessage(adminReviewMessage,error.message,'error'); }
+});
+
+byId('production-info-close')?.addEventListener('click', () => byId('production-info-dialog')?.close());
+
+byId('admin-listing-view')?.addEventListener('change', renderAdminQueue);
+byId('admin-refresh-btn')?.addEventListener('click', renderAdminQueue);
+byId('admin-attention-refresh')?.addEventListener('click',()=>void renderAdminOverview());
+let adminOverviewLoad = 0;
+function adminAttentionCounts(approvals, operations, support) {
+  if(!Array.isArray(approvals))approvals=null;
+  if(!Array.isArray(operations?.orders)||!Array.isArray(operations?.payouts))operations=null;
+  if(!Array.isArray(support?.messages))support=null;
+  return {
+    approvals: approvals ? approvals.filter(item=>item.status==='pending_review').length : null,
+    shipping: operations ? operations.orders.filter(order=>order.status==='paid'&&order.refund_status!=='succeeded'&&operations.payouts.some(payout=>payout.order_id===order.id&&!payout.tracking_number&&!payout.stripe_reversal_id&&payout.status!=='paid')).length : null,
+    payouts: operations ? operations.payouts.filter(payout=>!payout.stripe_reversal_id&&(payout.status==='failed'||(payout.status==='pending'&&Boolean(payout.error_message)))).length : null,
+    support: support ? support.messages.filter(message=>!['closed','resolved','replied'].includes(String(message.status||'').toLowerCase())).length : null
+  };
+}
+function renderAdminAttention(counts, loading=false) {
+  const host=byId('admin-attention-cards'),status=byId('admin-attention-status');if(!host||!status)return;
+  host.replaceChildren();
+  if(loading){status.textContent='Checking approvals, orders, payouts and support…';return;}
+  const missing=Object.values(counts).some(value=>value===null);
+  status.textContent=missing?'Some queues could not be checked. Refresh to try again.':'Review the queues below. Counts are based on the latest saved status.';
+  for(const [key,label,href]of [['approvals','Clothing awaiting approval',null],['shipping','Paid orders awaiting shipment','/admin#admin-orders'],['payouts','Payout problems','/admin#admin-payouts'],['support','Support requests',null]]){
+    const card=makeElement(href?'a':'button','admin-attention-card');
+    if(href)card.href=href;else{card.type='button';card.addEventListener('click',async()=>{
+      if(key==='approvals'){byId('admin-listing-view').value='pending_review';await renderAdminQueue();const target=byId('admin-review-list');target.setAttribute('tabindex','-1');scrollRoomTarget(target,{block:'start'});target.focus({preventScroll:true});}
+      else{const target=byId('admin-customer-service');if(target){target.open=true;scrollRoomTarget(target,{block:'start'});target.querySelector('summary')?.focus({preventScroll:true});}}
+    });}
+    card.dataset.attentionQueue=key;
+    card.append(makeElement('strong','',counts[key]===null?'Could not check':String(counts[key])),makeElement('span','',label),makeElement('small','',href?'Open operations →':'Open queue →'));host.append(card);
+  }
+}
+
+async function renderAdminOverview(pendingItems) {
+  renderAdminAttention({},true);
+  const host = byId('admin-overview'); if (!host) return;
+  const load = ++adminOverviewLoad; host.replaceChildren();
+  const loaded={};
+  const pending=Array.isArray(pendingItems)?Promise.resolve(pendingItems):adminRequest('/api/admin/listings/review-queue').then(data=>data.items).catch(()=>null);
+  const sections = [
+    ['Website views', '/api/admin/analytics'],
+    ['Customer sign-ups', '/api/admin/customer-signups'],
+    ['Operations', '/api/admin/operations'],
+    ['Designer sign-ups', '/api/admin/designer-applications'],
+    ['Customer service', '/api/admin/support'],
+    ['Listing reports', '/api/admin/listing-reports']
+  ];
+  await Promise.all(sections.map(async ([title, url]) => {
+    const section = makeElement('details', 'admin-summary-section');
+    section.id='admin-'+title.toLowerCase().replaceAll(' ','-');
+    section.append(makeElement('summary', '', title)); host.append(section);
+    try {
+      const data = await adminRequest(url); if (load !== adminOverviewLoad || !adminSessionActive) return;
+      loaded[url]=data;
+      if (data.customers) {
+        section.id='admin-customer-signups';
+        const stats=makeElement('div','admin-traffic-stats');
+        for(const [label,value] of [["Today's new customers",data.customers.today],['Last 30 days',data.customers.last30Days],['Total customer accounts',data.customers.total]]){
+          const card=makeElement('div','admin-traffic-stat');card.append(makeElement('strong','',Number(value||0).toLocaleString()),makeElement('span','',label));stats.append(card);
+        }
+        section.append(stats,makeElement('p','small-print','Counts completed email-verified customer registrations once. Repeat sign-ins, guest visits and designer signups do not add to this count. Daily totals use Eastern time. Tracking begins with the new customer signup feature.'));
+        const table=makeElement('table','admin-traffic-table');table.id='admin-daily-customer-signups';
+        const head=document.createElement('thead'),row=document.createElement('tr');for(const label of ['Date (Eastern)','New customers']){const th=makeElement('th','',label);th.scope='col';row.append(th);}head.append(row);
+        const body=document.createElement('tbody');for(const item of [...data.customers.daily].reverse()){const row=makeElement('tr');row.append(makeElement('td','',item.day),makeElement('td','',Number(item.signups||0).toLocaleString()));body.append(row);}table.append(head,body);section.append(table);
+      }
+      if (data.traffic) {
+        section.id = 'admin-website-views';
+        section.append(makeElement('p','small-print','City and state are approximate network locations, not precise addresses. VPNs and mobile networks can differ from the visitor’s location. Older visits remain Unknown; raw IP addresses are not saved in analytics. Location lookup includes GeoLite2 data created by MaxMind (maxmind.com).'));
+        section.append(makeElement('p', '', `Website activity in the last ${data.periodDays || 30} days.`));
+        if (data.traffic.today) {
+          section.append(makeElement('h4', '', 'Today'));
+          const todayStats = makeElement('div', 'admin-traffic-stats');
+          for (const [label, value] of [["Today's page views", data.traffic.today.views], ["Today's visits", data.traffic.today.visits]]) {
+            const card = makeElement('div', 'admin-traffic-stat');
+            card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label)); todayStats.append(card);
+          }
+          section.append(todayStats, makeElement('p', 'small-print', 'Daily counts reset at midnight Eastern time (America/New_York).'));
+        }
+        const stats = makeElement('div', 'admin-traffic-stats');
+        for (const [label, value] of [['Page views', data.traffic.pageViews], ['Visits', data.traffic.visits]]) {
+          const card = makeElement('div', 'admin-traffic-stat');
+          card.append(makeElement('strong', '', Number(value || 0).toLocaleString()), makeElement('span', '', label));
+          stats.append(card);
+        }
+        section.append(stats, makeElement('p', 'small-print', 'Visits are browsing sessions, not unique people. Tracking blockers and browsers that do not send events may reduce the counts. Duplicate events are excluded, and traffic may be sampled during busy periods. Product views appear separately in each designer’s studio.'));
+        if (Array.isArray(data.traffic.daily)) {
+          section.append(makeElement('h4', '', 'Daily counts'));
+          const table = makeElement('table', 'admin-traffic-table'); table.id = 'admin-daily-traffic';
+          const head = document.createElement('thead'), header = document.createElement('tr');
+          for (const label of ['Date (Eastern)', 'Views', 'Visits']) { const th = makeElement('th', '', label); th.scope = 'col'; header.append(th); }
+          head.append(header); const body = document.createElement('tbody');
+          for (const row of [...data.traffic.daily].reverse()) { const tr = document.createElement('tr'); tr.append(makeElement('td', '', row.day), makeElement('td', '', Number(row.views || 0).toLocaleString()), makeElement('td', '', Number(row.visits || 0).toLocaleString())); body.append(tr); }
+          table.append(head, body); section.append(table);
+        }
+        for (const [title, rows, key] of [['Top pages', data.traffic.topPages, 'path'], ['Traffic sources', data.traffic.sources, 'source'], ['Devices', data.traffic.devices, 'device'], ['Approximate visitor locations', data.traffic.locations?.map(row=>({...row,location:[row.city,row.region,row.country].filter(value=>value&&value!=='Unknown').join(', ')||'Unknown'})), 'location']]) {
+          section.append(makeElement('h4', '', title));
+          if (!rows?.length) { section.append(makeElement('p', '', 'No tracked activity yet.')); continue; }
+          const table = makeElement('table', 'admin-traffic-table');
+          const head = document.createElement('thead'); const header = document.createElement('tr');
+          for (const label of [title, 'Views']) { const cell = makeElement('th', '', label); cell.scope = 'col'; header.append(cell); }
+          head.append(header); const body = document.createElement('tbody');
+          for (const row of rows) { const tr = document.createElement('tr'); tr.append(makeElement('td', '', row[key] || 'Unknown'), makeElement('td', '', Number(row.views || 0).toLocaleString())); body.append(tr); }
+          table.append(head, body); section.append(table);
+        }
+      }
+      if (data.emails) {
+        const emails=data.emails;
+        section.append(makeElement('h4','','Email delivery status'),makeElement('p','small-print',emails.configured?'Email sending is configured. Sent means accepted by the provider, not confirmed inbox delivery.':'Email sending is not configured. Pending messages cannot be sent yet.'));
+        section.append(makeElement('p','',`Pending: ${emails.counts.pending} · Failed: ${emails.counts.failed} · Sent: ${emails.counts.sent}`));
+        if(emails.counts.failed>0)section.open=true;
+        for(const message of emails.messages){const row=makeElement('div','admin-traffic-stat');row.append(makeElement('strong','',message.subject),makeElement('p','',`${message.status==='sent'?'Sent to provider':message.status==='failed'?'Failed — retry scheduled':'Pending'} · ${message.attempts} attempts`),makeElement('p','small-print',message.status==='sent'?`Sent: ${new Date(message.sentAt||message.createdAt).toLocaleString()}`:`Next send attempt: ${new Date(message.nextAttemptAt).toLocaleString()}`));section.append(row);}
+        section.append(makeElement('p','small-print','Failed sends retry automatically. Recipient addresses and message bodies are kept out of this view.'));
+      }
+      if (data.summary) {
+        section.append(makeElement('p', '', 'Recent orders and payouts (up to 200 orders / 300 transfers).'));
+        const stats = makeElement('div', 'admin-traffic-stats');
+        for (const [key, value] of Object.entries(data.summary)) { const card = makeElement('div', 'admin-traffic-stat'); card.append(makeElement('strong', '', String(value)), makeElement('span', '', key.replace(/([A-Z])/g, ' $1'))); stats.append(card); }
+        section.append(stats);
+        for (const order of data.orders || []) section.append(makeElement('p', '', `Order ${order.id} · ${order.status} · ${(order.subtotal_cents / 100).toFixed(2)} ${order.currency}`));
+      }
+      if (data.reports) {
+        if (!data.reports.length) section.append(makeElement('p', '', 'No listing reports yet.'));
+        for (const report of data.reports) {
+          const card = makeElement('article', 'admin-support-item');
+          card.append(makeElement('h4', '', `${report.title} · ${report.status}`), makeElement('p', '', `${report.reason} · ${report.created_at}`), makeElement('p', '', report.notes || 'No additional details.'));
+          const view = makeElement('button', 'secondary-button', 'View listing'); view.type = 'button';
+          view.addEventListener('click', async () => { try { const { items } = await adminRequest('/api/admin/listings'); const item = items.find(item => item.id === report.listing_id); if (!item) throw new Error('This listing has been deleted.'); openProductDetails(item); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); } }); card.append(view);
+          if (report.status === 'open') {
+            const resolve = makeElement('button', 'secondary-button', 'Mark reviewed'); resolve.type = 'button';
+            resolve.addEventListener('click', async () => { resolve.disabled = true; try { await adminRequest(`/api/admin/listing-reports/${encodeURIComponent(report.id)}/resolve`, { method: 'POST' }); await renderAdminOverview(); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); resolve.disabled = false; } }); card.append(resolve);
+            if (report.listing_status === 'published') {
+              const hide = makeElement('button', 'secondary-button', 'Take off the floor'); hide.type = 'button';
+              hide.addEventListener('click', async () => { hide.disabled = true; try { await adminRequest(`/api/admin/listings/${encodeURIComponent(report.listing_id)}/unpublish`, { method: 'POST' }); await loadGallery(); await renderAdminQueue(); } catch (error) { setMessage(adminReviewMessage, error.message, 'error'); hide.disabled = false; } }); card.append(hide);
+            }
+          } section.append(card);
+        }
+      }
+      if (data.applications) {
+        if (!data.applications.length) section.append(makeElement('p', '', 'No designer sign-ups yet.'));
+        for (const item of data.applications) section.append(makeElement('p', '', `${item.brand_name || item.display_name} · ${item.email} · ${item.status}`));
+      }
+      if (data.messages) {
+        if (!data.messages.length) section.append(makeElement('p', '', 'No customer-service requests yet.'));
+        for (const item of data.messages) {
+          const card = makeElement('article', 'admin-support-item');
+          card.append(makeElement('h4', '', `${item.category} · ${item.status}`), makeElement('p', '', item.buyer_email || 'No email'), makeElement('p', '', item.message));
+          if (item.response_text) card.append(makeElement('p', '', `Last response: ${item.response_text}`));
+          if (item.buyer_email) {
+            const form = document.createElement('form'); const response = document.createElement('textarea');
+            response.required = true; response.maxLength = 4000; response.rows = 3; response.setAttribute('aria-label', `Reply to support request ${item.id}`);
+            const send = makeElement('button', 'primary-button', 'Email response'); send.type = 'submit';
+            const status = makeElement('p', 'form-message'); status.setAttribute('role', 'status');
+            form.append(response, send, status);
+            form.addEventListener('submit', async event => {
+              event.preventDefault(); send.disabled = true;
+              try { await adminRequest(`/api/admin/support/${encodeURIComponent(item.id)}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: response.value.trim() }) }); setMessage(status, 'Response sent.', 'success'); response.value = ''; }
+              catch (error) { setMessage(status, error.message, 'error'); }
+              finally { send.disabled = false; }
+            }); card.append(form);
+          } section.append(card);
+        }
+      }
+    } catch (error) { section.append(makeElement('p', 'form-message', `Could not load this section: ${error.message}`)); }
+  }));
+  const approvals=await pending;
+  if(load!==adminOverviewLoad||!adminSessionActive)return;
+  renderAdminAttention(adminAttentionCounts(approvals,loaded['/api/admin/operations']||null,loaded['/api/admin/support']||null));
+}
+
+async function loadDesignerBrand() {
+  const pageLink=byId('designer-view-page');
+  if(pageLink){pageLink.classList.add('hidden');pageLink.removeAttribute('href');}
+  try {
+    const { designer } = await apiRequest('/api/my/designer-profile');
+    designerReadinessState.profile=designer;renderSellerReadiness();renderDesignerPriceEstimate();
+    const founding = byId('designer-founding-badge'); founding?.replaceChildren();
+    if (designer.foundingBadge) founding?.append(createBadgePill('Founding Designer', 'badge founding-badge'));
+    byId('designer-account-name') && (byId('designer-account-name').value = designer.displayName || '');
+    byId('designer-account-email') && (byId('designer-account-email').value = designer.email || '');
+    byId('designer-email-verify-form')?.classList.toggle('hidden',!designer.pendingEmail);
+    if(byId('designer-pending-email'))byId('designer-pending-email').textContent=designer.pendingEmail?`Waiting for verification: ${designer.pendingEmail}. Paste the code emailed there within 30 minutes. Requesting another change replaces the previous code.`:'';
+    byId('designer-brand-name').value = designer.brandName || designer.displayName || '';
+    if (byId('designer-bio')) byId('designer-bio').value = designer.bio || '';
+    if (byId('designer-categories')) byId('designer-categories').value = (designer.categories || []).join(', ');
+    if (byId('designer-social')) byId('designer-social').value = designer.socialUrl || designer.portfolioUrl || '';
+    if(pageLink&&designer.id){pageLink.href='/designers/'+encodeURIComponent(designer.id);pageLink.classList.remove('hidden');}
+    await loadHouseStudio(designer.id);
+    const image = byId('designer-logo-preview'); image.classList.toggle('hidden', !designer.logoUrl);
+    if (designer.logoUrl) image.src = designer.logoUrl + '?v=' + Date.now();
+    byId('designer-logo-remove').classList.toggle('hidden', !designer.logoUrl);
+  } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+}
+byId('designer-settings-form')?.addEventListener('submit', async event => {
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    const result=await apiRequest('/api/my/designer-settings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      displayName:byId('designer-account-name').value.trim(),
+      email:byId('designer-account-email').value.trim()
+    })});
+    if(result?.designer?.email)byId('designer-account-email').value=result.designer.email;
+    setMessage(byId('designer-settings-message'),result.verificationRequired?'Name saved. Check the new email address for a verification code. Your current House email stays in use until you verify it.':'Account settings saved.','success');
+    await loadDesignerBrand();
+  }catch(error){setMessage(byId('designer-settings-message'),error.message||'Account settings could not be saved.','error');}
+  finally{if(button)button.disabled=false;}
+});
+byId('designer-email-verify-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/designer-email/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:byId('designer-email-code').value.trim()})});
+    byId('designer-email-code').value='';await loadDesignerBrand();
+    setMessage(byId('designer-settings-message'),'Your new House email is verified and saved. Stripe and your sign-in provider remain separate.','success');
+  }catch(error){setMessage(byId('designer-email-verify-message'),error.message,'error');}
+  finally{if(button)button.disabled=false;}
+});
+byId('seller-terms-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/seller-terms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accepted:byId('seller-terms-consent').checked,termsVersion:designerReadinessState.profile?.sellerTermsVersion})});
+    byId('seller-terms-consent').checked=false;await loadDesignerBrand();await refreshStripePayoutStatus();setMessage(byId('seller-terms-message'),'Delivery terms accepted.','success');
+  }catch(error){setMessage(byId('seller-terms-message'),error.message,'error');}
+  finally{if(button)button.disabled=false;}
+});
+byId('designer-brand-form')?.addEventListener('submit', async event => {
+  event.preventDefault(); const button = event.submitter; button.disabled = true;
+  try {
+    await apiRequest('/api/my/designer-profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      brandName: byId('designer-brand-name').value.trim(),
+      bio: byId('designer-bio')?.value.trim() || '',
+      categories: (byId('designer-categories')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
+      socialUrl: byId('designer-social')?.value.trim() || ''
+    }) });
+    const file = byId('designer-logo').files[0];
+    if (file) { if (file.size > 8 * 1024 * 1024) throw new Error('Please choose a logo smaller than 8 MB.'); const body = new FormData(); body.append('image', file); await apiRequest('/api/my/designer-profile/logo', { method: 'POST', body }); }
+    await saveHouseStudio();
+    byId('designer-logo').value = ''; await loadDesignerBrand(); await loadGallery(); byId('designer-welcome')?.classList.add('hidden'); setMessage(byId('designer-brand-message'), 'Your designer profile is saved. Now list your first piece below.', 'success'); byId('product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+  finally { button.disabled = false; }
+});
+byId('designer-logo-remove')?.addEventListener('click', async () => {
+  try { await apiRequest('/api/my/designer-profile/logo', { method: 'DELETE' }); await loadDesignerBrand(); await loadGallery(); }
+  catch (error) { setMessage(byId('designer-brand-message'), error.message, 'error'); }
+});
+let storefrontRequest = 0;
+async function openDesignerStorefront(id) {
+  const dialog = byId('designer-storefront-dialog'), content = byId('storefront-content');
+  const request = ++storefrontRequest;
+  byId('storefront-title').textContent = 'Designer storefront';
+  content.replaceChildren(makeElement('p', 'notice', 'Opening this designer’s corner of the House…'));
+  if (!dialog.open) dialog.showModal();
+  try {
+    const { designer, currentItems = [], soldItems = [] } = await apiRequest(`/api/designers/${encodeURIComponent(id)}`);
+    if (request !== storefrontRequest || !dialog.open) return;
+    content.replaceChildren();
+    byId('storefront-title').textContent = designer.brandName || designer.displayName;
+    const intro = makeElement('div', 'storefront-intro');
+    if (designer.logoUrl || designer.portraitUrl) {
+      const image = makeElement('img', 'storefront-logo'); image.src = designer.logoUrl || designer.portraitUrl;
+      image.alt = `${designer.brandName || designer.displayName} profile`; intro.append(image);
+    }
+    const bio = makeElement('div', 'storefront-bio');
+    bio.append(makeElement('p', '', designer.bio || 'Independent by design. Made by someone, not everyone.'));
+    if (designer.location) bio.append(makeElement('p', 'small-print', designer.location));
+    if (designer.productionMethod) bio.append(makeElement('p', 'small-print', designer.productionMethod));
+    intro.append(bio); content.append(intro);
+    const stats = makeElement('dl', 'storefront-stats');
+    for (const [label, value] of [['Total likes', designer.totalLikes], ['Pieces sold', designer.soldCount], ['Current listings', designer.currentListingCount]]) {
+      const stat = makeElement('div'); stat.append(makeElement('dt', '', label), makeElement('dd', '', Number(value || 0).toLocaleString())); stats.append(stat);
+    }
+    content.append(stats, makeElement('p', 'small-print', 'Likes count hearts saved by signed-in shoppers across this designer’s public pieces.'));
+    const badgeSection = makeElement('section', 'storefront-badges'); badgeSection.append(makeElement('h3', '', 'Badges'));
+    const badgeRow = makeElement('div', 'listing-badges');
+    for (const badge of designer.badges || []) {
+      if (badge.type === 'founding_designer') badgeRow.append(createBadgePill('Founding Designer', 'badge founding-badge'));
+      if (badge.type === 'supporter') badgeRow.append(createBadgePill(badge.label||'House Supporter', 'badge supporter-badge'));
+      if (badge.type === 'verified_buyer') badgeRow.append(createBadgePill(badge.label||'Verified Buyer', 'badge verified-badge'));
+    }
+    badgeSection.append(badgeRow.children.length ? badgeRow : makeElement('p', 'small-print', 'No badges earned yet.')); content.append(badgeSection);
+    function addPieces(title, items, sold) {
+      const section = makeElement('section', 'storefront-section'); section.append(makeElement('h3', '', title));
+      if (!items.length) section.append(makeElement('p', 'small-print', sold ? 'Their first sale is still ahead. Watch this space.' : 'No pieces available right now. Check back for their next drop.'));
+      const grid = makeElement('div', 'storefront-grid');
+      for (const item of items) {
+        const button = makeElement('button', 'storefront-piece'); button.type = 'button';
+        const imageUrl = getProductImages(item)[0]?.url;
+        if (imageUrl) { const image = makeElement('img'); image.src = imageUrl; image.alt = ''; image.loading = 'lazy'; button.append(image); }
+        else button.append(makeElement('span', 'storefront-image-placeholder', 'House of Briar'));
+        button.append(makeElement('strong', '', item.title));
+        button.append(makeElement('span', 'small-print', sold ? `${item.soldQuantity} sold${item.availableQuantity === null || item.availableQuantity > 0 ? ' · More available' : ''}` : `$${Number(item.price || 0).toFixed(2)}`));
+        button.addEventListener('click', () => { dialog.close(); openProductDetails(item); }); grid.append(button);
+      }
+      section.append(grid); content.append(section);
+    }
+    addPieces('Current listings', currentItems, false); addPieces('Sold pieces', soldItems, true);
+  } catch (error) {
+    if (request !== storefrontRequest || !dialog.open) return;
+    content.replaceChildren(makeElement('p', 'form-message', error.message));
+  }
+}
+byId('designer-storefront-dialog')?.addEventListener('close', () => { storefrontRequest += 1; });
+byId('storefront-close')?.addEventListener('click', () => byId('designer-storefront-dialog').close());
+
+
+// Decorative measuring tapes keep the native dropdowns fully usable.
+function unrollDropdownTape(select) {
+  if (!(select instanceof HTMLSelectElement) || select.closest('.shop-nested-filters')) return;
+  const window = select.closest('.shop-drop-window') || select.parentElement;
+  if (!window) return;
+  if (Date.now() - Number(window.dataset.tapePlayedAt || 0) < 250) return;
+  window.dataset.tapePlayedAt = String(Date.now());
+  window.classList.add('measuring-tape-window');
+  let tape = window.querySelector(':scope > .dropdown-measuring-tape');
+  if (!tape) {
+    tape = document.createElement('span'); tape.className = 'dropdown-measuring-tape'; tape.setAttribute('aria-hidden', 'true');
+    const strip = document.createElement('span'); strip.className = 'measuring-tape-strip';
+    const markings = document.createElement('span'); markings.className = 'measuring-tape-numbers'; markings.textContent = '1     2     3     4     5     6     7     8';
+    strip.append(markings);
+    const roll = document.createElement('span'); roll.className = 'measuring-tape-roll'; tape.append(strip, roll); window.append(tape);
+  }
+  window.classList.remove('tape-unrolling');
+  void tape.offsetWidth;
+  window.classList.add('tape-unrolling');
+  clearTimeout(window.dropdownTapeTimer);
+  window.dropdownTapeTimer = setTimeout(() => window.classList.remove('tape-unrolling'), 1200);
+}
+document.addEventListener('pointerdown', event => unrollDropdownTape(event.target));
+document.addEventListener('focusin', event => unrollDropdownTape(event.target));
+document.addEventListener('change', event => unrollDropdownTape(event.target));
+document.addEventListener('keydown', event => {
+  if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) unrollDropdownTape(event.target);
+});
+
+
+
+function refreshShopFitProfiles() {
+  const select = byId('shop-fit-profile'); if (!select) return;
+  const selected = select.value;
+  select.replaceChildren(new Option('Enter measurements', ''));
+  for (const profile of loadMeasurementProfiles()) select.append(new Option(profile.label, profile.id));
+  select.value = selected;
+}
+byId('shop-fit-profile')?.addEventListener('focus', refreshShopFitProfiles);
+byId('shop-fit-profile')?.addEventListener('change', event => {
+  const profile = loadMeasurementProfiles().find(p => p.id === event.target.value);
+  if (!profile) return;
+  byId('shop-fit-unit').value = 'in';
+  for (const key of ['bust','waist','hips','inseam']) byId(`shop-fit-${key}`).value = /^\d+(?:\.\d+)?$/.test(String(profile[key] || '').trim()) ? profile[key] : '';
+  setMessage(byId('shop-fit-message'), 'Saved measurements filled in inches. Review them, then find matches.', '');
+});
+byId('shop-fit-form')?.addEventListener('submit', event => {
+  event.preventDefault();
+  const measurements = {};
+  for (const key of ['bust','waist','hips','inseam']) {
+    const raw = byId(`shop-fit-${key}`).value;
+    if (!raw) continue;
+    const value = Number(raw) / (byId('shop-fit-unit').value === 'cm' ? 2.54 : 1);
+    if (!Number.isFinite(value) || value <= 0 || value > 150) { setMessage(byId('shop-fit-message'), 'Enter valid positive measurements (up to 150 inches / 381 cm).', 'error'); return; }
+    measurements[key] = Math.round(value * 10000) / 10000;
+  }
+  if (!Object.keys(measurements).length) { setMessage(byId('shop-fit-message'), 'Enter at least one measurement to find matches.', 'error'); return; }
+  activeMeasurements = measurements;
+  setMessage(byId('shop-fit-message'), 'Measurement filter applied. Missing fit ranges are excluded; your measurements are not shared with designers.', 'success');
+  loadGallery();
+});
+byId('shop-fit-remove')?.addEventListener('click', () => { activeMeasurements = null; setMessage(byId('shop-fit-message'), 'Measurement filter removed.', ''); loadGallery(); });
+refreshShopFitProfiles();
+
+function customerShipmentLabel(item, paid) {
+  if(!paid)return 'Payment not confirmed';
+  if(item.trackingStatus?.startsWith('test_') || /^SHIPPO_/i.test(item.trackingNumber||''))return 'Simulated tracking · test order';
+  if(item.downloadUrl)return 'PDF pattern · Download ready';
+  if(!item.trackingNumber)return 'Paid · Awaiting shipment';
+  return ({delivered:'Delivered',out_for_delivery:'Out for delivery',in_transit:'Shipped · In transit',pre_transit:'Tracking added · Awaiting carrier pickup',failure:'Delivery needs attention',return_to_sender:'Returning to sender',cancelled:'Shipment cancelled',canceled:'Shipment cancelled'})[item.trackingStatus] || 'Tracking added · Waiting for a carrier update';
+}
+function customerTrackingLink(item, paid) {
+  if(!paid||!item.trackingNumber||item.trackingStatus?.startsWith('test_')||/^SHIPPO_/i.test(item.trackingNumber))return null;
+  const carrier=(item.trackingCarrier||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(carrier==='usps')return 'https://tools.usps.com/go/TrackConfirmAction?tLabels='+encodeURIComponent(item.trackingNumber);
+  if(carrier==='ups')return 'https://www.ups.com/track?tracknum='+encodeURIComponent(item.trackingNumber);
+  if(carrier==='fedex')return 'https://www.fedex.com/en-us/tracking.html';
+  return null;
+}
+let customerOrdersRequest=0;
+async function refreshCustomerPurchases() {
+  const status=byId('visitor-orders-status'),list=byId('visitor-orders-list');
+  if(!status||!list)return;
+  const request=++customerOrdersRequest;
+  list.replaceChildren();
+  if(!customerSignedIn){status.textContent='Sign in to see your purchases.';return;}
+  status.textContent='Loading your purchases…';
+  try{
+    const payload=await apiRequest('/api/my/purchases',{cache:'no-store'});
+    if(request!==customerOrdersRequest||!customerSignedIn)return;
+    if(!Array.isArray(payload.orders))throw new Error('Purchase history unavailable');
+    status.textContent=payload.orders.length?`${payload.orders.length} ${payload.orders.length===1?'order':'orders'} in your purchase history.`:'No signed-in purchases yet.';
+    for(const order of payload.orders.slice(0,5)){
+      const card=makeElement('article','visitor-order-card');
+      card.append(makeElement('h4','',`Order ${String(order.id).slice(-8).toUpperCase()}`));
+      const label=order.refundStatus==='succeeded'?'Refunded':order.refundStatus==='partial'?'Partially refunded':String(order.status||'').replaceAll('_',' ');
+      card.append(makeElement('p','small-print',label));
+      for(const item of order.items||[]){
+        const row=makeElement('div','visitor-order-item');
+        row.append(makeElement('strong','',item.title),makeElement('p','small-print',`Quantity ${item.quantity} · ${item.designerName || 'Independent designer'}`),makeElement('p','',customerShipmentLabel(item,order.status==='paid')));
+        if(item.downloadUrl){const link=makeElement('a','visitor-tracking-link','Download PDF pattern');link.href=item.downloadUrl;row.append(link);}
+        if(item.trackingNumber)row.append(makeElement('p','visitor-tracking-number',`Tracking: ${item.trackingCarrier||''} ${item.trackingNumber}`));
+        const url=customerTrackingLink(item,order.status==='paid');
+        if(url){const link=makeElement('a','visitor-tracking-link',`Track with ${item.trackingCarrier}`);link.href=url;link.target='_blank';link.rel='noopener noreferrer';row.append(link);}
+        card.append(row);
+      }
+      list.append(card);
+    }
+    if(payload.orders.length>5)list.append(makeElement('p','small-print','Open Full purchase history & support to see all orders.'));
+  }catch{
+    if(request!==customerOrdersRequest||!customerSignedIn)return;
+    list.replaceChildren();status.textContent='Purchase history could not load. Refresh or open your full account.';
+  }
+}
+byId('visitor-orders-refresh')?.addEventListener('click',()=>void refreshCustomerPurchases());
+// Seamstresses share House email authentication and land in their sewing workspace.
+if(seamstressIntent){
+  byId('visitor-suite-title').textContent=seamstressIntent==='signin'?'Seamstress sign in':'Seamstress signup';
+  byId('visitor-suite-close').setAttribute('aria-label','Close seamstress account');
+  byId('customer-account-eyebrow').textContent='Your free sewing-services account';
+  byId('customer-account-title').textContent=seamstressIntent==='signin'?'Welcome back to your sewing studio.':'Love to sew? Make yourself at home.';
+  byId('customer-account-intro').textContent=seamstressIntent==='signin'?'Use your House account email. We’ll send a six-digit sign-in code, then open your service requests.':'Create your free House account, then add your sewing skills, service area and availability. You do not need a designer shop.';
+  byId('customer-email-help').textContent='No password to create or remember. We’ll email a six-digit code to verify your House account.';
+  byId('customer-reviewer-entry').hidden=true;
+  byId('customer-name-field').hidden=seamstressIntent==='signin';
+  byId('seamstress-auth-links').hidden=false;
+  byId('seamstress-continue').href=seamstressDestination;
+  byId('visitor-suite').hidden=true;
+  byId('customer-start-shopping').textContent='Back to sewing services';
+  byId('customer-start-shopping').addEventListener('click',()=>window.location.assign('/sewing-services.html'));
+}
+if(creativeDestination){
+ const label={model:'Model',photographer:'Photographer',dj:'DJ',venue:'Venue'}[creativeRole];
+ byId('visitor-suite-title').textContent=label+' sign in / signup';
+ byId('customer-account-eyebrow').textContent='Your Creative House account';
+ byId('customer-account-title').textContent='Welcome to the Creative House.';
+ byId('customer-account-intro').textContent='You’re entering as a '+label.toLowerCase()+'. Verify your House account email, then create or update your creative profile. Returning? Use the same email. No designer shop is required.';
+ byId('customer-reviewer-entry').hidden=true;byId('visitor-suite').hidden=true;
+ byId('customer-start-shopping').textContent='Back to account choices';
+ byId('customer-start-shopping').addEventListener('click',()=>window.location.assign('/join.html'));
+}
+let customerAccountRequest=0;
+async function refreshCustomerAccount() {
+  const request=++customerAccountRequest;
+  try {
+    const response=await fetch('/api/customer/session',{cache:'no-store'});
+    const data=await response.json();if(request!==customerAccountRequest)return;customerSignedIn=response.ok&&Boolean(data.customer);
+    void refreshCustomerPurchases();
+    if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent=customerSignedIn?'My Customer Account':'Sign in / Sign up';
+    byId('customer-signed-in').hidden=!customerSignedIn;
+    if(customerSignedIn&&location.hash==='#measurement-profile-name'){const target=byId('measurement-profile-name');for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;target?.focus({preventScroll:true});target?.scrollIntoView({block:'center'});}
+    for(const button of document.querySelectorAll('[data-passkey-signin=customer]'))button.hidden=customerSignedIn||!window.HousePasskeys?.supported();
+    byId('customer-signup-form').hidden=customerSignedIn&&!reviewerVerificationRequested;
+    byId('customer-code-form').hidden=true;
+    await refreshMeasurementProfiles(customerSignedIn);
+    if(request!==customerAccountRequest)return;
+    if(customerSignedIn&&roleDestination&&!reviewerVerificationRequested){window.location.assign(roleDestination);return;}
+    if(customerSignedIn){byId('customer-account-greeting').textContent=`Welcome, ${data.customer.name}. Signed in as ${data.customer.email}.`;await syncAccountFavorites();}
+  }catch{if(request!==customerAccountRequest)return;customerSignedIn=false;void refreshCustomerPurchases();byId('customer-signed-in').hidden=true;byId('customer-signup-form').hidden=false;await refreshMeasurementProfiles(false);if(byId('header-customer-auth-btn'))byId('header-customer-auth-btn').textContent='Sign in / Sign up';}
+}
+void refreshCustomerAccount();
+byId('customer-signup-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{const data=await apiRequest('/api/customer/signin-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:byId('customer-signup-email').value,name:byId('customer-signup-name').value,acceptedRules:byId('customer-rules-consent').checked})});customerSigninRequest=data.requestId;byId('customer-signup-form').hidden=true;byId('customer-code-form').hidden=false;setMessage(byId('customer-signup-status'),data.message,'success');byId('customer-signin-code').focus();}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+});
+byId('customer-code-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{await apiRequest('/api/customer/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:customerSigninRequest,code:byId('customer-signin-code').value})});customerSigninRequest='';reviewerVerificationRequested=false;designerToken='';localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('briarDesignerToken');byId('customer-signin-code').value='';await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Your customer account is ready. Welcome to the House.','success');if(roleDestination&&customerSignedIn)window.location.assign(roleDestination);}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}finally{button.disabled=false;}
+});
+byId('customer-code-back')?.addEventListener('click',()=>{byId('customer-code-form').hidden=true;byId('customer-signup-form').hidden=false;byId('customer-signin-code').value='';customerSigninRequest='';});
+byId('customer-delete-account')?.addEventListener('click',async()=>{
+  const confirmation=window.prompt('Permanently delete your House of Briar customer account and saved favorites? Type DELETE to confirm. Accounts with transaction or message history may require a privacy review.');
+  if(confirmation===null)return;
+  if(confirmation!=='DELETE'){byId('customer-signup-status').textContent='Account deletion canceled. Type DELETE exactly to confirm.';return;}
+  const button=byId('customer-delete-account');button.disabled=true;
+  try{
+    await apiRequest('/api/customer/account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})});
+    clearCustomerCart();
+    customerSignedIn=false;void refreshCustomerPurchases();void refreshMeasurementProfiles(false);await refreshCustomerAccount();
+    byId('customer-signup-status').textContent='Your customer account has been deleted.';
+  }catch(error){byId('customer-signup-status').textContent=error?.message||'Account deletion failed. Contact House of Briar support.';}
+  finally{button.disabled=false;}
+});
+byId('customer-signout')?.addEventListener('click',async()=>{try{await apiRequest('/api/customer/session',{method:'DELETE'});customerSignedIn=false;void refreshCustomerPurchases();void refreshMeasurementProfiles(false);await refreshCustomerAccount();setMessage(byId('customer-signup-status'),'Signed out.','success');}catch(error){setMessage(byId('customer-signup-status'),error.message,'error');}});
+if(new URLSearchParams(location.search).get('visitors')==='signup'){byId('visitor-suite-modal')?.showModal();}
+refreshCustomerAccount();
+
+// Room shortcuts retain existing forms and open disclosures before focusing a section.
+document.querySelectorAll('[data-room-target]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = byId(button.dataset.roomTarget);
+    if (!target) return;
+    if(button.dataset.roomTarget==='product-form')resetListingForm();
+    for (let parent = target; parent; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+    scrollRoomTarget(target,{ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+    target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  });
+});
+
+// Keep welcome actions on the same customer account entry point.
+document.querySelectorAll('[data-customer-welcome]').forEach(button => {
+  button.addEventListener('click', () => byId('header-customer-auth-btn')?.click());
+});
+
+byId('customer-start-shopping')?.addEventListener('click', () => {
+  byId('visitor-suite-modal')?.close();
+  const shop = byId('shop');
+  shop?.scrollIntoView({ block: 'start' });
+  shop?.setAttribute('tabindex', '-1');
+  shop?.focus({ preventScroll: true });
+});
+document.querySelectorAll('[data-customer-section]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = byId(button.dataset.customerSection);
+    if (!target) return;
+    if (!target.matches('input, button, a, select, textarea')) target.setAttribute('tabindex', '-1');
+    scrollRoomTarget(target,{ block: 'center' });
+    target.focus({ preventScroll: true });
+  });
+});
+
+// Keep navigation behavior in an external script permitted by the CSP.
+
+      /* Click-to-open menus; one at a time; close after selection, outside click, or Escape. */
+      (() => {
+        const init = () => {
+          const menus = [...document.querySelectorAll('.sewing-nav details.nav-dropdown')];
+          const closeAll = (except) => menus.forEach(menu => { if (menu !== except) menu.open = false; });
+          const alignPanel = menu => {
+            const panel = menu.querySelector('.nav-dropdown-menu');
+            if (!panel) return;
+            panel.style.setProperty('--nav-shift', '0px');
+            const bounds = panel.getBoundingClientRect();
+            const gutter = 12;
+            const shift = Math.max(gutter - bounds.left, Math.min(0, window.innerWidth - gutter - bounds.right));
+            panel.style.setProperty('--nav-shift', shift + 'px');
+          };
+          menus.forEach(menu => {
+            const summary = menu.querySelector('summary');
+            if (summary) summary.setAttribute('aria-expanded', String(menu.open));
+            menu.addEventListener('toggle', () => {
+              if (summary) summary.setAttribute('aria-expanded', String(menu.open));
+              if (menu.open) { closeAll(menu); alignPanel(menu); }
+            });
+            menu.querySelectorAll('.nav-dropdown-menu a, .nav-dropdown-menu button').forEach(item =>
+              item.addEventListener('click', () => { menu.open = false; })
+            );
+          });
+          document.addEventListener('pointerdown', event => {
+            if (!menus.some(menu => menu.contains(event.target))) closeAll();
+          });
+          document.addEventListener('keydown', event => { if (event.key === 'Escape') { const active = menus.find(menu => menu.open); closeAll(); active?.querySelector('summary')?.focus(); } });
+          window.addEventListener('resize', () => closeAll());
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+      })();
+
+
+function calculateDesignerPriceEstimate(values) {
+  const hundredths=(value,max)=>{
+    const raw=String(value??'').trim();if(!raw)return 0;
+    const n=Number(raw);return Number.isFinite(n)&&n>=0&&n<=max&&Math.abs(n*100-Math.round(n*100))<0.000001?Math.round(n*100):null;
+  };
+  const price=hundredths(values.price,1000000),materials=hundredths(values.materials,1000000),postage=hundredths(values.postage,1000000),packaging=hundredths(values.packaging,1000000),hours=hundredths(values.hours,10000),rate=hundredths(values.rate,1000000);
+  if([price,materials,postage,packaging,hours,rate].some(value=>value===null)||price<=0)return null;
+  const fee=Math.round(price*(values.basisPoints===500?500:700)/10000),earnings=price-fee,labor=Math.round(hours*rate/100);
+  return {price,fee,earnings,materials,labor,postage,packaging,remaining:earnings-materials-labor-postage-packaging};
+}
+function renderDesignerPriceEstimate() {
+  const output=byId('pricing-estimate');if(!output)return;
+  const fields={price:'product-price',materials:'estimated-materials',hours:'estimated-labor-hours',rate:'estimated-hourly-pay',postage:'estimated-postage',packaging:'estimated-packaging'};
+  const inputs=Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,byId(id)]));
+  const estimate=Object.values(inputs).some(input=>input?.validity?.badInput)?null:calculateDesignerPriceEstimate({...Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input?.value])),basisPoints:designerReadinessState.profile?.commissionBasisPoints});
+  output.replaceChildren();
+  if(!estimate){output.textContent='Enter a price above $0 and valid nonnegative costs (up to two decimal places) to see your estimate.';return;}
+  const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n/100);
+  for(const [label,value]of [[`House of Briar fee (${designerReadinessState.profile?.commissionBasisPoints===500?5:7}%)`,estimate.fee],['Earnings before your costs',estimate.earnings],['Materials',estimate.materials],['Labor (hours × hourly pay)',estimate.labor],['Postage and packaging',estimate.postage+estimate.packaging],['Amount left after listed costs',estimate.remaining]])output.append(makeElement('p','',`${label}: ${money(value)}`));
+  if(estimate.remaining<0)output.append(makeElement('p','','This price does not cover all the costs entered.'));
+}
+for(const id of ['product-price','estimated-materials','estimated-labor-hours','estimated-hourly-pay','estimated-postage','estimated-packaging'])byId(id)?.addEventListener('input',renderDesignerPriceEstimate);
+byId('product-form')?.addEventListener('reset',()=>setTimeout(renderDesignerPriceEstimate,0));
+renderDesignerPriceEstimate();
+
+// Password visibility controls use registered listeners to comply with Content Security Policy.
+for (const button of document.querySelectorAll('button[aria-controls="designer-token"], button[aria-controls="admin-token"]')) {
+  button.addEventListener('click', () => {
+    const input = document.getElementById(button.getAttribute('aria-controls'));
+    if (!input) return;
+    const visible = input.type === 'password';
+    input.type = visible ? 'text' : 'password';
+    button.textContent = visible ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-pressed', String(visible));
+  });
+}
+
+
+/* Keep the standalone Designer Room compact without replacing form elements. */
+function prepareDesignerRoomPanels() {
+  const workspace=byId('designer-workspace');
+  if(!workspace||workspace.dataset.panelsReady)return;
+  workspace.dataset.panelsReady='true';
+  const groups=[
+    ['.seller-readiness-card','Getting started'],
+    ['#designer-listing-area','Your listings'],
+    ['#product-form','Create a piece'],
+    ['#designer-brand-form','Brand & profile']
+  ];
+  for(const [selector,title] of groups){
+    const content=workspace.querySelector(selector);
+    if(!content||content.parentElement!==workspace)continue;
+    const panel=document.createElement('details');
+    panel.className='designer-room-panel';
+    panel.setAttribute('name','designer-workspace-panel');
+    if(selector==='#product-form')panel.id='designer-editor-panel';
+    panel.open=selector==='.seller-readiness-card';
+    if(selector==='.seller-readiness-card')panel.id='designer-setup-panel';
+    const summary=document.createElement('summary');
+    summary.textContent=title;
+    content.before(panel);panel.append(summary,content);
+  }
+  const editor=byId('product-form');
+  if(editor){
+    const sections=[['label[for="product-name"]','Name & description'],['fieldset.listing-form-group','Price & shipping'],['section[aria-labelledby="pricing-helper-title"]','Cost estimate'],['fieldset.listing-form-group:has(#product-category)','Garment details & fit'],['fieldset.listing-enhancements','Presentation & gifting']];
+    const starts=sections.map(([selector,title])=>[editor.querySelector(':scope > '+selector),title]).filter(([node])=>node);
+    const children=[...editor.children];
+    for(let i=0;i<starts.length;i++){
+      const [start,title]=starts[i],end=starts[i+1]?.[0]||byId('listing-readiness');
+      const panel=document.createElement('details');panel.className='listing-edit-options';
+      const summary=document.createElement('summary');summary.textContent=title;panel.append(summary);
+      const fields=document.createElement('div');fields.className='stack-form';panel.append(fields);start.before(panel);
+      for(let n=children.indexOf(start);n<children.indexOf(end);n++)if(children[n].id!=='upload-message')fields.append(children[n]);
+    }
+    const toolbar=document.createElement('div');toolbar.className='listing-save-toolbar';
+    const save=document.createElement('button');save.type='submit';save.name='action';save.value='save';save.className='primary-button';save.textContent='Save changes';save.id='listing-save-changes';
+    toolbar.append(save,byId('upload-message'));byId('photo-preview').before(byId('photo-draft-title').closest('section'),toolbar);
+    const guidedLink=editor.querySelector('a[href="/account#designer-listings"]')?.parentElement;if(guidedLink)editor.append(guidedLink);
+    const style=document.createElement('style');style.textContent='.listing-save-toolbar{position:sticky;top:calc(var(--hob-bar-height,80px) + 8px);z-index:20;background:var(--briar-card,#fffdf8);color:var(--briar-ink,#292622);border:1px solid var(--briar-line,#888);border-radius:12px;padding:12px;display:flex;align-items:center;flex-wrap:wrap;gap:12px}.listing-save-toolbar p{margin:0}.listing-edit-options{border:1px solid var(--briar-line,#888);border-radius:10px;padding:14px}.listing-edit-options>summary{cursor:pointer;min-height:44px;display:list-item;font-weight:600}.listing-edit-options>.stack-form{padding-top:14px}';document.head.append(style);
+  }
+  const setupPanel=byId('designer-setup-panel');
+  const attention=byId('designer-attention');
+  const firstTask=attention||workspace.firstElementChild;
+  if(setupPanel&&firstTask)firstTask.before(setupPanel);
+  const actions=document.createElement('div');
+  actions.className='designer-start-actions';
+  const addPiece=document.createElement('button');
+  addPiece.type='button';addPiece.className='primary-button';
+  addPiece.id='designer-add-piece';addPiece.textContent='Create a piece';
+  addPiece.addEventListener('click',()=>byId('new-listing-btn')?.click());
+  const help=makeElement('p','small-print','Start a draft now. Finish and submit it whenever you are ready.');
+  const manage=document.createElement('button');manage.type='button';manage.className='secondary-button';manage.id='designer-edit-pieces';manage.textContent='Edit my listings';manage.addEventListener('click',()=>scrollRoomTarget(byId('designer-products'),{block:'start'}));
+  actions.append(addPiece,manage,help);
+  if(attention)attention.before(actions);else workspace.prepend(actions);
+  renderSellerReadiness();
+  const reveal=target=>{
+    if(!target)return;
+    for(let parent=target;parent&&parent!==workspace;parent=parent.parentElement){
+      if(parent.tagName==='DETAILS')parent.open=true;
+    }
+  };
+  workspace.addEventListener('invalid',event=>reveal(event.target),true);
+  byId('new-listing-btn')?.addEventListener('click',()=>{const form=byId('product-form');reveal(form);scrollRoomTarget(form,{block:'start'});});
+  workspace.addEventListener('click',event=>{
+    if(event.target.closest('.designer-product-actions')&&/^(Edit|Edit & resubmit)$/.test(event.target.textContent.trim()))reveal(byId('product-form'));
+  });
+  const revealHash=()=>{const id=location.hash.slice(1);if(id)reveal(byId(id));};
+  window.addEventListener('hashchange',revealHash);
+  revealHash();
+}
+prepareDesignerRoomPanels();
+
+// Nested shop filters retain the existing native controls and filtering handlers.
+{
+ const menus=[...document.querySelectorAll('.shop-filter-menu')];
+ const label=id=>{const s=document.getElementById(id);return s?.selectedOptions[0]?.textContent?.trim()||'';};
+ const value=id=>document.getElementById(id)?.value||'all';
+ const update=()=>{
+  for(const menu of menus){
+   const kind=menu.dataset.filterMenu;
+   const ids=kind==='category'?['shop-category-filter','shop-garment-filter']:kind==='presentation'?['shop-presentation-filter']:kind==='aesthetic'?['shop-aesthetic-filter']:kind==='pattern'?['shop-pattern-filter']:kind==='availability'?['shop-availability-filter']:['shop-designer-filter'];
+   const chosen=ids.filter(id=>value(id)!=='all').map(label);
+   menu.querySelector('.shop-filter-selection').textContent=chosen.join(' / ')||({category:'All pieces',presentation:'All presentations',aesthetic:'All aesthetics',pattern:'All prints',availability:'All availability'}[kind]||'All designers');
+  }
+  const subcategorySelection=document.querySelector('#shop-subcategory-menu > summary .shop-filter-selection');
+  if(subcategorySelection)subcategorySelection.textContent=value('shop-garment-filter')!=='all'?label('shop-garment-filter'):'All piece types';
+ };
+ menus.forEach(menu=>{
+  menu.addEventListener('toggle',()=>{if(menu.open)menus.forEach(other=>{if(other!==menu)other.open=false;});});
+  menu.querySelectorAll('select').forEach(select=>select.addEventListener('change',()=>{
+   update();
+   if(select.id==='shop-category-filter'){
+    const child=document.getElementById('shop-subcategory-menu');if(child)child.open=true;
+   }else{menu.open=false;}
+  }));
+ });
+ document.addEventListener('click',event=>{if(!event.target.closest('.shop-nested-filters'))menus.forEach(menu=>menu.open=false);});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'){const open=menus.find(menu=>menu.open);if(open){open.open=false;open.querySelector('summary').focus();}}});
+ document.getElementById('shop-clear-filters')?.addEventListener('click',()=>{update();menus.forEach(menu=>{menu.open=false;menu.querySelectorAll('details').forEach(child=>child.open=false);});});
+ update();
+}
+
+// Draft preview reads current fields only; no API request or form submission.
+function renderListingDraftPreview(){
+ const host=byId('listing-preview-content');if(!host)return;host.replaceChildren();
+ host.append(makeElement('p','small-print','Private preview of your current draft. Nothing is submitted or published.'));
+ const layout=makeElement('div','listing-preview-layout'),images=makeElement('div','listing-preview-images'),copy=makeElement('div');
+ for(const [index,image]of selectedImages.entries()){
+  const src=image.objectUrl||image.url;if(!src)continue;
+  const img=document.createElement('img');img.src=src;img.alt=index?'Draft view '+(index+1):'Draft cover';images.append(img);
+ }
+ if(!images.children.length)images.append(makeElement('p','','Add a cover photo'));
+ const value=id=>byId(id)?.value?.trim()||'';
+ copy.append(makeElement('h3','',value('product-name')||'Your design name'));
+ const amount=Number(value('product-price'));
+ copy.append(makeElement('p','listing-preview-price',value('product-price')&&Number.isFinite(amount)&&amount>=0?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount):'Add a price'));
+ const min=value('product-handling-min'),max=value('product-handling-max');
+ copy.append(makeElement('p','','Free US delivery · Preparation: '+(min||max?((min||max)+(min&&max&&min!==max?'–'+max:'')+' business days'):'Add preparation time')));
+ copy.append(makeElement('h4','','Description'),makeElement('p','listing-preview-text',value('product-description')||'Add a description'));
+ copy.append(makeElement('h4','','Size & body measurements (inches)'));
+ const size=byId('product-size')?.selectedOptions[0]?.textContent||'';
+ copy.append(makeElement('p','',value('product-size')?size:'Add a size'));
+ let any=false;
+ for(const [key,label]of [['bust','Bust / chest'],['waist','Waist'],['hips','Hips'],['inseam','Inseam']]){
+  const low=value('product-fit-'+key+'-min'),high=value('product-fit-'+key+'-max');if(!low&&!high)continue;any=true;
+  copy.append(makeElement('p','',label+': '+(low||'—')+'–'+(high||'—')));
+ }
+ if(!any)copy.append(makeElement('p','','Add body measurement ranges in inches.'));
+ layout.append(images,copy);host.append(layout,makeElement('p','small-print','Return to your fields to make changes. Final shop layout may vary by screen.'));
+}
+byId('listing-preview')?.addEventListener('toggle',event=>{if(event.currentTarget.open)renderListingDraftPreview();});
+byId('product-form')?.addEventListener('input',()=>{if(byId('listing-preview')?.open)renderListingDraftPreview();});
+
+function renderListingReadiness(){
+ const host=byId('listing-readiness');if(!host)return;host.replaceChildren();
+ host.append(makeElement('h3','','Listing readiness'),makeElement('p','small-print','A quick guide, not a submission guarantee. Final validation happens when you save or submit.'));
+ const val=id=>byId(id)?.value?.trim()||'';
+ const required=[['Design name',Boolean(val('product-name')),'product-name'],['Valid price',Boolean(val('product-price'))&&Number.isFinite(Number(val('product-price')))&&Number(val('product-price'))>=0,'product-price'],['Garment type',Boolean(val('product-style')),'product-style'],['Size',Boolean(val('product-size')),'product-size'],['Aesthetic',Boolean(val('product-aesthetic')),'product-aesthetic'],['Production type',Boolean(val('product-production-type')),'product-production-type'],['At least one photo',selectedImages.length>0,'product-photos'],['Fix failed photo uploads',!selectedImages.some(image=>image.status==='failed'),'product-photos'],['Confirm marketplace rules',Boolean(byId('marketplace-rules-accepted')?.checked),'marketplace-rules-accepted']];
+ const form=byId('product-form');
+ for(const input of Array.from(form?.elements||[])){if(input.id&&input.validity&&!input.validity.valid&&!required.some(row=>row[2]===input.id))required.push([input.validationMessage||'Check this field',false,input.id]);}
+ form?.querySelectorAll('.listing-needs-attention').forEach(node=>node.classList.remove('listing-needs-attention'));
+ form?.querySelectorAll('[aria-invalid="true"]').forEach(node=>node.removeAttribute('aria-invalid'));
+ form?.querySelectorAll('.listing-missing-label').forEach(node=>node.remove());
+ const missingBySection=new Map();
+ for(const [label,done,id]of required){if(done)continue;const input=byId(id);input?.setAttribute('aria-invalid','true');input?.classList.add('listing-needs-attention');const section=input?.closest('.listing-edit-options');if(section){missingBySection.set(section,(missingBySection.get(section)||0)+1);section.classList.add('listing-needs-attention');}}
+ for(const [section,count]of missingBySection){const label=makeElement('span','listing-missing-label',` · ${count} required item${count===1?'':'s'} missing`);section.querySelector(':scope > summary')?.append(label);}
+ const suggested=[['Add body measurement ranges',Object.keys(readFitRanges()).length>0,'product-fit-bust-min'],['Add preparation time',Boolean(val('product-handling-min')||val('product-handling-max')),'product-handling-min']];
+ for(const [heading,rows]of [['Before submission',required],['Helpful suggestions',suggested]]){
+  host.append(makeElement('h4','',heading));const list=document.createElement('ul');
+  for(const [label,done,id]of rows){const row=document.createElement('li');if(done)row.textContent='✓ '+label;else{const button=makeElement('button','text-button','Needs attention: '+label+' →');button.type='button';button.addEventListener('click',()=>{const target=byId(id);for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true});});row.append(button);}list.append(row);}host.append(list);
+ }
+ host.append(makeElement('h4','','Before going live'));const payout=makeElement('button','text-button','Review payout setup →');payout.type='button';payout.addEventListener('click',()=>{const target=byId('payout-setup-title');for(let p=target?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;target?.scrollIntoView({block:'center',behavior:'smooth'});});host.append(payout);
+}
+byId('product-form')?.addEventListener('input',renderListingReadiness);
+byId('product-form')?.addEventListener('change',renderListingReadiness);
+byId('product-form')?.addEventListener('reset',()=>setTimeout(renderListingReadiness,0));
+renderListingReadiness();
+
+byId('designer-delete-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if(!window.confirm('Permanently delete your designer account? This cannot be undone.'))return;
+  const button=event.submitter;if(button)button.disabled=true;
+  try{
+    await apiRequest('/api/my/designer-account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:byId('designer-delete-confirmation').value})});
+    localStorage.removeItem('briarDesignerToken');sessionStorage.removeItem('hob-support-question');
+    window.location.replace('/');
+  }catch(error){setMessage(byId('designer-delete-message'),error.message||'Account could not be deleted.','error');if(button)button.disabled=false;}
+});
+
+function taxonomyOptions(id,items,placeholder,value){const select=byId(id);if(!select)return;const old=value??select.value;select.replaceChildren(new Option(placeholder,id.startsWith('shop-')?'all':''));for(const item of items){const v=typeof item==='string'?item:item.value,label=typeof item==='string'?item:item.label;select.add(new Option(label,v));}if([...select.options].some(o=>o.value===old))select.value=old;}
+function syncSellerTypes(){taxonomyOptions('product-style',byId('product-category')?.value==='patterns'?window.HouseTaxonomy.patternTypes:byId('product-category')?.value==='accessories'?window.HouseTaxonomy.accessoryTypes:window.HouseTaxonomy.clothingTypes,'Choose an item type');const isPattern=byId('product-category')?.value==='patterns';if(byId('product-aesthetic'))byId('product-aesthetic').required=!isPattern;if(byId('product-size'))byId('product-size').required=!isPattern;}
+{const t=window.HouseTaxonomy;syncSellerTypes();byId('product-category')?.addEventListener('change',()=>{syncSellerTypes();byId('product-style').value='';});taxonomyOptions('product-presentation',t.presentation,'Not specified');taxonomyOptions('product-production-type',t.availability,'Choose availability');taxonomyOptions('product-aesthetic',t.aesthetics,'Choose an aesthetic');taxonomyOptions('product-pattern',t.patterns,'Choose a print or pattern');taxonomyOptions('shop-presentation-filter',t.presentation,'All presentations');taxonomyOptions('shop-availability-filter',t.availability,'All availability');taxonomyOptions('shop-aesthetic-filter',t.aesthetics,'All aesthetics');taxonomyOptions('shop-pattern-filter',t.patterns,'All prints');}
+byId('shop-presentation-filter')?.addEventListener('change',e=>{activePresentation=e.target.value;loadGallery();});
+byId('shop-availability-filter')?.addEventListener('change',e=>{activeProductionType=e.target.value;loadGallery();});
+apiRequest('/api/gallery').then(data=>{const items=data.items||[];const matchers={
+ 'shop-category-filter':(i,v)=>v==='apparel'?!['accessories','patterns'].includes(i.category):i.category===v,
+ 'shop-garment-filter':(i,v)=>i.style===v,
+ 'shop-presentation-filter':(i,v)=>(i.presentation||i.category)===v,
+ 'shop-availability-filter':(i,v)=>v==='Made in Multiple'?['Made in Multiple','Limited Quantity','Made to Order'].includes(i.productionType):i.productionType===v,
+ 'shop-aesthetic-filter':(i,v)=>i.aesthetic===v,'shop-pattern-filter':(i,v)=>i.pattern===v};
+ function counts(){for(const [id,match]of Object.entries(matchers)){const select=byId(id);if(!select)continue;for(const option of select.options){const label=option.dataset.baseLabel||option.textContent.replace(/ \(\d+\)$/,'');option.dataset.baseLabel=label;const n=option.value==='all'?items.length:items.filter(i=>match(i,option.value)).length;option.textContent=label+' ('+n+')';option.hidden=['shop-aesthetic-filter','shop-pattern-filter'].includes(id)&&n===0&&option.value!=='all'&&option.value!==select.value;}}}
+ counts();byId('shop-category-filter')?.addEventListener('change',counts);
+}).catch(()=>{});
+
+function setExistingTaxonomyValue(id,value){const select=byId(id);if(!select)return;if(value&&![...select.options].some(option=>option.value===value))select.add(new Option(value+' (existing listing)',value));select.value=value;}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const category = byId('shop-category-filter');
+  const type = byId('shop-garment-filter');
+  const categories = byId('shop-category-buttons');
+  const types = byId('shop-type-buttons');
+  if (!category || !type || !categories || !types) return;
+  let lastTypeOptions = '';
+  function renderButtons(select, target) {
+    target.replaceChildren();
+    Array.from(select.options)
+      .filter(option => !option.disabled && !option.hidden && option.style.display !== 'none')
+      .forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = option.textContent;
+        button.setAttribute('aria-pressed', String(select.value === option.value));
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          refresh();
+        });
+        target.appendChild(button);
+      });
+  }
+  function refresh() {
+    renderButtons(category, categories);
+    renderButtons(type, types);
+    lastTypeOptions = type.innerHTML;
+  }
+  category.addEventListener('change', () => { refresh(); setTimeout(refresh, 0); });
+  type.addEventListener('change', refresh);
+  new MutationObserver(() => {
+    if (type.innerHTML !== lastTypeOptions) refresh();
+  }).observe(type, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'disabled'] });
+  refresh();
+});
+
+
+// Photo suggestions are reviewed in the editor; this flow never saves or submits a listing.
+(() => {
+  const form=byId('product-form'),button=byId('photo-draft-analyze'),consent=byId('photo-draft-consent'),results=byId('photo-draft-results'),status=byId('photo-draft-status');
+  if(!form||!button||!consent||!results||!status)return;
+  let version=0;
+  const firstPhoto=()=>selectedImages.find(image=>image.file)?.file;
+  const clear=()=>{version++;results.replaceChildren();results.hidden=true;status.textContent='';};
+  form.addEventListener('input',clear);
+  form.addEventListener('change',clear);
+  form.addEventListener('reset',clear);
+  button.addEventListener('click',async()=>{
+    const photo=firstPhoto();
+    if(!photo){status.textContent='Choose a design photo above first.';return;}
+    if(!consent.checked){status.textContent='Agree to send your photo to OpenAI before requesting suggestions.';return;}
+    const attempt=++version,listingId=currentListingId;
+    const current=()=>attempt===version&&consent.checked&&firstPhoto()===photo&&currentListingId===listingId;
+    button.disabled=true;results.replaceChildren();results.hidden=true;status.textContent='Examining your garment…';
+    try{
+      const body=new FormData();body.append('image',photo);body.append('consent','true');
+      for(const [field,id] of Object.entries({title:'product-name',description:'product-description',category:'product-category',style:'product-style',productionType:'product-production-type',size:'product-size'}))body.append(field,byId(id)?.value||'');
+      const data=await apiRequest('/api/my/studio/photo-listing',{method:'POST',body,credentials:'same-origin'});
+      if(!current())return;
+      for(const [label,value] of [['Suggested title',data.title],['Description',data.description],['Category',data.category],['Style',data.style],['Aesthetic',data.aesthetic],['Print / Pattern',data.pattern],['Size',data.size||'Choose your size'],['Tags',(data.tags||[]).join(', ')]]){
+        const paragraph=makeElement('p','',label+': '+String(value||''));results.append(paragraph);
+      }
+      for(const note of data.reviewNotes||[])results.append(makeElement('p','small-print',String(note)));
+      results.append(makeElement('p','small-print','Using these details replaces the title and description. Available category, item type and aesthetic choices are filled only on an exact match. Review and edit the form before saving.'));
+      const apply=makeElement('button','secondary-button','Use these details');apply.type='button';
+      apply.addEventListener('click',()=>{
+        if(!current()){clear();return;}
+        byId('product-name').value=data.title;byId('product-description').value=data.description;
+        const department=byId('product-category');
+        if(Array.from(department.options).some(option=>option.value===data.category)){department.value=data.category;syncSellerTypes();}
+        for(const [id,value] of [['product-category',data.category],['product-style',data.style],['product-aesthetic',data.aesthetic],['product-pattern',data.pattern],['product-size',data.size]]){
+          const input=byId(id),option=Array.from(input?.options||[]).find(option=>option.value&&option.value.toLowerCase()===String(value||'').trim().toLowerCase());
+          if(option)input.value=option.value;
+        }
+        byId('product-size').dispatchEvent(new Event('change',{bubbles:true}));
+        form.dispatchEvent(new Event('input',{bubbles:true}));
+        status.textContent='Details added. Edit anything that needs correcting, complete the remaining fields, then save your private draft.';
+        scrollRoomTarget(byId('product-name'),{behavior:'smooth',block:'center'});
+      });
+      results.append(apply);results.hidden=false;status.textContent='Suggestions ready. Review them before using them.';
+    }catch(error){if(current())status.textContent=error.message||'Suggestions are unavailable. You can fill in your listing yourself.';}
+    finally{button.disabled=false;}
+  });
+})();
+
+// US women's chart defaults are suggestions; preserve manually edited measurements.
+(() => {
+ const size=byId('product-size');if(!size)return;
+ const note=makeElement('p','small-print','US women’s reference defaults are suggestions. Edit these ranges to match your garment; other sizing systems may differ.');note.id='product-size-reference-note';size.after(note);
+ size.addEventListener('change',()=>{
+  const key=size.value==='XXL'?'2XL':size.value;
+  const row=[...document.querySelectorAll('.size-reference-table tbody tr')].find(row=>row.querySelector('th')?.textContent.split('/').at(-1).trim()===key);
+  const cells=row?[...row.querySelectorAll('td')]:[];
+  for(const [index,field] of ['bust','waist','hips'].entries()){
+   const values=cells[index]?.textContent.match(/\d+(?:\.\d+)?/g)||[];
+   for(const [bound,i] of [['min',0],['max',1]]){const input=byId(`product-fit-${field}-${bound}`);if(!input.value||input.value===input.dataset.sizeDefault){input.value=values[i]||'';input.dataset.sizeDefault=input.value;}}
+  }
+  note.textContent=row?'Suggested US women’s '+row.querySelector('th').textContent+' body ranges filled below. Edit them to match your garment.':'Choose a size or enter the actual body ranges your garment fits.';
+  renderListingReadiness();
+ });
+})();
+
+{const style=document.createElement('style');style.textContent='.listing-needs-attention{outline:2px solid #d94759!important;outline-offset:2px}.listing-missing-label{display:inline-block;font-size:13px;font-weight:600;color:inherit}.listing-edit-options.listing-needs-attention>summary{border-bottom:2px solid #d94759}';document.head.append(style);}

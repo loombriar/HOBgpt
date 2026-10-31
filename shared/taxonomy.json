@@ -1,0 +1,299 @@
+{
+  "departments": [
+    {
+      "value": "apparel",
+      "label": "Clothing"
+    },
+    {
+      "value": "accessories",
+      "label": "Accessories"
+    },
+    {
+      "value": "patterns",
+      "label": "Sewing Patterns"
+    }
+  ],
+  "clothingTypes": [
+    {
+      "value": "Dress",
+      "label": "Dresses"
+    },
+    {
+      "value": "Top",
+      "label": "Tops"
+    },
+    {
+      "value": "Skirt",
+      "label": "Skirts"
+    },
+    {
+      "value": "Pants / Shorts",
+      "label": "Pants & Shorts"
+    },
+    {
+      "value": "Set / Outfit",
+      "label": "Sets & Outfits"
+    },
+    {
+      "value": "Jumpsuit / Romper",
+      "label": "Jumpsuits & Rompers"
+    },
+    {
+      "value": "Jacket / Outerwear",
+      "label": "Outerwear"
+    },
+    {
+      "value": "Winter Wear",
+      "label": "Winter Wear"
+    },
+    {
+      "value": "Costume",
+      "label": "Costumes"
+    },
+    {
+      "value": "Other clothing",
+      "label": "Other Clothing"
+    }
+  ],
+  "accessoryTypes": [
+    {
+      "value": "Belt",
+      "label": "Belts"
+    },
+    {
+      "value": "Purse / Bag",
+      "label": "Purses & Bags"
+    },
+    {
+      "value": "Scarf / Wrap",
+      "label": "Scarves & Wraps"
+    },
+    {
+      "value": "Hat / Headwear",
+      "label": "Hats & Headwear"
+    },
+    {
+      "value": "Gloves",
+      "label": "Gloves"
+    },
+    {
+      "value": "Hair Accessory",
+      "label": "Hair Accessories"
+    },
+    {
+      "value": "Other accessory",
+      "label": "Other Accessories"
+    }
+  ],
+  "presentation": [
+    {
+      "value": "menswear",
+      "label": "Masculine"
+    },
+    {
+      "value": "womenswear",
+      "label": "Womenswear"
+    },
+    {
+      "value": "unisex",
+      "label": "Unisex"
+    }
+  ],
+  "availability": [
+    {
+      "value": "One of a Kind",
+      "label": "One of a Kind"
+    },
+    {
+      "value": "Upcycled",
+      "label": "Upcycled"
+    },
+    {
+      "value": "Made in Multiple",
+      "label": "Made in Multiple"
+    }
+  ],
+  "aesthetics": [
+    "Boho",
+    "Cottagecore",
+    "Fairycore",
+    "Gothic",
+    "Vintage / Retro",
+    "Romantic",
+    "Whimsical",
+    "Streetwear",
+    "Minimalist",
+    "Western",
+    "Punk / Alternative",
+    "Other"
+  ],
+  "patterns": [
+    "Solid",
+    "Floral",
+    "Leopard",
+    "Other Animal Print",
+    "Plaid / Tartan",
+    "Stripes",
+    "Polka Dot",
+    "Geometric",
+    "Paisley",
+    "Abstract",
+    "Botanical",
+    "Novelty",
+    "Tie-Dye",
+    "Color Block",
+    "Mixed Print",
+    "Other"
+  ],
+  "creatorRoles": [
+    {
+      "value": "model",
+      "label": "Models"
+    },
+    {
+      "value": "photographer",
+      "label": "Photographers"
+    },
+    {
+      "value": "designer",
+      "label": "Designers"
+    },
+    {
+      "value": "dj",
+      "label": "DJs"
+    },
+    {
+      "value": "venue",
+      "label": "Venues"
+    },
+    {
+      "value": "seamstress-tailor",
+      "label": "Seamstresses & Tailors"
+    }
+  ],
+  "specialties": {
+    "model": [
+      "Runway",
+      "Editorial",
+      "Commercial",
+      "Fit model"
+    ],
+    "photographer": [
+      "Fashion",
+      "Editorial",
+      "Product",
+      "Events"
+    ],
+    "designer": [
+      "Clothing",
+      "Costumes",
+      "Alterations"
+    ],
+    "dj": [
+      "House",
+      "Disco",
+      "Electronic",
+      "Open format"
+    ],
+    "venue": [
+      "Gallery",
+      "Studio",
+      "Loft",
+      "Outdoor"
+    ],
+    "seamstress-tailor": [
+      "Clothing repairs",
+      "Alterations & fitting",
+      "Wedding dress alterations",
+      "Sample making",
+      "Sewing for designers",
+      "Pattern cutting & grading"
+    ]
+  },
+  "collaboratorsNeeded": [
+    {
+      "value": "makeup-artist",
+      "label": "Makeup artists"
+    },
+    {
+      "value": "hairstylist",
+      "label": "Hairstylists"
+    },
+    {
+      "value": "stylist",
+      "label": "Stylists"
+    },
+    {
+      "value": "lighting",
+      "label": "Lighting"
+    },
+    {
+      "value": "producer",
+      "label": "Production"
+    }
+  ],
+  "sewingServices": [
+    {
+      "value": "repairs",
+      "label": "Clothing repairs"
+    },
+    {
+      "value": "alterations",
+      "label": "Alterations & fitting"
+    },
+    {
+      "value": "bridal-alterations",
+      "label": "Wedding dress alterations"
+    },
+    {
+      "value": "sample-making",
+      "label": "Sample making"
+    },
+    {
+      "value": "production-sewing",
+      "label": "Sewing for designers"
+    },
+    {
+      "value": "pattern-cutting",
+      "label": "Pattern cutting & grading"
+    },
+    {
+      "value": "custom-construction",
+      "label": "Bring sketches to life \u00b7 custom garment construction"
+    }
+  ],
+  "serviceModes": [
+    {
+      "value": "local",
+      "label": "Local fittings & drop-off"
+    },
+    {
+      "value": "mail-in",
+      "label": "Mail-in clothing repairs"
+    },
+    {
+      "value": "designer-work",
+      "label": "Work with designers"
+    }
+  ],
+  "designerServices": [
+    {
+      "value": "custom-wedding-dresses",
+      "label": "Custom wedding dresses"
+    },
+    {
+      "value": "custom-clothing",
+      "label": "Custom clothing"
+    },
+    {
+      "value": "bridal-alterations",
+      "label": "Wedding dress alterations"
+    }
+  ],
+  "patternTypes": [
+    {
+      "value": "Paper pattern",
+      "label": "Paper patterns"
+    }
+  ]
+}

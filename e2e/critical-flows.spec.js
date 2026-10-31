@@ -1,0 +1,331 @@
+const { test, expect } = require('@playwright/test');
+
+test('newsletter saves through the API and preserves the email when the server rejects signup', async ({ page }) => {
+  await page.goto('/');
+  const form = page.locator('#newsletter-form');
+  await form.getByRole('textbox', { name: 'Email address' }).fill('newsletter-e2e@example.com');
+  await form.getByRole('checkbox', { name: 'I want to receive House notes by email.' }).check();
+  const saved = page.waitForResponse(response => response.url().includes('/api/newsletter/subscribe') && response.request().method() === 'POST');
+  await form.getByRole('button', { name: 'Join', exact: true }).click();
+  expect((await saved).status()).toBe(202);
+  await expect(form.getByRole('status')).toHaveText('Thanks for joining! Your signup has been saved.');
+  await page.route('**/api/newsletter/subscribe', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Please try again later.' } }) }));
+  await form.getByRole('textbox', { name: 'Email address' }).fill('retry-e2e@example.com');
+  await form.getByRole('button', { name: 'Join', exact: true }).click();
+  await expect(form.getByRole('status')).toHaveText('Please try again later.');
+  await expect(form.getByRole('textbox', { name: 'Email address' })).toHaveValue('retry-e2e@example.com');
+});
+
+test('homepage measurements reach the designer inquiry list instead of only displaying success', async ({ page }) => {
+  await openDesignerSession(page.request);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'View Moonlit E2E Piece details', exact: true }).click();
+  const dialog = page.locator('#product-dialog');
+  await dialog.getByRole('spinbutton', { name: 'Bust / chest in inches' }).fill('34.25');
+  await dialog.getByRole('textbox', { name: 'Sizing request for this piece' }).fill('Please check the bodice fit.');
+  await dialog.getByRole('button', { name: 'Send measurement request' }).click();
+  await expect(dialog.locator('.measurement-request [role="status"]')).toHaveText('Your measurement request for Moonlit E2E Piece was saved and sent to the designer.');
+  const response = await page.request.get('/api/my/designer-inquiries');
+  expect(response.ok()).toBeTruthy();
+  const { inquiries } = await response.json();
+  expect(inquiries.some(inquiry => inquiry.listingId === 'e2e-piece' && inquiry.message.includes('bust: 34.25 in') && inquiry.message.includes('Please check the bodice fit.'))).toBeTruthy();
+});
+
+async function openDesignerSession(request) {
+  const response = await request.post('/api/session', { headers: { Authorization: 'Bearer e2e-designer-token' } });
+  expect(response.ok()).toBeTruthy();
+}
+
+test('designer session persists profile socials and public storefront hides private accounts', async ({ page, request }) => {
+  await openDesignerSession(request);
+  const profile = await request.patch('/api/my/designer-profile', {
+    headers: { Origin: 'http://127.0.0.1:4173' },
+    data: { brandName: 'E2E Atelier', socialLinks: {
+      instagram: { url: 'https://instagram.com/e2eatelier', visible: true },
+      tiktok: { url: 'https://tiktok.com/@e2eatelier', visible: false }
+    }}
+  });
+  expect(profile.ok()).toBeTruthy();
+
+  await page.goto('/designers/maker');
+  await expect(page).toHaveURL(/\/designers\/maker$/);
+  const publicProfile = await request.get('/api/designers/maker');
+  const publicBody = await publicProfile.json();
+  expect(publicBody.designer.socialLinks.instagram.url).toContain('instagram.com/e2eatelier');
+  expect(publicBody.designer.socialLinks.tiktok).toBeUndefined();
+
+  const mine = await request.get('/api/my/designer-profile');
+  const mineBody = await mine.json();
+  expect(mineBody.designer.socialLinks.tiktok.visible).toBe(false);
+});
+
+test('cookie-authenticated cross-site mutation is rejected and same-origin mutation succeeds', async ({ request }) => {
+  await openDesignerSession(request);
+  const blocked = await request.patch('/api/my/designer-profile', {
+    headers: { Origin: 'https://evil.example' },
+    data: { brandName: 'Blocked' }
+  });
+  expect(blocked.status()).toBe(403);
+
+  const allowed = await request.patch('/api/my/designer-profile', {
+    headers: { Origin: 'http://127.0.0.1:4173' },
+    data: { brandName: 'Allowed Atelier' }
+  });
+  expect(allowed.ok()).toBeTruthy();
+});
+
+test('storefront route records an anonymous designer view without storing an IP field', async ({ page, request }) => {
+  await page.goto('/designers/maker');
+  await expect.poll(async () => {
+    const analytics = await request.get('/api/admin/analytics', { headers: { Authorization: 'Bearer e2e-admin-token' } });
+    expect(analytics.ok()).toBeTruthy();
+    const body = await analytics.json();
+    return body.traffic.topDesigners.some((row) => row.designerId === 'maker' && row.views >= 1);
+  }).toBeTruthy();
+});
+
+
+test('buyer can review a seeded piece in the suitcase and remove it', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
+  await page.goto('/cart');
+  await expect(page.getByRole('heading', { name: 'Your shopping cart.' })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('main').getByText('$89.99', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Remove Moonlit E2E Piece from bag' }).click();
+  await expect(page.getByText('Your cart is open and waiting.')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('house-of-briar:cart'))).toBe('[]');
+});
+
+test('buyer checkout uses server totals and hands the order to the mocked Stripe boundary', async ({ page }) => {
+  let checkoutPayload;
+  await page.route('**/api/checkout/session', async route => {
+    checkoutPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: 'http://127.0.0.1:4173/checkout?provider=mock-stripe' })
+    });
+  });
+  await page.addInitScript(() => localStorage.setItem('house-of-briar:cart', JSON.stringify(['e2e-piece'])));
+
+  await page.goto('/cart');
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Continue to checkout/ })).toBeEnabled();
+  await page.getByRole('link', { name: /Continue to checkout/ }).click();
+
+  await expect(page).toHaveURL(/\/checkout$/);
+  await expect(page.getByRole('heading', { name: 'A thoughtful final step.' })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Moonlit E2E Piece', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('$89.99').first()).toBeVisible();
+  const secureCheckout = page.getByRole('button', { name: /Continue to secure checkout/ });
+  await expect(secureCheckout).toBeEnabled();
+  await secureCheckout.click();
+
+  await expect.poll(() => checkoutPayload).toEqual({
+    items: [{ id: 'e2e-piece', quantity: 1 }],
+    promoCodes: [],
+    expectedTotalBeforeTaxCents: 8999
+  });
+  await expect(page).toHaveURL(/provider=mock-stripe/);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('house-of-briar:checkout-pending') || 'null'))).toMatchObject({
+    ids: ['e2e-piece'],
+    subtotal: 89.99
+  });
+});
+
+
+test('runway studio uploads a garment, walks, pauses and exports a preview', async ({ page }) => {
+  await page.goto('/runway');
+  await expect(page.getByRole('heading', { name: 'The Briar Runway' })).toBeVisible();
+  await page.locator('#photo').setInputFiles({
+    name: 'garment.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAYAAABwrHhvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAWElEQVRYhe3YwQ3AAAhC0e6/D2EuJrBbtJd38G4iKvxnzf1ZjwZmBCXCWMNziOYU1zOKd3wMyViyMqVhy08wmWhW4TTi+QEUg2gKUgWmO6ByUG3B6nymgxepbyktbUarWQAAAABJRU5ErkJggg==', 'base64')
+  });
+  await expect(page.getByRole('status')).toContainText('Photo ready');
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Walk', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save image', exact: true }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('briar-runway.png');
+  await page.getByRole('button', { name: 'Remove photo', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Photo removed');
+  await expect(page.getByRole('link', { name: /House of Briar/ })).toHaveAttribute('href', '/designers/room');
+});
+
+
+test('admin panel entry displays daily traffic without a public website views shortcut', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Website views', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Admin panel', exact: true }).click();
+  await expect(page.locator('#support .founding-designer-card img')).toHaveAttribute('src', '/founding-designer-berry-v1.webp');
+  await expect(page.locator('#admin-review-workspace')).toBeHidden();
+  await page.getByLabel('Administrator code').fill('e2e-admin-token');
+  await page.locator('#admin-login-form button[type="submit"]').click();
+  const traffic = page.locator('#admin-website-views');
+  await traffic.locator('summary').click();
+  await expect(traffic.locator('summary')).toHaveText('Website views');
+  await expect(traffic.getByText('Page views', { exact: true })).toBeVisible();
+  await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
+  await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
+  await expect(traffic.getByRole('heading', { name: 'Daily counts', exact: true })).toBeVisible();
+  await expect(traffic.locator('#admin-daily-traffic tbody tr')).toHaveCount(1);
+  await expect(traffic.locator('.admin-traffic-stat strong').first()).toHaveText(/[1-9][0-9,]*/);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(traffic).toHaveCount(0);
+});
+
+test('founding designer badge appears on listings and public designer storefront', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#product-grid .founding-badge').first()).toBeVisible();
+  await expect(page.locator('#product-grid .founding-badge img').first()).toHaveAttribute('src', '/founding-designer-berry-v1.webp');
+  await page.goto('/designers/maker');
+  await expect(page.getByText('Founding Designer', { exact: true })).toBeVisible();
+});
+
+
+test('designer invitation opens signup without limited founding spots', async ({ page }) => {
+  await page.goto('/');
+  const banner = page.getByRole('complementary', { name: 'Join House of Briar designers' });
+  await expect(banner).toContainText('Independent designers are invited to join House of Briar');
+  await expect(banner).not.toContainText('first 25');
+  await expect(banner).not.toContainText('founding spots remain');
+  await banner.getByRole('link', { name: 'Sign up as a designer' }).click();
+  await expect(page).toHaveURL(/designers\/room#designer-signup/);
+  await expect(page.locator('#designer-signup-form')).toBeVisible();
+});
+
+for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
+  test(`home navigation stays visible while scrolling at ${viewport.width}px`, async ({page}) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    const header=page.locator('#hob-global-nav');
+    await page.evaluate(()=>window.scrollTo({top:1200,behavior:'instant'}));
+    await expect.poll(async()=>Math.round((await header.boundingBox()).y)).toBe(0);
+    await expect(page.locator('#cart-btn')).toBeInViewport();
+    const footer=page.locator('.site-footer');
+    const explore=footer.locator('details.footer-menu').filter({has:page.locator('summary').filter({hasText:/^Explore$/})});
+    await expect(explore).not.toHaveAttribute('open','');
+    if(viewport.width===390){
+      // The expanded footer intentionally includes the brand emblem and payment logos.
+      expect((await footer.boundingBox()).height).toBeLessThan(1100);
+      const payments=footer.getByRole('region',{name:'Accepted payments'});
+      const applePay=payments.getByRole('img',{name:'Apple Pay',exact:true});
+      await expect(applePay).toBeVisible();
+      await expect(applePay).toHaveAttribute('src','/payment-logos/applepay.svg');
+      await expect(payments.getByRole('img',{name:'Visa',exact:true})).toBeVisible();
+      await expect(page.locator('.shop-search-controls')).toBeHidden();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await footer.locator('#admin-review-btn').scrollIntoViewIfNeeded();
+      await expect(footer.locator('#admin-review-btn')).toBeInViewport();
+    }
+    await explore.locator('summary').click();
+    await expect(explore).toHaveAttribute('open','');
+    await explore.getByRole('link',{name:'Support & Badges',exact:true}).click();
+    await expect.poll(async()=>{
+      const h=await header.boundingBox(),section=await page.locator('#support').boundingBox();
+      return section.y >= h.y+h.height-2;
+    }).toBe(true);
+    for(const name of ['heart-of-the-house-berry-v1.webp','verified-buyer-berry-v1.webp','founding-designer-berry-v1.webp']){
+      const artwork=page.locator(`#support img[src="/${name}"]`);
+      await expect(artwork).toBeVisible();
+      await expect.poll(()=>artwork.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+    }
+  });
+}
+
+test('customers verify email, get a private account and appear once in the Admin signup tracker',async({page,request})=>{
+ const email='shopper-e2e-'+crypto.randomUUID()+'@example.test';
+ await page.goto('/?visitors=signup');
+ const suite=page.locator('#visitor-suite-modal');await expect(suite).toBeVisible();
+ await page.locator('#customer-signup-name').fill('E2E Shopper');
+ await page.locator('#customer-signup-email').fill(email);
+ await page.locator('#customer-rules-consent').check();
+ await suite.getByRole('button',{name:'Email me a sign-in code',exact:true}).click();
+ await expect(page.locator('#customer-code-form')).toBeVisible();
+ const codeResponse=await request.get('/__test/customer-code?email='+encodeURIComponent(email));const {code}=await codeResponse.json();
+ await page.locator('#customer-signin-code').fill(code);
+ await suite.getByRole('button',{name:'Verify and sign in',exact:true}).click();
+ await expect(page.locator('#customer-account-greeting')).toContainText(email);
+ await suite.getByRole('link',{name:'Full purchase history & support ↗',exact:true}).click();
+ await expect(page).toHaveURL(/\/account$/);
+ await expect(page.getByText('Your buyer account is ready.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Connect Stripe',exact:true})).toHaveCount(0);
+ await page.goto('/');await page.getByRole('button',{name:'Admin panel',exact:true}).click();
+ await page.getByLabel('Administrator code').fill('e2e-admin-token');await page.locator('#admin-login-form button[type="submit"]').click();
+ const tracker=page.locator('#admin-customer-signups');await expect(tracker).toBeVisible();await tracker.locator('summary').click();
+ await expect(tracker.getByText("Today's new customers",{exact:true})).toBeVisible();
+ await expect(tracker.locator('.admin-traffic-stat strong').first()).not.toHaveText('0');
+ const account=await request.get('/__test/customer-count?email='+encodeURIComponent(email));expect((await account.json()).count).toBe(1);
+});
+
+
+test('donation button starts checkout with its displayed amount and shows provider errors', async ({ page }) => {
+  await page.route('**/api/paypal/donations/order', route => route.fulfill({
+    status: 503, contentType: 'application/json',
+    body: JSON.stringify({ error: { message: 'Checkout is temporarily unavailable. Please try again.' } })
+  }));
+  await page.goto('/#support');
+  await expect(page.locator('#donation-amount')).toHaveValue('25');
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
+  await expect(page.locator('#donation-message')).toContainText('Checkout is temporarily unavailable');
+  await expect(page.getByRole('button', { name: 'Donate with PayPal' })).toBeEnabled();
+  await page.unroute('**/api/paypal/donations/order');
+  await page.route('**/api/paypal/donations/order', async route => {
+    expect(route.request().postDataJSON().amount).toBe(25);
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ url: 'https://www.paypal.com/checkoutnow?token=FIXTURE' }) });
+  });
+  await page.route('https://www.paypal.com/**',route=>route.fulfill({body:'PayPal approval fixture'}));
+  await page.getByRole('button', { name: 'Donate with PayPal' }).click();
+  await expect(page).toHaveURL('https://www.paypal.com/checkoutnow?token=FIXTURE');
+});
+
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  test(`donation amount is readable and editable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/#support');
+    const amount = page.locator('#donation-amount');
+    await amount.scrollIntoViewIfNeeded();
+    const inputBox = await amount.boundingBox();
+    expect(inputBox.width).toBeGreaterThan(100);
+    expect(inputBox.height).toBeGreaterThanOrEqual(48);
+    await amount.fill('10');
+    await expect(amount).toHaveValue('10');
+    const buttonBox = await page.getByRole('button', { name: 'Donate with PayPal' }).boundingBox();
+    expect(buttonBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height);
+  });
+}
+
+
+test('popup exits remain reachable after scrolling long content on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  for (const [id, closeId] of [
+    ['visitor-suite-modal','visitor-suite-close'],
+    ['admin-review-dialog','admin-review-close'],
+    ['designer-storefront-dialog','storefront-close'],
+    ['product-dialog','product-dialog-close'],
+    ['support-dialog','support-dialog-close'],
+    ['cart-dialog','cart-dialog-close'],
+    ['production-info-dialog','production-info-close'],
+    ['house-tryon-dialog','house-tryon-close']
+  ]) {
+    await page.locator(`#${id}`).evaluate(dialog => {
+      const content = document.createElement('div');
+      content.style.height = '2000px';
+      content.textContent = 'Long popup content';
+      dialog.append(content);
+      dialog.showModal();
+      dialog.scrollTop = dialog.scrollHeight;
+    });
+    const close = page.locator(`#${closeId}`);
+    const box = await close.boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    await close.click();
+    await expect(page.locator(`#${id}`)).not.toBeVisible();
+  }
+});
