@@ -225,17 +225,11 @@
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
  const initialTemplate=$('creator-template').value;
+ const optionArtwork={'A-line':'/outfit-options/a-line.png','Fitted':'/outfit-options/fitted.png','Full skirt':'/outfit-options/full-skirt.png','Jumpsuit':'/outfit-options/jumpsuit.png','Top & trousers':'/outfit-options/top-trousers.png','Top & skirt':'/outfit-options/top-skirt.png'};
  for(const name of Object.keys(paths)){
   const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';
-  $('creator-template').value=name;render();
-  const icon=$('creator-preview').cloneNode(true);icon.removeAttribute('id');icon.removeAttribute('role');icon.removeAttribute('aria-labelledby');icon.setAttribute('aria-hidden','true');icon.setAttribute('viewBox','45 62 210 315');
-  icon.querySelectorAll('text').forEach(el=>el.remove());
-  const prefix='tile-'+name.toLowerCase().replace(/[^a-z]+/g,'-')+'-';
-  for(const el of [icon,...icon.querySelectorAll('*')])for(const attr of [...el.attributes]){
-   if(attr.name==='id')el.setAttribute('id',prefix+attr.value);
-   else if(attr.value.includes('url(#'))el.setAttribute(attr.name,attr.value.replace(/url\(#([^)]+)\)/g,(_,id)=>'url(#'+prefix+id+')'));
-  }
-  const label=document.createElement('span');label.textContent=name;button.append(icon,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);
+  const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} 3D garment preview`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
+  const label=document.createElement('span');label.textContent=name;button.append(artwork,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);
  }
  $('creator-template').value=initialTemplate;
  $('creator-template').closest('label').before(chooser);
