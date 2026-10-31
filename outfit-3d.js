@@ -31,7 +31,7 @@
    const left=leg(-.2,.18),right=leg(.2,.18);
    // Close the waist-to-leg transition by mapping each half of the torso ring
    // onto a separate leg, without wrapping one 64-point ring around two legs.
-   const bridge=(half,legRow)=>{const torso=Array.from({length:64},(_,j)=>prior[(j/2+half*32)%64]);connect(torso,legRow,color);};
+   const bridge=(half,legRow)=>{const torso=Array.from({length:64},(_,j)=>prior[(Math.floor(j/2)+half*32)%64]);connect(torso,legRow,color);};
    bridge(0,left.first);bridge(1,right.first);
    waist=left.first.concat(right.first);
   }else{
