@@ -1743,6 +1743,28 @@ function createApp(options = {}) {
       });
     });
   }
+  // Homepage spotlight settings are stored in the existing persistent SQLite database.
+  db.exec("CREATE TABLE IF NOT EXISTS homepage_spotlight (id INTEGER PRIMARY KEY CHECK(id=1), config_json TEXT NOT NULL, updated_at TEXT NOT NULL)");
+  app.get('/api/homepage/spotlight', (_req,res)=>{
+    const row=db.prepare('SELECT config_json FROM homepage_spotlight WHERE id=1').get();
+    res.set('Cache-Control','no-store');
+    return res.json({config:row?JSON.parse(row.config_json):null});
+  });
+  app.get('/api/admin/homepage/spotlight',authAdmin,(_req,res)=>{
+    const row=db.prepare('SELECT config_json,updated_at FROM homepage_spotlight WHERE id=1').get();
+    return res.json({config:row?JSON.parse(row.config_json):null,updatedAt:row?.updated_at||null});
+  });
+  app.put('/api/admin/homepage/spotlight',authAdmin,(req,res)=>{
+    const c=req.body?.config;
+    const str=(v,n)=>typeof v==='string'&&v.trim().length>0&&v.length<=n;
+    const safeUrl=v=>str(v,2048)&&((v.startsWith('/')&&!v.startsWith('//'))||(/^https:\/\/[^\\s]+$/i.test(v)));
+    if(!c||!str(c.name,120)||!safeUrl(c.url)||!str(c.headline,160)||!str(c.description,1200)||!Array.isArray(c.products)||c.products.length>6||c.products.some(p=>!str(p.name,120)||!safeUrl(p.image)||p.price!=null&&typeof p.price!=='string'))return fail(res,400,'invalid_spotlight','Provide a designer name, collection URL, headline, description and up to six valid products.');
+    if(c.heroImage&&!safeUrl(c.heroImage))return fail(res,400,'invalid_spotlight','Invalid campaign image URL.');
+    const allowed={name:c.name,url:c.url,headline:c.headline,description:c.description,heroImage:c.heroImage||'',heroAlt:String(c.heroAlt||'').slice(0,200),status:String(c.status||'Collection preview').slice(0,100),collectionLinkText:String(c.collectionLinkText||'Explore collection →').slice(0,120),products:c.products.map(p=>({name:p.name,image:p.image,price:String(p.price||'').slice(0,100)}))};
+    const now=new Date().toISOString();
+    db.prepare('INSERT INTO homepage_spotlight(id,config_json,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET config_json=excluded.config_json,updated_at=excluded.updated_at').run(JSON.stringify(allowed),now);
+    return res.json({ok:true,config:allowed,updatedAt:now});
+  });
   app.get('/api/admin/session', authAdmin, (req,res) => {
     res.set('Cache-Control','no-store');
     return res.json({admin:{label:req.adminActor,role:req.adminRole}});

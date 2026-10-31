@@ -1,7 +1,8 @@
 (()=>{'use strict';
-const c=window.HOUSE_DESIGNER_SPOTLIGHT;
-if(!c||!c.name||!Array.isArray(c.products)||!(typeof c.url==='string'&&c.url.startsWith('/')&&!c.url.startsWith('//')))return;
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async()=>{
+ let c=window.HOUSE_DESIGNER_SPOTLIGHT;
+ try{const r=await fetch('/api/homepage/spotlight',{cache:'no-store'});if(r.ok){const data=await r.json();if(data.config)c=data.config;}}catch{}
+ if(!c||!c.name||!Array.isArray(c.products)||!(typeof c.url==='string'&&c.url.startsWith('/')&&!c.url.startsWith('//')))return;
  const ad=document.querySelector('.house-designer-ad'),tpl=document.getElementById('atelier-gallery-preview');
  if(!ad||!tpl)return;
  const link=ad.querySelector('.house-designer-ad-image'),image=link?.querySelector('img'),caption=ad.querySelector('.house-designer-ad-caption');

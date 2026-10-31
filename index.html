@@ -31,6 +31,7 @@
     <script src="/script.js?v=atelier-gallery-20261030" defer></script>
     <script src="/designer-spotlight-config.js" defer></script>
     <script src="/designer-spotlight.js" defer></script>
+    <script src="/admin-designer-spotlight.js" defer></script>
     <script src="/passkey-vendor.js" defer></script>
     <script src="/passkey-client.js" defer></script>
 
@@ -702,12 +703,12 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       </section>
       <p id="admin-review-message" class="form-message" role="status" aria-live="polite"></p>
       <section id="admin-review-workspace" class="hidden">
-        <nav class="room-navigation" aria-label="Admin room sections"><button type="button" data-room-target="admin-attention">Needs attention</button><button type="button" data-room-target="admin-review-list">Review listings</button><button type="button" data-room-target="admin-overview">House overview</button><a href="/admin">Orders, inventory &amp; support ↗</a></nav>
+        <nav class="room-navigation" aria-label="Admin room sections"><button type="button" data-room-target="admin-attention">Needs attention</button><button type="button" data-room-target="admin-review-list">Review listings</button><button type="button" data-room-target="admin-overview">House overview</button><button type="button" data-room-target="admin-spotlight">Designer spotlight</button><a href="/admin">Orders, inventory &amp; support ↗</a></nav>
         <section id="admin-attention" class="admin-attention" aria-labelledby="admin-attention-title"><div class="admin-attention-heading"><div><p class="eyebrow">Start here</p><h3 id="admin-attention-title">Needs attention</h3></div><button type="button" id="admin-attention-refresh" class="secondary-button">Refresh overview</button></div><p id="admin-attention-status" role="status">Checking the House…</p><div id="admin-attention-cards" class="admin-attention-cards"></div><p class="small-print">Order and payout counts cover the most recent 200 orders and 300 transfers. Open the full operations dashboard for details.</p></section>
         <div class="studio-toolbar"><div><h3>Pending clothing</h3><p>Approve pieces to publish them in the Shop, or reject them with a reason.</p></div><button id="admin-signout-btn" class="text-button" type="button">Sign out</button></div>
         <label for="admin-listing-view">Listing view</label><select id="admin-listing-view"><option value="pending_review">Pending approval</option><option value="published">Published</option><option value="all">All active listings</option></select><button id="admin-refresh-btn" type="button" class="secondary-button">Refresh admin panel</button>
         <div id="admin-review-list" class="admin-review-list" aria-live="polite"></div>
-        <div id="admin-overview"></div>
+        <section id="admin-spotlight" class="admin-attention" aria-labelledby="admin-spotlight-title"><h3 id="admin-spotlight-title">Homepage designer spotlight</h3><p>Choose the featured designer and up to six products. Changes appear on the homepage after saving.</p><form id="admin-spotlight-form" class="stack-form"><label>Designer name<input name="name" required maxlength="120"></label><label>Collection link<input name="url" required placeholder="/atelier-emine"></label><label>Campaign image URL<input name="heroImage"></label><label>Campaign image description<input name="heroAlt"></label><label>Spotlight headline<input name="headline" required></label><label>Collection description<textarea name="description" rows="3" required maxlength="1200"></textarea></label><label>Availability message<input name="status" placeholder="Coming soon"></label><label>Collection button label<input name="collectionLinkText"></label><label>Featured products (one per line: Name | Image URL | Price)<textarea name="products" rows="7" placeholder="Lustre Pearl | https://example.com/bag.jpg | $202.59 USD"></textarea></label><button class="primary-button" type="submit">Save homepage spotlight</button><p id="admin-spotlight-message" role="status"></p></form></section><div id="admin-overview"></div>
       </section>
     </dialog>
 
