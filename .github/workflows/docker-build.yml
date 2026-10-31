@@ -25,7 +25,7 @@ jobs:
           # ECR Public occasionally returns 429; fall back to Docker Hub.
           if ! docker build --pull --tag house-of-briar:ci .; then
             echo "::warning::ECR Public image pull/build failed; retrying using Docker Hub Node image"
-            sed 's#public.ecr.aws/docker/library/node:20-bookworm-slim#node:20-bookworm-slim#g' Dockerfile > Dockerfile.ci-fallback
+            sed 's#public.ecr.aws/docker/library/node:24-bookworm-slim#node:24-bookworm-slim#g' Dockerfile > Dockerfile.ci-fallback
             docker build --pull --file Dockerfile.ci-fallback --tag house-of-briar:ci .
           fi
       - name: Verify mounted SQLite directory is writable by non-root process

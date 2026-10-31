@@ -1,5 +1,5 @@
 # Use the Amazon ECR Public mirror rather than Docker Hub to avoid anonymous pull limits.
-FROM public.ecr.aws/docker/library/node:20-bookworm-slim AS build
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
@@ -15,7 +15,7 @@ RUN npm --prefix apps/default test
 RUN npm --prefix apps/default run build
 RUN npm prune --omit=dev
 
-FROM public.ecr.aws/docker/library/node:20-bookworm-slim
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 WORKDIR /app
