@@ -55,7 +55,19 @@
         .sewing-nav .nav-dropdown-menu { min-width: min(225px, calc(100vw - 24px)); max-width: calc(100vw - 24px); }
         .sewing-nav .nav-dropdown > summary { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; }
       }
-    </style>
+    
+/* Featured designer handbag gallery: generous editorial product photography. */
+#shop .house-shop-invitation{width:100%;max-width:none;box-sizing:border-box;padding:clamp(22px,4vw,56px);border-radius:20px}
+#shop .house-shop-invitation h3{font-family:Georgia,serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.12;margin:10px 0 18px}
+#shop .house-preview-pieces{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(12px,2vw,28px);margin:26px 0}
+#shop .house-preview-piece{display:flex;flex-direction:column;min-width:0;gap:9px;text-decoration:none}
+#shop .house-preview-piece img{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:contain;background:#f7f2f4;border-radius:14px;padding:12px;box-sizing:border-box}
+#shop .house-preview-piece strong{font-size:clamp(1rem,1.5vw,1.3rem)}
+#shop .house-preview-piece span{font-size:.9rem}
+#shop .house-shop-invitation-actions{margin-top:22px}
+@media(max-width:700px){#shop .house-preview-pieces{grid-template-columns:repeat(2,minmax(0,1fr))}#shop .house-preview-piece:last-child{grid-column:1/-1;max-width:calc(50% - 6px);margin-inline:auto;width:100%}}
+@media(max-width:420px){#shop .house-preview-pieces{grid-template-columns:1fr}#shop .house-preview-piece:last-child{max-width:none}#shop .house-preview-piece img{aspect-ratio:5/4}}
+</style>
   <link rel="stylesheet" href="/house-global-nav.css?v=footer-readable-20261028"><script src="/house-global-nav.js?v=rosegold-20261030-color-studio-20261028" defer></script><style id="hob-inline-persistent-nav-style">
 /* Critical navigation: render before scripts and override the legacy sticky menu. */
 html body .page-shell > header.site-header.sewing-header,
@@ -246,7 +258,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               </div>
             </div>
             <p id="shop-status" class="notice" role="status" aria-live="polite">Loading the latest pieces…</p>
-            <template id="atelier-gallery-preview"><aside class="house-shop-invitation" aria-labelledby="home-shop-invitation-title"><p class="eyebrow">Handcrafted couture handbags</p><h3 id="home-shop-invitation-title">Explore Atelier Emine</h3><p>Discover 88 approved bags from the Istanbul design house. Browse photos, details and USD prices now. Purchasing is coming soon.</p><div class="house-preview-pieces"><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/230/chatgpt-image-22-may-2026-19-08-06.png?revision=1779718617" alt="Lustre Pearl by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Lustre Pearl</strong><span>$202.59 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/215/whatsapp-image-2026-05-21-at-19-56-00.jpeg?revision=1779722294" alt="Velora Azurea by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velora Azurea</strong><span>$303.89 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/222/chatgpt-image-22-may-2026-08-21-36.png?revision=1779717960" alt="Silva Walnut by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Silva Walnut</strong><span>$405.18 USD · Coming soon</span></a></div><div class="house-shop-invitation-actions"><a class="primary-button" href="/atelier-emine">View all 88 bags →</a></div></aside></template>
+            <template id="atelier-gallery-preview"><aside class="house-shop-invitation" aria-labelledby="home-shop-invitation-title"><p class="eyebrow">DESIGNER SPOTLIGHT / ATELIER EMINE</p><h3 id="home-shop-invitation-title">The handbag edit</h3><p>Explore a selection of handcrafted statement bags by Atelier Emine. Discover the materials, details and individuality behind the collection. Browse all 88 approved designs; purchasing is coming soon.</p><div class="house-preview-pieces"><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/230/chatgpt-image-22-may-2026-19-08-06.png?revision=1779718617" alt="Lustre Pearl by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Lustre Pearl</strong><span>$202.59 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/215/whatsapp-image-2026-05-21-at-19-56-00.jpeg?revision=1779722294" alt="Velora Azurea by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velora Azurea</strong><span>$303.89 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/222/chatgpt-image-22-may-2026-08-21-36.png?revision=1779717960" alt="Silva Walnut by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Silva Walnut</strong><span>$405.18 USD · Coming soon</span></a></div><div class="house-shop-invitation-actions"><a class="primary-button" href="/atelier-emine">View all 88 bags →</a></div></aside></template>
             <div id="product-grid" class="product-grid" aria-label="Shopping gallery"></div>
           </div>
         </section>
