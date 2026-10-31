@@ -146,22 +146,56 @@
   add('rect',{x:0,y:0,width:300,height:430,fill:'white'},bottomVisible);
   if(separated)add('path',{d:shapeForLength(variants[v.template].slice(0,variants[v.template].indexOf(' Z')+2)),fill:'black'},bottomVisible);
   const bottomDetails=add('g',{mask:'url(#creator-bottom-visible)'},details);
+  const topClip=add('clipPath',{id:'creator-top-tailoring-clip'},defs);
+  add('path',{d:separated?shapeForLength(variants[v.template].slice(0,variants[v.template].indexOf(' Z')+2)):silhouette},topClip);
+  const topDetails=add('g',{'clip-path':'url(#creator-top-tailoring-clip)'},details);
+  // Rounded cloth volumes use a single studio light from the upper left.
+  const volumeLight=add('radialGradient',{id:'creator-rounded-cloth',cx:'32%',cy:'27%',r:'78%'},defs);
+  for(const [offset,color,opacity]of [['0%','#fff',.36],['38%','#fff',.12],['72%','#fff',.025],['100%','#fff',0]])add('stop',{offset,'stop-color':color,'stop-opacity':opacity},volumeLight);
+  const volume=add('g',{'clip-path':'url(#creator-top-tailoring-clip)','data-rounded-volume':'true'},garment);garment.insertBefore(volume,details);
+  for(const [cx,cy,rx,ry]of [[133,124,24,39],[166,125,23,38]])add('ellipse',{cx,cy,rx,ry,fill:'url(#creator-rounded-cloth)',opacity:.75},volume);
+  add('path',{d:`M122 113 Q119 146 126 ${topHem-5} M178 113 Q181 147 174 ${topHem-5}`,fill:'none',stroke:'#fff','stroke-opacity':.25,'stroke-width':1.25},volume);
+  if(separated&&v.topStyle==='Longline')add('path',{d:shapeForLength(`M124 ${topHem+3} Q150 ${topHem+7} 176 ${topHem+3}`),fill:'none',stroke:'#28212d','stroke-opacity':.22,'stroke-width':4,filter:'url(#creator-soft-shadow)','data-layer-shadow':'true'},bottomDetails);
+  // Stitch shadows and thread highlights follow the cut instead of crossing open space.
+  function stitch(d,name,parent=topDetails,{dashed=false,opacity=.34}={}){
+   const seamGroup=add('g',{'data-seam':name},parent);
+   add('path',{d,fill:'none',stroke:'#28232b','stroke-width':.65,'stroke-opacity':opacity,'stroke-dasharray':dashed?'1.1 1.5':'none'},seamGroup);
+   add('path',{d,fill:'none',stroke:'#fff','stroke-width':.45,'stroke-opacity':opacity*.65,transform:'translate(.5 -.5)','stroke-dasharray':dashed?'1.1 1.5':'none'},seamGroup);
+  }
+  stitch('M132 78 L119 82 M168 78 L181 82','shoulder');
+  stitch(v.sleeves==='Sleeveless'?'M121 83 Q119 103 124 120 M179 83 Q181 103 176 120':'M117 84 Q125 100 118 119 M183 84 Q175 100 182 119','armhole');
+  const dartHem=Math.min(topHem-5,185);
+  stitch(`M133 ${dartHem} L137 143 L141 ${dartHem} M159 ${dartHem} L163 143 L167 ${dartHem}`,'waist-darts',topDetails,{opacity:.2});
+  if(separated)stitch(shapeForLength(`M125 ${topHem-2} Q150 ${topHem+2} 175 ${topHem-2}`),'top-hem',topDetails,{dashed:true,opacity:.4});
+  const waistY=separated?202:190;
+  stitch(shapeForLength(`M125 ${waistY+2} Q150 ${waistY+5} 175 ${waistY+2} M124 ${waistY+8} Q150 ${waistY+11} 176 ${waistY+8}`),'waistband',bottomDetails,{opacity:.36});
+
   add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.42,'stroke-width':.65},details);
   const legs=v.template==='Jumpsuit'||v.template==='Top & trousers';
   if(legs)add('path',{d:shapeForLength('M127 211 Q124 225 116 233 M173 211 Q176 225 184 233 M150 207 L150 244'),fill:'none',stroke:'#343830','stroke-width':.8},bottomDetails);
-  add('path',{d:'M134 145 L137 183 L140 145 M160 145 L163 183 L166 145',fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
+
   if(!legs){
    const folds=v.template==='Fitted'?['M128 210 Q118 278 126 345','M172 210 Q182 278 174 345']:['M124 211 Q112 278 103 348','M141 212 Q134 284 132 355','M159 212 Q166 284 168 355','M176 211 Q188 278 197 348'];
-   folds.forEach((d,index)=>add('path',{d:shapeForLength(d),fill:'none',stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},details));
+   folds.forEach((d,index)=>add('path',{d:shapeForLength(d),fill:'none',stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},bottomDetails));
   }
   add('path',{d:'M115 123 Q113 158 122 188 M185 123 Q187 158 178 188',fill:'none',stroke:'#fff','stroke-opacity':.18,'stroke-width':1},details);
   // Keep tailoring marks within the silhouette and adjust them to skirt length.
   if(!legs){
    const pleats=v.template==='Full skirt'?['M124 203 Q106 261 83 337','M142 204 Q134 272 128 348','M158 204 Q166 272 172 348','M176 203 Q194 261 217 337']:['M125 207 Q120 260 116 334','M175 207 Q180 260 184 334'];
-   pleats.forEach((d,i)=>add('path',{d:shapeForLength(d),fill:'none',stroke:i%2?'#fff':'#292722','stroke-opacity':i%2?.19:.12,'stroke-width':i%2?1.5:1.1},details));
+   pleats.forEach((d,i)=>add('path',{d:shapeForLength(d),fill:'none',stroke:i%2?'#fff':'#292722','stroke-opacity':i%2?.19:.12,'stroke-width':i%2?1.5:1.1},bottomDetails));
+  }
+  if(legs){
+   stitch(shapeForLength('M128 214 Q125 228 118 234 M172 214 Q175 228 182 234'),'pocket-opening',bottomDetails,{dashed:true,opacity:.32});
+   stitch(shapeForLength('M148 212 L148 239 Q148 244 151 245'),'fly',bottomDetails,{opacity:.3});
+   add('circle',{cx:150,cy:195+(waistY+6-195)*height,r:1.3,fill:v.secondary,stroke:'#39333a','stroke-width':.55,'data-seam':'waist-button'},bottomDetails);
+   stitch(shapeForLength('M142 271 Q139 310 140 349 M158 271 Q161 310 160 349'),'inseam',bottomDetails,{opacity:.22});
+  }else{
+   const panels=v.template==='Fitted'?'M132 213 Q127 265 131 348 M168 213 Q173 265 169 348':'M135 212 Q127 281 121 347 M165 212 Q173 281 179 347';
+   stitch(shapeForLength(panels),'skirt-panels',bottomDetails,{opacity:.18});
   }
   const hem=legs?'M111 351 Q128 355 143 351 M157 351 Q173 355 189 351':v.template==='Fitted'?'M123 351 Q150 356 177 351':v.template==='Full skirt'?'M57 343 Q150 373 243 343':'M87 350 Q150 361 213 350';
   add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
+  stitch(shapeForLength(hem),'stitched-hem',bottomDetails,{dashed:true,opacity:.42});
   if(v.sleeves==='Short')add('path',{d:'M91 121 L106 128 M194 128 L209 121',fill:'none',stroke:'#343830','stroke-opacity':.5,'stroke-width':.65},details);
   // Construction accents follow sleeve selection without changing the editable silhouette.
   if(v.sleeves==='Long'){
@@ -173,6 +207,7 @@
   // A restrained neckline facing adds depth while preserving the neckline cutout.
   const facing=v.neckline==='V-neck'?'M138 79 L150 103 L162 79':v.neckline==='Square'?'M138 79 L138 96 Q150 98 162 96 L162 79':'M138 79 Q150 96 162 79';
   add('path',{d:facing,fill:'none',stroke:'#fff','stroke-opacity':.42,'stroke-width':.8,'stroke-linecap':'round'},details);
+  stitch(facing,'neckline-facing',topDetails,{dashed:true,opacity:.32});
   if(v.accessory==='Belt'||v.waistDetail!=='None'){
    add('path',{d:'M123 184 Q150 188 177 184 L177 195 Q150 198 123 195 Z',fill:v.waistDetail==='Belt'?v.color:v.secondary,stroke:'#39333a','stroke-width':1},details);
    add('rect',{x:146,y:185,width:8,height:10,rx:1,fill:'none',stroke:'#d6c29a','stroke-width':1.5},details);
