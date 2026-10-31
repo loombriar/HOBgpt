@@ -7,19 +7,24 @@
  const position=()=>({x:Number($('creator-offset-x').value),y:Number($('creator-offset-y').value),scale:Number($('creator-scale').value)/100,opacity:Number($('creator-opacity').value)/100});
  const resetPosition=()=>{for(const [id,value]of [['creator-offset-x',0],['creator-offset-y',0],['creator-scale',100],['creator-opacity',100]])$(id).value=value;};
  function invalidate(message='Design changed. Add the updated template to your brief before saving.'){if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent=message;}}
- function garmentPaths(sleeves='Short'){
-  // Symmetric flat drafting: shaped shoulder, true underarm and a defined waist.
-  const left=sleeves==='Sleeveless'?'L116 81 Q112 104 120 121':sleeves==='Long'?'L110 81 Q102 85 100 99 L77 203 L92 207 L115 123':'L110 81 Q103 84 100 94 L88 125 L105 133 L115 112';
-  const right=sleeves==='Sleeveless'?'Q188 104 184 81 L166 75':sleeves==='Long'?'L208 207 L223 203 L200 99 Q198 85 190 81 L166 75':'L195 133 L212 125 L200 94 Q197 84 190 81 L166 75';
-  const start='M134 75 '+left+' Q116 151 124 190 ',end=' Q184 151 '+(sleeves==='Sleeveless'?'180 121 ':sleeves==='Long'?'185 123 ':'185 112 ')+right+' Q150 97 134 75 Z';
-  const top=start+'Q150 193 176 190'+end;
+ function garmentPaths(sleeves='Short',topStyle='Classic',bottomStyle='Classic'){
+  // Draft in garment coordinates so every thumbnail and exported sketch shares one silhouette.
+  const left=sleeves==='Sleeveless'?'L119 81 Q116 104 122 121':sleeves==='Long'?'L111 81 Q104 84 101 98 L78 201 Q84 206 92 205 L116 122':'L111 81 Q104 84 101 94 L90 123 Q97 129 105 130 L116 112';
+  const right=sleeves==='Sleeveless'?'Q184 104 181 81 L166 75':sleeves==='Long'?'L208 205 Q216 206 222 201 L199 98 Q196 84 189 81 L166 75':'L195 130 Q203 129 210 123 L199 94 Q196 84 189 81 L166 75';
+  const start='M134 75 '+left+' Q119 151 125 190 ',end=' Q181 151 '+(sleeves==='Sleeveless'?'178 121 ':sleeves==='Long'?'184 122 ':'184 112 ')+right+' Q150 96 134 75 Z';
+  const topHem=topStyle==='Cropped'?172:topStyle==='Longline'?222:190;
+  const top='M134 75 '+left+` Q119 147 124 ${topHem} Q150 ${topHem+5} 176 ${topHem} Q181 147 `+(sleeves==='Sleeveless'?'178 121 ':sleeves==='Long'?'184 122 ':'184 112 ')+right+' Q150 96 134 75 Z';
+  const skirt=bottomStyle==='Straight'?'M125 202 Q150 205 175 202 C182 230 182 256 180 280 L180 355 Q150 361 120 355 L120 280 C118 256 118 230 125 202 Z':bottomStyle==='Flared'?'M125 202 Q150 205 175 202 C188 245 222 309 238 350 Q216 362 193 359 Q170 369 150 364 Q130 369 107 359 Q84 362 62 350 C78 309 112 245 125 202 Z':'M125 202 Q150 205 175 202 C183 243 204 309 214 352 Q182 364 150 360 Q118 364 86 352 C96 309 117 243 125 202 Z';
+  const legOuter=bottomStyle==='Flared'?208:bottomStyle==='Straight'?181:191;
+  const legInner=bottomStyle==='Flared'?159:bottomStyle==='Straight'?160:157;
+  const trousers=`M125 202 Q150 205 175 202 C184 220 187 238 184 260 L${legOuter} 355 Q${(legOuter+legInner)/2} 360 ${legInner} 355 L156 264 Q150 250 144 264 L${300-legInner} 355 Q${300-(legOuter+legInner)/2} 360 ${300-legOuter} 355 L116 260 C113 238 116 220 125 202 Z`;
   return {
-   'A-line':start+'C118 230 96 306 85 355 Q150 366 215 355 C204 306 182 230 176 190'+end,
-   'Fitted':start+'C112 215 112 235 117 255 L123 357 Q150 362 177 357 L183 255 C188 235 188 215 176 190'+end,
-   'Full skirt':start+'C106 225 77 302 54 348 Q150 380 246 348 C223 302 194 225 176 190'+end,
-   'Jumpsuit':start+'C112 215 111 237 114 261 L111 357 Q128 361 143 357 L147 253 Q150 247 153 253 L157 357 Q172 361 189 357 L186 261 C189 237 188 215 176 190'+end,
-   'Top & trousers':top+' M124 201 Q150 204 176 201 C189 222 188 245 186 267 L190 357 Q173 362 157 357 L153 263 Q150 255 147 263 L143 357 Q127 362 110 357 L114 267 C112 245 111 222 124 201 Z',
-   'Top & skirt':top+' M124 202 Q150 205 176 202 C186 244 207 311 216 355 Q150 368 84 355 C93 311 114 244 124 202 Z'
+   'A-line':start+'C121 229 101 304 88 352 Q118 362 150 359 Q182 362 212 352 C199 304 179 229 175 190'+end,
+   'Fitted':start+'C116 209 113 229 118 254 C123 292 123 328 121 355 Q150 362 179 355 C177 328 177 292 182 254 C187 229 184 209 175 190'+end,
+   'Full skirt':start+'C108 229 77 306 57 348 Q79 360 104 357 Q127 371 150 364 Q173 371 196 357 Q221 360 243 348 C223 306 192 229 175 190'+end,
+   'Jumpsuit':start+'C115 215 113 237 117 261 L108 355 Q126 361 143 355 L144 265 Q150 250 156 265 L157 355 Q174 361 192 355 L183 261 C187 237 185 215 175 190'+end,
+   'Top & trousers':top+' '+trousers,
+   'Top & skirt':top+' '+skirt
   };
  }
  const paths=garmentPaths();
@@ -49,11 +54,7 @@
   const height=v.length==='Mini'?.4:v.length==='Midi'?.72:1;
   const shapeForLength=d=>d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>195?195+(Number(y)-195)*height:y));
   const separated=v.template.startsWith('Top &');
-  const variants=garmentPaths(v.sleeves);
-  if(v.template==='Top & skirt'&&v.bottomStyle==='Straight')variants[v.template]=variants[v.template].replace('C186 244 207 311 216 355 Q150 368 84 355 C93 311 114 244 124 202 Z','C177 244 181 311 182 355 Q150 360 118 355 C119 311 123 244 124 202 Z');
-  if(v.template==='Top & skirt'&&v.bottomStyle==='Flared')variants[v.template]=variants[v.template].replace('C186 244 207 311 216 355 Q150 368 84 355 C93 311 114 244 124 202 Z','C190 244 228 311 245 355 Q150 382 55 355 C72 311 110 244 124 202 Z');
-  if(v.template==='Top & trousers'&&v.bottomStyle==='Flared')variants[v.template]=variants[v.template].replace('L190 357 Q173 362 157 357','L212 357 Q180 362 157 357').replace('L143 357 Q127 362 110 357','L143 357 Q120 362 88 357');
-  if(v.template==='Top & trousers'&&v.bottomStyle==='Straight')variants[v.template]=variants[v.template].replace('L190 357 Q173 362 157 357','L175 357 Q166 362 157 357').replace('L143 357 Q127 362 110 357','L143 357 Q134 362 125 357');
+  const variants=garmentPaths(v.sleeves,v.topStyle,v.bottomStyle);
   const silhouette=shapeForLength(variants[v.template]);
   const outer=add('g',{transform:`translate(${pos.x} ${pos.y}) translate(150 195) scale(${pos.scale}) translate(-150 -195)`,opacity:pos.opacity});
   const group=add('g',{},outer);
@@ -65,14 +66,14 @@
   const shadow=add('filter',{id:'creator-soft-shadow',x:'-25%',y:'-15%',width:'150%',height:'145%'},defs);
   add('feGaussianBlur',{stdDeviation:3},shadow);
   const foldLight=add('linearGradient',{id:'creator-fold-light',x1:'0%',x2:'100%',y1:'0%',y2:'0%'},defs);
-  for(const [offset,opacity]of [['0%',0],['30%',.08],['55%',.42],['78%',.12],['100%',0]])add('stop',{offset,'stop-color':'#fff','stop-opacity':opacity},foldLight);
+  for(const [offset,opacity]of [['0%',0],['30%',.08],['55%',.24],['78%',.12],['100%',0]])add('stop',{offset,'stop-color':'#fff','stop-opacity':opacity},foldLight);
   const foldShade=add('linearGradient',{id:'creator-fold-shade',x1:'0%',x2:'100%',y1:'0%',y2:'0%'},defs);
-  for(const [offset,opacity]of [['0%',0],['44%',.19],['66%',.3],['100%',0]])add('stop',{offset,'stop-color':'#201c26','stop-opacity':opacity},foldShade);
+  for(const [offset,opacity]of [['0%',0],['44%',.1],['66%',.17],['100%',0]])add('stop',{offset,'stop-color':'#201c26','stop-opacity':opacity},foldShade);
 
   const base=add('linearGradient',{id:'creator-garment-base',x1:'0%',y1:'0%',x2:'100%',y2:'100%'},defs);
   add('stop',{offset:'0%','stop-color':'#ffffff','stop-opacity':.35},base);
   add('stop',{offset:'48%','stop-color':'#ffffff','stop-opacity':0},base);
-  add('stop',{offset:'100%','stop-color':'#292722','stop-opacity':.32},base);
+  add('stop',{offset:'100%','stop-color':'#292722','stop-opacity':.2},base);
   const sheen=add('linearGradient',{id:'creator-garment-sheen',x1:'0%',y1:'0%',x2:'100%',y2:'0%'},defs);
   add('stop',{offset:'0%','stop-color':'#fff','stop-opacity':0},sheen);
   add('stop',{offset:'42%','stop-color':'#fff','stop-opacity':.2},sheen);
@@ -88,26 +89,37 @@
   const clip=add('clipPath',{id:'creator-bottom-clip'},defs);add('rect',{x:0,y:195,width:300,height:235},clip);
   if(!avatarData)add('path',{d:silhouette,fill:'#302638','fill-opacity':.2,transform:'translate(3 6)',filter:'url(#creator-soft-shadow)','data-garment-shadow':'true'},group);
   const garment=add('g',{mask:'url(#creator-garment-cutouts)'},group);
-  add('path',{d:silhouette,fill:topFill,stroke:'#39333a','stroke-width':.85},garment);
-  add('path',{d:silhouette,fill:bottomFill,stroke:'#39333a','stroke-width':.85,'clip-path':'url(#creator-bottom-clip)'},garment);
-  const garmentClip=add('clipPath',{id:'creator-garment-detail-clip'},defs);add('path',{d:silhouette},garmentClip);
+  if(separated){
+   const split=variants[v.template].indexOf(' Z')+2,top=variants[v.template].slice(0,split),bottom=variants[v.template].slice(split);
+   add('path',{d:shapeForLength(bottom),fill:bottomFill,stroke:'#39333a','stroke-width':.7,'data-garment-bottom':'true'},garment);
+   add('path',{d:shapeForLength(top),fill:topFill,stroke:'#39333a','stroke-width':.7,'data-garment-top':'true'},garment);
+  }else{
+   add('path',{d:silhouette,fill:topFill,stroke:'#39333a','stroke-width':.7},garment);
+   add('path',{d:silhouette,fill:bottomFill,stroke:'#39333a','stroke-width':.7,'clip-path':'url(#creator-bottom-clip)'},garment);
+  }
+  const garmentClip=add('clipPath',{id:'creator-garment-detail-clip'},defs);
+  for(const part of silhouette.split(/(?= M)/))add('path',{d:part},garmentClip);
   // Preserve the configured solid/printed colors while adding fabric depth.
   const surface=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
-  add('path',{d:silhouette,fill:'url(#creator-garment-base)',stroke:'none'},surface);
-  add('path',{d:silhouette,fill:'url(#creator-garment-weave)','fill-opacity':v.fabricFinish==='Textured'?1:v.fabricFinish==='Satin'?.12:.55,stroke:'none'},surface);
-  add('path',{d:silhouette,fill:'url(#creator-garment-sheen)','fill-opacity':v.fabricFinish==='Satin'?1:v.fabricFinish==='Textured'?.25:.75,stroke:'none'},surface);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-garment-base)',stroke:'none'},surface);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-garment-weave)','fill-opacity':v.fabricFinish==='Textured'?1:v.fabricFinish==='Satin'?.12:.55,stroke:'none'},surface);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-garment-sheen)','fill-opacity':v.fabricFinish==='Satin'?1:v.fabricFinish==='Textured'?.25:.75,stroke:'none'},surface);
   // Directional folds and edge highlights are clipped to the garment silhouette.
   const drape=add('g',{'clip-path':'url(#creator-garment-detail-clip)'},garment);
   const drapeShade=add('linearGradient',{id:'creator-drape-shade',x1:'0%',y1:'0%',x2:'100%',y2:'0%'},defs);
-  for(const [offset,opacity] of [['0%',.15],['24%',0],['49%',.11],['75%',0],['100%',.17]])add('stop',{offset,'stop-color':'#292722','stop-opacity':opacity},drapeShade);
-  add('path',{d:silhouette,fill:'url(#creator-drape-shade)',stroke:'none'},drape);
-  const cloth=add('g',{'clip-path':'url(#creator-garment-detail-clip)','data-cloth-volumes':'true'},garment);
+  for(const [offset,opacity] of [['0%',.09],['24%',0],['49%',.04],['75%',0],['100%',.12]])add('stop',{offset,'stop-color':'#292722','stop-opacity':opacity},drapeShade);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-drape-shade)',stroke:'none'},drape);
+  const clothSoft=add('filter',{id:'creator-cloth-soft',x:'-10%',y:'-10%',width:'120%',height:'120%'},defs);
+  add('feGaussianBlur',{stdDeviation:.65},clothSoft);
+  const cloth=add('g',{'clip-path':'url(#creator-garment-detail-clip)','data-cloth-volumes':'true',filter:'url(#creator-cloth-soft)'},garment);
   const clothPath=(d,fill,opacity=1)=>add('path',{d:shapeForLength(d),fill,opacity,stroke:'none'},cloth);
+  const topHem=separated?(v.topStyle==='Cropped'?172:v.topStyle==='Longline'?222:190):190;
+  const bodicePath=(d,fill,opacity)=>clothPath(d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>=172?Number(y)+(topHem-190)*Math.min(1,(Number(y)-145)/45):y)),fill,opacity);
   // Shaped side panels give the bodice and sleeves depth without a mannequin.
-  clothPath('M109 81 Q124 115 127 145 Q123 171 129 194 L116 204 Q103 151 109 81 Z','url(#creator-fold-shade)',.85);
-  clothPath('M191 81 Q176 115 173 145 Q177 171 171 194 L184 204 Q197 151 191 81 Z','url(#creator-fold-shade)',.85);
-  clothPath('M132 95 Q146 112 147 142 L143 190 L130 190 Q140 145 132 95 Z','url(#creator-fold-light)',.8);
-  clothPath('M153 100 Q170 113 169 147 L174 190 L157 190 Q165 145 153 100 Z','url(#creator-fold-light)',.65);
+  bodicePath('M109 81 Q124 115 127 145 Q123 171 129 194 L116 204 Q103 151 109 81 Z','url(#creator-fold-shade)',.85);
+  bodicePath('M191 81 Q176 115 173 145 Q177 171 171 194 L184 204 Q197 151 191 81 Z','url(#creator-fold-shade)',.85);
+  bodicePath('M132 95 Q146 112 147 142 L143 190 L130 190 Q140 145 132 95 Z','url(#creator-fold-light)',.8);
+  bodicePath('M153 100 Q170 113 169 147 L174 190 L157 190 Q165 145 153 100 Z','url(#creator-fold-light)',.65);
   if(v.sleeves!=='Sleeveless'){
    clothPath(v.sleeves==='Long'?'M108 88 Q101 140 83 202 L90 203 Q111 145 115 98 Z':'M105 86 Q101 108 92 123 L102 128 Q114 108 114 96 Z','url(#creator-fold-light)',.9);
    clothPath(v.sleeves==='Long'?'M192 88 Q199 140 217 202 L210 203 Q189 145 185 98 Z':'M195 86 Q199 108 208 123 L198 128 Q186 108 186 96 Z','url(#creator-fold-shade)',.7);
@@ -129,11 +141,15 @@
   }
   const details=add('g',{'clip-path':'url(#creator-garment-detail-clip)','stroke-linecap':'round','stroke-linejoin':'round'},garment);
   const separates=v.template.startsWith('Top &');
-  const seam=separates?'M124 185 Q150 188 176 185 M124 207 Q150 210 176 207':'M124 190 Q150 193 176 190';
+  const seam=separates?`M124 ${topHem-3} Q150 ${topHem+1} 176 ${topHem-3}`:'M124 190 Q150 193 176 190';
+  const bottomVisible=add('mask',{id:'creator-bottom-visible',maskUnits:'userSpaceOnUse',x:0,y:0,width:300,height:430},defs);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'white'},bottomVisible);
+  if(separated)add('path',{d:shapeForLength(variants[v.template].slice(0,variants[v.template].indexOf(' Z')+2)),fill:'black'},bottomVisible);
+  const bottomDetails=add('g',{mask:'url(#creator-bottom-visible)'},details);
   add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.42,'stroke-width':.65},details);
   const legs=v.template==='Jumpsuit'||v.template==='Top & trousers';
-  if(legs)add('path',{d:shapeForLength('M127 211 Q124 225 116 233 M173 211 Q176 225 184 233 M150 207 L150 244'),fill:'none',stroke:'#343830','stroke-width':.8},details);
-  add('path',{d:'M134 145 L137 183 L140 145 M160 145 L163 183 L166 145',fill:'none',stroke:'#343830','stroke-opacity':.22,'stroke-width':.5},details);
+  if(legs)add('path',{d:shapeForLength('M127 211 Q124 225 116 233 M173 211 Q176 225 184 233 M150 207 L150 244'),fill:'none',stroke:'#343830','stroke-width':.8},bottomDetails);
+  add('path',{d:'M134 145 L137 183 L140 145 M160 145 L163 183 L166 145',fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
   if(!legs){
    const folds=v.template==='Fitted'?['M128 210 Q118 278 126 345','M172 210 Q182 278 174 345']:['M124 211 Q112 278 103 348','M141 212 Q134 284 132 355','M159 212 Q166 284 168 355','M176 211 Q188 278 197 348'];
    folds.forEach((d,index)=>add('path',{d:shapeForLength(d),fill:'none',stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},details));
@@ -145,7 +161,7 @@
    pleats.forEach((d,i)=>add('path',{d:shapeForLength(d),fill:'none',stroke:i%2?'#fff':'#292722','stroke-opacity':i%2?.19:.12,'stroke-width':i%2?1.5:1.1},details));
   }
   const hem=legs?'M111 351 Q128 355 143 351 M157 351 Q173 355 189 351':v.template==='Fitted'?'M123 351 Q150 356 177 351':v.template==='Full skirt'?'M57 343 Q150 373 243 343':'M87 350 Q150 361 213 350';
-  add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.22,'stroke-width':.5},details);
+  add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
   if(v.sleeves==='Short')add('path',{d:'M91 121 L106 128 M194 128 L209 121',fill:'none',stroke:'#343830','stroke-opacity':.5,'stroke-width':.65},details);
   // Construction accents follow sleeve selection without changing the editable silhouette.
   if(v.sleeves==='Long'){
@@ -157,10 +173,6 @@
   // A restrained neckline facing adds depth while preserving the neckline cutout.
   const facing=v.neckline==='V-neck'?'M138 79 L150 103 L162 79':v.neckline==='Square'?'M138 79 L138 96 Q150 98 162 96 L162 79':'M138 79 Q150 96 162 79';
   add('path',{d:facing,fill:'none',stroke:'#fff','stroke-opacity':.42,'stroke-width':.8,'stroke-linecap':'round'},details);
-  if(separated&&v.topStyle!=='Classic'){
-   const seamY=v.topStyle==='Cropped'?172:207;
-   add('path',{d:`M124 ${seamY} Q150 ${seamY+4} 176 ${seamY}`,fill:'none',stroke:'#292722','stroke-width':1.5,'stroke-dasharray':v.topStyle==='Cropped'?'3 2':'none'},details);
-  }
   if(v.accessory==='Belt'||v.waistDetail!=='None'){
    add('path',{d:'M123 184 Q150 188 177 184 L177 195 Q150 198 123 195 Z',fill:v.waistDetail==='Belt'?v.color:v.secondary,stroke:'#39333a','stroke-width':1},details);
    add('rect',{x:146,y:185,width:8,height:10,rx:1,fill:'none',stroke:'#d6c29a','stroke-width':1.5},details);
@@ -177,7 +189,20 @@
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
- for(const [name,path]of Object.entries(paths)){const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','45 60 210 320');icon.setAttribute('aria-hidden','true');const shape=document.createElementNS(icon.namespaceURI,'path');shape.setAttribute('d',path);const tileDefs=document.createElementNS(icon.namespaceURI,'defs'),gradient=document.createElementNS(icon.namespaceURI,'linearGradient'),gradientId='creator-tile-'+name.toLowerCase().replace(/[^a-z]+/g,'-');gradient.id=gradientId;gradient.setAttribute('x1','0%');gradient.setAttribute('x2','100%');gradient.setAttribute('y2','70%');for(const [offset,color]of [['0%','#dceee6'],['45%','#b7d9cc'],['100%','#6b9b87']]){const stop=document.createElementNS(icon.namespaceURI,'stop');stop.setAttribute('offset',offset);stop.setAttribute('stop-color',color);gradient.append(stop);}tileDefs.append(gradient);shape.setAttribute('fill','url(#'+gradientId+')');shape.setAttribute('stroke','#484047');shape.setAttribute('stroke-width','1.2');icon.append(tileDefs,shape);const label=document.createElement('span');label.textContent=name;button.append(icon,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);}
+ const initialTemplate=$('creator-template').value;
+ for(const name of Object.keys(paths)){
+  const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';
+  $('creator-template').value=name;render();
+  const icon=$('creator-preview').cloneNode(true);icon.removeAttribute('id');icon.removeAttribute('role');icon.removeAttribute('aria-labelledby');icon.setAttribute('aria-hidden','true');icon.setAttribute('viewBox','45 62 210 315');
+  icon.querySelectorAll('text').forEach(el=>el.remove());
+  const prefix='tile-'+name.toLowerCase().replace(/[^a-z]+/g,'-')+'-';
+  for(const el of [icon,...icon.querySelectorAll('*')])for(const attr of [...el.attributes]){
+   if(attr.name==='id')el.setAttribute('id',prefix+attr.value);
+   else if(attr.value.includes('url(#'))el.setAttribute(attr.name,attr.value.replace(/url\(#([^)]+)\)/g,(_,id)=>'url(#'+prefix+id+')'));
+  }
+  const label=document.createElement('span');label.textContent=name;button.append(icon,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);
+ }
+ $('creator-template').value=initialTemplate;
  $('creator-template').closest('label').before(chooser);
  const looks={everyday:['A-line','Scoop','Short','Midi','#b7d9cc'],evening:['Fitted','V-neck','Sleeveless','Maxi','#775166'],separates:['Top & skirt','Square','Sleeveless','Mini','#b8bdd9']};
  for(const button of root.querySelectorAll('[data-creator-look]'))button.addEventListener('click',()=>{checkpoint();const look=looks[button.dataset.creatorLook];['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color'].forEach((id,index)=>{$(id).value=look[index];});$('creator-secondary-color').value=look[4];invalidate();render();checkpoint();$('creator-status').textContent=button.querySelector('strong').textContent+' loaded. Make it your own with the details below.';});
