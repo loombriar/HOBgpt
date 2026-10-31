@@ -218,32 +218,14 @@
   add('path',{d:neckline,fill:'none',stroke:'#39333a','stroke-width':.85,'stroke-linecap':'round'},group);
   const viewLabel=add('text',{x:150,y:30,'text-anchor':'middle',fill:'#746d61','font-size':9,'font-family':'sans-serif','letter-spacing':1.5});viewLabel.textContent='FRONT · TECHNICAL SKETCH';
   const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.5'});title.textContent=v.template+' · '+v.length;
-  updatePicture();
   for(const id of ['creator-top-style','creator-bottom-style'])$(id).disabled=!separated;
   $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} ${separated?v.topStyle.toLowerCase()+' top and '+v.bottomStyle.toLowerCase()+' bottom. ':''}${v.fabricFinish.toLowerCase()} appearance; ${v.waistDetail.toLowerCase()}; ${v.accessory.toLowerCase()} accessory. Technical concept sketch; confirm construction and measurements with your maker.`;
   for(const button of root.querySelectorAll('.creator-palette'))button.setAttribute('aria-pressed',String(button.dataset.top===v.color&&button.dataset.bottom===v.secondary));
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
  }
- const optionArtwork={'A-line':'/outfit-options/a-line.png','Fitted':'/outfit-options/fitted.png','Full skirt':'/outfit-options/full-skirt.png','Jumpsuit':'/outfit-options/jumpsuit.png','Top & trousers':'/outfit-options/top-trousers.png','Top & skirt':'/outfit-options/top-skirt.png'};
- let showSketch=false;
- function updatePicture(){
-  const picture=$('creator-garment-picture'),toggle=$('creator-toggle-sketch');
-  if(!picture||!toggle)return;
-  const name=$('creator-template').value;
-  const src=optionArtwork[name];
-  if(picture.getAttribute('src')!==src)picture.src=src;
-  picture.alt=name+' garment reference';
-  const editable=showSketch;
-  picture.hidden=editable;$('creator-preview').hidden=!editable;
-  $('creator-picture-note').hidden=editable;
-  toggle.textContent=editable?'Show garment picture':'Show editable sketch';
-  toggle.setAttribute('aria-pressed',String(editable));
-  $('creator-view-label').textContent=editable?'Front · Editable sketch':'Garment reference';
- }
- $('creator-toggle-sketch')?.addEventListener('click',()=>{showSketch=$('creator-preview').hidden;updatePicture();});
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
  const initialTemplate=$('creator-template').value;
-
+ const optionArtwork={'A-line':'/outfit-options/a-line.png','Fitted':'/outfit-options/fitted.png','Full skirt':'/outfit-options/full-skirt.png','Jumpsuit':'/outfit-options/jumpsuit.png','Top & trousers':'/outfit-options/top-trousers.png','Top & skirt':'/outfit-options/top-skirt.png'};
  for(const name of Object.keys(paths)){
   const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';
   const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} 3D garment preview`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
@@ -266,7 +248,7 @@
   const version=++avatarVersion,file=event.target.files[0];if(!file)return;
   if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>8*1024*1024){event.target.value='';$('creator-avatar-status').textContent='Choose a PNG, JPG or WebP image up to 8 MB.';return;}
   $('creator-avatar-status').textContent='Loading your avatar on this device…';
-  try{const reader=new FileReader();const source=await new Promise((resolve,reject)=>{reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error());reader.readAsDataURL(file);});const image=new Image();image.src=source;await image.decode();if(image.naturalWidth*image.naturalHeight>40_000_000)throw Error();const scale=Math.min(1,900/image.naturalWidth,1200/image.naturalHeight),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);if(version!==avatarVersion)return;checkpoint();showSketch=true;avatarData=canvas.toDataURL('image/png');resetPosition();invalidate('Avatar changed. Add the updated outfit to your brief before saving.');render();$('creator-remove-avatar').hidden=false;$('creator-avatar-adjustments').hidden=false;$('creator-avatar-status').textContent='Avatar added locally. Choose a template and adjust the outfit position.';checkpoint();}
+  try{const reader=new FileReader();const source=await new Promise((resolve,reject)=>{reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error());reader.readAsDataURL(file);});const image=new Image();image.src=source;await image.decode();if(image.naturalWidth*image.naturalHeight>40_000_000)throw Error();const scale=Math.min(1,900/image.naturalWidth,1200/image.naturalHeight),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);if(version!==avatarVersion)return;checkpoint();avatarData=canvas.toDataURL('image/png');resetPosition();invalidate('Avatar changed. Add the updated outfit to your brief before saving.');render();$('creator-remove-avatar').hidden=false;$('creator-avatar-adjustments').hidden=false;$('creator-avatar-status').textContent='Avatar added locally. Choose a template and adjust the outfit position.';checkpoint();}
   catch{if(version===avatarVersion){$('creator-avatar-status').textContent='This image could not be opened. Try another PNG, JPG or WebP.';event.target.value='';}}
  });
  $('creator-remove-avatar').addEventListener('click',()=>{checkpoint();avatarVersion++;avatarData='';$('creator-avatar').value='';$('creator-remove-avatar').hidden=true;$('creator-avatar-adjustments').hidden=true;$('creator-avatar-status').textContent='Avatar removed from the preview. Undo can restore it in this tab.';resetPosition();invalidate();render();checkpoint();});
