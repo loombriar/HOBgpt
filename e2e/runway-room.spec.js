@@ -7,7 +7,7 @@ test('embedded runway loads its own assets and imports the current outfit sketch
   const studio = page.frameLocator('iframe[title="Interactive House of Briar runway studio"]');
   await expect(studio.getByRole('heading', { name: 'Style your look' })).toBeVisible();
   await studio.getByRole('button', { name: 'Use my current outfit sketch' }).click();
-  await expect(studio.getByRole('status')).toContainText('Current outfit sketch loaded');
+  await expect(studio.locator('#status')).toContainText('Current outfit sketch loaded');
   await studio.getByRole('button', { name: 'Walk the look', exact: true }).click();
   await expect(studio.getByRole('button', { name: 'Pause the look', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await studio.getByRole('button', { name: 'Pause the look', exact: true }).click();
@@ -15,6 +15,6 @@ test('embedded runway loads its own assets and imports the current outfit sketch
   await studio.getByRole('button', { name: 'Save high-res image' }).click();
   expect((await download).suggestedFilename()).toBe('briar-runway-3d.png');
   await studio.getByRole('button', { name: 'Remove garment', exact: true }).click();
-  await expect(studio.getByRole('status')).toContainText('Garment removed');
+  await expect(studio.locator('#status')).toContainText('Garment removed');
   expect(errors).toEqual([]);
 });
