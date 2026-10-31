@@ -4669,8 +4669,16 @@ function createApp(options = {}) {
     app.get(['/shop','/atelier-emine','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
   for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  // The studio may be embedded only by this site's own design room.
+  app.get('/runway-room.html', (_req, res) => {
+    const policy = res.getHeader('Content-Security-Policy');
+    if (typeof policy === 'string') res.set('Content-Security-Policy', policy.replace("frame-ancestors 'none'", "frame-ancestors 'self'"));
+    res.set('X-Frame-Options', 'SAMEORIGIN');
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    return res.sendFile(path.join(rootDir, 'runway-room.html'));
+  });
   app.get(['/runway', '/runway.html'], (_req,res) => { res.set('Cache-Control','no-cache, must-revalidate'); res.sendFile(path.join(rootDir,'runway.html')); });
-  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','customer-edit.css','house-remodel.css','briar-campaign.css','botanical-backgrounds.css','house-of-briar-dark-editorial-background.png','house-of-briar-moonlit-rose-background.png','house-of-briar-blackberry-noir-background.png','house-of-briar-berry-blossom-background.png','briar-thorn-vine.svg','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for(const asset of ['atelier.css','atelier.js','fashion.css','rooms.css','runway.css','runway.js','runway-room.css','runway-room.js','fashion-refresh-2026.css','house-global-nav.css','house-global-nav.js','briar-makeover.css','customer-edit.css','house-remodel.css','briar-campaign.css','botanical-backgrounds.css','house-of-briar-dark-editorial-background.png','house-of-briar-moonlit-rose-background.png','house-of-briar-blackberry-noir-background.png','house-of-briar-berry-blossom-background.png','briar-thorn-vine.svg','creative-access.js','creative-house-workflows.js'])app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   app.get('/styles.css', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'styles.css')); });
   app.get('/.well-known/assetlinks.json',(_req,res)=>{
     res.set('Cache-Control','public, max-age=300').json(require('./android-passkey-association').statement());
