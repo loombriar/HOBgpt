@@ -113,11 +113,13 @@
   add('feGaussianBlur',{stdDeviation:.65},clothSoft);
   const cloth=add('g',{'clip-path':'url(#creator-garment-detail-clip)','data-cloth-volumes':'true',filter:'url(#creator-cloth-soft)'},garment);
   const clothPath=(d,fill,opacity=1)=>add('path',{d:shapeForLength(d),fill,opacity,stroke:'none'},cloth);
+  const topHem=separated?(v.topStyle==='Cropped'?172:v.topStyle==='Longline'?222:190):190;
+  const bodicePath=(d,fill,opacity)=>clothPath(d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>=172?Number(y)+(topHem-190)*Math.min(1,(Number(y)-145)/45):y)),fill,opacity);
   // Shaped side panels give the bodice and sleeves depth without a mannequin.
-  clothPath('M109 81 Q124 115 127 145 Q123 171 129 194 L116 204 Q103 151 109 81 Z','url(#creator-fold-shade)',.85);
-  clothPath('M191 81 Q176 115 173 145 Q177 171 171 194 L184 204 Q197 151 191 81 Z','url(#creator-fold-shade)',.85);
-  clothPath('M132 95 Q146 112 147 142 L143 190 L130 190 Q140 145 132 95 Z','url(#creator-fold-light)',.8);
-  clothPath('M153 100 Q170 113 169 147 L174 190 L157 190 Q165 145 153 100 Z','url(#creator-fold-light)',.65);
+  bodicePath('M109 81 Q124 115 127 145 Q123 171 129 194 L116 204 Q103 151 109 81 Z','url(#creator-fold-shade)',.85);
+  bodicePath('M191 81 Q176 115 173 145 Q177 171 171 194 L184 204 Q197 151 191 81 Z','url(#creator-fold-shade)',.85);
+  bodicePath('M132 95 Q146 112 147 142 L143 190 L130 190 Q140 145 132 95 Z','url(#creator-fold-light)',.8);
+  bodicePath('M153 100 Q170 113 169 147 L174 190 L157 190 Q165 145 153 100 Z','url(#creator-fold-light)',.65);
   if(v.sleeves!=='Sleeveless'){
    clothPath(v.sleeves==='Long'?'M108 88 Q101 140 83 202 L90 203 Q111 145 115 98 Z':'M105 86 Q101 108 92 123 L102 128 Q114 108 114 96 Z','url(#creator-fold-light)',.9);
    clothPath(v.sleeves==='Long'?'M192 88 Q199 140 217 202 L210 203 Q189 145 185 98 Z':'M195 86 Q199 108 208 123 L198 128 Q186 108 186 96 Z','url(#creator-fold-shade)',.7);
@@ -139,11 +141,15 @@
   }
   const details=add('g',{'clip-path':'url(#creator-garment-detail-clip)','stroke-linecap':'round','stroke-linejoin':'round'},garment);
   const separates=v.template.startsWith('Top &');
-  const seam=separates?'M124 185 Q150 188 176 185 M124 207 Q150 210 176 207':'M124 190 Q150 193 176 190';
+  const seam=separates?`M124 ${topHem-3} Q150 ${topHem+1} 176 ${topHem-3}`:'M124 190 Q150 193 176 190';
+  const bottomVisible=add('mask',{id:'creator-bottom-visible',maskUnits:'userSpaceOnUse',x:0,y:0,width:300,height:430},defs);
+  add('rect',{x:0,y:0,width:300,height:430,fill:'white'},bottomVisible);
+  if(separated)add('path',{d:shapeForLength(variants[v.template].slice(0,variants[v.template].indexOf(' Z')+2)),fill:'black'},bottomVisible);
+  const bottomDetails=add('g',{mask:'url(#creator-bottom-visible)'},details);
   add('path',{d:shapeForLength(seam),fill:'none',stroke:'#343830','stroke-opacity':.42,'stroke-width':.65},details);
   const legs=v.template==='Jumpsuit'||v.template==='Top & trousers';
-  if(legs)add('path',{d:shapeForLength('M127 211 Q124 225 116 233 M173 211 Q176 225 184 233 M150 207 L150 244'),fill:'none',stroke:'#343830','stroke-width':.8},details);
-  add('path',{d:'M134 145 L137 183 L140 145 M160 145 L163 183 L166 145',fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},details);
+  if(legs)add('path',{d:shapeForLength('M127 211 Q124 225 116 233 M173 211 Q176 225 184 233 M150 207 L150 244'),fill:'none',stroke:'#343830','stroke-width':.8},bottomDetails);
+  add('path',{d:'M134 145 L137 183 L140 145 M160 145 L163 183 L166 145',fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
   if(!legs){
    const folds=v.template==='Fitted'?['M128 210 Q118 278 126 345','M172 210 Q182 278 174 345']:['M124 211 Q112 278 103 348','M141 212 Q134 284 132 355','M159 212 Q166 284 168 355','M176 211 Q188 278 197 348'];
    folds.forEach((d,index)=>add('path',{d:shapeForLength(d),fill:'none',stroke:'#292722','stroke-opacity':index%2?.24:.14,'stroke-width':index%2?1.1:.8},details));
@@ -155,7 +161,7 @@
    pleats.forEach((d,i)=>add('path',{d:shapeForLength(d),fill:'none',stroke:i%2?'#fff':'#292722','stroke-opacity':i%2?.19:.12,'stroke-width':i%2?1.5:1.1},details));
   }
   const hem=legs?'M111 351 Q128 355 143 351 M157 351 Q173 355 189 351':v.template==='Fitted'?'M123 351 Q150 356 177 351':v.template==='Full skirt'?'M57 343 Q150 373 243 343':'M87 350 Q150 361 213 350';
-  add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},details);
+  add('path',{d:shapeForLength(hem),fill:'none',stroke:'#343830','stroke-opacity':.3,'stroke-width':.55},bottomDetails);
   if(v.sleeves==='Short')add('path',{d:'M91 121 L106 128 M194 128 L209 121',fill:'none',stroke:'#343830','stroke-opacity':.5,'stroke-width':.65},details);
   // Construction accents follow sleeve selection without changing the editable silhouette.
   if(v.sleeves==='Long'){
@@ -167,10 +173,6 @@
   // A restrained neckline facing adds depth while preserving the neckline cutout.
   const facing=v.neckline==='V-neck'?'M138 79 L150 103 L162 79':v.neckline==='Square'?'M138 79 L138 96 Q150 98 162 96 L162 79':'M138 79 Q150 96 162 79';
   add('path',{d:facing,fill:'none',stroke:'#fff','stroke-opacity':.42,'stroke-width':.8,'stroke-linecap':'round'},details);
-  if(separated&&v.topStyle!=='Classic'){
-   const seamY=v.topStyle==='Cropped'?172:222;
-   add('path',{d:`M124 ${seamY} Q150 ${seamY+4} 176 ${seamY}`,fill:'none',stroke:'#292722','stroke-width':1.5,'stroke-opacity':.35},details);
-  }
   if(v.accessory==='Belt'||v.waistDetail!=='None'){
    add('path',{d:'M123 184 Q150 188 177 184 L177 195 Q150 198 123 195 Z',fill:v.waistDetail==='Belt'?v.color:v.secondary,stroke:'#39333a','stroke-width':1},details);
    add('rect',{x:146,y:185,width:8,height:10,rx:1,fill:'none',stroke:'#d6c29a','stroke-width':1.5},details);
