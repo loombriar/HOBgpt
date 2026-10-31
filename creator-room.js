@@ -239,6 +239,15 @@
  }
  $('creator-template').value=initialTemplate;
  $('creator-template').closest('label').before(chooser);
+ // Give each garment plate a lightweight 3D tilt without changing click or keyboard behavior.
+ for(const card of chooser.querySelectorAll('.creator-template-card')){
+  card.addEventListener('pointermove',event=>{
+   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+   const rect=card.getBoundingClientRect(),x=(event.clientX-rect.left)/rect.width-.5,y=(event.clientY-rect.top)/rect.height-.5;
+   card.style.setProperty('--tilt-y',`${(x*7).toFixed(2)}deg`);card.style.setProperty('--tilt-x',`${(-y*7).toFixed(2)}deg`);
+  });
+  card.addEventListener('pointerleave',()=>{card.style.removeProperty('--tilt-x');card.style.removeProperty('--tilt-y');});
+ }
  const looks={everyday:['A-line','Scoop','Short','Midi','#b7d9cc'],evening:['Fitted','V-neck','Sleeveless','Maxi','#775166'],separates:['Top & skirt','Square','Sleeveless','Mini','#b8bdd9']};
  for(const button of root.querySelectorAll('[data-creator-look]'))button.addEventListener('click',()=>{checkpoint();const look=looks[button.dataset.creatorLook];['creator-template','creator-neckline','creator-sleeves','creator-length','creator-color'].forEach((id,index)=>{$(id).value=look[index];});$('creator-secondary-color').value=look[4];invalidate();render();checkpoint();$('creator-status').textContent=button.querySelector('strong').textContent+' loaded. Make it your own with the details below.';});
  $('creator-avatar').addEventListener('change',async event=>{
