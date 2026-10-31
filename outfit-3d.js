@@ -14,22 +14,30 @@
   for(let i=0;i<=12;i++){const f=i/12,center=start.map((x,k)=>x+axis[k]*f),r=radius*(1-.18*f);const row=Array.from({length:32},(_,j)=>{const t=j/32*Math.PI*2;return center.map((x,k)=>x+r*(Math.cos(t)*v[k]+Math.sin(t)*b[k]));});if(prior)connect(prior,row,color);prior=row;}
   seams.push({points:prior.concat([prior[0]]),color:'#655154'});
  }
- function build(){mesh=[];seams=[];const color=value('creator-color','#b7d9cc'),finish=value('creator-fabric-finish','Matte'),length=value('creator-length','Midi'),sleeves=value('creator-sleeves','Short'),neck=value('creator-neckline','Scoop');
+ function build(){mesh=[];seams=[];const color=value('creator-color','#b7d9cc'),finish=value('creator-fabric-finish','Matte'),length=value('creator-length','Midi'),sleeves=value('creator-sleeves','Short'),neck=value('creator-neckline','Scoop'),template=value('creator-template','A-line');
   const topY=t=>{const front=Math.max(0,Math.sin(t));return .96-(neck==='V-neck'?.37*Math.pow(front,4):neck==='Square'?.28*Math.min(1,front*2):.24*front*front);};
   let prior;
   for(let i=0;i<=26;i++){const f=i/26,y=.96*(1-f),bust=Math.exp(-Math.pow((f-.25)/.24,2)),rx=.36+.14*(1-f)+.025*bust,rz=.21+.065*bust-.045*f;const row=ring(rx,rz,t=>topY(t)*(1-f),.006);
    if(prior)connect(prior,row,color);else seams.push({points:row.concat([row[0]]),color:'#8d7c70'});prior=row;
   }
   const skirtLength=length==='Mini'?.82:length==='Maxi'?2.08:1.58;
+  const legged=template==='Jumpsuit'||template==='Top & trousers';
+  const full=template==='Full skirt'||template==='Top & skirt';
+  const fitted=template==='Fitted';
   let waist;
-  for(let i=0;i<=38;i++){const f=i/38,rx=.36+.49*Math.pow(f,.78),rz=.165+.29*f,fold=.045*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
-  seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
-  // Thin inner hem provides visible thickness when the camera looks inside the skirt.
-  const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,color);
-  for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+.045*f*Math.cos(angle*12);points.push([(.36+.49*Math.pow(f,.78))*Math.cos(angle)*r,-f*skirtLength,(.165+.29*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
+  if(legged){
+   // Separates and jumpsuits keep a readable center gap instead of becoming a dress mesh.
+   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-f*skirtLength,rx=width*(1-.05*f),rz=.16*(1-.04*f);const row=ring(rx,rz,y).map(p=>[p[0]+cx,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,color);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
+   const left=leg(-.2,fitted?.17:.22),right=leg(.2,fitted?.17:.22);waist=left.first.concat(right.first);connect(prior,left.first,color);connect(prior,right.first,color);
+  }else{
+   for(let i=0;i<=38;i++){const f=i/38,flare=full?.64:fitted?.20:.49,base=.36+flare*Math.pow(f,.78),rx=base,rz=.165+(full?.34:fitted?.12:.29)*f,fold=.045*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
+   seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
+   const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,color);
+   const flare=full?.64:fitted?.20:.49;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+.045*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,.78))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.34:fitted?.12:.29)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
+  }
   if(sleeves!=='Sleeveless')for(const sign of [-1,1])tube([sign*.44,.82,0],[sign*(sleeves==='Long'?.83:.69),sleeves==='Long'?-.15:.48,0],.145,color);
   const belt=value('creator-waist-detail','None');if(belt!=='None'||value('creator-accessory','None')==='Belt'){const c=belt==='Contrast belt'?value('creator-secondary-color','#775166'):color;connect(ring(.37,.18,.035),ring(.38,.185,-.05),c);}
-  canvas.dataset.meshTriangles=String(mesh.length);canvas.dataset.fabricFinish=finish;canvas.dataset.neckline=neck;canvas.dataset.length=length;canvas.dataset.sleeves=sleeves;
+  canvas.dataset.meshTriangles=String(mesh.length);canvas.dataset.template=template;canvas.dataset.fabricFinish=finish;canvas.dataset.neckline=neck;canvas.dataset.length=length;canvas.dataset.sleeves=sleeves;
  }
  function rotate(p){const c=Math.cos(yaw),s=Math.sin(yaw),x=p[0]*c+p[2]*s,z=-p[0]*s+p[2]*c,cp=Math.cos(pitch),sp=Math.sin(pitch);return [x,p[1]*cp-z*sp,p[1]*sp+z*cp];}
  function project(p){const f=4.8/(4.8+p[2]),scale=150*zoom;return [300+p[0]*scale*f,270-p[1]*scale*f];}
@@ -45,10 +53,10 @@
   canvas.dataset.yaw=yaw.toFixed(3);canvas.dataset.pitch=pitch.toFixed(3);
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(paint);}
- function sync(){const active=value('creator-template','A-line')==='A-line',avatar=Boolean(sketch.querySelector('[data-avatar-reference]'));
+ function sync(){const active=Boolean(value('creator-template','A-line')),avatar=Boolean(sketch.querySelector('[data-avatar-reference]'));
   panel.hidden=!active||avatar||technical;sketch.toggleAttribute('hidden',active&&!avatar&&!technical);
   $('creator-3d-toggle').hidden=!active||avatar;$('creator-3d-toggle').textContent=technical?'Show 3D dress':'Show editable sketch';$('creator-3d-toggle').setAttribute('aria-pressed',String(technical));
-  $('creator-3d-status').textContent=active?'Drag the dress to rotate it. This is a garment concept, not a fit simulation.':'The first 3D model is the A-line dress. Choose A-line to rotate it; other silhouettes use the editable sketch.';
+  $('creator-3d-status').textContent=active?'Drag the '+value('creator-template','outfit').toLowerCase()+' to rotate it. This is a garment concept, not a fit simulation.':'Choose a silhouette to rotate its 3D garment preview.';
   build();schedule();
  }
  canvas.addEventListener('pointerdown',e=>{drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);canvas.focus();});
