@@ -46,7 +46,7 @@
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(paint);}
  function sync(){const active=value('creator-template','A-line')==='A-line',avatar=Boolean(sketch.querySelector('[data-avatar-reference]'));
-  panel.hidden=!active||avatar||technical;sketch.hidden=active&&!avatar&&!technical;
+  panel.hidden=!active||avatar||technical;sketch.toggleAttribute('hidden',active&&!avatar&&!technical);
   $('creator-3d-toggle').hidden=!active||avatar;$('creator-3d-toggle').textContent=technical?'Show 3D dress':'Show editable sketch';$('creator-3d-toggle').setAttribute('aria-pressed',String(technical));
   $('creator-3d-status').textContent=active?'Drag the dress to rotate it. This is a garment concept, not a fit simulation.':'The first 3D model is the A-line dress. Choose A-line to rotate it; other silhouettes use the editable sketch.';
   build();schedule();
