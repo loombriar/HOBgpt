@@ -26,14 +26,12 @@
   const fitted=template==='Fitted';
   let waist;
   if(legged){
-   // Separates and jumpsuits keep a readable center gap instead of becoming a dress mesh.
-   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-f*skirtLength,rx=width*(1-.05*f),rz=.16*(1-.04*f);const row=ring(rx,rz,y).map(p=>[p[0]+cx,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,color);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
-   const left=leg(-.2,.18),right=leg(.2,.18);
-   // Close the waist-to-leg transition by mapping each half of the torso ring
-   // onto a separate leg, without wrapping one 64-point ring around two legs.
-   const bridge=(half,legRow)=>{const torso=Array.from({length:64},(_,j)=>prior[(Math.floor(j/2)+half*32)%64]);connect(torso,legRow,color);};
-   bridge(0,left.first);bridge(1,right.first);
-   waist=left.first.concat(right.first);
+   // Build a short hip section before splitting into legs so trousers and jumpsuits
+   // read as one connected garment rather than two floating tubes.
+   const waistRow=ring(.38,.19,.02),hipRow=ring(.42,.23,-.12);connect(prior,waistRow,color);connect(waistRow,hipRow,color);
+   seams.push({points:waistRow.concat([waistRow[0]]),color:'#655154'});
+   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,color);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
+   const left=leg(-.2,fitted?.2:.25),right=leg(.2,fitted?.2:.25);waist=waistRow;connect(hipRow,left.first,color);connect(hipRow,right.first,color);
   }else{
    for(let i=0;i<=38;i++){const f=i/38,flare=full?.64:fitted?.20:.49,base=.36+flare*Math.pow(f,.78),rx=base,rz=.165+(full?.34:fitted?.12:.29)*f,fold=.045*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
    seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
@@ -54,7 +52,7 @@
   }
   // Draw only the front portions of seam lines, so back seams stay behind the cloth.
   for(const seam of seams){ctx.strokeStyle=seam.color;ctx.globalAlpha=seam.subtle?.22:.5;ctx.lineWidth=seam.subtle?.7:1;ctx.beginPath();let pen=false;for(const p of seam.points){const r=rotate(p),front=r[2]<.05;if(!front){pen=false;continue;}const [x,y]=project(r);if(pen)ctx.lineTo(x,y);else ctx.moveTo(x,y);pen=true;}ctx.stroke();}ctx.globalAlpha=1;
-  ctx.fillStyle='#63515b';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText((value('creator-template','A-line').toUpperCase()+' · INTERACTIVE 3D STUDY'),300,36);
+  ctx.fillStyle='#63515b';ctx.font='12px system-ui';ctx.textAlign='center';ctx.fillText(value('creator-template','OUTFIT').toUpperCase()+' · INTERACTIVE 3D STUDY',300,36);
   canvas.dataset.yaw=yaw.toFixed(3);canvas.dataset.pitch=pitch.toFixed(3);
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(paint);}

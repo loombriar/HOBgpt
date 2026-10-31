@@ -1,8 +1,0 @@
-type Props={status:string;moderationStatus:string;reason?:string|null;paused?:boolean;studioStatus?:string};
-export default function ListingReviewStatus({status,moderationStatus,reason,paused,studioStatus}:Props){
- const changes=status==='rejected';
- const pending=status==='pending_review';
- const live=status==='published'&&moderationStatus==='approved';
- const label=changes?'Changes requested':pending?'Pending review':status==='draft'?'Draft':live?paused?'Paused':studioStatus==='Sold Out'?'Sold out':studioStatus==='Expired'?'Expired':studioStatus==='Inactive'?'Unavailable':'Live':studioStatus||'Unavailable';
- return <div className="mt-3 space-y-2"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${changes?'border-amber-500 bg-amber-100 text-amber-950':pending?'border-violet-400 bg-violet-100 text-violet-950':live&&!paused?'border-emerald-500 bg-emerald-100 text-emerald-950':'border-border bg-muted text-foreground'}`}>{label}</span>{pending&&<p className="text-sm text-muted-foreground">Your piece is awaiting review and is not public yet.</p>}{status==='draft'&&<p className="text-sm text-muted-foreground">Private draft. Submit when your piece is ready.</p>}{changes&&<aside aria-label="Review feedback" className="rounded-xl border border-amber-500 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested</strong><p className="mt-2 whitespace-pre-wrap break-words">{reason||'Open your piece and check its details before submitting again.'}</p><p className="mt-2">Edit your piece, save the changes, then submit it for review again.</p></aside>}</div>;
-}
