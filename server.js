@@ -1518,8 +1518,8 @@ function createApp(options = {}) {
           extracted = require('./lib/collection-docx-text').extractDocxText(buffer);
         } else {
           const raw = buffer.toString('latin1');
-          if (/\\/Encrypt\\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
-          pageMarkers = raw.match(/\\/Type\\s*\\/Page\\b/g) || [];
+          if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
+          pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
           if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
           extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
         }
