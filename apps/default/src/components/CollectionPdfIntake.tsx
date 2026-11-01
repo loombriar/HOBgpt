@@ -8,6 +8,8 @@ export default function CollectionPdfIntake() {
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
+  const [serverStatus, setServerStatus] = useState('');
+  const [sending, setSending] = useState(false);
   const [entries, setEntries] = useState<Array<{ name: string; price: string; notes: string }>>([]);
   useEffect(() => {
     if (!file) { setUrl(''); return; }
@@ -17,6 +19,7 @@ export default function CollectionPdfIntake() {
   }, [file]);
   function choose(next: File | undefined) {
     setError('');
+    setServerStatus('');
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -38,6 +41,19 @@ export default function CollectionPdfIntake() {
     </label>
     {error && <p role="alert" className="text-red-700">{error}</p>}
     {url && <>
+      <button type="button" disabled={sending} className="rounded-lg border px-4 py-2" onClick={async () => {
+        if (!file) return;
+        setSending(true); setServerStatus('');
+        try {
+          const data = new FormData(); data.append('catalog', file);
+          const response = await fetch('/api/designer/collection-imports', { method: 'POST', body: data, credentials: 'same-origin' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message || 'PDF validation failed.');
+          setServerStatus('Server validated the PDF, but did not save or extract it. This is an early development feature.');
+        } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed.'); }
+        finally { setSending(false); }
+      }}>{sending ? 'Validating…' : 'Validate PDF with House of Briar'}</button>
+      {serverStatus && <p role="status">{serverStatus}</p>}
       <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
       </object>
