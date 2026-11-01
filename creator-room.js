@@ -49,6 +49,12 @@
   const v=values(),pos=position(),svg=$('creator-preview');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
   const add=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));parent.append(n);return n;};
   add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-studio-paper)'});
+  // Quiet runway perspective, drawn behind the garment and avatar.
+  add('path',{d:'M0 352 L300 352 L300 430 L0 430 Z',fill:'#b8a58d','fill-opacity':.13});
+  for(const [x1,x2] of [[18,100],[282,200],[78,128],[222,172]])add('path',{d:`M${x1} 430 L${x2} 352`,stroke:'#a88b5f','stroke-opacity':.24,'stroke-width':.65,fill:'none'});
+  for(const y of [370,391,415])add('path',{d:`M0 ${y} H300`,stroke:'#a88b5f','stroke-opacity':.19,'stroke-width':.6});
+  add('path',{d:'M10 18 V412 M290 18 V412',stroke:'#b48b4b','stroke-opacity':.55,'stroke-width':1,fill:'none'});
+  add('path',{d:'M14 22 V408 M286 22 V408',stroke:'#d0b27c','stroke-opacity':.25,'stroke-width':.5,fill:'none'});
   add('path',{d:'M22 32 H42 M22 32 V52 M278 32 H258 M278 32 V52 M22 390 H42 M22 390 V370 M278 390 H258 M278 390 V370',stroke:'#c9c1b4','stroke-width':.5,fill:'none'});
   if(avatarData)add('image',{href:avatarData,x:0,y:0,width:300,height:400,preserveAspectRatio:'xMidYMid meet','data-avatar-reference':'true'});
   const height=v.length==='Mini'?.4:v.length==='Midi'?.72:1;
