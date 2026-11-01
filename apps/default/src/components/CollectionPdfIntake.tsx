@@ -12,6 +12,9 @@ export default function CollectionPdfIntake() {
   const [extractedText, setExtractedText] = useState('');
   const [sending, setSending] = useState(false);
   const [draftId, setDraftId] = useState('');
+  const [listingCategory, setListingCategory] = useState('');
+  const [createdListingIds, setCreatedListingIds] = useState<string[]>([]);
+  const [converting, setConverting] = useState(false);
   const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;selected:boolean}>>([]);
   const [entries, setEntries] = useState<Array<{ name: string; price: string; notes: string }>>([]);
   useEffect(() => {
@@ -24,7 +27,7 @@ export default function CollectionPdfIntake() {
     setError('');
     setServerStatus('');
     setExtractedText('');
-    setDraftId(''); setReviewGarments([]);
+    setDraftId(''); setReviewGarments([]); setCreatedListingIds([]);
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -80,6 +83,38 @@ export default function CollectionPdfIntake() {
           <label className="flex gap-2"><input type="checkbox" checked={g.selected} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,selected:e.target.checked}:v))}/> Mark reviewed</label>
           <button type="button" className="underline" onClick={()=>setReviewGarments(items=>items.filter((_,j)=>j!==i))}>Remove suggestion</button>
         </fieldset>)}
+        <div className="space-y-2 border-t pt-3">
+          <h4 className="font-semibold">Create unpublished marketplace drafts</h4>
+          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Photos, shipping and inventory must be checked separately before publication.</p>
+          <label className="block">Marketplace category
+            <select className="block border rounded p-2" value={listingCategory} onChange={e=>setListingCategory(e.target.value)}>
+              <option value="">Choose category</option>
+              {['apparel','accessories','costumes','menswear','womenswear','unisex','other'].map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+          <button type="button" className="rounded-lg border px-4 py-2" disabled={converting || !listingCategory || !reviewGarments.some(g=>g.selected && g.name.trim() && g.description.trim() && g.price!==null && Number.isFinite(g.price) && g.price>=0)}
+            onClick={async()=>{
+              const eligible=reviewGarments.filter(g=>g.selected && g.name.trim() && g.description.trim() && g.price!==null && Number.isFinite(g.price) && g.price>=0 && !createdListingIds.includes(g.id));
+              if(!eligible.length){setError('No eligible new garments remain.');return;}
+              if(!window.confirm('Create '+eligible.length+' private marketplace listing drafts? This will not publish products.'))return;
+              setConverting(true);setError('');
+              try{
+                // Save the reviewed source before creating listings.
+                const saved=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
+                if(!saved.ok)throw new Error('Save your private collection review before converting.');
+                let created=0;
+                for(const g of eligible){
+                  const response=await fetch('/api/listings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Idempotency-Key':'pdf-'+g.id},body:JSON.stringify({title:g.name.trim(),description:g.description.trim(),price:g.price,category:listingCategory,size:g.sizes.slice(0,40)})});
+                  const result=await response.json();
+                  if(!response.ok)throw new Error(result.message||'Could not create listing draft for '+g.name);
+                  setCreatedListingIds(ids=>ids.includes(g.id)?ids:[...ids,g.id]);
+                  created++;
+                }
+                setServerStatus(created+' marketplace listing drafts created or reused. None were published.');
+              }catch(err){setError(err instanceof Error?err.message:'Listing draft conversion failed. Earlier items may have succeeded; retry is safe for the same garments.');}
+              finally{setConverting(false);}
+            }}>{converting?'Creating drafts…':'Create marketplace drafts from reviewed garments'}</button>
+        </div>
         <button type="button" className="rounded-lg border px-4 py-2" onClick={async()=>{
           try {
             const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
