@@ -11,6 +11,8 @@ export default function CollectionPdfIntake() {
   const [serverStatus, setServerStatus] = useState('');
   const [extractedText, setExtractedText] = useState('');
   const [sending, setSending] = useState(false);
+  const [draftId, setDraftId] = useState('');
+  const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;selected:boolean}>>([]);
   const [entries, setEntries] = useState<Array<{ name: string; price: string; notes: string }>>([]);
   useEffect(() => {
     if (!file) { setUrl(''); return; }
@@ -22,6 +24,7 @@ export default function CollectionPdfIntake() {
     setError('');
     setServerStatus('');
     setExtractedText('');
+    setDraftId(''); setReviewGarments([]);
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -57,6 +60,34 @@ export default function CollectionPdfIntake() {
         finally { setSending(false); }
       }}>{sending ? 'Validating…' : 'Validate PDF with House of Briar'}</button>
       {serverStatus && <p role="status">{serverStatus}</p>}
+      {extractedText && !draftId && <button type="button" className="rounded-lg border px-4 py-2" onClick={async () => {
+        try {
+          const response = await fetch('/api/designer/collection-drafts', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sourceName:file?.name,extractedText}) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message || 'Could not create private review draft.');
+          setDraftId(result.id); setReviewGarments(result.garments);
+        } catch (err) { setError(err instanceof Error ? err.message : 'Draft creation failed.'); }
+      }}>Create private review draft from extracted lines</button>}
+      {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3>
+        <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
+        {reviewGarments.map((g,i) => <fieldset key={g.id} className="rounded-lg border p-3 space-y-2">
+          <legend>Candidate {i+1}</legend>
+          <label className="block">Garment name<input className="block w-full border rounded p-2" value={g.name} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,name:e.target.value}:v))}/></label>
+          <label className="block">Description<textarea className="block w-full border rounded p-2" value={g.description} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,description:e.target.value}:v))}/></label>
+          <label className="block">Price (leave empty if unknown)<input className="block w-full border rounded p-2" type="number" min="0" step="0.01" value={g.price ?? ''} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,price:e.target.value===''?null:Number(e.target.value)}:v))}/></label>
+          <label className="block">Sizes<input className="block w-full border rounded p-2" value={g.sizes} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,sizes:e.target.value}:v))}/></label>
+          <label className="block">Colors<input className="block w-full border rounded p-2" value={g.colors} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,colors:e.target.value}:v))}/></label>
+          <label className="flex gap-2"><input type="checkbox" checked={g.selected} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,selected:e.target.checked}:v))}/> Mark reviewed</label>
+          <button type="button" className="underline" onClick={()=>setReviewGarments(items=>items.filter((_,j)=>j!==i))}>Remove suggestion</button>
+        </fieldset>)}
+        <button type="button" className="rounded-lg border px-4 py-2" onClick={async()=>{
+          try {
+            const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
+            const result=await response.json(); if(!response.ok)throw new Error(result.message||'Save failed.');
+            setServerStatus('Private review draft saved. No marketplace listings were created.');
+          } catch(err){setError(err instanceof Error?err.message:'Save failed.');}
+        }}>Save private review draft</button>
+      </section>}
       {serverStatus && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
       <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
