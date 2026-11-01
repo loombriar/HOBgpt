@@ -1504,11 +1504,11 @@ function createApp(options = {}) {
   let app;
   app = express();
   require('./lib/designer-collection-drafts').registerCollectionDrafts({ app, db, authDesigner, fail, rateLimit });
-  // Private PDF collection intake: authenticated designer only, no public file URL.
+  // Private PDF / Word collection intake: authenticated designer only, no public file URL.
   const collectionPdfUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 0 },
-    fileFilter: (_req, file, cb) => cb(null, file.mimetype === 'application/pdf')
+    fileFilter: (_req, file, cb) => cb(null, ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.mimetype))
   });
   app.post('/api/designer/collection-imports', authDesigner,
     rateLimit({windowMs: 60 * 60 * 1000, max: 12, keyPrefix: 'designer-pdf-import'}),
@@ -1518,20 +1518,30 @@ function createApp(options = {}) {
     }),
     (req, res) => {
       const buffer = req.file?.buffer;
-      if (!buffer || buffer.length < 8 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
-        return fail(res, 400, 'invalid_pdf', 'Upload a valid PDF catalog.');
+      const isWord = /\.docx$/i.test(req.file?.originalname || '');
+      const isPdf = /\.pdf$/i.test(req.file?.originalname || '');
+      if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || isWord && buffer.readUInt32LE(0) === 0x04034b50)) {
+        return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF or DOCX catalog.');
       }
-      // Reject encrypted PDFs and suspiciously large object counts before processing.
-      const raw = buffer.toString('latin1');
-      if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
-      const pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
-      if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
-      const extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
+      let extracted, pageMarkers = [];
+      try {
+        if (isWord) {
+          extracted = require('./lib/collection-docx-text').extractDocxText(buffer);
+        } else {
+          const raw = buffer.toString('latin1');
+          if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
+          pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
+          if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
+          extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
+        }
+      } catch (error) {
+        return fail(res, 422, 'invalid_catalog', 'Could not extract document text. Check the file is a valid, unprotected PDF or DOCX.');
+      }
       // The file is intentionally not persisted; extracted text is returned only to its authenticated uploader.
       res.set('Cache-Control', 'no-store');
       return res.status(202).json({
         status: 'received_not_saved',
-        fileName: String(req.file.originalname || 'catalog.pdf').slice(0, 160),
+        fileName: String(req.file.originalname || 'catalog').slice(0, 160),
         bytes: buffer.length,
         detectedPages: pageMarkers.length,
         extractedText: extracted.text,
@@ -1540,7 +1550,6 @@ function createApp(options = {}) {
       });
     }
   );
-
 
 
   // Enable only behind a dedicated authenticated ingress. Direct callers are rejected.
