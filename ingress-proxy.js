@@ -1,4 +1,5 @@
 'use strict';
+// Railway production rebuild trigger after merging the scoped healthcheck fix.
 const http = require('node:http');
 const https = require('node:https');
 const crypto = require('node:crypto');
