@@ -41,7 +41,10 @@ function createIngressProxy({upstream,secret,now=()=>Date.now(),nonce=()=>crypto
     if (!isIP(ip)) {res.writeHead(403);res.end('Unverified ingress');return;}
     const host = normalizeHostname(req.headers.host);
     if (!host) {res.writeHead(400);res.end('Invalid Host');return;}
-    if (allowedHosts && !allowedHosts.has(host)) {res.writeHead(400);res.end('Invalid Host');return;}
+    // Railway probes this exact path using its own healthcheck hostname.
+    // Do not trust that hostname for any other endpoint.
+    const railwayHealthcheck = host === 'healthcheck.railway.app' && req.method === 'GET' && req.url === '/api/health';
+    if (allowedHosts && !allowedHosts.has(host) && !railwayHealthcheck) {res.writeHead(400);res.end('Invalid Host');return;}
     const timestamp=String(now());
     const id=nonce();
     const path=req.url;
