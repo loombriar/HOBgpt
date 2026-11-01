@@ -1492,6 +1492,41 @@ function createApp(options = {}) {
 
   let app;
   app = express();
+  // Private PDF collection intake: authenticated designer only, no public file URL.
+  const collectionPdfUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 0 },
+    fileFilter: (_req, file, cb) => cb(null, file.mimetype === 'application/pdf')
+  });
+  app.post('/api/designer/collection-imports', authDesigner,
+    rateLimit({windowMs: 60 * 60 * 1000, max: 12, keyPrefix: 'designer-pdf-import'}),
+    (req, res, next) => collectionPdfUpload.single('catalog')(req, res, err => {
+      if (err) return fail(res, 400, 'invalid_pdf_upload', 'PDF upload exceeds limits or is invalid.');
+      next();
+    }),
+    (req, res) => {
+      const buffer = req.file?.buffer;
+      if (!buffer || buffer.length < 8 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+        return fail(res, 400, 'invalid_pdf', 'Upload a valid PDF catalog.');
+      }
+      // Reject encrypted PDFs and suspiciously large object counts before processing.
+      const raw = buffer.toString('latin1');
+      if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
+      const pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
+      if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
+      // The file is intentionally not persisted. No automatic extraction is claimed here.
+      res.set('Cache-Control', 'no-store');
+      return res.status(202).json({
+        status: 'received_not_saved',
+        fileName: String(req.file.originalname || 'catalog.pdf').slice(0, 160),
+        bytes: buffer.length,
+        detectedPages: pageMarkers.length,
+        message: 'PDF validated in memory. Server-side extraction and persistent private drafts are not yet enabled.'
+      });
+    }
+  );
+
+
   // Enable only behind a dedicated authenticated ingress. Direct callers are rejected.
   if (process.env.INGRESS_HMAC_SECRET) app.use(createIngressGate({secret:process.env.INGRESS_HMAC_SECRET}));
   // Reject untrusted Host values before any route constructs links or handles auth.
