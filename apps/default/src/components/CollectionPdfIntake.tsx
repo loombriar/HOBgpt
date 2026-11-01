@@ -29,9 +29,9 @@ export default function CollectionPdfIntake() {
     setEntries([]);
     if (!next) return;
     if (next.size > 20 * 1024 * 1024) { setError('Document must be 20 MB or smaller.'); return; }
-    if (next.type !== 'application/pdf' || !next.name.toLowerCase().endsWith('.pdf')) {
-      setError('Select a PDF catalog.'); return;
-    }
+    const isPdf = next.name.toLowerCase().endsWith('.pdf');
+    const isDocx = next.name.toLowerCase().endsWith('.docx');
+    if (!isPdf && !isDocx) { setError('Select a PDF or Word (.docx) catalog.'); return; }
     next.slice(0, 5).arrayBuffer().then(bytes => {
       const magic = String.fromCharCode(...new Uint8Array(bytes));
       if (isPdf ? magic !== '%PDF-' : !magic.startsWith('PK')) { setError('This file does not appear to be a valid document.'); return; }
