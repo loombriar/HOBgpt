@@ -1462,6 +1462,36 @@ function createApp(options = {}) {
     return row;
   }
 
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
+  });
+  const imageWork=require('./lib/image-work-controls').createImageWorkControls({db,imagesDir,fail,options:options.imageWork||{}});
+  const fabricFinderUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_IMAGE_BYTES, files: 3 }
+  });
+
+  async function moderateDesignerImage(buffer,mimeType,context='designer upload') {
+    const apiKey=process.env.OPENAI_API_KEY;
+    if(!apiKey)throw Object.assign(new Error('Image safety review is temporarily unavailable.'),{statusCode:503});
+    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},body:JSON.stringify({
+      model:process.env.IMAGE_MODERATION_MODEL||'gpt-6-luna',
+      input:[{role:'user',content:[
+        {type:'input_text',text:'Review this '+context+' for a family-friendly independent fashion marketplace. Return JSON only with allow (boolean), needsHumanReview (boolean), and reason (short string). Reject or require human review for sexual/nude imagery, graphic violence/gore, hateful/extremist symbols or propaganda, illegal-drug promotion, weapons promotion, harassment/threats, explicit profanity directed at a person/group, or imagery that appears intended to scam or impersonate. Ordinary clothing, bodies wearing normal clothing, art, brand logos, and product photography are allowed. When genuinely uncertain, set needsHumanReview true.'},
+        {type:'input_image',image_url:'data:'+mimeType+';base64,'+buffer.toString('base64'),detail:'low'}
+      ]}],
+      text:{format:{type:'json_object'}},max_output_tokens:220
+    })});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});
+    const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
+    let result;try{result=JSON.parse(outputText||'{}');}catch{throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});}
+    return {allow:result.allow===true,needsHumanReview:result.needsHumanReview===true,reason:String(result.reason||'Image requires review.').slice(0,300)};
+  }
+
+  let app;
+  app = express();
   // Private PDF collection intake: authenticated designer only, no public file URL.
   const collectionPdfUpload = multer({
     storage: multer.memoryStorage(),
@@ -1496,36 +1526,7 @@ function createApp(options = {}) {
     }
   );
 
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: MAX_IMAGE_BYTES, files: 1 }
-  });
-  const imageWork=require('./lib/image-work-controls').createImageWorkControls({db,imagesDir,fail,options:options.imageWork||{}});
-  const fabricFinderUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: MAX_IMAGE_BYTES, files: 3 }
-  });
 
-  async function moderateDesignerImage(buffer,mimeType,context='designer upload') {
-    const apiKey=process.env.OPENAI_API_KEY;
-    if(!apiKey)throw Object.assign(new Error('Image safety review is temporarily unavailable.'),{statusCode:503});
-    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},body:JSON.stringify({
-      model:process.env.IMAGE_MODERATION_MODEL||'gpt-6-luna',
-      input:[{role:'user',content:[
-        {type:'input_text',text:'Review this '+context+' for a family-friendly independent fashion marketplace. Return JSON only with allow (boolean), needsHumanReview (boolean), and reason (short string). Reject or require human review for sexual/nude imagery, graphic violence/gore, hateful/extremist symbols or propaganda, illegal-drug promotion, weapons promotion, harassment/threats, explicit profanity directed at a person/group, or imagery that appears intended to scam or impersonate. Ordinary clothing, bodies wearing normal clothing, art, brand logos, and product photography are allowed. When genuinely uncertain, set needsHumanReview true.'},
-        {type:'input_image',image_url:'data:'+mimeType+';base64,'+buffer.toString('base64'),detail:'low'}
-      ]}],
-      text:{format:{type:'json_object'}},max_output_tokens:220
-    })});
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok)throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});
-    const outputText=payload.output_text||payload.output?.flatMap?.(o=>o.content||[]).find?.(x=>x.type==='output_text')?.text;
-    let result;try{result=JSON.parse(outputText||'{}');}catch{throw Object.assign(new Error('Image safety review could not be completed.'),{statusCode:503});}
-    return {allow:result.allow===true,needsHumanReview:result.needsHumanReview===true,reason:String(result.reason||'Image requires review.').slice(0,300)};
-  }
-
-  let app;
-  app = express();
   // Enable only behind a dedicated authenticated ingress. Direct callers are rejected.
   if (process.env.INGRESS_HMAC_SECRET) app.use(createIngressGate({secret:process.env.INGRESS_HMAC_SECRET}));
   // Reject untrusted Host values before any route constructs links or handles auth.
