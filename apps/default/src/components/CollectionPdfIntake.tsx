@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/**
- * First-stage local collection intake. PDFs never leave the browser in this component.
- * This does not parse garments or create server-side listings.
- */
+/** Private PDF and DOCX intake; uploads processed in memory. */
 export default function CollectionPdfIntake() {
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
@@ -31,21 +28,21 @@ export default function CollectionPdfIntake() {
     setFile(null);
     setEntries([]);
     if (!next) return;
-    if (next.size > 20 * 1024 * 1024) { setError('PDF must be 20 MB or smaller.'); return; }
-    if (next.type !== 'application/pdf' || !next.name.toLowerCase().endsWith('.pdf')) {
-      setError('Select a PDF catalog.'); return;
-    }
+    if (next.size > 20 * 1024 * 1024) { setError('Document must be 20 MB or smaller.'); return; }
+    const isPdf = next.name.toLowerCase().endsWith('.pdf');
+    const isDocx = next.name.toLowerCase().endsWith('.docx');
+    if (!isPdf && !isDocx) { setError('Select a PDF or Word (.docx) catalog.'); return; }
     next.slice(0, 5).arrayBuffer().then(bytes => {
       const magic = String.fromCharCode(...new Uint8Array(bytes));
-      if (magic !== '%PDF-') { setError('This file does not appear to be a valid PDF.'); return; }
+      if (isPdf ? magic !== '%PDF-' : !magic.startsWith('PK')) { setError('This file does not appear to be a valid document.'); return; }
       setFile(next);
-    }).catch(() => setError('Could not read this PDF.'));
+    }).catch(() => setError('Could not read this document.'));
   }
-  return <section aria-label="PDF collection intake" className="rounded-2xl border border-border p-5 space-y-4">
-    <h2 className="font-serif text-2xl">Prepare a collection from a PDF</h2>
-    <p className="text-sm">Preview your existing lookbook and record garment details before submitting them. Your PDF stays on this device in this early version; no collection is uploaded or published.</p>
-    <label className="block">Choose PDF catalog (up to 20 MB)
-      <input className="mt-2 block w-full" type="file" accept=".pdf,application/pdf" onChange={event => choose(event.target.files?.[0])} />
+  return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
+    <h2 className="font-serif text-2xl">Prepare a collection from a PDF or Word document</h2>
+    <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored.</p>
+    <label className="block">Choose PDF or Word catalog (up to 20 MB)
+      <input className="mt-2 block w-full" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
     </label>
     {error && <p role="alert" className="text-red-700">{error}</p>}
     {url && <>
@@ -56,12 +53,12 @@ export default function CollectionPdfIntake() {
           const data = new FormData(); data.append('catalog', file);
           const response = await fetch('/api/designer/collection-imports', { method: 'POST', body: data, credentials: 'same-origin' });
           const result = await response.json();
-          if (!response.ok) throw new Error(result.message || 'PDF validation failed.');
+          if (!response.ok) throw new Error(result.message || 'Document validation failed.');
           setExtractedText(typeof result.extractedText === 'string' ? result.extractedText : '');
-          setServerStatus('Server checked the PDF and attempted basic text extraction. No listings were created.');
+          setServerStatus('Server checked the document and attempted text extraction. No listings were created.');
         } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed.'); }
         finally { setSending(false); }
-      }}>{sending ? 'Validating…' : 'Validate PDF with House of Briar'}</button>
+      }}>{sending ? 'Validating…' : 'Extract document text with House of Briar'}</button>
       {serverStatus && <p role="status">{serverStatus}</p>}
       {extractedText && !draftId && <button type="button" className="rounded-lg border px-4 py-2" onClick={async () => {
         try {
@@ -124,9 +121,9 @@ export default function CollectionPdfIntake() {
         }}>Save private review draft</button>
       </section>}
       {serverStatus && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
-      <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
+      {file?.name.toLowerCase().endsWith(".pdf") && <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
-      </object>
+      </object>}
       <button type="button" className="rounded-lg border px-4 py-2" onClick={() => setEntries(current => [...current, { name: '', price: '', notes: '' }])}>Add garment to review list</button>
       {entries.map((entry, index) => <fieldset key={index} className="rounded-xl border p-3 space-y-2">
         <legend>Garment {index + 1}</legend>
