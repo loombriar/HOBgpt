@@ -1492,6 +1492,7 @@ function createApp(options = {}) {
 
   let app;
   app = express();
+  require('./lib/designer-collection-drafts').registerCollectionDrafts({ app, db, authDesigner, fail, rateLimit });
   // Private PDF collection intake: authenticated designer only, no public file URL.
   const collectionPdfUpload = multer({
     storage: multer.memoryStorage(),
