@@ -126,15 +126,12 @@ test('saved measurement profiles are encrypted and isolated between customers',a
 });
 
 
-test('customer signup, verification and logout work on the serving domain when APP_ORIGIN names another domain',async()=>{
- const f=await setup({appOrigin:'http://configured-house.example'});
- try{
-  const buyer=await f.verify('custom-domain@example.test');
-  assert.equal(buyer.data.customer.email,'custom-domain@example.test');
-  const rejected=await f.post('/api/customer/signin-code',{email:'blocked@example.test',acceptedRules:true},'','http://outside.example');
-  assert.equal(rejected.status,403);
-  const out=await fetch(f.url+'/api/customer/session',{method:'DELETE',headers:{Origin:f.url,Cookie:buyer.cookie}});
-  assert.equal(out.status,200);
-  assert.equal((await fetch(f.url+'/api/my/favorites',{headers:{Cookie:buyer.cookie}})).status,401);
- }finally{await f.close();}
+test('customer signup rejects an untrusted serving host when APP_ORIGIN names another domain',async()=>{
+  const f=await setup({appOrigin:'http://configured-house.example'});
+  try{
+    const rejected=await f.post('/api/customer/signin-code',{email:'custom-domain@example.test',name:'Guest',acceptedRules:true});
+    assert.equal(rejected.status,403);
+    assert.equal(f.ctx.db.prepare('SELECT COUNT(*) n FROM customer_accounts').get().n,0);
+    assert.equal(f.mail.length,0);
+  }finally{await f.close();}
 });
