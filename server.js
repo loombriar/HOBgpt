@@ -1507,8 +1507,8 @@ function createApp(options = {}) {
     }),
     (req, res) => {
       const buffer = req.file?.buffer;
-      const isWord = /\\.docx$/i.test(req.file?.originalname || '');
-      const isPdf = /\\.pdf$/i.test(req.file?.originalname || '');
+      const isWord = /\.docx$/i.test(req.file?.originalname || '');
+      const isPdf = /\.pdf$/i.test(req.file?.originalname || '');
       if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || isWord && buffer.readUInt32LE(0) === 0x04034b50)) {
         return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF or DOCX catalog.');
       }
