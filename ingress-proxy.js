@@ -4,16 +4,44 @@ const https = require('node:https');
 const crypto = require('node:crypto');
 const {isIP} = require('node:net');
 
+function normalizeHostname(value) {
+  if (typeof value !== 'string') return null;
+  const host = value.trim().toLowerCase();
+  if (!host || host.includes('/') || host.includes(' ')) return null;
+  const candidate = host.replace(/\[(.*)\]/, '$1');
+  if (candidate.startsWith(':')) return null;
+  const withoutPort = candidate.replace(/:\d+$/, '');
+  if (!withoutPort) return null;
+  if (!/^(localhost|\[[0-9a-f:]+\]|[a-z0-9.-]+|\d{1,3}(\.\d{1,3}){3}|[0-9a-f:]+)$/.test(withoutPort)) return null;
+  return withoutPort;
+}
+
+function allowedHostnames() {
+  const names = new Set(['localhost', '127.0.0.1', '::1']);
+  const add = value => {
+    if (!value) return;
+    const host = normalizeHostname(value);
+    if (host) names.add(host);
+  };
+  add(process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN).hostname : null);
+  for (const entry of (process.env.ALLOWED_HOSTS || '').split(',')) add(entry);
+  return names.size > 0 ? names : null;
+}
+
 function createIngressProxy({upstream,secret,now=()=>Date.now(),nonce=()=>crypto.randomBytes(16).toString('hex')}={}) {
   if (!upstream || !/^https?:$/.test(new URL(upstream).protocol)) throw new Error('INGRESS_UPSTREAM_URL must be an HTTP URL');
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('INGRESS_HMAC_SECRET must be at least 32 characters');
   const target=new URL(upstream);
+  const allowedHosts = allowedHostnames();
   return http.createServer((req,res)=>{
     // Authenticate the actual connection peer, never a caller-supplied header.
     // Railway edge requests may share this identity. Keep conservative shared
     // throttling until an authenticated edge can supply individual client IPs.
     const ip=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');
     if (!isIP(ip)) {res.writeHead(403);res.end('Unverified ingress');return;}
+    const host = normalizeHostname(req.headers.host);
+    if (!host) {res.writeHead(400);res.end('Invalid Host');return;}
+    if (allowedHosts && !allowedHosts.has(host)) {res.writeHead(400);res.end('Invalid Host');return;}
     const timestamp=String(now());
     const id=nonce();
     const path=req.url;
