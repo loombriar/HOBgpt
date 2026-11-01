@@ -9,6 +9,7 @@ export default function CollectionPdfIntake() {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [serverStatus, setServerStatus] = useState('');
+  const [extractedText, setExtractedText] = useState('');
   const [sending, setSending] = useState(false);
   const [entries, setEntries] = useState<Array<{ name: string; price: string; notes: string }>>([]);
   useEffect(() => {
@@ -20,6 +21,7 @@ export default function CollectionPdfIntake() {
   function choose(next: File | undefined) {
     setError('');
     setServerStatus('');
+    setExtractedText('');
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -49,11 +51,13 @@ export default function CollectionPdfIntake() {
           const response = await fetch('/api/designer/collection-imports', { method: 'POST', body: data, credentials: 'same-origin' });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'PDF validation failed.');
-          setServerStatus('Server validated the PDF, but did not save or extract it. This is an early development feature.');
+          setExtractedText(typeof result.extractedText === 'string' ? result.extractedText : '');
+          setServerStatus('Server checked the PDF and attempted basic text extraction. No listings were created.');
         } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed.'); }
         finally { setSending(false); }
       }}>{sending ? 'Validating…' : 'Validate PDF with House of Briar'}</button>
       {serverStatus && <p role="status">{serverStatus}</p>}
+      {serverStatus && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
       <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
       </object>

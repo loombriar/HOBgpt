@@ -1514,14 +1514,17 @@ function createApp(options = {}) {
       if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
       const pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
       if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
-      // The file is intentionally not persisted. No automatic extraction is claimed here.
+      const extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
+      // The file is intentionally not persisted; extracted text is returned only to its authenticated uploader.
       res.set('Cache-Control', 'no-store');
       return res.status(202).json({
         status: 'received_not_saved',
         fileName: String(req.file.originalname || 'catalog.pdf').slice(0, 160),
         bytes: buffer.length,
         detectedPages: pageMarkers.length,
-        message: 'PDF validated in memory. Server-side extraction and persistent private drafts are not yet enabled.'
+        extractedText: extracted.text,
+        extractionMethod: extracted.extraction,
+        message: 'Basic text extraction completed in memory. The PDF was not saved and no listings were created.'
       });
     }
   );
