@@ -123,7 +123,7 @@ export default function CollectionPdfIntake() {
       {serverStatus && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
       {file?.name.toLowerCase().endsWith(".pdf") && <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
-      </object>
+      </object>}
       <button type="button" className="rounded-lg border px-4 py-2" onClick={() => setEntries(current => [...current, { name: '', price: '', notes: '' }])}>Add garment to review list</button>
       {entries.map((entry, index) => <fieldset key={index} className="rounded-xl border p-3 space-y-2">
         <legend>Garment {index + 1}</legend>
