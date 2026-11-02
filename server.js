@@ -4511,6 +4511,7 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   ensureColumn('creative_inquiries','collaboration_json',"TEXT");
+  const creativeNotifications=require('./creative-notifications')({app,db,authBuyer,authDesigner});
   app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
     const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
     if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
@@ -4525,6 +4526,7 @@ function createApp(options = {}) {
     const id=crypto.randomUUID();
     db.prepare('INSERT INTO creative_inquiries(id,designer_id,recipient_subject,recipient_kind,recipient_slug,subject,message) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,target.owner_subject,kind,slug,subject,message);
     if(collaboration.details)db.prepare('UPDATE creative_inquiries SET collaboration_json=? WHERE id=?').run(JSON.stringify(collaboration.details),id);
+    creativeNotifications.notify({subject:target.owner_subject,inquiryId:id,kind:'new_inquiry'});
     res.status(201).json({sent:true,message:'Private inquiry sent. The creative can review it in their House account.'});
   });
   app.get('/api/creative-house/my-inquiries',authBuyer,(req,res)=>{
@@ -4535,6 +4537,8 @@ function createApp(options = {}) {
     if(!['accepted','declined'].includes(req.body?.status))return res.status(400).json({error:'Choose accepted or declined.'});
     const result=db.prepare("UPDATE creative_inquiries SET status=? WHERE id=? AND recipient_subject=? AND status='pending'").run(req.body.status,req.params.id,req.buyerSubject);
     if(!result.changes)return res.status(404).json({error:'Pending inquiry not found.'});
+    const inquiry=db.prepare('SELECT designer_id FROM creative_inquiries WHERE id=? AND recipient_subject=?').get(req.params.id,req.buyerSubject);
+    creativeNotifications.notify({designerId:inquiry.designer_id,inquiryId:req.params.id,kind:'inquiry_response'});
     res.json({updated:true});
   });
   app.get('/api/creative-house/sent-inquiries',authDesigner,(req,res)=>{
@@ -4742,7 +4746,7 @@ function createApp(options = {}) {
     });
     app.get(['/shop','/atelier-emine','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
-  for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','creative-notifications-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   // The studio may be embedded only by this site's own design room.
   app.get('/runway-room.html', (_req, res) => {
     const policy = res.getHeader('Content-Security-Policy');
