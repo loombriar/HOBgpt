@@ -67,10 +67,11 @@
  const end=()=>{drag=null;};canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('lostpointercapture',end);
  canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();if(e.key==='Home'){yaw=.32;pitch=.06;}else if(e.key==='ArrowLeft')yaw-=.18;else if(e.key==='ArrowRight')yaw+=.18;else pitch=Math.max(-.55,Math.min(.55,pitch+(e.key==='ArrowUp'?-.1:.1)));schedule();});
  for(const [id,change]of [['creator-3d-left',-.35],['creator-3d-right',.35]])$(id).addEventListener('click',()=>{yaw+=change;schedule();});
- $('creator-3d-reset').addEventListener('click',()=>{yaw=.32;pitch=.06;zoom=1;$('creator-3d-zoom').value='100';schedule();});
- $('creator-3d-zoom').addEventListener('input',e=>{zoom=Number(e.target.value)/100;schedule();});
+ for(const [id,angle] of [['creator-3d-front',0],['creator-3d-side',Math.PI/2],['creator-3d-back',Math.PI]])$(id).addEventListener('click',()=>{yaw=angle;pitch=.06;schedule();});
+ $('creator-3d-reset').addEventListener('click',()=>{yaw=.32;pitch=.06;zoom=1;$('creator-3d-zoom').value='100';$('creator-3d-zoom-value').textContent='100%';schedule();});
+ $('creator-3d-zoom').addEventListener('input',e=>{zoom=Number(e.target.value)/100;$('creator-3d-zoom-value').textContent=Math.round(zoom*100)+'%';schedule();});
  $('creator-3d-toggle').addEventListener('click',()=>{technical=!technical;sync();});
- $('creator-3d-save').addEventListener('click',()=>{paint();canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='house-of-briar-3d-dress.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},'image/png');});
+ $('creator-3d-save').addEventListener('click',()=>{paint();canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='house-of-briar-'+value('creator-template','outfit').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-3d.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},'image/png');});
  document.getElementById('creator-room').addEventListener('input',sync);
  document.getElementById('creator-room').addEventListener('click',e=>{if(e.target.closest('[data-creator-look],[data-creator-template],.creator-palette,#creator-undo,#creator-redo'))sync();});
  new MutationObserver(sync).observe(sketch,{childList:true});sync();
