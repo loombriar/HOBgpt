@@ -10,7 +10,8 @@ test('accepted creative inquiry supports private conversation and unread badge',
   return route.fulfill({json:{messages:[{id:'m1',sender_role:'designer',body:'Can you join our editorial?',created_at:'2026-11-02'},...(sent?[{id:'m2',sender_role:'creative',body:'Yes, happy to discuss.',created_at:'2026-11-02'}]:[])]}});
  });
  await page.goto('/creative-house.html#backstage-messages');
- await expect(page.locator('#backstage-message-thread')).toHaveValue('q1');
+ await expect(page.locator('#backstage-message-thread option[value="q1"]')).toHaveCount(1);
+ await page.locator('#backstage-message-thread').selectOption('q1');
  await expect(page.locator('#backstage-message-list')).toContainText('Can you join our editorial?');
  await page.locator('#backstage-message-form textarea').fill('Yes, happy to discuss.');
  await page.locator('#backstage-message-form button').click();
