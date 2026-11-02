@@ -23,7 +23,7 @@
   const syncHash = () => {
     if (location.hash === '#event-profile-editor') profileFormId = 'event-profile-form';
     if (location.hash === '#your-profile') profileFormId = 'profile-form';
-    const requested=new URLSearchParams(location.search).get('join');
+    const requested=typeof URLSearchParams==='function' ? new URLSearchParams(location.search||'').get('join') : (location.search||'').match(/[?&]join=([^&]+)/)?.[1] || null;
     if(location.hash==='#join-house' && ['dj','venue'].includes(requested))profileFormId='event-profile-form';
     reveal(bySection[location.hash] || (requested?'profile':'browse'));
   };
