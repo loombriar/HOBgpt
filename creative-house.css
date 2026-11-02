@@ -95,3 +95,13 @@ html[data-hob-theme=dark] .creative-category-menu,html[data-hob-theme=dark] .cre
 .creative-specialty-menu>summary{position:relative;padding-right:36px}.creative-specialty-menu>summary::before,.creative-specialty-menu[open]>summary::before{content:none}.creative-specialty-menu>summary::after{content:'+';position:absolute;right:12px;top:10px;font-size:20px}.creative-specialty-menu[open]>summary::after{content:'−'}
 /* Networking preferences use readable, touch-friendly opt-in controls. */
 .network-open-to label{display:flex;align-items:center;gap:10px;min-height:44px;margin:0}.network-open-to input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:0 0 18px;padding:0}.network-open-to{display:grid;gap:8px}.network-open-to p{margin-top:0}.inquiry-inbox .opportunity button{min-height:44px;margin:8px 8px 0 0}
+
+/* Portfolio galleries: readable image captions and responsive presentation. */
+#my-portfolio-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:1rem}
+.portfolio-image-card,#portfolio-preview figure{margin:0;min-width:0;overflow:hidden;border:1px solid rgba(128,128,128,.25);border-radius:12px;padding:.75rem}
+.portfolio-image-card img,#portfolio-preview figure img{display:block;width:100%;height:auto;max-height:420px;object-fit:contain}
+.portfolio-image-caption,#portfolio-preview figcaption{overflow-wrap:anywhere;line-height:1.5;margin:.65rem 0}
+#portfolio-preview figure{align-self:start}
+#portfolio-preview[data-layout="spotlight"] figure:first-of-type{grid-column:1/-1}
+#portfolio-preview[data-layout="spotlight"] figure:first-of-type img{max-height:650px}
+@media(max-width:600px){#portfolio-preview[data-layout="spotlight"] figure:first-of-type{grid-column:auto}}
