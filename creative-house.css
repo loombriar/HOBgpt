@@ -107,3 +107,5 @@ html[data-hob-theme=dark] .creative-category-menu,html[data-hob-theme=dark] .cre
 @media(max-width:600px){#portfolio-preview[data-layout="spotlight"] figure:first-of-type{grid-column:auto}}
 
 .portfolio-order-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0}.portfolio-order-controls button{flex:1 1 auto}.portfolio-order-controls button:disabled{opacity:.55}
+
+.creative-directory-cover{display:block;width:100%;height:220px;object-fit:cover;border-radius:10px;margin-bottom:.75rem;background:rgba(128,128,128,.08)}
