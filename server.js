@@ -4526,6 +4526,7 @@ function createApp(options = {}) {
     const id=crypto.randomUUID();
     db.prepare('INSERT INTO creative_inquiries(id,designer_id,recipient_subject,recipient_kind,recipient_slug,subject,message) VALUES(?,?,?,?,?,?,?)').run(id,req.designerId,target.owner_subject,kind,slug,subject,message);
     if(collaboration.details)db.prepare('UPDATE creative_inquiries SET collaboration_json=? WHERE id=?').run(JSON.stringify(collaboration.details),id);
+    creativeNotifications.notify({subject:target.owner_subject,inquiryId:id,kind:'new_inquiry'});
     res.status(201).json({sent:true,message:'Private inquiry sent. The creative can review it in their House account.'});
   });
   app.get('/api/creative-house/my-inquiries',authBuyer,(req,res)=>{
