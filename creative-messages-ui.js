@@ -30,6 +30,14 @@
      report.addEventListener('click',async()=>{const reason=window.prompt('Reason for report (5–500 characters)');if(reason===null)return;const r=await fetch(api()+'/'+encodeURIComponent(thread.value)+'/report',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({message_id:m.id,reason})});status.textContent=r.ok?'Report submitted.':'Unable to submit report.';});card.append(report);
     }list.append(card);
    }
+   if(view.value==='creative'){
+    const block=el('button','Block this designer');block.type='button';
+    block.addEventListener('click',async()=>{
+     if(!window.confirm('Block this designer? This will prevent further messages and inquiries.'))return;
+     const r=await fetch('/api/creative-house/my-inquiries/'+encodeURIComponent(thread.value)+'/block',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+     if(r.ok){await refreshThreads();status.textContent='Designer blocked. Conversation unavailable.';}else status.textContent='Unable to block designer.';
+    });list.append(block);
+   }
    await fetch(api()+'/'+encodeURIComponent(thread.value)+'/read',{method:'POST',credentials:'same-origin'});
    status.textContent=(data.messages||[]).length+' messages in this private conversation.';
   }catch(e){status.textContent=e.message;}
