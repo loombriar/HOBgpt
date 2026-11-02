@@ -34,10 +34,10 @@ export default function AtelierEminePage(){
       </div>
       <p role="status" className="mb-6 text-sm text-muted-foreground">{pieces.length} {pieces.length===1?'piece':'pieces'} in this preview</p>
       {pieces.length===0&&<p className="py-10 text-center">No pieces match your search. Try another name or material.</p>}
-      <div className="grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid items-start gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {pieces.map(piece=><article key={piece.sku} id={`preview-${piece.sku}`} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="relative aspect-[4/5] bg-white"><img src={piece.images[0]} alt={`${piece.name} by Atelier Emine`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain"/><span className="absolute left-3 top-3 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold">Coming soon</span></div>
-          <div className="p-4"><h2 className="font-serif text-2xl">{piece.name}</h2><p className="mt-2 text-sm font-semibold tabular-nums">{money.format(piece.priceUsd)} USD</p><p className="mt-1 text-xs text-muted-foreground">Made to order · Collection preview</p>
+          <div className="p-3 sm:p-4"><h2 className="font-serif text-2xl">{piece.name}</h2><p className="mt-2 text-sm font-semibold tabular-nums">{money.format(piece.priceUsd)} USD</p><p className="mt-1 text-xs text-muted-foreground">Made to order · Collection preview</p>
             <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">Details &amp; photos</summary>
               <p className="mt-2 break-words text-xs text-muted-foreground">Model {piece.sku}</p><p className="mt-4 whitespace-pre-line break-words text-sm leading-6">{piece.description}</p>
               {piece.care&&<p className="mt-4 text-sm leading-6"><strong>Care:</strong> {piece.care}</p>}
