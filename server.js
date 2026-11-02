@@ -4376,11 +4376,34 @@ function createApp(options = {}) {
   // Creative portfolio profiles reuse verified House customer or designer identities.
   db.exec(`CREATE TABLE IF NOT EXISTS creative_profiles (
     owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('model','photographer','designer')),
+    role TEXT NOT NULL CHECK(role IN ('model','photographer','designer','makeup-artist','hairstylist')),
     location TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '',
     published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Existing SQLite installations need their original role CHECK expanded.
+  const profileSchema=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='creative_profiles'").get()?.sql||'';
+  if(!profileSchema.includes("'makeup-artist'")){
+    const foreignKeys=db.pragma('foreign_keys',{simple:true});
+    try{
+      db.pragma('foreign_keys = OFF');
+      db.transaction(()=>{
+        db.exec(`CREATE TABLE creative_profiles_new (
+          owner_subject TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('model','photographer','designer','makeup-artist','hairstylist')),
+          location TEXT NOT NULL DEFAULT '', bio TEXT NOT NULL DEFAULT '',
+          published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          specialties TEXT NOT NULL DEFAULT ''
+        )`);
+        const hasSpecialties=db.prepare('PRAGMA table_info(creative_profiles)').all().some(col=>col.name==='specialties');
+        db.exec(`INSERT INTO creative_profiles_new (owner_subject,slug,display_name,role,location,bio,published,updated_at,specialties)
+          SELECT owner_subject,slug,display_name,role,location,bio,published,updated_at,${hasSpecialties?'specialties':"''"} FROM creative_profiles`);
+        db.exec('DROP TABLE creative_profiles');
+        db.exec('ALTER TABLE creative_profiles_new RENAME TO creative_profiles');
+      })();
+    }finally{db.pragma('foreign_keys = '+(foreignKeys?'ON':'OFF'));}
+  }
   if(!db.prepare('PRAGMA table_info(creative_profiles)').all().some(column=>column.name==='specialties'))db.exec("ALTER TABLE creative_profiles ADD COLUMN specialties TEXT NOT NULL DEFAULT ''");
   const networking=require('./creative-networking').createCreativeNetworking({app,db,authBuyer,origin:requireDesignerRequestOrigin,rateLimit});
   const portfolioSlug=(name)=>name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,55);
@@ -4398,7 +4421,7 @@ function createApp(options = {}) {
     const v=req.body||{};
     const clean=(key,max)=>typeof v[key]==='string'?v[key].trim().slice(0,max):'';
     const displayName=clean('display_name',80),role=clean('role',20),location=clean('location',100),bio=clean('bio',800);
-    if(!displayName||!['model','photographer','designer'].includes(role))return res.status(400).json({error:'A display name and valid role are required.'});
+    if(!displayName||!['model','photographer','designer','makeup-artist','hairstylist'].includes(role))return res.status(400).json({error:'A display name and valid role are required.'});
     if(v.published!==true&&v.published!==false)return res.status(400).json({error:'Choose whether to publish your profile.'});
     const previous=db.prepare('SELECT slug,specialties FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject);
     const specialties=typeof v.specialties==='string'?clean('specialties',250):previous?.specialties||'';
