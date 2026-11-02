@@ -19,6 +19,6 @@ test('notifications stay hidden without an authenticated account',async({page})=
  await page.route('**/api/creative-house/notifications',route=>route.fulfill({status:401,json:{error:'Unauthorized'}}));
  await page.route('**/api/creative-house/designer-notifications',route=>route.fulfill({status:403,json:{error:'Forbidden'}}));
  await page.goto('/creative-house.html#backstage-notifications');
- await expect(page.locator('#notification-list').children()).toHaveCount(0);
+ await expect(page.locator('#notification-list > *')).toHaveCount(0);
  await expect(page.locator('#notification-status')).toContainText('Sign in');
 });
