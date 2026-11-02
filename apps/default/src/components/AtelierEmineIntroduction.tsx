@@ -1,3 +1,4 @@
+import SocialBrandLink from './SocialBrandLink';
 export default function AtelierEmineIntroduction() {
   return <section id="atelier-emine" aria-labelledby="atelier-emine-title" className="border-b border-border bg-card">
     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[260px_1fr] md:items-center lg:px-8">
@@ -13,7 +14,7 @@ export default function AtelierEmineIntroduction() {
         <div className="mt-5 flex flex-wrap gap-x-7 gap-y-2 text-sm font-semibold">
           <a href="/atelier-emine" className="inline-flex min-h-11 items-center underline underline-offset-4">Preview the collection →</a>
           <a href="https://www.atelieremine.com" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4">Visit Atelier Emine’s website ↗</a>
-          <a href="https://www.instagram.com/ateliereminedesign" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4">Instagram ↗</a>
+          <SocialBrandLink network="Instagram" href="https://www.instagram.com/ateliereminedesign" className="inline-flex min-h-11 items-center underline underline-offset-4"/>
         </div>
       </div>
     </div>
