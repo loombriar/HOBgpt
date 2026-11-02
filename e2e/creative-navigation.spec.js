@@ -10,7 +10,9 @@ for(const width of [390,1280]){
     {slug:'studio-venue',role:'venue',display_name:'Studio Venue',location:'Ohio',description:'Fashion event space',specialties:'Studio'}
    ]:path.endsWith('/profiles')?[
     {slug:'runway-model',role:'model',display_name:'Runway Model',location:'Ohio',bio:'Independent fashion model',specialties:'Runway'},
-    {slug:'editorial-photographer',role:'photographer',display_name:'Editorial Photographer',location:'Ohio',bio:'Fashion photography',specialties:'Editorial'}
+    {slug:'editorial-photographer',role:'photographer',display_name:'Editorial Photographer',location:'Ohio',bio:'Fashion photography',specialties:'Editorial'},
+    {slug:'runway-makeup',role:'makeup-artist',display_name:'Runway Makeup',location:'Ohio',bio:'Makeup for fashion shows',specialties:'Runway'},
+    {slug:'bridal-hair',role:'hairstylist',display_name:'Bridal Hair',location:'Ohio',bio:'Hair for events',specialties:'Bridal'}
    ]:[];
    return route.fulfill({json:{profiles,profile:null,opportunities:[],events:[],inquiries:[]}});
   });
@@ -27,6 +29,12 @@ for(const width of [390,1280]){
   await talent.locator('[data-talent-role="photographer"]').click();
   await expect(page.locator('#directory-specialty')).toHaveValue('');
   await expect(page.locator('#creative-directory-list article:visible')).toContainText('Editorial Photographer');
+  await talent.locator('[data-talent-role="makeup-artist"]').click();
+  await expect(page.locator('#directory-role')).toHaveValue('makeup-artist');
+  await expect(page.locator('#creative-directory-list article:visible')).toContainText('Runway Makeup');
+  await talent.locator('[data-talent-role="hairstylist"]').click();
+  await expect(page.locator('#directory-role')).toHaveValue('hairstylist');
+  await expect(page.locator('#creative-directory-list article:visible')).toContainText('Bridal Hair');
   await talent.locator('[data-talent-role="dj"]').click();
   await expect(page.locator('#event-directory-role')).toHaveValue('dj');
   await page.locator('#event-directory-specialty').selectOption('House');
@@ -61,3 +69,12 @@ test('role navigation preserves the designer-only directory boundary',async({pag
  await expect(page.locator('#event-profiles-status')).toContainText('active House designer');
  await expect(page.locator('#event-profiles-list article')).toHaveCount(0);
 });
+
+for(const role of ['makeup-artist','hairstylist','model','photographer','dj']){
+ test(`Backstage direct signup selects ${role}`,async({page})=>{
+  await page.goto('/creative-house.html?join='+role+'#join-house');
+  const form=role==='dj'?'#event-profile-form':'#profile-form';
+  await expect(page.locator(form+' select[name="role"]')).toHaveValue(role);
+  await expect(page.locator('[data-join-role="'+role+'"]')).toHaveAttribute('aria-pressed','true');
+ });
+}
