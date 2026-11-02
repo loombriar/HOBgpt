@@ -7,7 +7,8 @@ module.exports=function mountBookings({app,db,authBuyer,authDesigner,notify}){
  compensation TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',status TEXT NOT NULL CHECK(status IN ('proposed','confirmed','declined','canceled','completed')),
  designer_confirmed INTEGER NOT NULL DEFAULT 0,creative_confirmed INTEGER NOT NULL DEFAULT 0,
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
- CREATE INDEX IF NOT EXISTS creative_bookings_inquiry ON creative_bookings(inquiry_id);`);
+ CREATE INDEX IF NOT EXISTS creative_bookings_inquiry ON creative_bookings(inquiry_id);
+ CREATE TABLE IF NOT EXISTS creative_booking_notifications(id TEXT PRIMARY KEY,inquiry_id TEXT NOT NULL,recipient_subject TEXT,designer_id TEXT,read_at TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
  const error=(res,code,message)=>res.status(code).json({error:message});
  const allowed=q=>q&&q.status==='accepted'&&!db.prepare('SELECT 1 FROM creative_inquiry_blocks WHERE recipient_subject=? AND designer_id=?').get(q.recipient_subject,q.designer_id);
  function routes(role,auth){
@@ -15,7 +16,9 @@ module.exports=function mountBookings({app,db,authBuyer,authDesigner,notify}){
   const base='/api/creative-house/'+role+'-bookings';
   const inquiry=req=>db.prepare('SELECT id,status,designer_id,recipient_subject FROM creative_inquiries WHERE id=? AND '+column+'=?').get(req.params.id,req[key]);
   const getBooking=id=>db.prepare('SELECT * FROM creative_bookings WHERE inquiry_id=?').get(id);
-  const notifyOther=q=>notify({subject:role==='designer'?q.recipient_subject:null,designerId:role==='creative'?q.designer_id:null,inquiryId:q.id,kind:'booking_update'});
+  const notifyOther=q=>db.prepare('INSERT INTO creative_booking_notifications(id,inquiry_id,recipient_subject,designer_id) VALUES(?,?,?,?)').run(randomUUID(),q.id,role==='designer'?q.recipient_subject:null,role==='creative'?q.designer_id:null);
+  app.get(base+'/notifications',auth,(req,res)=>{const rows=db.prepare('SELECT id,inquiry_id,read_at,created_at FROM creative_booking_notifications WHERE '+(role==='designer'?'designer_id':'recipient_subject')+'=? ORDER BY created_at DESC LIMIT 100').all(req[key]);res.set('Cache-Control','no-store').json({notifications:rows,unread:rows.filter(row=>!row.read_at).length});});
+  app.post(base+'/notifications/:notificationId/read',auth,(req,res)=>{const updated=db.prepare('UPDATE creative_booking_notifications SET read_at=CURRENT_TIMESTAMP WHERE id=? AND '+(role==='designer'?'designer_id':'recipient_subject')+'=?').run(req.params.notificationId,req[key]);res.json({updated:!!updated.changes});});
   app.get(base,auth,(req,res)=>{
    const rows=db.prepare('SELECT b.* FROM creative_bookings b JOIN creative_inquiries i ON i.id=b.inquiry_id WHERE i.'+column+'=? ORDER BY b.updated_at DESC LIMIT 100').all(req[key]);
    res.set('Cache-Control','no-store').json({bookings:rows});
