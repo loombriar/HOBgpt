@@ -28,7 +28,7 @@ for(const width of [320,1280])test(`approved Atelier Emine preview is searchable
 test('empty shopping galleries show the approved bags',async({page})=>{
   await page.route('**/api/gallery**',route=>route.fulfill({json:{items:[]}}));
   await page.goto('/#shop');
-  await expect(page.locator('#product-grid .house-preview-piece')).toHaveCount(3);
+  await expect(page.locator('#product-grid .house-preview-piece')).toHaveCount(9);
   await expect(page.getByText('The House is getting dressed',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('link',{name:'View all 88 bags →',exact:true})).toBeVisible();
   await page.goto('/shop');
