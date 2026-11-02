@@ -35,7 +35,6 @@ module.exports=function mountMessages({app,db,authBuyer,authDesigner,notify}){
    const count=db.prepare("SELECT COUNT(*) n FROM creative_messages WHERE inquiry_id=? AND sender_role=? AND created_at>datetime('now','-1 hour')").get(q.id,role).n;
    if(count>=30)return error(res,429,'Message limit reached. Try again later.');
    const id=randomUUID();db.prepare('INSERT INTO creative_messages(id,inquiry_id,sender_role,body) VALUES(?,?,?,?)').run(id,q.id,role,body);
-   notify({subject:role==='designer'?q.recipient_subject:null,designerId:role==='creative'?q.designer_id:null,inquiryId:q.id,kind:'new_message'});
    res.status(201).json({id,sent:true});
   });
   app.post(base+'/:id/report',auth,(req,res)=>{
