@@ -1,0 +1,4 @@
+import type {ReactNode} from 'react';
+type Network='Instagram'|'Facebook';
+const paths:Record<Network,ReactNode>={Instagram:<><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></>,Facebook:<path d="M15 21v-8h3l.5-3H15V8.5c0-.8.3-1.5 1.5-1.5H19V4h-3c-3 0-5 1.8-5 5v1H8v3h3v8z" fill="currentColor"/>};
+export default function SocialBrandLink({network,href,className=''}:{network:Network;href:string;className?:string}){return <a href={href} target="_blank" rel="noopener noreferrer" aria-label={network} title={network} className={`inline-flex min-h-11 items-center gap-2 ${className}`}><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" focusable="false">{paths[network]}</svg></a>;}
