@@ -11,6 +11,9 @@ status.textContent='Browse opportunities freely. Sign in to manage a profile; ta
  const root=document.getElementById('creative-readiness');if(!root)return;
  const status=document.getElementById('creative-readiness-status');let role='model',roleSelected=false,saved={},signedIn=false,photos=0;
  const buttons=[...document.querySelectorAll('[data-join-role]')];
+ const requestedRole=new URLSearchParams(location.search).get('join');
+ if([...buttons].some(button=>button.dataset.joinRole===requestedRole)){role=requestedRole;roleSelected=true;}
+
  const forms={talent:document.getElementById('profile-form'),event:document.getElementById('event-profile-form')};
  for(const form of Object.values(forms)){if(!form)continue;const label=document.createElement('p');label.className='creative-visibility';label.setAttribute('role','status');form.elements.published.closest('label').after(label);const update=()=>{label.textContent=(form.elements.published.checked?'Visible to active designers':'Private')+' · Save profile to apply changes';};form.elements.published.addEventListener('change',update);update();}
  function render(){const event=['dj','venue'].includes(role),candidate=saved[event?'event':'talent'],profile=candidate?.role===role?candidate:null;
