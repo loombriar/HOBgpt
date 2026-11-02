@@ -4512,6 +4512,7 @@ function createApp(options = {}) {
   )`);
   ensureColumn('creative_inquiries','collaboration_json',"TEXT");
   const creativeNotifications=require('./creative-notifications')({app,db,authBuyer,authDesigner});
+  require('./creative-messages')({app,db,authBuyer,authDesigner});
   app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
     const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
     if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
@@ -4746,7 +4747,7 @@ function createApp(options = {}) {
     });
     app.get(['/shop','/atelier-emine','/designers','/cart','/admin','/sell','/founding-schools','/admin/founding-schools'], sendFrontend);
   }
-  for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','creative-notifications-ui.js','collaboration-dashboard.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
+  for (const asset of ['creative-house.html','creative-house.css','creative-house.js','portfolio-subscriptions-ui.js','creative-notifications-ui.js','collaboration-dashboard.js','creative-messages-ui.js','offline.html']) app.get('/'+asset,(_req,res)=>{res.set('Cache-Control','no-cache, must-revalidate');res.sendFile(path.join(rootDir,asset));});
   // The studio may be embedded only by this site's own design room.
   app.get('/runway-room.html', (_req, res) => {
     const policy = res.getHeader('Content-Security-Policy');
