@@ -25,17 +25,44 @@
   function drawBackdrop() {
     const light = value('light') / 50;
     const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#d7e8df'); bg.addColorStop(.48, '#eef2e9'); bg.addColorStop(1, '#f5d9d5');
+    bg.addColorStop(0, '#201d28'); bg.addColorStop(.52, '#413541'); bg.addColorStop(1, '#76616b');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    const glow = ctx.createRadialGradient(W * (.52 + light * .18), 300, 30, W * (.52 + light * .18), 300, 780);
-    glow.addColorStop(0, 'rgba(255,255,255,.72)'); glow.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-    ctx.save(); ctx.translate(W / 2, 555); ctx.scale(.98, 1);
-    ctx.fillStyle = '#fff9ee'; ctx.beginPath(); ctx.moveTo(-160, -90); ctx.lineTo(160, -90); ctx.lineTo(540, 1000); ctx.lineTo(-540, 1000); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#c4a677'; ctx.lineWidth = 3; ctx.globalAlpha = .72; ctx.beginPath(); ctx.moveTo(-160, -90); ctx.lineTo(-540, 1000); ctx.moveTo(160, -90); ctx.lineTo(540, 1000); ctx.stroke();
-    ctx.globalAlpha = .16; for (let y = 20; y < 1000; y += 130) { const spread = y * .5; ctx.beginPath(); ctx.moveTo(-spread, y); ctx.lineTo(spread, y); ctx.stroke(); }
-    ctx.restore();
-    ctx.fillStyle = '#4b3745'; ctx.textAlign = 'center'; ctx.font = '700 26px Georgia'; ctx.fillText('HOUSE OF BRIAR', W / 2, 76); ctx.font = '16px Georgia'; ctx.fillStyle = '#84666d'; ctx.fillText('Independent by design', W / 2, 106);
-    ctx.fillStyle = 'rgba(72,54,60,.10)'; ctx.fillRect(0, H - 58, W, 58);
+    // A lit backdrop and architectural columns create a runway, not a flat illustration.
+    const halo = ctx.createRadialGradient(W * (.5 + light * .08), 540, 40, W * .5, 640, 730);
+    halo.addColorStop(0, 'rgba(255,239,209,.48)'); halo.addColorStop(.55, 'rgba(231,195,161,.12)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = halo; ctx.fillRect(0, 0, W, H);
+    for (const x of [70, 1010]) {
+      const pillar = ctx.createLinearGradient(x - 28, 0, x + 28, 0);
+      pillar.addColorStop(0, '#241e29'); pillar.addColorStop(.5, '#6b5360'); pillar.addColorStop(1, '#251e29');
+      ctx.fillStyle = pillar; ctx.fillRect(x - 28, 0, 56, 1190);
+      ctx.fillStyle = 'rgba(225,183,128,.58)'; ctx.fillRect(x + (x < W/2 ? 27 : -29), 0, 2, 1190);
+    }
+    const horizon = 570, floor = H - 65;
+    ctx.fillStyle = '#b7a39a'; ctx.beginPath(); ctx.moveTo(355, horizon); ctx.lineTo(725, horizon); ctx.lineTo(1070, floor); ctx.lineTo(10, floor); ctx.closePath(); ctx.fill();
+    const runway = ctx.createLinearGradient(0, horizon, 0, floor);
+    runway.addColorStop(0, '#ded0c2'); runway.addColorStop(.55, '#aa918a'); runway.addColorStop(1, '#6c5661');
+    ctx.fillStyle = runway; ctx.beginPath(); ctx.moveTo(365, horizon); ctx.lineTo(715, horizon); ctx.lineTo(1045, floor); ctx.lineTo(35, floor); ctx.closePath(); ctx.fill();
+    const sheen = ctx.createLinearGradient(W*.5, horizon, W*.5, floor);
+    sheen.addColorStop(0, 'rgba(255,250,228,.26)'); sheen.addColorStop(1, 'rgba(255,241,222,.02)');
+    ctx.fillStyle = sheen; ctx.beginPath(); ctx.moveTo(480,horizon); ctx.lineTo(600,horizon); ctx.lineTo(720,floor); ctx.lineTo(360,floor); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(245,205,149,.72)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(365,horizon); ctx.lineTo(35,floor); ctx.moveTo(715,horizon); ctx.lineTo(1045,floor); ctx.stroke();
+    for (let i=1;i<=5;i++) {
+      const t=i/6, y=horizon+(floor-horizon)*t*t;
+      const half=175+330*t*t;
+      ctx.strokeStyle='rgba(255,237,218,.09)'; ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(W/2-half,y);ctx.lineTo(W/2+half,y);ctx.stroke();
+    }
+    for (const x of [185,895]) {
+      const spot=ctx.createRadialGradient(x,410,5,x,410,310);
+      spot.addColorStop(0,'rgba(255,233,198,.32)');spot.addColorStop(1,'rgba(255,233,198,0)');
+      ctx.fillStyle=spot;ctx.fillRect(x-310,100,620,750);
+    }
+    ctx.textAlign='center';ctx.fillStyle='#f2d7ad';ctx.font='600 35px Georgia';
+    ctx.fillText('HOUSE OF BRIAR',W/2,155);
+    ctx.fillStyle='rgba(249,231,210,.8)';ctx.font='18px Georgia';
+    ctx.fillText('THE RUNWAY STUDIO',W/2,190);
+    ctx.fillStyle='rgba(23,18,28,.6)';ctx.fillRect(0,H-65,W,65);
   }
   function drawMannequin(cx, baseY, shape, skin, walk, yaw, light) {
     const side = Math.sin(yaw), front = Math.cos(yaw), sway = walk * 7, stride = walk * 18;
@@ -69,7 +96,7 @@
   function draw() {
     updateOutputs(); ctx.clearRect(0, 0, W, H); drawBackdrop();
     const walk = playing ? Math.sin(time * 4.5) : 0, yaw = value('camera') * Math.PI / 180, cx = W / 2, baseY = 950, shape = value('shape'), skin = $('skin').value;
-    drawMannequin(cx, baseY, shape, skin, walk, yaw, value('light') / 50); drawGarment(cx, baseY, shape, walk, yaw);
+    ctx.save(); ctx.translate(cx, 1030); ctx.scale(1.32, 1.32); ctx.translate(-cx, -1030); drawMannequin(cx, baseY, shape, skin, walk, yaw, value('light') / 50); drawGarment(cx, baseY, shape, walk, yaw); ctx.restore();
     ctx.textAlign = 'center'; ctx.fillStyle = '#5e4953'; ctx.font = '600 15px system-ui'; ctx.fillText(garment ? 'Depth-aware preview · visual styling only' : 'Upload a garment to begin your fitting-room view', W / 2, H - 25);
   }
   function tick(now) { if (!playing) { frame = 0; return; } if (previous) time += Math.min((now - previous) / 1000, .05); previous = now; draw(); frame = requestAnimationFrame(tick); }
