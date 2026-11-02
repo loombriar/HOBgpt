@@ -23,6 +23,7 @@
   const skirtLength=length==='Mini'?.82:length==='Maxi'?2.08:1.58;
   const legged=template==='Jumpsuit'||template==='Top & trousers';
   const full=template==='Full skirt'||template==='Top & skirt';
+  const aline=template==='A-line';
   const fitted=template==='Fitted';
   let waist;
   if(legged){
@@ -33,10 +34,10 @@
    const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,color);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
    const left=leg(-.2,fitted?.2:.25),right=leg(.2,fitted?.2:.25);waist=waistRow;connect(hipRow,left.first,color);connect(hipRow,right.first,color);
   }else{
-   for(let i=0;i<=38;i++){const f=i/38,flare=full?.64:fitted?.20:.49,base=.36+flare*Math.pow(f,.78),rx=base,rz=.165+(full?.34:fitted?.12:.29)*f,fold=.045*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
+   for(let i=0;i<=38;i++){const f=i/38,flare=full?.76:fitted?.12:aline?.48:.43,base=.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12),rx=base,rz=.165+(full?.38:fitted?.07:.27)*f,fold=(full?.085:fitted?.012:.045)*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
    seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
    const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,color);
-   const flare=full?.64:fitted?.20:.49;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+.045*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,.78))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.34:fitted?.12:.29)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
+   const flare=full?.76:fitted?.12:aline?.48:.43;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+(full?.085:fitted?.012:.045)*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.38:fitted?.07:.27)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
   }
   if(sleeves!=='Sleeveless')for(const sign of [-1,1])tube([sign*.44,.82,0],[sign*(sleeves==='Long'?.83:.69),sleeves==='Long'?-.15:.48,0],.145,color);
   const belt=value('creator-waist-detail','None');if(belt!=='None'||value('creator-accessory','None')==='Belt'){const c=belt==='Contrast belt'?value('creator-secondary-color','#775166'):color;connect(ring(.37,.18,.035),ring(.38,.185,-.05),c);}
