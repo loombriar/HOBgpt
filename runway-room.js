@@ -134,38 +134,38 @@
     drawContactShadow(0, 480, 200 * shape, yaw, .42);
 
     // A single continuous silhouette per limb reads more naturally than exposed ball joints.
-    ctx.globalAlpha = .82;
-    strokeLimb([[-29 * shape, 292], [-38 * shape + stride, 374], [-40 * shape + stride, 438], [-45 * shape + stride, 493]], [31 * shape, 28 * shape, 23 * shape, 16 * shape], skinStops);
+    ctx.globalAlpha = .96;
+    strokeLimb([[-28 * shape, 289], [-33 * shape + stride, 362], [-39 * shape + stride, 424], [-45 * shape + stride, 493]], [42 * shape, 35 * shape, 27 * shape, 20 * shape], skinStops);
     ctx.globalAlpha = 1;
-    strokeLimb([[29 * shape, 292], [38 * shape - stride, 374], [40 * shape - stride, 438], [45 * shape - stride, 493]], [31 * shape, 28 * shape, 23 * shape, 16 * shape], skinStops);
+    strokeLimb([[28 * shape, 289], [33 * shape - stride, 362], [39 * shape - stride, 424], [45 * shape - stride, 493]], [42 * shape, 35 * shape, 27 * shape, 20 * shape], skinStops);
     // Keep knees integrated with the leg silhouette; avoid visible circular joints.
     drawFoot(-50 * shape + stride, 501, 1, '#4b3748'); drawFoot(50 * shape - stride, 501, 1, '#594052');
 
     ctx.globalAlpha = .8;
-    strokeLimb([[-49 * shape, 122], [-70 * shape - stride * .3, 190], [-72 * shape + stride * .18, 253], [-68 * shape + stride * .25, 292]], [22 * shape, 19 * shape, 16 * shape, 13 * shape], skinStops);
+    strokeLimb([[-49 * shape, 119], [-67 * shape - stride * .3, 184], [-70 * shape + stride * .18, 252], [-68 * shape + stride * .25, 294]], [29 * shape, 24 * shape, 19 * shape, 16 * shape], skinStops);
     ctx.globalAlpha = 1;
-    strokeLimb([[49 * shape, 122], [70 * shape + stride * .3, 190], [72 * shape - stride * .18, 253], [68 * shape - stride * .25, 292]], [22 * shape, 19 * shape, 16 * shape, 13 * shape], skinStops);
-    drawHand(-68 * shape + stride * .25, 306, shape, mid, '#fff1df');
-    drawHand(68 * shape - stride * .25, 306, shape, mid, '#fff1df');
+    strokeLimb([[49 * shape, 119], [67 * shape + stride * .3, 184], [70 * shape - stride * .18, 252], [68 * shape - stride * .25, 294]], [29 * shape, 24 * shape, 19 * shape, 16 * shape], skinStops);
+    drawHand(-68 * shape + stride * .25, 303, .8 * shape, mid, '#fff1df');
+    drawHand(68 * shape - stride * .25, 303, .8 * shape, mid, '#fff1df');
 
     // More restrained ribcage, waist, and hip proportions.
     const torso = ctx.createLinearGradient(-100 + light * 70, 0, 100 + light * 70, 0);
     torso.addColorStop(0, shadow); torso.addColorStop(.22, mid); torso.addColorStop(.46, highlight); torso.addColorStop(.63, mid); torso.addColorStop(1, shadow);
     ctx.fillStyle = torso; ctx.beginPath();
-    ctx.moveTo(-46 * shape, 94); ctx.bezierCurveTo(-66 * shape, 130, -62 * shape, 177, -35 * shape, 214);
-    ctx.bezierCurveTo(-43 * shape, 234, -53 * shape, 253, -48 * shape, 273);
-    ctx.bezierCurveTo(-42 * shape, 300, -30 * shape, 319, -24 * shape, 326);
-    ctx.quadraticCurveTo(0, 337, 24 * shape, 326); ctx.bezierCurveTo(30 * shape, 319, 42 * shape, 300, 48 * shape, 273);
-    ctx.bezierCurveTo(53 * shape, 253, 43 * shape, 234, 35 * shape, 214);
-    ctx.bezierCurveTo(62 * shape, 177, 66 * shape, 130, 46 * shape, 94); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-46 * shape, 94); ctx.bezierCurveTo(-62 * shape, 128, -53 * shape, 180, -32 * shape, 215);
+    ctx.bezierCurveTo(-39 * shape, 231, -58 * shape, 250, -56 * shape, 275);
+    ctx.bezierCurveTo(-56 * shape, 302, -38 * shape, 324, -26 * shape, 333);
+    ctx.quadraticCurveTo(0, 340, 26 * shape, 333); ctx.bezierCurveTo(38 * shape, 324, 56 * shape, 302, 56 * shape, 275);
+    ctx.bezierCurveTo(58 * shape, 250, 39 * shape, 231, 32 * shape, 215);
+    ctx.bezierCurveTo(53 * shape, 180, 62 * shape, 128, 46 * shape, 94); ctx.closePath(); ctx.fill();
     ctx.save(); ctx.beginPath(); ctx.ellipse(0, 186, 40 * shape, 105, 0, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = radialLight(-22 + light * 58, 153, 160, '#fff8ed', .12); ctx.fillRect(-100, 70, 200, 250); ctx.restore();
-    ctx.strokeStyle = rgba('#3b2735', .2); ctx.lineWidth = 4;
+    ctx.strokeStyle = rgba('#3b2735', .1); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-37 * shape, 109); ctx.quadraticCurveTo(0, 132, 37 * shape, 109); ctx.stroke();
     // Subtle shaping replaces the hard horizontal seam across the waist.
 
     // Smaller head, visible neck, and restrained facial details.
     strokeLimb([[0, 64], [0, 105]], [17, 14], skinStops, false);
-    ctx.fillStyle = shadow; ctx.beginPath(); ctx.ellipse(0, 39, 43, 54, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = shadow; ctx.beginPath(); ctx.ellipse(0, 39, 40, 50, 0, 0, Math.PI * 2); ctx.fill();
     const face = ctx.createRadialGradient(-13 + light * 26, 29, 4, 4, 47, 52);
     face.addColorStop(0, highlight); face.addColorStop(.54, mid); face.addColorStop(1, shadow);
     ctx.fillStyle = face; ctx.beginPath(); ctx.ellipse(-2, 47, 34, 43, 0, 0, Math.PI * 2); ctx.fill();
