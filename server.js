@@ -3161,10 +3161,11 @@ function createApp(options = {}) {
   require('./studio-options').registerStudioOptions({app,db,authDesigner,serializeListing,fail});
   require('./house-experiences').registerHouseExperiences({app,db,imagesDir,authBuyer,authDesigner,upload,fail,rateLimit,imageWork,moderateDesignerImage,serializeListing,customerListingVisible,options});
 
+  // Founder awards remain private. Public profiles expose only earned badges,
+  // never enrollment totals, award counts, or remaining founder slots.
   app.get('/api/founding-designers', (_req,res) => {
-    const awarded=Number(db.prepare('SELECT COUNT(*) count FROM founding_designers').get().count);
     res.set('Cache-Control','no-store');
-    res.json({limit:25,awarded,remaining:Math.max(0,25-awarded)});
+    return res.status(404).json({error:{code:'not_found',message:'Not found.'}});
   });
 
   app.get('/api/designers', (_req,res)=>{
