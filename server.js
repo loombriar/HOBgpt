@@ -4511,6 +4511,7 @@ function createApp(options = {}) {
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   ensureColumn('creative_inquiries','collaboration_json',"TEXT");
+  const creativeNotifications=require('./creative-notifications')({app,db,authBuyer,authDesigner});
   app.post('/api/creative-house/inquiries',authDesigner,(req,res)=>{
     const v=req.body||{},kind=v.recipient_kind,slug=typeof v.recipient_slug==='string'?v.recipient_slug.trim().slice(0,100):'',subject=typeof v.subject==='string'?v.subject.trim().slice(0,120):'',message=typeof v.message==='string'?v.message.trim().slice(0,1500):'';
     if(!['talent','event-partner'].includes(kind)||!slug||subject.length<5||message.length<30)return res.status(400).json({error:'Select a creative and provide a subject and message of at least 30 characters.'});
