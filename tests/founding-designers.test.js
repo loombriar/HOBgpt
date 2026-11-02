@@ -15,9 +15,9 @@ test('first 25 designer slots persist across restart and suspension; later signu
       const result=await verifiedSignup(origin,ctx.db,{email:'founder'+n+'@example.test',displayName:'Maker '+n,brandName:'Studio '+n,categories:['Clothing'],sellerTermsAccepted:true,sellerTermsVersion:SELLER_TERMS_VERSION});
       assert.equal(result.response.status,200);const own=await (await fetch(origin+'/api/my/designer-profile',{headers:{Cookie:result.cookie}})).json();return {...own,cookie:result.cookie};
     };
-    assert.deepEqual(await (await fetch(origin+'/api/founding-designers')).json(),{limit:25,awarded:24,remaining:1});
+    assert.equal((await fetch(origin+'/api/founding-designers')).status,404);
     const last=await signup(25),later=await signup(26);
-    assert.deepEqual(await (await fetch(origin+'/api/founding-designers')).json(),{limit:25,awarded:25,remaining:0});
+    assert.equal((await fetch(origin+'/api/founding-designers')).status,404);
     assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM founding_designers').get().n,25);
     const publicLast=await (await fetch(origin+'/api/designers/'+last.designer.id)).json();
     assert.ok(publicLast.designer.badges.some(b=>b.type==='founding_designer'));
