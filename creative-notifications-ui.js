@@ -15,7 +15,7 @@
      card.append(node('h3',item.kind==='new_inquiry'?'New collaboration inquiry':'Collaboration inquiry updated'));
      card.append(node('p',item.kind==='new_inquiry'?'A designer sent you a private inquiry.':'A creative responded to your inquiry.'));
      card.append(node('p',item.created_at||''));
-     const link=node('a','Review inquiries');link.href='#private-inquiries';card.append(link);
+     const link=node('a','Review inquiries');link.href='#collaboration-dashboard';card.append(link);
      if(!item.read_at){
       const button=node('button','Mark as read');button.type='button';
       button.addEventListener('click',async()=>{
@@ -32,6 +32,7 @@
   if(authorized)status.textContent=list.children.length?'Your private collaboration updates.':'No notifications yet.';
   else status.textContent='Sign in to view your collaboration notifications.';
  }
+ document.addEventListener('backstage-collaboration-updated',load);
  document.getElementById('notification-refresh')?.addEventListener('click',load);
  load();
 })();
