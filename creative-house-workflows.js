@@ -19,11 +19,13 @@
     }
   };
   buttons.forEach(button => button.addEventListener('click', () => { reveal(button.dataset.creativeWorkflow, true); document.dispatchEvent?.(new CustomEvent('creative-workflow-selected', { detail: { kind: button.dataset.creativeWorkflow } })); }));
-  const bySection = {'#your-profile':'profile','#event-profile-editor':'profile','#post-event':'event','#post':'casting','#casting-commissioning':'request','#private-inquiries':'inquiry'};
+  const bySection = {'#join-house':'profile','#your-profile':'profile','#event-profile-editor':'profile','#post-event':'event','#post':'casting','#casting-commissioning':'request','#private-inquiries':'inquiry'};
   const syncHash = () => {
     if (location.hash === '#event-profile-editor') profileFormId = 'event-profile-form';
     if (location.hash === '#your-profile') profileFormId = 'profile-form';
-    reveal(bySection[location.hash] || 'browse');
+    const requested=new URLSearchParams(location.search).get('join');
+    if(location.hash==='#join-house' && ['dj','venue'].includes(requested))profileFormId='event-profile-form';
+    reveal(bySection[location.hash] || (requested?'profile':'browse'));
   };
   window.addEventListener('creative-profile-role', event => {
     profileFormId = ['dj','venue'].includes(event.detail.role) ? 'event-profile-form' : 'profile-form';
