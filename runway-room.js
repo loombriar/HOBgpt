@@ -64,34 +64,117 @@
     ctx.fillText('THE RUNWAY STUDIO',W/2,190);
     ctx.fillStyle='rgba(23,18,28,.6)';ctx.fillRect(0,H-65,W,65);
   }
+  function hexRgb(hex) {
+    const clean = hex.replace('#', '');
+    return [0, 2, 4].map(i => parseInt(clean.slice(i, i + 2), 16));
+  }
+  function rgba(hex, alpha) {
+    return `rgba(${hexRgb(hex).join(',')},${alpha})`;
+  }
+  function radialLight(x, y, radius, color, alpha = 1) {
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, rgba(color, alpha));
+    gradient.addColorStop(1, rgba(color, 0));
+    return gradient;
+  }
+  function drawContactShadow(cx, baseY, width, yaw, strength = .28) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.filter = 'blur(18px)';
+    ctx.fillStyle = `rgba(34,24,35,${strength})`;
+    ctx.beginPath();
+    ctx.ellipse(cx + Math.sin(yaw) * 22, baseY + 25, width * (.5 + Math.abs(Math.cos(yaw)) * .18), 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   function drawMannequin(cx, baseY, shape, skin, walk, yaw, light) {
-    const side = Math.sin(yaw), front = Math.cos(yaw), sway = walk * 7, stride = walk * 18;
-    const skinLight = ctx.createLinearGradient(-80 + light * 80, 0, 100 + light * 80, 0);
-    skinLight.addColorStop(0, '#6d473e'); skinLight.addColorStop(.22, skin); skinLight.addColorStop(.55, '#fff1df'); skinLight.addColorStop(.8, skin); skinLight.addColorStop(1, '#754b46');
-    ctx.save(); ctx.translate(cx + sway, baseY);
-    ellipse(0, 476, 102 * front, 17, 'rgba(61,42,54,.18)');
-    const legY = 300;
-    line([[-31 * shape, legY], [-43 * shape + stride, 405], [-48 * shape + stride, 490]], skinLight, 31);
-    line([[31 * shape, legY], [43 * shape - stride, 405], [48 * shape - stride, 490]], skinLight, 31);
-    ellipse(-51 * shape + stride, 500, 31, 11, '#5b4053'); ellipse(51 * shape - stride, 500, 31, 11, '#5b4053');
-    line([[-55 * shape, 128], [-83 * shape - stride * .35, 215], [-72 * shape + stride * .25, 300]], skinLight, 25);
-    line([[55 * shape, 128], [83 * shape + stride * .35, 215], [72 * shape - stride * .25, 300]], skinLight, 25);
-    const torso = ctx.createLinearGradient(-78, 80, 78, 0); torso.addColorStop(0, '#563f4c'); torso.addColorStop(.22, '#b9d8ca'); torso.addColorStop(.5, '#f9f0df'); torso.addColorStop(.75, '#b9d8ca'); torso.addColorStop(1, '#56404c');
-    ctx.fillStyle = torso; ctx.beginPath(); ctx.moveTo(-49 * shape, 97); ctx.quadraticCurveTo(-72 * shape, 150, -38 * shape, 217); ctx.quadraticCurveTo(-80 * shape, 260, -51 * shape, 315); ctx.quadraticCurveTo(0, 337, 51 * shape, 315); ctx.quadraticCurveTo(80 * shape, 260, 38 * shape, 217); ctx.quadraticCurveTo(72 * shape, 150, 49 * shape, 97); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(65,43,56,.2)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-43 * shape, 111); ctx.quadraticCurveTo(0, 136, 43 * shape, 111); ctx.stroke();
-    line([[0, 67], [0, 107]], skinLight, 27); ellipse(0, 39, 44, 54, '#5d4551'); ellipse(0, 49, 34, 43, skinLight); ellipse(-11, 48, 3, 3, '#493744'); ellipse(11, 48, 3, 3, '#493744'); line([[-7, 70], [7, 70]], '#a66f78', 3);
+    const front = Math.max(.2, Math.cos(yaw));
+    const sway = walk * 7, stride = walk * 18;
+    const [r, g, b] = hexRgb(skin);
+    const shadow = `rgb(${Math.max(20, r * .42 | 0)},${Math.max(16, g * .42 | 0)},${Math.max(18, b * .42 | 0)})`;
+    const half = `rgb(${Math.min(255, r + 44)},${Math.min(255, g + 40)},${Math.min(255, b + 38)})`;
+    const skinLight = ctx.createLinearGradient(-105 + light * 95, 0, 100 + light * 95, 0);
+    skinLight.addColorStop(0, shadow);
+    skinLight.addColorStop(.18, skin);
+    skinLight.addColorStop(.43, half);
+    skinLight.addColorStop(.62, skin);
+    skinLight.addColorStop(1, shadow);
+    ctx.save();
+    ctx.translate(cx + sway, baseY);
+    drawContactShadow(0, 470, 190 * shape, yaw, .34);
+
+    // Far limbs are darker and slightly narrower, which gives the figure depth.
+    ctx.globalAlpha = .78;
+    line([[-31 * shape, 300], [-43 * shape + stride, 405], [-48 * shape + stride, 490]], shadow, 34);
+    line([[31 * shape, 300], [43 * shape - stride, 405], [48 * shape - stride, 490]], skinLight, 34);
+    ctx.globalAlpha = 1;
+    ellipse(-51 * shape + stride, 500, 31, 11, '#493746');
+    ellipse(51 * shape - stride, 500, 31, 11, '#5b4053');
+
+    ctx.globalAlpha = .78;
+    line([[-55 * shape, 128], [-83 * shape - stride * .35, 215], [-72 * shape + stride * .25, 300]], shadow, 28);
+    line([[55 * shape, 128], [83 * shape + stride * .35, 215], [72 * shape - stride * .25, 300]], skinLight, 28);
+    ctx.globalAlpha = 1;
+
+    // Torso: a continuous pear-shaped volume instead of two flat color blocks.
+    const torso = ctx.createLinearGradient(-95 + light * 70, 0, 95 + light * 70, 0);
+    torso.addColorStop(0, shadow);
+    torso.addColorStop(.22, skin);
+    torso.addColorStop(.46, half);
+    torso.addColorStop(.58, skin);
+    torso.addColorStop(1, shadow);
+    ctx.fillStyle = torso;
+    ctx.beginPath();
+    ctx.moveTo(-49 * shape, 97);
+    ctx.bezierCurveTo(-74 * shape, 126, -71 * shape, 176, -38 * shape, 217);
+    ctx.bezierCurveTo(-62 * shape, 251, -80 * shape, 287, -51 * shape, 315);
+    ctx.quadraticCurveTo(0, 337, 51 * shape, 315);
+    ctx.bezierCurveTo(80 * shape, 287, 62 * shape, 251, 38 * shape, 217);
+    ctx.bezierCurveTo(71 * shape, 176, 74 * shape, 126, 49 * shape, 97);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = radialLight(-20 + light * 55, 150, 155, '#fff5e8', .22);
+    ctx.fill();
+    ctx.strokeStyle = rgba('#3d2937', .24);
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-42 * shape, 111); ctx.quadraticCurveTo(0, 136, 42 * shape, 111); ctx.stroke();
+    ctx.strokeStyle = rgba('#2e2230', .16);
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-35 * shape, 221); ctx.quadraticCurveTo(0, 240, 35 * shape, 221); ctx.stroke();
+
+    // Neck and head use separate highlight/shadow fields for roundness.
+    line([[0, 67], [0, 107]], skinLight, 29);
+    ctx.fillStyle = shadow; ctx.beginPath(); ctx.ellipse(0, 40, 46, 57, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = skinLight; ctx.beginPath(); ctx.ellipse(-3, 48, 36, 45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = radialLight(-14 + light * 30, 30, 52, '#fff1df', .32); ctx.beginPath(); ctx.ellipse(-3, 48, 36, 45, 0, 0, Math.PI * 2); ctx.fill();
+    ellipse(-11, 48, 3, 3, '#493744'); ellipse(11, 48, 3, 3, '#493744');
+    line([[-7, 70], [7, 70]], '#a66f78', 3);
     ctx.restore();
   }
   function drawGarment(cx, baseY, shape, walk, yaw) {
     if (!garment) return;
     const w = value('size'), ratio = garment.height / garment.width, h = w * ratio;
-    const depth = Math.cos(yaw) * (1 - Math.min(.13, Math.abs(value('y')) / 4000));
-    const x = cx + value('x') + Math.sin(yaw) * 42 + walk * 5, y = baseY - 245 + value('y') + Math.abs(walk) * 2;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(value('angle') * Math.PI / 180 + yaw * .1); ctx.transform(depth, 0, Math.sin(yaw) * .15, 1, 0, 0);
-    ctx.shadowColor = 'rgba(55,35,48,.27)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 16;
-    ctx.globalAlpha = .98; ctx.drawImage(garment, -w / 2, 0, w, h); ctx.shadowColor = 'transparent';
+    const depth = Math.max(.34, Math.cos(yaw)) * (1 - Math.min(.13, Math.abs(value('y')) / 4000));
+    const x = cx + value('x') + Math.sin(yaw) * 42 + walk * 5;
+    const y = baseY - 245 + value('y') + Math.abs(walk) * 2;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(value('angle') * Math.PI / 180 + yaw * .1);
+    ctx.transform(depth, 0, Math.sin(yaw) * .15, 1, 0, 0);
+    ctx.shadowColor = 'rgba(35,22,32,.38)';
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 18;
+    ctx.globalAlpha = .98;
+    ctx.drawImage(garment, -w / 2, 0, w, h);
     ctx.restore();
-    ctx.save(); ctx.globalAlpha = .35; ctx.fillStyle = '#453447'; ctx.beginPath(); ctx.ellipse(cx + value('x') + Math.sin(yaw) * 42, baseY + 38 + value('y') * .12, Math.max(50, w * .25), 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.filter = 'blur(7px)';
+    ctx.fillStyle = 'rgba(48,29,43,.2)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + h * .8, Math.max(35, w * .28), Math.max(10, h * .045), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
   function draw() {
     updateOutputs(); ctx.clearRect(0, 0, W, H); drawBackdrop();
