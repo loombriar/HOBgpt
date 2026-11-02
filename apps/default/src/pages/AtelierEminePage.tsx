@@ -1,3 +1,4 @@
+import SocialBrandLink from '../components/SocialBrandLink';
 import {useEffect,useState} from 'react';
 import HouseShell from '@/components/HouseShell';
 import collection from '../../../../shared/atelier-emine-preview.json';
@@ -18,7 +19,7 @@ export default function AtelierEminePage(){
         <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">Independent by design / Istanbul, Türkiye</p>
           <h1 className="mt-4 font-serif text-5xl sm:text-6xl">Atelier Emine</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">Handcrafted couture handbags, shaped by a 65-year family craft heritage. Explore pearls, crystals, velvet, mother-of-pearl, and wood through the collection.</p>
-          <div className="mt-5 flex flex-wrap gap-6 text-sm font-semibold"><a className="underline underline-offset-4" href="https://www.atelieremine.com" target="_blank" rel="noopener noreferrer">Designer website ↗</a><a className="underline underline-offset-4" href="https://www.instagram.com/ateliereminedesign" target="_blank" rel="noopener noreferrer">Instagram ↗</a></div>
+          <div className="mt-5 flex flex-wrap gap-6 text-sm font-semibold"><a className="underline underline-offset-4" href="https://www.atelieremine.com" target="_blank" rel="noopener noreferrer">Designer website ↗</a><SocialBrandLink network="Instagram" href="https://www.instagram.com/ateliereminedesign" className="underline underline-offset-4"/></div>
         </div>
       </div>
     </header>
