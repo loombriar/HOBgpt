@@ -29,7 +29,7 @@
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     // A lit backdrop and architectural columns create a runway, not a flat illustration.
     const halo = ctx.createRadialGradient(W * (.5 + light * .08), 540, 40, W * .5, 640, 730);
-    halo.addColorStop(0, 'rgba(255,239,209,.48)'); halo.addColorStop(.55, 'rgba(231,195,161,.12)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
+    halo.addColorStop(0, 'rgba(255,239,209,.26)'); halo.addColorStop(.55, 'rgba(231,195,161,.12)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = halo; ctx.fillRect(0, 0, W, H);
     for (const x of [70, 1010]) {
       const pillar = ctx.createLinearGradient(x - 28, 0, x + 28, 0);
@@ -102,7 +102,7 @@
       ctx.beginPath(); ctx.moveTo(...points[i]); ctx.lineTo(...points[i + 1]); ctx.stroke();
     }
     if (highlight) {
-      ctx.globalAlpha = .22; ctx.strokeStyle = '#fff6e8'; ctx.lineWidth = Math.max(3, widths[0] * .18);
+      ctx.globalAlpha = .1; ctx.strokeStyle = '#fff6e8'; ctx.lineWidth = Math.max(3, widths[0] * .18);
       ctx.beginPath(); ctx.moveTo(points[0][0] - widths[0] * .18, points[0][1]);
       points.slice(1).forEach(point => ctx.lineTo(point[0] - widths[0] * .18, point[1])); ctx.stroke();
     }
@@ -138,9 +138,7 @@
     strokeLimb([[-29 * shape, 292], [-38 * shape + stride, 374], [-40 * shape + stride, 438], [-45 * shape + stride, 493]], [31 * shape, 28 * shape, 23 * shape, 16 * shape], skinStops);
     ctx.globalAlpha = 1;
     strokeLimb([[29 * shape, 292], [38 * shape - stride, 374], [40 * shape - stride, 438], [45 * shape - stride, 493]], [31 * shape, 28 * shape, 23 * shape, 16 * shape], skinStops);
-    // Knee shadows are inset accents, not separate circles.
-    ctx.fillStyle = rgba('#4a303c', .18); ctx.beginPath(); ctx.ellipse(-39 * shape + stride, 420, 13 * shape, 8, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(39 * shape - stride, 420, 13 * shape, 8, 0, 0, Math.PI * 2); ctx.fill();
+    // Keep knees integrated with the leg silhouette; avoid visible circular joints.
     drawFoot(-50 * shape + stride, 501, 1, '#4b3748'); drawFoot(50 * shape - stride, 501, 1, '#594052');
 
     ctx.globalAlpha = .8;
@@ -160,10 +158,10 @@
     ctx.quadraticCurveTo(0, 337, 24 * shape, 326); ctx.bezierCurveTo(30 * shape, 319, 42 * shape, 300, 48 * shape, 273);
     ctx.bezierCurveTo(53 * shape, 253, 43 * shape, 234, 35 * shape, 214);
     ctx.bezierCurveTo(62 * shape, 177, 66 * shape, 130, 46 * shape, 94); ctx.closePath(); ctx.fill();
-    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 192, 45 * shape, 118, 0, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = radialLight(-22 + light * 58, 153, 160, '#fff8ed', .25); ctx.fillRect(-100, 70, 200, 250); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 186, 40 * shape, 105, 0, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = radialLight(-22 + light * 58, 153, 160, '#fff8ed', .12); ctx.fillRect(-100, 70, 200, 250); ctx.restore();
     ctx.strokeStyle = rgba('#3b2735', .2); ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(-37 * shape, 109); ctx.quadraticCurveTo(0, 132, 37 * shape, 109); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-29 * shape, 223); ctx.quadraticCurveTo(0, 239, 29 * shape, 223); ctx.stroke();
+    // Subtle shaping replaces the hard horizontal seam across the waist.
 
     // Smaller head, visible neck, and restrained facial details.
     strokeLimb([[0, 64], [0, 105]], [17, 14], skinStops, false);
@@ -204,9 +202,9 @@
   }
   function draw() {
     updateOutputs(); ctx.clearRect(0, 0, W, H); drawBackdrop();
-    const walk = playing ? Math.sin(time * 4.5) : 0, yaw = value('camera') * Math.PI / 180, cx = W / 2, baseY = 950, shape = value('shape'), skin = $('skin').value;
-    ctx.save(); ctx.translate(cx, 1030); ctx.scale(1.32, 1.32); ctx.translate(-cx, -1030); drawMannequin(cx, baseY, shape, skin, walk, yaw, value('light') / 50); drawGarment(cx, baseY, shape, walk, yaw); ctx.restore();
-    ctx.textAlign = 'center'; ctx.fillStyle = '#5e4953'; ctx.font = '600 15px system-ui'; ctx.fillText(garment ? 'Depth-aware preview · visual styling only' : 'Upload a garment to begin your fitting-room view', W / 2, H - 25);
+    const walk = playing ? Math.sin(time * 4.5) : 0, yaw = value('camera') * Math.PI / 180, cx = W / 2, baseY = 865, shape = value('shape'), skin = $('skin').value;
+    ctx.save(); ctx.translate(cx, 1030); ctx.scale(1.2, 1.2); ctx.translate(-cx, -1030); drawMannequin(cx, baseY, shape, skin, walk, yaw, value('light') / 50); drawGarment(cx, baseY, shape, walk, yaw); ctx.restore();
+    ctx.textAlign = 'center'; ctx.fillStyle = '#f1d9ca'; ctx.font = '600 22px system-ui'; ctx.fillText(garment ? 'Depth-aware preview · visual styling only' : 'Upload a garment to begin your fitting-room view', W / 2, H - 25);
   }
   function tick(now) { if (!playing) { frame = 0; return; } if (previous) time += Math.min((now - previous) / 1000, .05); previous = now; draw(); frame = requestAnimationFrame(tick); }
   function setPlaying(next) { playing = next; previous = 0; $('walk').textContent = next ? 'Pause the look' : 'Walk the look'; $('walk').setAttribute('aria-pressed', String(next)); cancelAnimationFrame(frame); frame = 0; if (next) frame = requestAnimationFrame(tick); else draw(); }
