@@ -85,7 +85,7 @@
   const moving=document.createElement('p');moving.textContent='We’re still moving in.';shopMenu.querySelector('.hob-seamstress-menu-panel').prepend(moving);
   const designerMenu=makeMenu('Go Backstage','backstage',[
     ['/creative-house.html','Enter Backstage'],
-    ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],
+    ['/designers/room','Sign in as designer'],['/?visitors=signup&creative=model','Sign in as model'],['/?visitors=signup&creative=photographer','Sign in as photographer'],['/?visitors=signup&creative=dj','Sign in as DJ'],['/?visitors=signup&creative=makeup-artist','Sign in as makeup artist'],['/?visitors=signup&creative=hairstylist','Sign in as hairstylist'],
   ]);
   const account=document.getElementById('header-customer-auth-btn');
   // Existing page scripts retain their trigger; one shared entry is visible.
