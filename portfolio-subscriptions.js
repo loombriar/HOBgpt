@@ -19,6 +19,11 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
     layout TEXT NOT NULL DEFAULT 'grid', theme TEXT NOT NULL DEFAULT 'mint', featured_project TEXT NOT NULL DEFAULT '');
     CREATE TABLE IF NOT EXISTS portfolio_views (id TEXT PRIMARY KEY, owner_subject TEXT NOT NULL,
     viewed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+  // Idempotent migration for existing portfolios; default order follows upload time.
+  for(const [column,definition] of [['sort_order','INTEGER'],['is_cover','INTEGER NOT NULL DEFAULT 0']]){
+    if(!db.prepare('PRAGMA table_info(portfolio_images)').all().some(row=>row.name===column))
+      db.exec('ALTER TABLE portfolio_images ADD COLUMN '+column+' '+definition);
+  }
   const rowFor = subject => db.prepare('SELECT * FROM portfolio_billing WHERE owner_subject=?').get(subject);
   function access(subject) {
     const row=rowFor(subject);
@@ -93,7 +98,7 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
   app.post('/api/creative-house/subscription/cancel',authBuyer,async(req,res,next)=>{try{const row=rowFor(req.buyerSubject);if(!row?.subscription_id)return fail(res,409,'no_subscription','No subscription to cancel.');await stripeApi('subscriptions/'+encodeURIComponent(row.subscription_id),{method:'POST',body:'cancel_at_period_end=true'});await sync(req.buyerSubject,row.subscription_id);res.json({access:access(req.buyerSubject)});}catch(e){next(e);}});
   app.get('/api/admin/portfolio-subscriptions',authAdmin,(_req,res)=>res.set('Cache-Control','no-store').json({subscriptions:db.prepare('SELECT owner_subject,status,paid_until,cancel_at_period_end,updated_at FROM portfolio_billing ORDER BY updated_at DESC LIMIT 100').all()}));
   async function premium(req,res,next){try{await reconcile(req.buyerSubject);if(!access(req.buyerSubject).premium)return fail(res,403,'premium_required','An active paid Premium Portfolio is required.');next();}catch(e){next(e);}}
-  const images=subject=>db.prepare('SELECT id,caption FROM portfolio_images WHERE owner_subject=? ORDER BY created_at,id').all(subject).map(image=>({...image,url:'/api/creative-house/portfolio-images/'+image.id}));
+  const images=subject=>db.prepare('SELECT id,caption,is_cover FROM portfolio_images WHERE owner_subject=? ORDER BY sort_order IS NULL,sort_order,created_at,id').all(subject).map(image=>({...image,url:'/api/creative-house/portfolio-images/'+image.id}));
   function portfolio(subject,privateView=false){const a=access(subject),settings=db.prepare('SELECT layout,theme,featured_project FROM portfolio_settings WHERE owner_subject=?').get(subject);return {images:images(subject).slice(0,privateView?30:a.imageLimit),settings:a.premium?settings||{layout:'grid',theme:'mint',featured_project:''}:{layout:'grid',theme:'mint',featured_project:''},...(privateView?{access:a}:{})};}
   app.get('/api/creative-house/my-portfolio',authBuyer,async(req,res,next)=>{try{await reconcile(req.buyerSubject);res.set('Cache-Control','no-store').json(portfolio(req.buyerSubject,true));}catch(e){next(e);}});
   app.post('/api/creative-house/my-portfolio/images',authBuyer,imageWork.gate('buyer'),imageWork.parse,async(req,res,next)=>{
@@ -101,11 +106,28 @@ function registerPortfolioSubscriptions({app,db,authBuyer,authDesigner,authAdmin
     try{await reconcile(req.buyerSubject);if(!req.file)return fail(res,422,'image_required','Choose a JPEG, PNG, or WebP image.');if(!db.prepare('SELECT 1 FROM creative_profiles WHERE owner_subject=?').get(req.buyerSubject))return fail(res,409,'profile_required','Create a creative profile first.');
       const meta=await imageWork.run(()=>sharp(req.file.path,{limitInputPixels:40000000}).metadata());if(!['jpeg','png','webp'].includes(meta.format)||meta.pages>1)return fail(res,422,'invalid_image','Choose a still JPEG, PNG, or WebP image.');
       const id=crypto.randomUUID(),key='portfolio-'+id+'.webp';target=path.join(imagesDir,key);await imageWork.run(()=>sharp(req.file.path,{limitInputPixels:40000000}).rotate().resize(2000,2000,{fit:'inside',withoutEnlargement:true}).webp({quality:85}).toFile(target));
-      const inserted=db.transaction(()=>{if(db.prepare('SELECT COUNT(*) n FROM portfolio_images WHERE owner_subject=?').get(req.buyerSubject).n>=access(req.buyerSubject).imageLimit)return false;db.prepare('INSERT INTO portfolio_images(id,owner_subject,storage_key,caption) VALUES (?,?,?,?)').run(id,req.buyerSubject,key,String(req.body?.caption||'').trim().slice(0,200));return true;}).immediate();
+      const inserted=db.transaction(()=>{if(db.prepare('SELECT COUNT(*) n FROM portfolio_images WHERE owner_subject=?').get(req.buyerSubject).n>=access(req.buyerSubject).imageLimit)return false;const next=db.prepare('SELECT COALESCE(MAX(sort_order),-1)+1 n FROM portfolio_images WHERE owner_subject=?').get(req.buyerSubject).n;
+      const first=db.prepare('SELECT COUNT(*) n FROM portfolio_images WHERE owner_subject=?').get(req.buyerSubject).n===0;
+      db.prepare('INSERT INTO portfolio_images(id,owner_subject,storage_key,caption,sort_order,is_cover) VALUES (?,?,?,?,?,?)').run(id,req.buyerSubject,key,String(req.body?.caption||'').trim().slice(0,200),next,first?1:0);return true;}).immediate();
       if(!inserted){await fs.promises.unlink(target);return fail(res,409,'image_limit','Your portfolio has reached its image limit.');}res.status(201).json(portfolio(req.buyerSubject,true));
     }catch(e){if(target)await fs.promises.unlink(target).catch(()=>{});next(e);}
   });
-  app.delete('/api/creative-house/my-portfolio/images/:id',authBuyer,async(req,res,next)=>{try{const image=db.prepare('SELECT * FROM portfolio_images WHERE id=? AND owner_subject=?').get(req.params.id,req.buyerSubject);if(!image)return fail(res,404,'not_found','Image not found.');db.prepare('DELETE FROM portfolio_images WHERE id=? AND owner_subject=?').run(image.id,req.buyerSubject);await fs.promises.unlink(path.join(imagesDir,image.storage_key)).catch(()=>{});res.json({deleted:true});}catch(e){next(e);}});
+  app.put('/api/creative-house/my-portfolio/image-order',authBuyer,(req,res)=>{
+    const ids=req.body?.imageIds,coverId=req.body?.coverId;
+    if(!Array.isArray(ids)||ids.length>30||!ids.every(id=>typeof id==='string'&&id.length<=100)||new Set(ids).size!==ids.length||typeof coverId!=='string'||!ids.includes(coverId))
+      return fail(res,422,'invalid_order','Provide every portfolio image exactly once and choose a cover image.');
+    const owned=db.prepare('SELECT id FROM portfolio_images WHERE owner_subject=?').all(req.buyerSubject).map(row=>row.id);
+    if(owned.length!==ids.length||owned.some(id=>!ids.includes(id)))return fail(res,422,'invalid_order','Image selection does not match your portfolio.');
+    db.transaction(()=>{
+      const update=db.prepare('UPDATE portfolio_images SET sort_order=?,is_cover=? WHERE id=? AND owner_subject=?');
+      ids.forEach((id,index)=>update.run(index,id===coverId?1:0,id,req.buyerSubject));
+    })();
+    res.set('Cache-Control','no-store').json(portfolio(req.buyerSubject,true));
+  });
+  app.delete('/api/creative-house/my-portfolio/images/:id',authBuyer,async(req,res,next)=>{try{const image=db.prepare('SELECT * FROM portfolio_images WHERE id=? AND owner_subject=?').get(req.params.id,req.buyerSubject);if(!image)return fail(res,404,'not_found','Image not found.');db.transaction(()=>{
+      db.prepare('DELETE FROM portfolio_images WHERE id=? AND owner_subject=?').run(image.id,req.buyerSubject);
+      if(image.is_cover){const replacement=db.prepare('SELECT id FROM portfolio_images WHERE owner_subject=? ORDER BY sort_order IS NULL,sort_order,created_at,id LIMIT 1').get(req.buyerSubject);if(replacement)db.prepare('UPDATE portfolio_images SET is_cover=1 WHERE id=? AND owner_subject=?').run(replacement.id,req.buyerSubject);}
+    })();await fs.promises.unlink(path.join(imagesDir,image.storage_key)).catch(()=>{});res.json({deleted:true});}catch(e){next(e);}});
   app.put('/api/creative-house/my-portfolio/settings',authBuyer,premium,(req,res)=>{const {layout,theme,featured_project=''}=req.body||{};if(!['grid','editorial','spotlight'].includes(layout)||!['mint','coral','night'].includes(theme)||typeof featured_project!=='string'||featured_project.length>1000)return fail(res,422,'invalid_settings','Choose a valid layout, color, and featured project.');db.prepare('INSERT INTO portfolio_settings(owner_subject,layout,theme,featured_project) VALUES (?,?,?,?) ON CONFLICT(owner_subject) DO UPDATE SET layout=excluded.layout,theme=excluded.theme,featured_project=excluded.featured_project').run(req.buyerSubject,layout,theme,featured_project);res.json({saved:true});});
   app.get('/api/creative-house/my-portfolio/analytics',authBuyer,premium,(req,res)=>res.set('Cache-Control','no-store').json({views:db.prepare("SELECT COUNT(*) n FROM portfolio_views WHERE owner_subject=? AND viewed_at>=datetime('now','-30 days')").get(req.buyerSubject).n,days:30}));
   // Same audience and publication rules as the existing talent directory.
