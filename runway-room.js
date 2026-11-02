@@ -37,6 +37,14 @@
       ctx.fillStyle = pillar; ctx.fillRect(x - 28, 0, 56, 1190);
       ctx.fillStyle = 'rgba(225,183,128,.58)'; ctx.fillRect(x + (x < W/2 ? 27 : -29), 0, 2, 1190);
     }
+    // Recessed ceiling light bars and a distant stage add architectural depth.
+    for (const y of [52, 112, 230]) {
+      ctx.strokeStyle = 'rgba(241,204,163,.15)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(105, y); ctx.lineTo(W - 105, y); ctx.stroke();
+    }
+    const stageGlow = ctx.createRadialGradient(W / 2, 510, 25, W / 2, 510, 420);
+    stageGlow.addColorStop(0, 'rgba(252,220,181,.18)'); stageGlow.addColorStop(1, 'rgba(252,220,181,0)');
+    ctx.fillStyle = stageGlow; ctx.fillRect(100, 220, W - 200, 550);
     const horizon = 570, floor = H - 65;
     ctx.fillStyle = '#b7a39a'; ctx.beginPath(); ctx.moveTo(355, horizon); ctx.lineTo(725, horizon); ctx.lineTo(1070, floor); ctx.lineTo(10, floor); ctx.closePath(); ctx.fill();
     const runway = ctx.createLinearGradient(0, horizon, 0, floor);
@@ -52,6 +60,12 @@
       const half=175+330*t*t;
       ctx.strokeStyle='rgba(255,237,218,.09)'; ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(W/2-half,y);ctx.lineTo(W/2+half,y);ctx.stroke();
+    }
+    // Soft pools of light fall on the catwalk rather than floating over the model.
+    for (const y of [735, 925, 1120]) {
+      const pool = ctx.createRadialGradient(W / 2, y, 10, W / 2, y, 235);
+      pool.addColorStop(0, 'rgba(255,236,211,.14)'); pool.addColorStop(1, 'rgba(255,236,211,0)');
+      ctx.fillStyle = pool; ctx.fillRect(260, y - 150, 560, 300);
     }
     for (const x of [185,895]) {
       const spot=ctx.createRadialGradient(x,410,5,x,410,310);
@@ -87,68 +101,93 @@
     ctx.fill();
     ctx.restore();
   }
+  function limb(points, widths, colors) {
+    const gradient = ctx.createLinearGradient(points[0][0] - 35, 0, points[0][0] + 35, 0);
+    colors.forEach(([stop, color]) => gradient.addColorStop(stop, color));
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    points.forEach(([x, y], i) => {
+      const [px, py] = i ? points[i - 1] : points[0];
+      const dx = x - px, dy = y - py, length = Math.hypot(dx, dy) || 1;
+      const nx = -dy / length * widths[i], ny = dx / length * widths[i];
+      if (!i) ctx.moveTo(x + nx, y + ny); else ctx.lineTo(x + nx, y + ny);
+    });
+    for (let i = points.length - 1; i >= 0; i--) {
+      const [x, y] = points[i], [px, py] = i ? points[i - 1] : points[i];
+      const dx = x - px, dy = y - py, length = Math.hypot(dx, dy) || 1;
+      ctx.lineTo(x + dy / length * widths[i], y - dx / length * widths[i]);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = rgba('#382734', .16); ctx.lineWidth = 2; ctx.stroke();
+  }
+  function joint(x, y, rx, ry, fill, highlight) {
+    ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = highlight; ctx.beginPath(); ctx.ellipse(x - rx * .25, y - ry * .25, rx * .42, ry * .28, 0, 0, Math.PI * 2); ctx.fill();
+  }
   function drawMannequin(cx, baseY, shape, skin, walk, yaw, light) {
-    const front = Math.max(.2, Math.cos(yaw));
     const sway = walk * 7, stride = walk * 18;
     const [r, g, b] = hexRgb(skin);
-    const shadow = `rgb(${Math.max(20, r * .42 | 0)},${Math.max(16, g * .42 | 0)},${Math.max(18, b * .42 | 0)})`;
-    const half = `rgb(${Math.min(255, r + 44)},${Math.min(255, g + 40)},${Math.min(255, b + 38)})`;
-    const skinLight = ctx.createLinearGradient(-105 + light * 95, 0, 100 + light * 95, 0);
-    skinLight.addColorStop(0, shadow);
-    skinLight.addColorStop(.18, skin);
-    skinLight.addColorStop(.43, half);
-    skinLight.addColorStop(.62, skin);
-    skinLight.addColorStop(1, shadow);
-    ctx.save();
-    ctx.translate(cx + sway, baseY);
-    drawContactShadow(0, 470, 190 * shape, yaw, .34);
+    const shadow = `rgb(${Math.max(18, r * .34 | 0)},${Math.max(14, g * .34 | 0)},${Math.max(16, b * .34 | 0)})`;
+    const mid = `rgb(${r},${g},${b})`;
+    const highlight = `rgb(${Math.min(255, r + 58)},${Math.min(255, g + 52)},${Math.min(255, b + 48)})`;
+    const skinStops = [[0, shadow], [.25, mid], [.48, highlight], [.68, mid], [1, shadow]];
+    ctx.save(); ctx.translate(cx + sway, baseY);
+    drawContactShadow(0, 485, 205 * shape, yaw, .46);
 
-    // Far limbs are darker and slightly narrower, which gives the figure depth.
-    ctx.globalAlpha = .78;
-    line([[-31 * shape, 300], [-43 * shape + stride, 405], [-48 * shape + stride, 490]], shadow, 34);
-    line([[31 * shape, 300], [43 * shape - stride, 405], [48 * shape - stride, 490]], skinLight, 34);
+    // Legs are built from thigh, knee, calf, and ankle volumes rather than single strokes.
+    ctx.globalAlpha = .84;
+    limb([[-30 * shape, 297], [-39 * shape + stride, 370], [-43 * shape + stride, 414]], [24 * shape, 20 * shape, 18 * shape], skinStops);
     ctx.globalAlpha = 1;
-    ellipse(-51 * shape + stride, 500, 31, 11, '#493746');
-    ellipse(51 * shape - stride, 500, 31, 11, '#5b4053');
+    limb([[30 * shape, 297], [39 * shape - stride, 370], [43 * shape - stride, 414]], [24 * shape, 20 * shape, 18 * shape], skinStops);
+    joint(-43 * shape + stride, 414, 19 * shape, 20, mid, rgba('#fff0df', .24));
+    joint(43 * shape - stride, 414, 19 * shape, 20, mid, rgba('#fff0df', .24));
+    limb([[-43 * shape + stride, 420], [-48 * shape + stride, 493]], [18 * shape, 13 * shape], skinStops);
+    limb([[43 * shape - stride, 420], [48 * shape - stride, 493]], [18 * shape, 13 * shape], skinStops);
+    joint(-51 * shape + stride, 501, 31, 10, '#463443', rgba('#9a7786', .3));
+    joint(51 * shape - stride, 501, 31, 10, '#594055', rgba('#b18a91', .26));
 
-    ctx.globalAlpha = .78;
-    line([[-55 * shape, 128], [-83 * shape - stride * .35, 215], [-72 * shape + stride * .25, 300]], shadow, 28);
-    line([[55 * shape, 128], [83 * shape + stride * .35, 215], [72 * shape - stride * .25, 300]], skinLight, 28);
+    // Arms sit behind the torso and bend naturally at the elbow.
+    ctx.globalAlpha = .82;
+    limb([[-48 * shape, 122], [-78 * shape - stride * .35, 205], [-68 * shape + stride * .25, 270]], [18 * shape, 15 * shape, 12 * shape], skinStops);
     ctx.globalAlpha = 1;
+    limb([[48 * shape, 122], [78 * shape + stride * .35, 205], [68 * shape - stride * .25, 270]], [18 * shape, 15 * shape, 12 * shape], skinStops);
+    joint(-78 * shape - stride * .35, 205, 15 * shape, 17, mid, rgba('#fff0df', .22));
+    joint(78 * shape + stride * .35, 205, 15 * shape, 17, mid, rgba('#fff0df', .3));
+    joint(-68 * shape + stride * .25, 285, 14 * shape, 22, mid, rgba('#fff0df', .25));
+    joint(68 * shape - stride * .25, 285, 14 * shape, 22, mid, rgba('#fff0df', .32));
+    // Small hands make the silhouette read as a person rather than a mannequin icon.
+    joint(-68 * shape + stride * .25, 306, 13 * shape, 19, mid, rgba('#fff0df', .28));
+    joint(68 * shape - stride * .25, 306, 13 * shape, 19, mid, rgba('#fff0df', .35));
 
-    // Torso: a continuous pear-shaped volume instead of two flat color blocks.
-    const torso = ctx.createLinearGradient(-95 + light * 70, 0, 95 + light * 70, 0);
-    torso.addColorStop(0, shadow);
-    torso.addColorStop(.22, skin);
-    torso.addColorStop(.46, half);
-    torso.addColorStop(.58, skin);
-    torso.addColorStop(1, shadow);
-    ctx.fillStyle = torso;
-    ctx.beginPath();
-    ctx.moveTo(-49 * shape, 97);
-    ctx.bezierCurveTo(-74 * shape, 126, -71 * shape, 176, -38 * shape, 217);
-    ctx.bezierCurveTo(-62 * shape, 251, -80 * shape, 287, -51 * shape, 315);
-    ctx.quadraticCurveTo(0, 337, 51 * shape, 315);
-    ctx.bezierCurveTo(80 * shape, 287, 62 * shape, 251, 38 * shape, 217);
-    ctx.bezierCurveTo(71 * shape, 176, 74 * shape, 126, 49 * shape, 97);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = radialLight(-20 + light * 55, 150, 155, '#fff5e8', .22);
-    ctx.fill();
-    ctx.strokeStyle = rgba('#3d2937', .24);
-    ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(-42 * shape, 111); ctx.quadraticCurveTo(0, 136, 42 * shape, 111); ctx.stroke();
-    ctx.strokeStyle = rgba('#2e2230', .16);
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-35 * shape, 221); ctx.quadraticCurveTo(0, 240, 35 * shape, 221); ctx.stroke();
+    // Ribcage, waist and hips use overlapping volumes to create a believable center of gravity.
+    const torso = ctx.createLinearGradient(-105 + light * 75, 0, 105 + light * 75, 0);
+    torso.addColorStop(0, shadow); torso.addColorStop(.2, mid); torso.addColorStop(.45, highlight); torso.addColorStop(.62, mid); torso.addColorStop(1, shadow);
+    ctx.fillStyle = torso; ctx.beginPath();
+    ctx.moveTo(-47 * shape, 94); ctx.bezierCurveTo(-72 * shape, 125, -69 * shape, 172, -37 * shape, 216);
+    ctx.bezierCurveTo(-51 * shape, 232, -68 * shape, 255, -57 * shape, 278);
+    ctx.bezierCurveTo(-50 * shape, 300, -39 * shape, 317, -27 * shape, 326);
+    ctx.quadraticCurveTo(0, 342, 27 * shape, 326);
+    ctx.bezierCurveTo(39 * shape, 317, 50 * shape, 300, 57 * shape, 278);
+    ctx.bezierCurveTo(68 * shape, 255, 51 * shape, 232, 37 * shape, 216);
+    ctx.bezierCurveTo(69 * shape, 172, 72 * shape, 125, 47 * shape, 94); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = radialLight(-24 + light * 58, 156, 170, '#fff8ed', .28); ctx.beginPath(); ctx.ellipse(0, 185, 43 * shape, 115, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = rgba('#3b2735', .22); ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-39 * shape, 111); ctx.quadraticCurveTo(0, 135, 39 * shape, 111); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-36 * shape, 225); ctx.quadraticCurveTo(0, 243, 36 * shape, 225); ctx.stroke();
+    ctx.strokeStyle = rgba('#fff4e5', .24); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-20 * shape, 130); ctx.quadraticCurveTo(-10 * shape, 190, -18 * shape, 260); ctx.stroke();
 
-    // Neck and head use separate highlight/shadow fields for roundness.
-    line([[0, 67], [0, 107]], skinLight, 29);
-    ctx.fillStyle = shadow; ctx.beginPath(); ctx.ellipse(0, 40, 46, 57, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = skinLight; ctx.beginPath(); ctx.ellipse(-3, 48, 36, 45, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = radialLight(-14 + light * 30, 30, 52, '#fff1df', .32); ctx.beginPath(); ctx.ellipse(-3, 48, 36, 45, 0, 0, Math.PI * 2); ctx.fill();
-    ellipse(-11, 48, 3, 3, '#493744'); ellipse(11, 48, 3, 3, '#493744');
-    line([[-7, 70], [7, 70]], '#a66f78', 3);
+    // Neck, ears, jaw, nose and lips give the face planes that the original lacked.
+    limb([[0, 65], [0, 106]], [17, 15], skinStops);
+    joint(-38, 45, 8, 17, mid, rgba('#fff0df', .2)); joint(38, 45, 8, 17, mid, rgba('#fff0df', .28));
+    ctx.fillStyle = shadow; ctx.beginPath(); ctx.ellipse(0, 38, 47, 58, 0, 0, Math.PI * 2); ctx.fill();
+    const face = ctx.createRadialGradient(-15 + light * 28, 28, 4, 4, 48, 55);
+    face.addColorStop(0, highlight); face.addColorStop(.55, mid); face.addColorStop(1, shadow);
+    ctx.fillStyle = face; ctx.beginPath(); ctx.ellipse(-3, 47, 37, 46, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = rgba('#fff5e7', .35); ctx.beginPath(); ctx.ellipse(-14, 33, 11, 21, -.18, 0, Math.PI * 2); ctx.fill();
+    joint(-12, 45, 3.4, 3.1, '#3e2b38', '#8e6d72'); joint(12, 45, 3.4, 3.1, '#3e2b38', '#8e6d72');
+    ctx.strokeStyle = rgba('#593843', .45); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 48); ctx.lineTo(-2, 62); ctx.lineTo(4, 64); ctx.stroke();
+    ctx.strokeStyle = '#9a606b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-8, 72); ctx.quadraticCurveTo(0, 76, 8, 72); ctx.stroke();
     ctx.restore();
   }
   function drawGarment(cx, baseY, shape, walk, yaw) {
