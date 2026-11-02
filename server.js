@@ -4537,6 +4537,8 @@ function createApp(options = {}) {
     if(!['accepted','declined'].includes(req.body?.status))return res.status(400).json({error:'Choose accepted or declined.'});
     const result=db.prepare("UPDATE creative_inquiries SET status=? WHERE id=? AND recipient_subject=? AND status='pending'").run(req.body.status,req.params.id,req.buyerSubject);
     if(!result.changes)return res.status(404).json({error:'Pending inquiry not found.'});
+    const inquiry=db.prepare('SELECT designer_id FROM creative_inquiries WHERE id=? AND recipient_subject=?').get(req.params.id,req.buyerSubject);
+    creativeNotifications.notify({designerId:inquiry.designer_id,inquiryId:req.params.id,kind:'inquiry_response'});
     res.json({updated:true});
   });
   app.get('/api/creative-house/sent-inquiries',authDesigner,(req,res)=>{
