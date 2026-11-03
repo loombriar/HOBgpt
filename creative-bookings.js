@@ -15,6 +15,7 @@ module.exports=function mountBookings({app,db,authBuyer,authDesigner,notify}){
  db.exec(`CREATE TABLE IF NOT EXISTS creative_booking_reminder_deliveries(inquiry_id TEXT NOT NULL,booking_version TEXT NOT NULL,reminder_type TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(inquiry_id,booking_version,reminder_type));`);
  const notificationColumns=db.prepare('PRAGMA table_info(creative_booking_notifications)').all().map(row=>row.name);
  if(!notificationColumns.includes('event_type'))db.exec("ALTER TABLE creative_booking_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT 'booking_update'");
+ if(!db.prepare('PRAGMA table_info(creative_bookings)').all().some(row=>row.name==='booking_version'))db.exec("ALTER TABLE creative_bookings ADD COLUMN booking_version TEXT NOT NULL DEFAULT ''");
  const error=(res,code,message)=>res.status(code).json({error:message});
  const allowed=q=>q&&q.status==='accepted'&&!db.prepare('SELECT 1 FROM creative_inquiry_blocks WHERE recipient_subject=? AND designer_id=?').get(q.recipient_subject,q.designer_id);
  function routes(role,auth){
@@ -68,8 +69,8 @@ module.exports=function mountBookings({app,db,authBuyer,authDesigner,notify}){
    if(old&&!['proposed','declined','canceled'].includes(old.status))return error(res,409,'This booking cannot be revised.');
    if(old&&old.proposed_by!==role&&old.status==='proposed')return error(res,409,'Respond to the existing proposal before revising.');
    db.transaction(()=>{
-   db.prepare(`INSERT INTO creative_bookings(id,inquiry_id,proposed_by,starts_at,ends_at,timezone,location,compensation,details,status,designer_confirmed,creative_confirmed) VALUES(?,?,?,?,?,?,?,?,?,'proposed',?,?)
-    ON CONFLICT(inquiry_id) DO UPDATE SET proposed_by=excluded.proposed_by,starts_at=excluded.starts_at,ends_at=excluded.ends_at,timezone=excluded.timezone,location=excluded.location,compensation=excluded.compensation,details=excluded.details,status='proposed',designer_confirmed=excluded.designer_confirmed,creative_confirmed=excluded.creative_confirmed,updated_at=CURRENT_TIMESTAMP`).run(old?.id||randomUUID(),q.id,role,starts_at,ends_at,timezone,location,compensation,details,role==='designer'?1:0,role==='creative'?1:0);
+   db.prepare(`INSERT INTO creative_bookings(id,inquiry_id,proposed_by,starts_at,ends_at,timezone,location,compensation,details,status,designer_confirmed,creative_confirmed,booking_version) VALUES(?,?,?,?,?,?,?,?,?,'proposed',?,?,?)
+    ON CONFLICT(inquiry_id) DO UPDATE SET proposed_by=excluded.proposed_by,starts_at=excluded.starts_at,ends_at=excluded.ends_at,timezone=excluded.timezone,location=excluded.location,compensation=excluded.compensation,details=excluded.details,status='proposed',designer_confirmed=excluded.designer_confirmed,creative_confirmed=excluded.creative_confirmed,updated_at=CURRENT_TIMESTAMP,booking_version=excluded.booking_version`).run(old?.id||randomUUID(),q.id,role,starts_at,ends_at,timezone,location,compensation,details,role==='designer'?1:0,role==='creative'?1:0,randomUUID());
    db.prepare('DELETE FROM creative_booking_completion WHERE inquiry_id=?').run(q.id);
    notifyOther(q,'booking_proposed');
    })();res.status(201).json({booking:getBooking(q.id)});
@@ -100,13 +101,13 @@ module.exports=function mountBookings({app,db,authBuyer,authDesigner,notify}){
  routes('designer',authDesigner);routes('creative',authBuyer);
  function dispatchReminders(now=new Date()){
   const nowMs=now.getTime(),windowEnd=nowMs+24*60*60*1000;
-  const rows=db.prepare("SELECT b.inquiry_id,b.starts_at,b.updated_at,i.recipient_subject,i.designer_id FROM creative_bookings b JOIN creative_inquiries i ON i.id=b.inquiry_id WHERE b.status='confirmed' AND i.status='accepted' AND NOT EXISTS(SELECT 1 FROM creative_inquiry_blocks block WHERE block.recipient_subject=i.recipient_subject AND block.designer_id=i.designer_id)").all();
+  const rows=db.prepare("SELECT b.inquiry_id,b.starts_at,b.booking_version,i.recipient_subject,i.designer_id FROM creative_bookings b JOIN creative_inquiries i ON i.id=b.inquiry_id WHERE b.status='confirmed' AND i.status='accepted' AND NOT EXISTS(SELECT 1 FROM creative_inquiry_blocks block WHERE block.recipient_subject=i.recipient_subject AND block.designer_id=i.designer_id)").all();
   const insert=db.prepare("INSERT OR IGNORE INTO creative_booking_reminder_deliveries(inquiry_id,booking_version,reminder_type) VALUES(?,?,'24h')");
   const notice=db.prepare('INSERT INTO creative_booking_notifications(id,inquiry_id,recipient_subject,designer_id,event_type) VALUES(?,?,?,?,?)');
   const dispatch=db.transaction(q=>{
-   const current=db.prepare("SELECT starts_at,updated_at,status FROM creative_bookings WHERE inquiry_id=?").get(q.inquiry_id);
-   if(!current||current.status!=='confirmed'||current.starts_at!==q.starts_at||current.updated_at!==q.updated_at)return;
-   if(!insert.run(q.inquiry_id,q.updated_at).changes)return;
+   const current=db.prepare("SELECT starts_at,booking_version,status FROM creative_bookings WHERE inquiry_id=?").get(q.inquiry_id);
+   if(!current||current.status!=='confirmed'||current.starts_at!==q.starts_at||current.booking_version!==q.booking_version)return;
+   if(!insert.run(q.inquiry_id,q.booking_version).changes)return;
    notice.run(randomUUID(),q.inquiry_id,q.recipient_subject,null,'booking_reminder_24h');
    notice.run(randomUUID(),q.inquiry_id,null,q.designer_id,'booking_reminder_24h');
   });
