@@ -5,6 +5,7 @@ const {createApp}=require('../server');
 const readySeller=require('../tests/helpers/ready-seller');
 
 for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid','canceled'])test(entry+' server-generated '+outcome+' callback runs checkout verification and cart recovery',async({page})=>{
+ test.setTimeout(90000); // The isolated server, Stripe mock, and callback navigation can exceed the default 30s on CI.
  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-callback-browser-'));
  const sessions=new Map();let callback;
  const ctx=createApp({dataDir,seedProducts:[{id:'callback-piece',designerId:'maker',title:'Callback Piece',price:50,shippingCostCents:0}],sendEmail:async()=>true,stripeApi:async(endpoint,request={})=>{
@@ -57,5 +58,5 @@ for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid',
    }
    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('house-of-briar:cart')))).toEqual(['callback-piece']);
   }
- }finally{await page.goto('about:blank');await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
+ }finally{if(!page.isClosed())await page.goto('about:blank').catch(()=>{});await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
 });
