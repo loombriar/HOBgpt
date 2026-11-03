@@ -4370,6 +4370,12 @@ function createApp(options = {}) {
     return res.sendFile(path.join(rootDir, 'privacy.html'));
   });
 
+  // Public account-deletion instructions must be reachable without authentication, before SPA fallback.
+  app.get(['/account-deletion', '/account-deletion.html'], (_req, res) => {
+    res.set('Cache-Control', 'no-cache, must-revalidate');
+    return res.sendFile(path.join(rootDir, 'account-deletion.html'));
+  });
+
   const reactDistDir = path.join(rootDir, 'apps', 'default', 'dist');
   const reactIndexFile = path.join(reactDistDir, 'index.html');
   const hasReactBuild = fs.existsSync(reactIndexFile);
