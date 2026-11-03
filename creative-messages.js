@@ -5,6 +5,8 @@ module.exports=function mountMessages({app,db,authBuyer,authDesigner,notify}){
  CREATE INDEX IF NOT EXISTS creative_messages_thread ON creative_messages(inquiry_id,created_at);
  CREATE TABLE IF NOT EXISTS creative_message_reads(inquiry_id TEXT NOT NULL,reader_role TEXT NOT NULL,last_read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(inquiry_id,reader_role));
  CREATE TABLE IF NOT EXISTS creative_message_reports(id TEXT PRIMARY KEY,message_id TEXT NOT NULL,inquiry_id TEXT NOT NULL,reporter_role TEXT NOT NULL,reason TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+ const readColumns=db.prepare('PRAGMA table_info(creative_message_reads)').all();
+ if(!readColumns.some(c=>c.name==='last_read_rowid'))db.exec('ALTER TABLE creative_message_reads ADD COLUMN last_read_rowid INTEGER');
  const error=(res,status,message)=>res.status(status).json({error:message});
  function endpoints(role,auth){
   const owner=role==='creative'?'recipient_subject':'designer_id',identity=role==='creative'?'buyerSubject':'designerId';
@@ -12,7 +14,7 @@ module.exports=function mountMessages({app,db,authBuyer,authDesigner,notify}){
   function allowed(q){return q&&q.status==='accepted'&&!db.prepare('SELECT 1 FROM creative_inquiry_blocks WHERE recipient_subject=? AND designer_id=?').get(q.recipient_subject,q.designer_id);}
   const base='/api/creative-house/'+(role==='creative'?'creative':'designer')+'-messages';
   app.get(base+'/unread',auth,(req,res)=>{
-   const rows=db.prepare(`SELECT i.id inquiry_id,COUNT(m.id) unread FROM creative_inquiries i JOIN creative_messages m ON m.inquiry_id=i.id AND m.sender_role!=? LEFT JOIN creative_message_reads r ON r.inquiry_id=i.id AND r.reader_role=? WHERE i.`+owner+`=? AND i.status='accepted' AND NOT EXISTS(SELECT 1 FROM creative_inquiry_blocks b WHERE b.recipient_subject=i.recipient_subject AND b.designer_id=i.designer_id) AND (r.last_read_at IS NULL OR m.created_at>r.last_read_at) GROUP BY i.id`).all(role,role,req[identity]);
+   const rows=db.prepare(`SELECT i.id inquiry_id,COUNT(m.id) unread FROM creative_inquiries i JOIN creative_messages m ON m.inquiry_id=i.id AND m.sender_role!=? LEFT JOIN creative_message_reads r ON r.inquiry_id=i.id AND r.reader_role=? WHERE i.`+owner+`=? AND i.status='accepted' AND NOT EXISTS(SELECT 1 FROM creative_inquiry_blocks b WHERE b.recipient_subject=i.recipient_subject AND b.designer_id=i.designer_id) AND (r.last_read_rowid IS NULL AND r.last_read_at IS NULL OR r.last_read_rowid IS NOT NULL AND m.rowid>r.last_read_rowid OR r.last_read_rowid IS NULL AND r.last_read_at IS NOT NULL AND m.created_at>r.last_read_at) GROUP BY i.id`).all(role,role,req[identity]);
    res.set('Cache-Control','no-store').json({threads:rows,unread:rows.reduce((sum,row)=>sum+row.unread,0)});
   });
   app.get(base+'/:id',auth,(req,res)=>{
@@ -24,7 +26,7 @@ module.exports=function mountMessages({app,db,authBuyer,authDesigner,notify}){
   app.post(base+'/:id/read',auth,(req,res)=>{
    const q=find(req);if(!q)return error(res,404,'Conversation not found.');
    if(!allowed(q))return error(res,403,'Conversation unavailable.');
-   db.prepare('INSERT INTO creative_message_reads(inquiry_id,reader_role,last_read_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(inquiry_id,reader_role) DO UPDATE SET last_read_at=CURRENT_TIMESTAMP').run(q.id,role);
+   db.prepare('INSERT INTO creative_message_reads(inquiry_id,reader_role,last_read_at,last_read_rowid) VALUES(?,?,CURRENT_TIMESTAMP,(SELECT COALESCE(MAX(rowid),0) FROM creative_messages WHERE inquiry_id=?)) ON CONFLICT(inquiry_id,reader_role) DO UPDATE SET last_read_at=CURRENT_TIMESTAMP,last_read_rowid=excluded.last_read_rowid').run(q.id,role,q.id);
    res.json({updated:true});
   });
   app.post(base+'/:id',auth,(req,res)=>{
