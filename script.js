@@ -2670,6 +2670,7 @@ document.querySelectorAll('[data-room-target]').forEach(button => {
     const target = byId(button.dataset.roomTarget);
     if (!target) return;
     if(button.dataset.roomTarget==='product-form')resetListingForm();
+    if(button.dataset.roomTarget==='admin-spotlight')byId('admin-spotlight-details')?.setAttribute('open', '');
     for (let parent = target; parent; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
     }
