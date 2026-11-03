@@ -2,9 +2,9 @@ const {test,expect}=require('@playwright/test');
 for(const width of [320,390,768,1280])for(const url of ['/','/shop'])test(`ordered navigation at ${width}px on ${url}`,async({page})=>{
  await page.setViewportSize({width,height:850});await page.goto(url);
  const legacy=url==='/';const nav=page.locator(legacy?'#hob-global-nav':'.house-compact-header');
- const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Shop the Runway/})});
- const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:/^Go Backstage/})});
- const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=width>1100?nav.getByRole('search',{name:'Search the shop',exact:true}):nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
+ const shop=nav.locator('details').filter({has:page.locator('summary').filter({hasText:legacy?/^Discover$/:/^Shop the Runway/})});
+ const backstage=nav.locator('details').filter({has:page.locator('summary').filter({hasText:legacy?/^Backstage$/:/^Go Backstage/})});
+ const logo=nav.getByRole('link',{name:'House of Briar home',exact:true});const theme=nav.getByRole('button',{name:/light (mode|theme)|dark (mode|theme)/});const search=width>1100?nav.getByRole('search',{name:'Search the shop',exact:true}):nav.getByRole('button',{name:'Open shop search',exact:true});const mailbox=nav.getByRole(legacy?'button':'link',{name:legacy?/notifications/i:/mailbox/i});const cart=nav.locator(legacy?'.hob-global-cart-button,.hob-global-cart-link':'a[href="/cart"]');
  const ordered=width<=900?[logo,theme,search,mailbox,cart]:[logo,theme,search,shop.locator('summary'),backstage.locator('summary'),mailbox,cart];
  const logoBox=await logo.boundingBox(),themeBox=await theme.boundingBox(),searchBox=await search.boundingBox();expect(themeBox.x-(logoBox.x+logoBox.width)).toBeLessThan(26);expect(searchBox.x-(themeBox.x+themeBox.width)).toBeLessThan(26);
  let last=-1;for(const item of ordered){await expect(item).toBeVisible();const box=await item.boundingBox();expect(box.x).toBeGreaterThan(last);last=box.x;}

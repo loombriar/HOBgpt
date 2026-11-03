@@ -7,7 +7,7 @@
     nav.className = 'hob-global-nav';
     nav.setAttribute('role', 'navigation');
     nav.setAttribute('aria-label', 'House of Briar main navigation');
-    nav.innerHTML = '<a class="hob-global-wordmark" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="House of Briar main menu"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><a href="/creative-house.html">The Creative House</a><a class="hob-global-cart-link" href="/?openCart=1" aria-label="Open shopping cart"><img class="suitcase-nav-icon" src="/suitcase-cart-v1.svg" alt="" aria-hidden="true"><span>Cart</span></a></nav>';
+    nav.innerHTML = '<a class="hob-global-wordmark" href="/" aria-label="House of Briar home">HOUSE <i>of</i> BRIAR</a><nav aria-label="House of Briar main menu"><a href="/#shop">Shop</a><a href="/designers/room">Designers</a><a href="/creative-house.html">The Creative House</a><a class="hob-global-cart-link" href="/?openCart=1" aria-label="Open shopping cart"><span class="hob-cart-label">Bag</span></a></nav>';
     document.body.prepend(nav);
   }
   nav.classList.add('hob-global-nav');
@@ -96,6 +96,9 @@
   if (cart && placeholder) {
     cart.classList.remove('nav-hotspot', 'suitcase-button');
     cart.classList.add('hob-global-cart-button');
+    cart.querySelectorAll('.suitcase-nav-icon,img[src*="suitcase"]').forEach(icon=>icon.remove());
+    cart.setAttribute('aria-label','Open shopping bag');
+    const cartText=cart.querySelector('.cart-label,.nav-label,.button-label');if(cartText)cartText.textContent='Bag';
     cart.removeAttribute('aria-describedby');
     placeholder.replaceWith(cart);
   }
@@ -185,13 +188,18 @@
   // Persistent designer mailbox uses the existing private notification/read-state API.
   const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=false;
   const mailbox=document.createElement('button');mailbox.type='button';mailbox.className='hob-mailbox';
-  mailbox.setAttribute('aria-label','Designer mailbox');mailbox.setAttribute('aria-expanded','false');mailbox.setAttribute('aria-controls','hob-mailbox-panel');
-  mailbox.innerHTML='<svg class="hob-mailbox-icon" viewBox="0 0 64 56" width="38" height="34" aria-hidden="true"><path d="M12 43V23a17 17 0 0 1 34 0v20H12Z" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="2.5"/><path d="M12 43h42V25c0-10-7-19-17-19M20 43v10m21-10v10M47 22V8h10v9H47" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="hob-mailbox-heart" d="M29 24c-7-8-16 3 0 13 16-10 7-21 0-13Z" fill="currentColor"/></svg>';
+  mailbox.setAttribute('aria-label','Open designer notifications');mailbox.setAttribute('aria-expanded','false');mailbox.setAttribute('aria-controls','hob-mailbox-panel');
+  mailbox.innerHTML='<svg class="hob-mailbox-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg><span class="hob-action-caption">Updates</span>';
   const count=document.createElement('span');count.className='hob-mailbox-count';count.hidden=true;mailbox.append(count);
   const panel=document.createElement('div');panel.id='hob-mailbox-panel';panel.className='hob-mailbox-panel';panel.hidden=true;
   mailboxWrap.append(mailbox,panel);actions.append(mailboxWrap);
   const cartControl=actions.querySelector('.hob-global-cart-button,.hob-global-cart-link');
-  nav.append(themeButton,searchToggle,links,mailboxWrap);if(cartControl)nav.append(cartControl);nav.classList.add('hob-ordered-menu');
+  nav.append(themeButton,searchToggle,links,mailboxWrap);if(cartControl)nav.append(cartControl);nav.classList.add('hob-ordered-menu','hob-editorial-nav');
+  // Keep the original cart and notification handlers while replacing their decorative icons.
+  if(cartControl){cartControl.querySelectorAll('.suitcase-nav-icon,img[src*="suitcase"]').forEach(icon=>icon.remove());const label=cartControl.querySelector('.cart-label,.nav-label,.button-label');if(label)label.textContent='Bag';}
+  const navLinks=links.querySelectorAll('details');for(const item of navLinks){if(item.classList.contains('hob-shop-menu'))item.querySelector('summary').textContent='Discover';if(item.classList.contains('hob-backstage-menu'))item.querySelector('summary').textContent='Backstage';}
+  searchToggle.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>';
+  searchToggle.title='Search';
   const guestInbox=()=>{panel.replaceChildren();const link=document.createElement('a');link.href='/join.html';link.textContent='Sign in to see your mailbox';panel.append(link);};guestInbox();
   let mailboxBusy=false;
   async function refreshMailbox(){
@@ -204,7 +212,7 @@
       const data=await response.json();if(!Array.isArray(data.items))return;
       const unread=Number(data.unread)||0;mailboxWrap.hidden=false;mailbox.classList.toggle('has-unread',unread>0);
       count.hidden=!unread;count.textContent=unread>99?'99+':String(unread);
-      mailbox.setAttribute('aria-label',`Designer mailbox, ${unread} unread sales and updates`);
+      mailbox.setAttribute('aria-label',`Designer notifications, ${unread} unread sales and updates`);
       panel.replaceChildren();
       const title=document.createElement('strong');title.textContent='Your House mailbox';panel.append(title);
       const status=document.createElement('p');status.textContent=unread?`${unread} unread sales, messages and updates`:'You’re all caught up.';panel.append(status);

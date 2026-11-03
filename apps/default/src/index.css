@@ -268,3 +268,61 @@ html:root:root body .house-footer-link-row {
 }
 html:root:root body .house-footer-link-row :is(a,button,summary,p,span,.brand-name,.footer-kicker){color:var(--studio-ink)!important;opacity:1!important}
 html:root:root body .house-footer-link-row .house-footer-link-panel{color:var(--studio-ink)!important;background:var(--studio-card)!important;border-color:var(--studio-line)!important}
+
+
+/* House of Briar editorial sticky navigation — preserve existing navigation behavior. */
+html:root body #hob-global-nav.hob-editorial-nav{
+  --hob-nav-ink:#272321;--hob-nav-gold:#98774d;
+  background:rgba(250,247,242,.97)!important;color:var(--hob-nav-ink)!important;
+  border-bottom:1px solid rgba(152,119,77,.32)!important;
+  box-shadow:0 8px 30px rgba(37,29,24,.08)!important;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+html:root body #hob-global-nav.hob-editorial-nav .hob-global-wordmark{
+  letter-spacing:.12em!important;font-weight:600!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav nav>details>summary{
+  letter-spacing:.08em!important;text-transform:uppercase;font-size:clamp(10px,.85vw,12px)!important;
+  font-weight:600!important;text-decoration:none!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav :is(.hob-mailbox,.hob-global-cart-button,.hob-global-cart-link,.hob-search-toggle,#hob-theme-toggle){
+  display:inline-flex!important;align-items:center;justify-content:center;gap:7px!important;
+  min-height:44px!important;min-width:44px!important;
+  border:1px solid transparent!important;border-radius:999px!important;
+  background:transparent!important;color:inherit!important;
+  box-shadow:none!important;padding:8px 11px!important;
+  font:600 11px/1.2 Arial,sans-serif!important;letter-spacing:.06em!important;
+  transition:background-color .18s ease,border-color .18s ease,transform .18s ease;
+}
+html:root body #hob-global-nav.hob-editorial-nav :is(.hob-mailbox,.hob-global-cart-button,.hob-global-cart-link,.hob-search-toggle,#hob-theme-toggle):is(:hover,:focus-visible){
+  background:rgba(152,119,77,.10)!important;border-color:rgba(152,119,77,.38)!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav :is(a,button,summary):focus-visible{
+  outline:2px solid var(--hob-nav-gold)!important;outline-offset:3px!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav .hob-mailbox-icon{width:20px!important;height:20px!important}
+html:root body #hob-global-nav.hob-editorial-nav .hob-mailbox.has-unread{border-color:var(--hob-nav-gold)!important}
+html:root body #hob-global-nav.hob-editorial-nav .hob-mailbox-count{
+  background:#6f3439!important;color:#fff!important;min-width:17px;
+  text-align:center;font-size:10px!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav .hob-mailbox-panel{
+  border-radius:12px!important;border-color:rgba(152,119,77,.38)!important;
+  box-shadow:0 18px 48px rgba(25,19,16,.16)!important;
+}
+html:root body #hob-global-nav.hob-editorial-nav .hob-signup-banner{
+  background:#eae2d6!important;color:#43362b!important;
+  font-size:11px!important;letter-spacing:.05em!important;
+}
+html:root[data-hob-theme=dark] body #hob-global-nav.hob-editorial-nav{
+  --hob-nav-ink:#f3e8dc;--hob-nav-gold:#d1b58c;
+  background:rgba(36,31,31,.97)!important;color:var(--hob-nav-ink)!important;
+}
+@media(max-width:680px){
+ html:root body #hob-global-nav.hob-editorial-nav :is(.hob-mailbox,.hob-global-cart-button,.hob-global-cart-link,.hob-search-toggle,#hob-theme-toggle){padding:8px!important}
+ html:root body #hob-global-nav.hob-editorial-nav .hob-action-caption{display:none!important}
+ html:root body #hob-global-nav.hob-editorial-nav .hob-global-wordmark{letter-spacing:.05em!important}
+}
+@media(prefers-reduced-motion:reduce){
+ html:root body #hob-global-nav.hob-editorial-nav :is(.hob-mailbox,.hob-global-cart-button,.hob-global-cart-link,.hob-search-toggle,#hob-theme-toggle){transition:none!important}
+}

@@ -5,6 +5,7 @@ const {createApp}=require('../server');
 const readySeller=require('../tests/helpers/ready-seller');
 
 for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid','canceled'])test(entry+' server-generated '+outcome+' callback runs checkout verification and cart recovery',async({page})=>{
+ test.setTimeout(90000); // The isolated server, Stripe mock, and callback navigation can exceed the default 30s on CI.
  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-callback-browser-'));
  const sessions=new Map();let callback;
  const ctx=createApp({dataDir,seedProducts:[{id:'callback-piece',designerId:'maker',title:'Callback Piece',price:50,shippingCostCents:0}],sendEmail:async()=>true,stripeApi:async(endpoint,request={})=>{
@@ -27,7 +28,9 @@ for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid',
   await page.goto(origin+'/shop');
   await page.evaluate(()=>localStorage.setItem('house-of-briar:cart',JSON.stringify(['callback-piece'])));
   await page.goto(origin+(entry==='react'?'/checkout':'/'));
-  if(entry==='storefront')await page.getByRole('button',{name:'Cart, 1 item',exact:true}).click();
+  // The editorial navigation intentionally gives the cart a Bag/Open shopping bag
+  // accessible name, so target the stable cart control rather than its old label.
+  if(entry==='storefront')await page.locator('#cart-btn').click();
   const responsePromise=page.waitForResponse(response=>response.url().endsWith('/api/checkout/session')&&response.request().method()==='POST');
   await page.getByRole('button',{name:entry==='react'?'Continue to secure checkout':'Pay by card / bank',exact:true}).click();
   const response=await responsePromise;expect(response.status()).toBe(201);const orderId=sessions.get('cs_callback_mock').metadata.order_id;
@@ -57,5 +60,5 @@ for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid',
    }
    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('house-of-briar:cart')))).toEqual(['callback-piece']);
   }
- }finally{await page.goto('about:blank');await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
+ }finally{if(!page.isClosed())await page.goto('about:blank').catch(()=>{});await new Promise(resolve=>server.close(resolve));ctx.analyticsIngest.close();ctx.db.close();fs.rmSync(dataDir,{recursive:true,force:true});}
 });
