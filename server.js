@@ -1281,7 +1281,8 @@ function createApp(options = {}) {
       /^\/api\/admin\/listing-reports\/[^/]+\/resolve$/.test(route)
     );
     const sessionRead = method === 'GET' && route === '/api/admin/session';
-    if (sessionRead && ['reviewer','support'].includes(role)) return next();
+    if (sessionRead && ['reviewer','support','security_monitor'].includes(role)) return next();
+    if (role === 'security_monitor' && method === 'GET' && route === '/api/admin/security-summary') return next();
     const supportRead = method === 'GET' && route === '/api/admin/support';
     const supportWrite = method === 'POST' && /^\/api\/admin\/support\/[^/]+\/reply$/.test(route);
     if ((role === 'reviewer' && (reviewRead || reviewWrite)) ||
@@ -1817,6 +1818,17 @@ function createApp(options = {}) {
   app.get('/api/admin/session', authAdmin, (req,res) => {
     res.set('Cache-Control','no-store');
     return res.json({admin:{label:req.adminActor,role:req.adminRole}});
+  });
+  // Aggregated counts only: no actor names, IPs, paths, tokens or customer records.
+  app.get('/api/admin/security-summary', authAdmin, (_req,res) => {
+    res.set('Cache-Control','no-store');
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const counts = db.prepare(`SELECT COUNT(*) AS requests,
+      SUM(CASE WHEN status_code = 401 OR status_code = 403 THEN 1 ELSE 0 END) AS denied,
+      SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS errors
+      FROM admin_audit_log WHERE created_at >= ?`).get(since);
+    return res.json({windowHours:24,adminRequests:counts.requests || 0,
+      deniedAdminRequests:counts.denied || 0,adminServerErrors:counts.errors || 0});
   });
   app.delete('/api/admin/session', (req, res) => requireAdminRequestOrigin(req, res, () => { clearAdminSession(req, res); return res.json({ ok: true }); }));
 
