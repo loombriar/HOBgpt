@@ -28,7 +28,9 @@ for(const entry of ['react','storefront'])for(const outcome of ['paid','unpaid',
   await page.goto(origin+'/shop');
   await page.evaluate(()=>localStorage.setItem('house-of-briar:cart',JSON.stringify(['callback-piece'])));
   await page.goto(origin+(entry==='react'?'/checkout':'/'));
-  if(entry==='storefront')await page.getByRole('button',{name:'Cart, 1 item',exact:true}).click();
+  // The editorial navigation intentionally gives the cart a Bag/Open shopping bag
+  // accessible name, so target the stable cart control rather than its old label.
+  if(entry==='storefront')await page.locator('#cart-btn').click();
   const responsePromise=page.waitForResponse(response=>response.url().endsWith('/api/checkout/session')&&response.request().method()==='POST');
   await page.getByRole('button',{name:entry==='react'?'Continue to secure checkout':'Pay by card / bank',exact:true}).click();
   const response=await responsePromise;expect(response.status()).toBe(201);const orderId=sessions.get('cs_callback_mock').metadata.order_id;
