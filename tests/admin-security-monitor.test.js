@@ -33,14 +33,13 @@ test('security monitor reads only aggregate audit counts and cannot mutate or in
       ['/api/admin/orders/missing/refund','POST'],
       ['/api/admin/orders/missing/designers/missing/release','POST'],
       ['/api/admin/designers/suspend','POST'],
-      ['/api/admin/listings/missing/approve','POST'],
-      ['/api/admin/security-summary','POST']
+      ['/api/admin/listings/missing/approve','POST']
     ]) {
       const response=await request(route,method);
       assert.equal(response.status,403,method+' '+route);
       assert.equal((await response.json()).error.code,'admin_role_forbidden');
     }
-    assert.equal((await request('/api/admin/security-summary','GET',{'X-Admin-Role':'owner'})).status,200);
+    // No POST route exists; this is not a writable endpoint.\n    assert.equal((await request('/api/admin/security-summary','POST')).status,404);\n    assert.equal((await request('/api/admin/security-summary','GET',{'X-Admin-Role':'owner'})).status,200);
     assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM admin_audit_log WHERE actor='brotherTest' AND role='security_monitor' AND status_code=403").get().n >= 10,true);
   } finally {
     if(server)await new Promise(resolve=>server.close(resolve));
