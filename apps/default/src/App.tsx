@@ -15,6 +15,7 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
+const SecurityMonitorPage = lazy(() => import('@/pages/SecurityMonitorPage'));
 const SellPage = lazy(() => import('@/pages/SellPage'));
 const FoundingSchoolsPage = lazy(() => import('@/pages/FoundingSchoolsPage'));
 const FoundingSchoolsAdminPage = lazy(() => import('@/pages/FoundingSchoolsAdminPage'));
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/cart" element={<Section name="Suitcase"><CartPage /></Section>} />
       <Route path="/checkout" element={<Section name="Checkout"><CheckoutPage /></Section>} />
       <Route path="/admin" element={<Section name="Admin"><AdminPage /></Section>} />
+      <Route path="/admin/security" element={<Section name="Security monitor"><SecurityMonitorPage /></Section>} />
       <Route path="/fashion-personality" element={<Section name="Fashion personality"><FashionPersonalityPage /></Section>} />
       <Route path="/sell" element={<Section name="Designer sign up"><SellPage /></Section>} />
       <Route path="/founding-schools" element={<Section name="Founding Schools"><FoundingSchoolsPage /></Section>} />
