@@ -15,6 +15,8 @@
   seams.push({points:prior.concat([prior[0]]),color:'#655154'});
  }
  function build(){mesh=[];seams=[];const color=value('creator-color','#b7d9cc'),finish=value('creator-fabric-finish','Matte'),length=value('creator-length','Midi'),sleeves=value('creator-sleeves','Short'),neck=value('creator-neckline','Scoop'),template=value('creator-template','A-line');
+  const separated=template.startsWith('Top &');
+  const bottomColor=separated?value('creator-secondary-color',color):color;
   const topY=t=>{const front=Math.max(0,Math.sin(t));return .96-(neck==='V-neck'?.37*Math.pow(front,4):neck==='Square'?.28*Math.min(1,front*2):.24*front*front);};
   let prior;
   for(let i=0;i<=26;i++){const f=i/26,y=.96*(1-f),bust=Math.exp(-Math.pow((f-.25)/.24,2)),rx=.36+.14*(1-f)+.025*bust,rz=.21+.065*bust-.045*f;const row=ring(rx,rz,t=>topY(t)*(1-f),.006);
@@ -29,18 +31,21 @@
   if(legged){
    // Build a short hip section before splitting into legs so trousers and jumpsuits
    // read as one connected garment rather than two floating tubes.
-   const waistRow=ring(.38,.19,.02),hipRow=ring(.42,.23,-.12);connect(prior,waistRow,color);connect(waistRow,hipRow,color);
+   const waistRow=ring(.38,.19,.02),hipRow=ring(.42,.23,-.12);connect(prior,waistRow,bottomColor);connect(waistRow,hipRow,bottomColor);
    seams.push({points:waistRow.concat([waistRow[0]]),color:'#655154'});
-   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,color);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
-   const left=leg(-.2,fitted?.2:.25),right=leg(.2,fitted?.2:.25);waist=waistRow;connect(hipRow,left.first,color);connect(hipRow,right.first,color);
+   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,bottomColor);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
+   const left=leg(-.2,fitted?.2:.25),right=leg(.2,fitted?.2:.25);waist=waistRow;connect(hipRow,left.first,bottomColor);connect(hipRow,right.first,bottomColor);
   }else{
-   for(let i=0;i<=38;i++){const f=i/38,flare=full?.76:fitted?.12:aline?.48:.43,base=.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12),rx=base,rz=.165+(full?.38:fitted?.07:.27)*f,fold=(full?.085:fitted?.012:.045)*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,color);prior=row;}
+   for(let i=0;i<=38;i++){const f=i/38,flare=full?.76:fitted?.12:aline?.48:.43,base=.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12),rx=base,rz=.165+(full?.38:fitted?.07:.27)*f,fold=(full?.085:fitted?.012:.045)*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,bottomColor);prior=row;}
    seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
-   const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,color);
+   const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,bottomColor);
    const flare=full?.76:fitted?.12:aline?.48:.43;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+(full?.085:fitted?.012:.045)*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.38:fitted?.07:.27)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
   }
+  // Follow the bodice surface with shaping seams, including the back closure.
+  for(const angle of [Math.PI*.32,Math.PI*.68,Math.PI*1.5]){const points=[];for(let i=1;i<=26;i++){const f=i/26,bust=Math.exp(-Math.pow((f-.25)/.24,2));points.push([(.36+.14*(1-f)+.025*bust)*Math.cos(angle),topY(angle)*(1-f),(.21+.065*bust-.045*f)*Math.sin(angle)]);}seams.push({points,color:'#766e66',subtle:true});}
   if(sleeves!=='Sleeveless')for(const sign of [-1,1])tube([sign*.44,.82,0],[sign*(sleeves==='Long'?.83:.69),sleeves==='Long'?-.15:.48,0],.145,color);
   const belt=value('creator-waist-detail','None');if(belt!=='None'||value('creator-accessory','None')==='Belt'){const c=belt==='Contrast belt'?value('creator-secondary-color','#775166'):color;connect(ring(.37,.18,.035),ring(.38,.185,-.05),c);}
+  canvas.dataset.topColor=color;canvas.dataset.bottomColor=bottomColor;
   canvas.dataset.meshTriangles=String(mesh.length);canvas.dataset.template=template;canvas.dataset.fabricFinish=finish;canvas.dataset.neckline=neck;canvas.dataset.length=length;canvas.dataset.sleeves=sleeves;
  }
  function rotate(p){const c=Math.cos(yaw),s=Math.sin(yaw),x=p[0]*c+p[2]*s,z=-p[0]*s+p[2]*c,cp=Math.cos(pitch),sp=Math.sin(pitch);return [x,p[1]*cp-z*sp,p[1]*sp+z*cp];}
@@ -49,7 +54,7 @@
   ctx.fillStyle='rgba(65,45,50,.13)';ctx.beginPath();ctx.ellipse(300,610,135*zoom,15,0,0,Math.PI*2);ctx.fill();
   const faces=mesh.map(face=>{const points=face.points.map(rotate);return {...face,points,depth:points.reduce((sum,p)=>sum+p[2],0)/3};}).sort((a,b)=>b.depth-a.depth);
   const light=[-.45,.6,-.66],finish=value('creator-fabric-finish','Matte');
-  for(const face of faces){const [a,b,c]=face.points,n=cross(minus(b,a),minus(c,a)),len=Math.hypot(...n)||1,unit=n.map(v=>v/len),diffuse=Math.abs(unit.reduce((sum,v,i)=>sum+v*light[i],0)),spec=finish==='Satin'?Math.pow(diffuse,20)*65:Math.pow(diffuse,8)*9;const hex=face.color.replace('#',''),rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));const shade=.47+.53*diffuse;ctx.fillStyle=`rgb(${rgb.map(v=>Math.min(255,Math.round(v*shade+spec))).join(',')})`;const points=face.points.map(project);ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();
+  for(const face of faces){const [a,b,c]=face.points,n=cross(minus(b,a),minus(c,a)),len=Math.hypot(...n)||1,unit=n.map(v=>v/len),diffuse=Math.abs(unit.reduce((sum,v,i)=>sum+v*light[i],0)),spec=finish==='Satin'?Math.pow(diffuse,14)*48:finish==='Velvet'?Math.pow(1-diffuse,3)*18:Math.pow(diffuse,8)*7;const hex=face.color.replace('#',''),rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));const shade=.57+.43*diffuse;ctx.fillStyle=`rgb(${rgb.map(v=>Math.min(255,Math.round(v*shade+spec))).join(',')})`;const points=face.points.map(project);ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();
   }
   // Draw only the front portions of seam lines, so back seams stay behind the cloth.
   for(const seam of seams){ctx.strokeStyle=seam.color;ctx.globalAlpha=seam.subtle?.22:.5;ctx.lineWidth=seam.subtle?.7:1;ctx.beginPath();let pen=false;for(const p of seam.points){const r=rotate(p),front=r[2]<.05;if(!front){pen=false;continue;}const [x,y]=project(r);if(pen)ctx.lineTo(x,y);else ctx.moveTo(x,y);pen=true;}ctx.stroke();}ctx.globalAlpha=1;
@@ -63,6 +68,7 @@
   $('creator-3d-status').textContent=active?'Drag the '+value('creator-template','outfit').toLowerCase()+' to rotate it. This is a garment concept, not a fit simulation.':'Choose a silhouette to rotate its 3D garment preview.';
   build();schedule();
  }
+ canvas.addEventListener('dblclick',()=>{yaw=.32;pitch=.06;zoom=1;$('creator-3d-zoom').value='100';$('creator-3d-zoom-value').textContent='100%';schedule();});
  canvas.addEventListener('pointerdown',e=>{drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);canvas.focus();});
  canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;yaw+=(e.clientX-drag.x)*.012;pitch=Math.max(-.55,Math.min(.55,pitch+(e.clientY-drag.y)*.008));drag.x=e.clientX;drag.y=e.clientY;schedule();});
  const end=()=>{drag=null;};canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('lostpointercapture',end);
