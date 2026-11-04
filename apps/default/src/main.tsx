@@ -106,3 +106,5 @@ createRoot(rootElement).render(
     </HouseBoundary>
   </StrictMode>,
 );
+
+import './house-editorial.css';

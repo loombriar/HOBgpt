@@ -2013,3 +2013,42 @@ body .hero.sewing-hero.fashion-cover .fashion-cover-footnote{font:600 10px/1.5 A
 .house-designer-ad-caption a{display:inline-flex;align-items:center;min-height:44px;color:inherit;font-weight:700;text-underline-offset:4px}
 .house-designer-ad-image:focus-visible{outline:3px solid currentColor;outline-offset:-3px}
 @media(max-width:600px){.house-designer-ad-caption{align-items:flex-start;flex-direction:column;gap:0}.house-designer-ad-caption>span:last-child{font-size:12px}}
+
+/* November House edit: cream paper, espresso ink and oxblood accents. */
+body.blackberry-house{--edit-paper:#f7f1e8;--edit-ink:#30251f;--edit-accent:#733e48;--edit-line:#cbbcaf;background:var(--edit-paper)!important;color:var(--edit-ink)!important}
+html[data-hob-theme="dark"] body.blackberry-house{--edit-paper:#211c1a;--edit-ink:#f2e8dc;--edit-accent:#dcadb5;--edit-line:#67544b}
+body.blackberry-house .page-shell{background:var(--edit-paper)!important}
+body.blackberry-house .briar-text-hero{background:var(--edit-paper)!important;border-bottom:1px solid var(--edit-line);min-height:0!important;padding:clamp(40px,6vw,88px) 0!important}
+body.blackberry-house .briar-text-hero::before,body.blackberry-house .briar-text-hero::after{display:none!important}
+body.blackberry-house .fashion-cover-copy{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(220px,.65fr);column-gap:clamp(30px,6vw,100px);text-align:left!important;max-width:1280px!important;align-items:start}
+body.blackberry-house .fashion-cover-copy>*{grid-column:1;max-width:100%!important}
+body.blackberry-house .fashion-cover-copy .house-hero-logo{grid-column:2;grid-row:1/8;align-self:center;justify-self:center;width:min(100%,390px)!important;height:auto!important;margin:0!important;border-radius:50%;mix-blend-mode:multiply}
+html[data-hob-theme="dark"] body.blackberry-house .house-hero-logo{mix-blend-mode:normal}
+body.blackberry-house .fashion-cover-copy h1{font:500 clamp(3.1rem,6.5vw,6.6rem)/.97 'Cormorant Garamond',Georgia,serif!important;letter-spacing:-.045em!important;color:var(--edit-ink)!important;margin:22px 0!important;text-shadow:none!important}
+body.blackberry-house .fashion-cover-copy h1 em{color:var(--edit-accent)!important;font-weight:400}
+body.blackberry-house .fashion-cover-copy>p{color:var(--edit-ink)!important;font-size:16px;line-height:1.7}
+body.blackberry-house .fashion-cover-copy .eyebrow,body.blackberry-house .fashion-cover-footnote{font:600 10px/1.6 Arial,sans-serif!important;letter-spacing:.18em!important}
+body.blackberry-house .sewing-hero-actions{justify-content:flex-start!important;gap:12px!important;flex-wrap:wrap}
+body.blackberry-house :is(.primary-button,.secondary-button){border-radius:2px!important;min-height:48px;box-shadow:none!important;font:600 12px/1.4 Arial,sans-serif!important;letter-spacing:.04em;text-transform:none!important}
+body.blackberry-house .primary-button{background:var(--edit-ink)!important;color:var(--edit-paper)!important;border:1px solid var(--edit-ink)!important}
+body.blackberry-house .secondary-button{background:transparent!important;color:var(--edit-ink)!important;border:1px solid var(--edit-line)!important}
+body.blackberry-house .house-designer-ad{background:var(--edit-paper);color:var(--edit-ink);padding:24px clamp(16px,4vw,64px) 0;box-sizing:border-box}
+body.blackberry-house .house-designer-ad-image{max-width:1320px;margin:auto}
+body.blackberry-house .house-designer-ad-image img{max-height:650px;object-fit:contain;background:#eee5dd}
+body.blackberry-house .house-designer-ad-caption{max-width:1320px;margin:auto;padding:12px 0;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+body.blackberry-house .house-shopping-promises{background:var(--edit-ink)!important;color:var(--edit-paper)!important;border:0!important;gap:28px;padding:20px!important}
+body.blackberry-house :is(.product-section,.atelier-emine-introduction,.newsletter-section,#creative-house-feature){background:var(--edit-paper)!important;color:var(--edit-ink)!important;padding-block:clamp(40px,6vw,84px)!important;border-bottom:1px solid var(--edit-line)}
+body.blackberry-house :is(.product-section,.newsletter-section)::before{display:none!important}
+body.blackberry-house :is(.section-heading h2,.atelier-emine-copy h2,.newsletter-box h2){color:var(--edit-ink)!important;font:500 clamp(2.5rem,4.5vw,4.5rem)/1.05 'Cormorant Garamond',Georgia,serif!important;letter-spacing:-.025em}
+body.blackberry-house .atelier-emine-inner{gap:clamp(28px,6vw,90px)!important;align-items:center}
+body.blackberry-house .atelier-emine-logo{max-width:270px;margin:auto;border:1px solid var(--edit-line);padding:18px;background:#fffaf2}
+body.blackberry-house .house-shop-invitation{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;color:var(--edit-ink)!important}
+body.blackberry-house .house-preview-pieces{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:32px 22px!important}
+body.blackberry-house .house-preview-piece{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;color:var(--edit-ink)!important;overflow:hidden}
+body.blackberry-house .house-preview-piece img{width:100%!important;aspect-ratio:1/1.08!important;height:auto!important;object-fit:contain!important;background:#ede5dc!important;border-radius:0!important;padding:18px;box-sizing:border-box}
+body.blackberry-house .house-preview-piece strong{display:block;padding-top:16px;font:500 23px/1.2 'Cormorant Garamond',Georgia,serif!important}
+body.blackberry-house .house-preview-piece span{display:block;margin-top:7px;font-size:12px;color:var(--edit-ink)!important}
+body.blackberry-house .newsletter-section .newsletter-box{background:transparent!important;border:1px solid var(--edit-line)!important;border-radius:0!important;box-shadow:none!important;padding:48px!important;color:var(--edit-ink)!important}
+body.blackberry-house .site-footer{background:#30251f!important;color:#f7f1e8!important;border:0!important}
+body.blackberry-house .site-footer :is(a,summary,p){color:inherit!important}
+@media(max-width:700px){body.blackberry-house .fashion-cover-copy{grid-template-columns:1fr!important;text-align:left!important}body.blackberry-house .fashion-cover-copy .house-hero-logo{grid-column:1;grid-row:1;width:132px!important;justify-self:start;margin-bottom:20px!important}body.blackberry-house .fashion-cover-copy h1{font-size:clamp(3rem,12vw,4.7rem)!important}body.blackberry-house .house-preview-pieces{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:24px 12px!important}body.blackberry-house .house-preview-piece img{padding:8px}body.blackberry-house .house-preview-piece strong{font-size:20px!important}body.blackberry-house .newsletter-section .newsletter-box{padding:28px 20px!important}body.blackberry-house .house-shopping-promises{flex-wrap:wrap;font-size:12px!important}}
