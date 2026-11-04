@@ -1493,53 +1493,7 @@ function createApp(options = {}) {
 
   let app;
   app = express();
-  require('./lib/designer-collection-drafts').registerCollectionDrafts({ app, db, authDesigner, fail, rateLimit });
-  // Private PDF / Word collection intake: authenticated designer only, no public file URL.
-  const collectionPdfUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 0 },
-    fileFilter: (_req, file, cb) => cb(null, ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.mimetype))
-  });
-  app.post('/api/designer/collection-imports', authDesigner,
-    rateLimit({windowMs: 60 * 60 * 1000, max: 12, keyPrefix: 'designer-pdf-import'}),
-    (req, res, next) => collectionPdfUpload.single('catalog')(req, res, err => {
-      if (err) return fail(res, 400, 'invalid_pdf_upload', 'PDF upload exceeds limits or is invalid.');
-      next();
-    }),
-    (req, res) => {
-      const buffer = req.file?.buffer;
-      const isWord = /\.docx$/i.test(req.file?.originalname || '');
-      const isPdf = /\.pdf$/i.test(req.file?.originalname || '');
-      if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || isWord && buffer.readUInt32LE(0) === 0x04034b50)) {
-        return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF or DOCX catalog.');
-      }
-      let extracted, pageMarkers = [];
-      try {
-        if (isWord) {
-          extracted = require('./lib/collection-docx-text').extractDocxText(buffer);
-        } else {
-          const raw = buffer.toString('latin1');
-          if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
-          pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
-          if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
-          extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
-        }
-      } catch (error) {
-        return fail(res, 422, 'invalid_catalog', 'Could not extract document text. Check the file is a valid, unprotected PDF or DOCX.');
-      }
-      // The file is intentionally not persisted; extracted text is returned only to its authenticated uploader.
-      res.set('Cache-Control', 'no-store');
-      return res.status(202).json({
-        status: 'received_not_saved',
-        fileName: String(req.file.originalname || 'catalog').slice(0, 160),
-        bytes: buffer.length,
-        detectedPages: pageMarkers.length,
-        extractedText: extracted.text,
-        extractionMethod: extracted.extraction,
-        message: 'Basic text extraction completed in memory. The PDF was not saved and no listings were created.'
-      });
-    }
-  );
+
 
 
   // Enable only behind a dedicated authenticated ingress. Direct callers are rejected.
@@ -1772,7 +1726,56 @@ function createApp(options = {}) {
   }));
   // Parse analytics before the general parser so its smaller limit is enforced.
   app.use('/api/analytics/events',express.json({limit:'16kb'}));
+  // Catalog reviews can contain 60,000 Unicode characters plus reviewed garment details.
+  app.use('/api/designer/collection-drafts', express.json({ limit: '256kb' }));
   app.use(express.json({ limit: '64kb' }));
+  require('./lib/designer-collection-drafts').registerCollectionDrafts({ app, db, authDesigner, fail, rateLimit });
+  // Private PDF / Word collection intake: authenticated designer only, no public file URL.
+  const collectionPdfUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 0 },
+    fileFilter: (_req, file, cb) => cb(null, ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.mimetype))
+  });
+  app.post('/api/designer/collection-imports', authDesigner,
+    rateLimit({windowMs: 60 * 60 * 1000, max: 12, keyPrefix: 'designer-pdf-import'}),
+    (req, res, next) => collectionPdfUpload.single('catalog')(req, res, err => {
+      if (err) return fail(res, 400, 'invalid_pdf_upload', 'Catalog upload exceeds limits or is invalid.');
+      next();
+    }),
+    (req, res) => {
+      const buffer = req.file?.buffer;
+      const isWord = /\.docx$/i.test(req.file?.originalname || '');
+      const isPdf = /\.pdf$/i.test(req.file?.originalname || '');
+      if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || isWord && buffer.readUInt32LE(0) === 0x04034b50)) {
+        return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF or DOCX catalog.');
+      }
+      let extracted, pageMarkers = [];
+      try {
+        if (isWord) {
+          extracted = require('./lib/collection-docx-text').extractDocxText(buffer);
+        } else {
+          const raw = buffer.toString('latin1');
+          if (/\/Encrypt\b/.test(raw)) return fail(res, 422, 'encrypted_pdf', 'Encrypted PDF catalogs are not supported.');
+          pageMarkers = raw.match(/\/Type\s*\/Page\b/g) || [];
+          if (pageMarkers.length > 100) return fail(res, 413, 'too_many_pages', 'PDF catalog must contain at most 100 pages.');
+          extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
+        }
+      } catch (error) {
+        return fail(res, 422, 'invalid_catalog', 'Could not extract document text. Check the file is a valid, unprotected PDF or DOCX.');
+      }
+      // The file is intentionally not persisted; extracted text is returned only to its authenticated uploader.
+      res.set('Cache-Control', 'no-store');
+      return res.status(202).json({
+        status: 'received_not_saved',
+        fileName: String(req.file.originalname || 'catalog').slice(0, 160),
+        bytes: buffer.length,
+        detectedPages: pageMarkers.length,
+        extractedText: extracted.text,
+        extractionMethod: extracted.extraction,
+        message: 'Basic text extraction completed in memory. The document was not saved and no listings were created.'
+      });
+    }
+  );
   app.post('/api/admin/session', rateLimit({windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 'admin-login'}), (req, res) => {
     const token = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const entry = token ? adminEntryForToken(token) : null;
