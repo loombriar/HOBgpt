@@ -36,7 +36,7 @@ The agent allows at most three model turns/four tool calls, uses request idempot
 
 ## Run locally
 
-Requires Node.js 20 or newer.
+Requires **Node.js 24 or newer**, matching the root `package.json` engine requirement and CI/Docker runtime. Node.js 20 is not supported by the current application.
 
 ```bash
 npm install
