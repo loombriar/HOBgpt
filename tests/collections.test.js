@@ -14,11 +14,12 @@ test('collection URLs have distinct share metadata and reject unknown names',asy
   try{
     for(const [slug,title] of [['autumn-atelier','The Autumn Atelier'],['winter-briar','Winter Briar'],['garden-party','The Garden Party'],['independent-by-design','Independent by Design']]){
       const response=await fetch(origin+'/collections/'+slug);assert.equal(response.status,200);
-      const html=await response.text();assert.ok(html.includes(`<title>${title} | House of Briar</title>`));
+      const html=await response.text();assert.ok(html.includes(`<title>${title} | House of Briar</title>`));assert.ok(html.includes('<meta name="robots" content="noindex,follow" />'));assert.ok(html.includes(`class="house-collection-intro"`));assert.ok(html.includes(`<h1>${title}</h1>`));
       assert.ok(html.includes(`href="https://houseofbriar.shop/collections/${slug}"`));assert.ok(!html.includes('id="house-collection-grid"'));assert.ok(html.includes('id="shop"'));assert.ok(!html.includes('id="house-editorial-pieces"'));
       assert.match(html, /<script src="\/atelier\.js\?v=[^"]+" defer><\/script>/);
     }
     // The removed collection teaser must stay off the homepage too.
+    const sitemap=await (await fetch(origin+'/sitemap.xml')).text();assert.ok(!sitemap.includes('/collections/'));
     const home=await (await fetch(origin+'/')).text();
     assert.ok(!home.includes('id="house-collection-grid"'));
     assert.equal((await fetch(origin+'/collections/unknown')).status,404);

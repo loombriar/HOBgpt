@@ -4693,7 +4693,7 @@ function createApp(options = {}) {
   app.get('/sitemap.xml', (req, res) => {
     const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
     const origin = trustedAppOrigin(req);
-    const paths = ['/', '/shop', '/atelier-emine', '/designers', '/rules', '/shipping.html', '/collections/autumn-atelier', '/collections/winter-briar', '/collections/garden-party', '/collections/independent-by-design'];
+    const paths = ['/', '/shop', '/atelier-emine', '/designers', '/rules', '/shipping.html']; // Empty editorial collections remain accessible but are excluded from discovery until they have distinct catalog content.
     const designers = db.prepare("SELECT id FROM designer_profiles WHERE status='active'").all();
     paths.push(...designers.map(row => '/designers/' + encodeURIComponent(row.id)));
     if (hasReactBuild) paths.push(...db.prepare("SELECT l.* FROM listings l JOIN designer_profiles p ON p.id=l.designer_id WHERE l.status='published' AND l.moderation_status='approved' AND p.status='active' AND COALESCE(l.paused_by_designer,0)=0").all().filter(customerListingVisible).map(row => '/shop/' + encodeURIComponent(row.id)));
@@ -4718,6 +4718,18 @@ function createApp(options = {}) {
       .replace(/(name="description"\s+content=")[^"]*/,`$1${page.description}`)
       .replace(/(<meta property="og:description" content=")[^"]*/,`$1${page.description}`)
       .replace(/(<meta name="twitter:description" content=")[^"]*/,`$1${page.description}`);
+    // Until curated products are available, avoid indexing four near-identical storefront shells.
+    // Keep the routes usable and provide crawlable, collection-specific editorial context.
+    const editorial = {
+      'winter-briar':'A winter fashion edit exploring velvet, warm metallic accents, and statement pieces by independent makers.',
+      'autumn-atelier':'An autumn fashion edit focused on rich textures, layered silhouettes, and original work by independent designers.',
+      'garden-party':'A garden-party fashion edit featuring romantic silhouettes, botanical inspiration, and independent design.',
+      'independent-by-design':'A spotlight on small-batch fashion, original wearable art, and the people who make it.'
+    }[req.params.collection];
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const introduction = '<section class="house-collection-intro" aria-label="Collection introduction" style="max-width:1100px;margin:28px auto;padding:24px 28px"><h1>'+escapeHtml(page.title)+'</h1><p>'+escapeHtml(editorial)+'</p><p>Explore independent fashion and check back as this edit develops.</p></section>';
+    html = html.replace(/<head>/i, '<head><meta name="robots" content="noindex,follow" />');
+    html = html.replace(/<main\b[^>]*>/i, match => match + introduction);
     return res.type('html').send(html);
   });
   const searchPages = require('./lib/search-pages');
