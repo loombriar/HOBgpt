@@ -23,10 +23,7 @@ test('Railway anonymous report limiter cannot be reset by rotating authenticated
     // This test uses trusted ingress identity injected at request handling, not
     // untrusted public forwarding headers; the full ingress signature is tested
     // independently by tests/ingress-proxy.test.js.
-    const original = context.app._router?.stack;
-    // Local Express 5 tests cannot impersonate authenticated ingress via HTTP.
-    // Assert the stored shared budget by varying the socket-derived actor using
-    // the consumer's source contract in a representative production environment.
+    // Fake public forwarding headers must not change the budget.
     assert.ok(context.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='rate_limit_buckets'").get());
     const responses = [];
     for (let i = 0; i < 6; i++) {
