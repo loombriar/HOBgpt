@@ -4,6 +4,11 @@ function registerPayPalDonationRecovery({app, db, paypalApi, donationBadgeSubjec
     if (!db.prepare('PRAGMA table_info(donations)').all().some(column => column.name === name))
       db.exec(`ALTER TABLE donations ADD COLUMN ${name} TEXT`);
   }
+  // Keep unavailable references for review without changing financial state.
+  for (const [name, type] of Object.entries({paypal_unavailable_count:'INTEGER NOT NULL DEFAULT 0',paypal_next_check_at:'TEXT',paypal_review_reason:'TEXT'})) {
+    if (!db.prepare('PRAGMA table_info(donations)').all().some(column => column.name === name))
+      db.exec(`ALTER TABLE donations ADD COLUMN ${name} ${type}`);
+  }
   const inFlight = new Map();
   const mismatch = () => Object.assign(new Error('PayPal donation payment does not match.'), {statusCode:409});
   function validateOrder(donation, order) {
@@ -37,8 +42,20 @@ function registerPayPalDonationRecovery({app, db, paypalApi, donationBadgeSubjec
       if (!donation) throw Object.assign(new Error('PayPal donation not found.'), {statusCode:404});
       db.prepare('UPDATE donations SET paypal_checked_at=? WHERE id=?').run(new Date().toISOString(), donation.id);
       const endpoint = '/v2/checkout/orders/' + encodeURIComponent(orderId);
-      let order = await paypalApi(endpoint);
+      let order;
+      try { order = await paypalApi(endpoint); }
+      catch (error) {
+        // Only an unavailable order lookup qualifies; capture/auth/network errors do not.
+        if (error.providerStatus === 404) {
+          const count = Math.min(3, Number(donation.paypal_unavailable_count || 0) + 1);
+          const next = count < 3 ? new Date(Date.now() + (count === 1 ? 3600000 : 21600000)).toISOString() : null;
+          db.prepare('UPDATE donations SET paypal_unavailable_count=?,paypal_next_check_at=?,paypal_review_reason=? WHERE id=?')
+            .run(count,next,'order_unavailable',donation.id);
+        }
+        throw error;
+      }
       validateOrder(donation, order);
+      db.prepare('UPDATE donations SET paypal_unavailable_count=0,paypal_next_check_at=NULL,paypal_review_reason=NULL WHERE id=?').run(donation.id);
       if (order.status === 'APPROVED' && donation.status !== 'paid') {
         // PayPal's idempotency retention is finite. Never blindly recapture an old uncertain attempt.
         if (donation.paypal_capture_started_at && Date.now()-Date.parse(donation.paypal_capture_started_at) > 5*60*60*1000)
@@ -60,9 +77,10 @@ function registerPayPalDonationRecovery({app, db, paypalApi, donationBadgeSubjec
     const result = {checked:0, paid:0, errors:0};
     try {
       const rows = db.prepare(`SELECT * FROM donations d WHERE payment_provider='paypal' AND paypal_order_id IS NOT NULL
+        AND paypal_unavailable_count < 3 AND (paypal_next_check_at IS NULL OR paypal_next_check_at <= ?)
         AND (status='pending' OR (status='paid' AND amount_cents>=500 AND NOT EXISTS
         (SELECT 1 FROM user_badges b WHERE b.badge_type='supporter' AND b.buyer_subject=d.buyer_subject)))
-        ORDER BY paypal_checked_at ASC, created_at ASC LIMIT 100`).all();
+        ORDER BY paypal_checked_at ASC, created_at ASC LIMIT 100`).all(new Date().toISOString());
       for (const row of rows) {
         result.checked++;
         try { if ((await recover(row.paypal_order_id)).status === 'paid') result.paid++; }

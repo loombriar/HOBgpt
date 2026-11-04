@@ -13,3 +13,11 @@ Before rollout: use a sandbox donor to approve a donation and close the return p
 References:
 - https://developer.paypal.com/api/rest/webhooks/rest/
 - https://developer.paypal.com/payment-methods/webhooks/
+
+## Unavailable order references
+
+A 404 from an authenticated order GET preserves the donation's existing financial status and marks `paypal_review_reason=order_unavailable`. Automatic reconciliation retries after one hour, then six hours, and pauses after the third unavailable response. The counter and next-check time persist across restarts. Authentication, network, capture and other provider errors do not count as unavailable order lookups.
+
+The owner/operator admin dashboard shows these references under **PayPal donation review**, including amount, current status and retry schedule. Verify the original PayPal account/environment and provider records before deciding an outcome. A missing reference is not proof that money was never received. Do not delete the record or mark it paid/failed solely from a 404. A subsequent validated order response through the existing return or signed webhook path clears the review flag and retry state; existing capture/idempotency safeguards still apply. No automatic capture or manual retry button is added to the review queue.
+
+Existing unavailable references are classified on their next reconciliation after deployment. No historic financial statuses are migrated.
