@@ -4356,7 +4356,7 @@ function createApp(options = {}) {
 
   app.get('/icons/house-of-briar-:size.png', async (req, res, next) => {
     const size = Number(req.params.size);
-    if (![192, 512].includes(size)) return fail(res, 404, 'not_found', 'Icon not found.');
+    if (![32, 192, 512].includes(size)) return fail(res, 404, 'not_found', 'Icon not found.');
     const uploadedIcon = path.join(rootDir, `house-of-briar-${size}.png`);
     if (fs.existsSync(uploadedIcon)) {
       res.set('Cache-Control', 'no-cache, must-revalidate');
@@ -4809,6 +4809,7 @@ function createApp(options = {}) {
     'house-logo-rosegold-v4.webp',
     'house-monogram-rosegold-v4.webp',
     'house-logo-floral-transparent-v5.webp',
+    'house-logo-thorn-v7.webp',
     'briar-seamless-background-v1.webp',
     'briar-portrait-green-v2.webp', 'briar-portrait-green-v2-mobile.webp',
     'briar-couture-v1.webp', 'briar-couture-v1-mobile.webp',
