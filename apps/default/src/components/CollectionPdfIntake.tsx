@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** Private PDF and DOCX intake; uploads processed in memory. */
 export default function CollectionPdfIntake() {
+  const selectionVersion = useRef(0);
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -21,6 +22,7 @@ export default function CollectionPdfIntake() {
     return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
   function choose(next: File | undefined) {
+    const version = ++selectionVersion.current;
     setError('');
     setServerStatus('');
     setExtractedText('');
@@ -33,29 +35,30 @@ export default function CollectionPdfIntake() {
     const isDocx = next.name.toLowerCase().endsWith('.docx');
     if (!isPdf && !isDocx) { setError('Select a PDF or Word (.docx) catalog.'); return; }
     next.slice(0, 5).arrayBuffer().then(bytes => {
+      if (version !== selectionVersion.current) return;
       const magic = String.fromCharCode(...new Uint8Array(bytes));
       if (isPdf ? magic !== '%PDF-' : !magic.startsWith('PK')) { setError('This file does not appear to be a valid document.'); return; }
       setFile(next);
-    }).catch(() => setError('Could not read this document.'));
+    }).catch(() => { if (version === selectionVersion.current) setError('Could not read this document.'); });
   }
   return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
     <h2 className="font-serif text-2xl">Prepare a collection from a PDF or Word document</h2>
-    <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored.</p>
+    <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
     <label className="block">Choose PDF or Word catalog (up to 20 MB)
-      <input className="mt-2 block w-full" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
+      <input className="mt-2 block w-full" type="file" disabled={sending || converting} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
     </label>
     {error && <p role="alert" className="text-red-700">{error}</p>}
     {url && <>
       <button type="button" disabled={sending} className="rounded-lg border px-4 py-2" onClick={async () => {
         if (!file) return;
-        setSending(true); setServerStatus('');
+        setSending(true); setError(''); setServerStatus(''); setExtractedText('');
         try {
           const data = new FormData(); data.append('catalog', file);
           const response = await fetch('/api/designer/collection-imports', { method: 'POST', body: data, credentials: 'same-origin' });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Document validation failed.');
           setExtractedText(typeof result.extractedText === 'string' ? result.extractedText : '');
-          setServerStatus('Server checked the document and attempted text extraction. No listings were created.');
+          setServerStatus(result.extractedText?.trim() ? 'Text extracted. Review it below, then create a private review draft. No listings were created.' : 'No readable text found. Use a text-based PDF or DOCX, or use the manual review list below. No listings were created.');
         } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed.'); }
         finally { setSending(false); }
       }}>{sending ? 'Validating…' : 'Extract document text with House of Briar'}</button>
@@ -82,7 +85,7 @@ export default function CollectionPdfIntake() {
         </fieldset>)}
         <div className="space-y-2 border-t pt-3">
           <h4 className="font-semibold">Create unpublished marketplace drafts</h4>
-          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Photos, shipping and inventory must be checked separately before publication.</p>
+          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices are in USD; convert foreign-currency prices before creating drafts. Photos, shipping and inventory must be checked separately before publication.</p>
           <label className="block">Marketplace category
             <select className="block border rounded p-2" value={listingCategory} onChange={e=>setListingCategory(e.target.value)}>
               <option value="">Choose category</option>
@@ -116,7 +119,7 @@ export default function CollectionPdfIntake() {
           try {
             const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
             const result=await response.json(); if(!response.ok)throw new Error(result.message||'Save failed.');
-            setServerStatus('Private review draft saved. No marketplace listings were created.');
+            setServerStatus('Private review draft saved. This save does not create or publish marketplace listings.');
           } catch(err){setError(err instanceof Error?err.message:'Save failed.');}
         }}>Save private review draft</button>
       </section>}
