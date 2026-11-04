@@ -2887,7 +2887,7 @@ function createApp(options = {}) {
   async function paypalApi(path,{method='GET',body,idempotencyKey}={}){
     if (options.paypalApi) return options.paypalApi(path,{method,body,idempotencyKey});
     const token=await paypalAccessToken();const response=await fetch(paypalBaseUrl()+path,{signal:AbortSignal.timeout(30000),method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(idempotencyKey?{'PayPal-Request-Id':idempotencyKey}:{})},body:body?JSON.stringify(body):undefined});
-    const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_api_failed',{path,status:response.status,providerMessage:String(data?.details?.[0]?.description||data?.message||'').slice(0,300)});throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable'});}return data;
+    const data=await response.json().catch(()=>({}));if(!response.ok){log('error','paypal_api_failed',{path,status:response.status,providerMessage:String(data?.details?.[0]?.description||data?.message||'').slice(0,300)});throw Object.assign(new Error('Payment provider request failed.'),{statusCode:502,code:'payment_provider_unavailable',providerStatus:response.status});}return data;
   }
   function paypalApprovalUrl(order){return order?.links?.find(link=>link.rel==='payer-action'||link.rel==='approve')?.href||null;}
   function paypalPayerEmail(payload){return payload?.payment_source?.paypal?.email_address||payload?.payment_source?.venmo?.email_address||payload?.payer?.email_address||null;}
@@ -3888,7 +3888,11 @@ function createApp(options = {}) {
     // Include those labels so the review queue cannot hide the held order.
     const postageReviews=db.prepare(`SELECT order_id,designer_id FROM postage_charges
       UNION SELECT order_id,designer_id FROM shipping_labels WHERE status IN ('processing','review_required')`).all().map(row=>({orderId:row.order_id,designerId:row.designer_id,...postageAccounting.summary(row.order_id,row.designer_id)})).filter(row=>row.postageHold||row.insufficientEarnings||row.unrecoveredPostageCents||row.postPayoutCreditCents);
-    return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews});
+    const paypalDonationReviews=db.prepare(`SELECT id,amount_cents AS amountCents,status,paypal_order_id AS orderId,
+      paypal_unavailable_count AS attempts,paypal_next_check_at AS nextCheckAt,paypal_checked_at AS checkedAt
+      FROM donations WHERE payment_provider='paypal' AND paypal_review_reason='order_unavailable'
+      ORDER BY paypal_checked_at DESC LIMIT 100`).all();
+    return res.json({summary,orders,payouts,inventory,emails,financialOperations,postageReviews,paypalDonationReviews});
   });
 
   // Admin-only evidence review. Decisions never change postage charges or Stripe payouts.
