@@ -17,6 +17,11 @@ test('catalog upload, private review, ownership, draft conversion and retry work
   const invalid=new FormData();invalid.append('catalog',new Blob(['not a PDF'],{type:'application/pdf'}),'bad.pdf');assert.equal((await request('/api/designer/collection-imports',{body:invalid})).status,400);
   const created=await request('/api/designer/collection-drafts',{body:{sourceName:'collection.pdf',extractedText:extracted.extractedText}});assert.equal(created.status,201);const draft=await created.json();
   const route='/api/designer/collection-drafts/'+draft.id;
+  const mine=await request('/api/designer/collection-drafts',{method:'GET'});assert.equal(mine.status,200);assert.equal(mine.headers.get('cache-control'),'no-store');
+  const summary=(await mine.json()).items.find(item=>item.id===draft.id);assert.equal(summary.sourceName,'collection.pdf');assert.equal(summary.garmentCount,1);assert.ok(summary.updatedAt);
+  const others=await request('/api/designer/collection-drafts',{method:'GET',token:'otherToken'});assert.deepEqual((await others.json()).items,[]);
+  assert.equal((await request('/api/designer/collection-drafts',{method:'GET',token:''})).status,401);
+
   assert.equal((await request(route,{method:'GET',token:'otherToken'})).status,404);
   assert.equal((await request(route,{method:'PATCH',token:'otherToken',body:{garments:[]}})).status,404);
   const garments=draft.garments.map(g=>({...g,description:'Original cotton summer dress',price:125,sizes:'M',colors:'Blue',selected:true}));

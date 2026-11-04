@@ -14,6 +14,35 @@ export default function CollectionPdfIntake() {
   const [createdListingIds, setCreatedListingIds] = useState<string[]>([]);
   const [converting, setConverting] = useState(false);
   const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;selected:boolean}>>([]);
+  const [savedReviews, setSavedReviews] = useState<Array<{id:string;sourceName:string;updatedAt:string;garmentCount:number}>>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [openingReview, setOpeningReview] = useState(false);
+  const [sourceName, setSourceName] = useState('');
+  async function refreshReviews() {
+    setLoadingReviews(true); setReviewError('');
+    try {
+      const response = await fetch('/api/designer/collection-drafts', { credentials:'same-origin', cache:'no-store' });
+      const result = await response.json();
+      if (!response.ok) throw new Error('Could not load saved collections. Please refresh the list.');
+      setSavedReviews(result.items);
+    } catch (err) { setReviewError(err instanceof Error ? err.message : 'Could not load saved collections.'); }
+    finally { setLoadingReviews(false); }
+  }
+  useEffect(() => { void refreshReviews(); }, []);
+  async function resumeReview(id:string) {
+    if ((draftId || file) && !window.confirm('Open this saved collection? Unsaved changes in the current review will be replaced.')) return;
+    setOpeningReview(true); setError('');
+    try {
+      const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'});
+      const result=await response.json();
+      if(!response.ok)throw new Error('Could not open this saved collection. Refresh the list and try again.');
+      selectionVersion.current++; setFile(null); setExtractedText(''); setEntries([]); setCreatedListingIds([]); setListingCategory('');
+      setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
+      setServerStatus('Saved collection reopened. Your original document is not needed to finish this review.');
+    }catch(err){setError(err instanceof Error?err.message:'Could not open collection.');}
+    finally{setOpeningReview(false);}
+  }
   const [entries, setEntries] = useState<Array<{ name: string; price: string; notes: string }>>([]);
   useEffect(() => {
     if (!file) { setUrl(''); return; }
@@ -26,6 +55,7 @@ export default function CollectionPdfIntake() {
     setError('');
     setServerStatus('');
     setExtractedText('');
+    setSourceName(next?.name || '');
     setDraftId(''); setReviewGarments([]); setCreatedListingIds([]);
     setFile(null);
     setEntries([]);
@@ -44,12 +74,20 @@ export default function CollectionPdfIntake() {
   return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
     <h2 className="font-serif text-2xl">Prepare a collection from a PDF or Word document</h2>
     <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
+    <section aria-label="Resume saved collections" className="space-y-3 border rounded-xl p-4">
+      <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Resume saved collections</h3><button type="button" className="underline min-h-11" disabled={loadingReviews || openingReview || sending || converting} onClick={()=>void refreshReviews()}>Refresh list</button></div>
+      <p className="text-sm">Private reviews saved to your designer account. The 100 most recently updated collections appear here.</p>
+      {loadingReviews && <p role="status">Loading saved collections…</p>}
+      {reviewError && <p role="alert">{reviewError}</p>}
+      {!loadingReviews && !reviewError && savedReviews.length===0 && <p>No saved collections yet. Extract a catalog and create a private review to begin.</p>}
+      <ul className="space-y-2">{savedReviews.map(review=><li key={review.id} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="min-w-0"><p className="font-medium break-words">{review.sourceName}</p><p className="text-sm">{review.garmentCount} suggestions · Updated {review.updatedAt}</p></div><button type="button" className="rounded-lg border px-4 min-h-11" disabled={openingReview || sending || converting} onClick={()=>void resumeReview(review.id)} aria-label={'Resume '+review.sourceName}>{openingReview?'Opening…':'Resume review'}</button></li>)}</ul>
+    </section>
     <label className="block">Choose PDF or Word catalog (up to 20 MB)
-      <input className="mt-2 block w-full" type="file" disabled={sending || converting} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
+      <input className="mt-2 block w-full" type="file" disabled={sending || converting || openingReview} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
     </label>
     {error && <p role="alert" className="text-red-700">{error}</p>}
-    {url && <>
-      <button type="button" disabled={sending} className="rounded-lg border px-4 py-2" onClick={async () => {
+    {(url || draftId) && <>
+      <button type="button" disabled={sending || !file || openingReview} className="rounded-lg border px-4 py-2" onClick={async () => {
         if (!file) return;
         setSending(true); setError(''); setServerStatus(''); setExtractedText('');
         try {
@@ -68,10 +106,10 @@ export default function CollectionPdfIntake() {
           const response = await fetch('/api/designer/collection-drafts', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sourceName:file?.name,extractedText}) });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Could not create private review draft.');
-          setDraftId(result.id); setReviewGarments(result.garments);
+          setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); void refreshReviews();
         } catch (err) { setError(err instanceof Error ? err.message : 'Draft creation failed.'); }
       }}>Create private review draft from extracted lines</button>}
-      {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3>
+      {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3><p className="text-sm break-words">{sourceName}</p>
         <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
         {reviewGarments.map((g,i) => <fieldset key={g.id} className="rounded-lg border p-3 space-y-2">
           <legend>Candidate {i+1}</legend>
@@ -119,11 +157,11 @@ export default function CollectionPdfIntake() {
           try {
             const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
             const result=await response.json(); if(!response.ok)throw new Error(result.message||'Save failed.');
-            setServerStatus('Private review draft saved. This save does not create or publish marketplace listings.');
+            setServerStatus('Private review draft saved. This save does not create or publish marketplace listings.'); void refreshReviews();
           } catch(err){setError(err instanceof Error?err.message:'Save failed.');}
         }}>Save private review draft</button>
       </section>}
-      {serverStatus && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
+      {extractedText && <label className="block">Extracted catalog text (review for accuracy)<textarea readOnly className="mt-2 block w-full border rounded p-2" rows={8} value={extractedText || 'No readable text found. Scanned or complex PDFs may require OCR.'} /></label>}
       {file?.name.toLowerCase().endsWith(".pdf") && <object data={url} type="application/pdf" className="w-full min-h-[360px]" aria-label="Your PDF catalog">
         <p>PDF preview is unavailable in this browser. You can still enter garment details below.</p>
       </object>}
