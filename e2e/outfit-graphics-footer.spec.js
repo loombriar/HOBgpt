@@ -16,6 +16,6 @@ for(const width of [390,1280])test(`cloth illustrations render all silhouettes a
  }
  await page.getByLabel('Print',{exact:true}).selectOption('Polka dots');await expect(page.locator('#creator-top-print')).toHaveCount(1);
  const download=page.waitForEvent('download');await page.locator('#creator-download').click();const file=await download,metadata=await require('sharp')(await file.path()).metadata();expect(metadata.width).toBe(600);expect(metadata.height).toBe(860);
- await expect(page.locator('.creator-builder figure')).toHaveCSS('position','static');expect(await page.locator('#creator-preview').evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(360);
+ await expect(page.locator('.creator-builder figure')).toHaveCSS('position',width<=850?'static':'sticky');expect(await page.locator('#creator-preview').evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(360);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
