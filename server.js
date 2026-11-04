@@ -4729,7 +4729,7 @@ function createApp(options = {}) {
     const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const introduction = '<section class="house-collection-intro" aria-label="Collection introduction" style="max-width:1100px;margin:28px auto;padding:24px 28px"><h1>'+escapeHtml(page.title)+'</h1><p>'+escapeHtml(editorial)+'</p><p>Explore independent fashion and check back as this edit develops.</p></section>';
     html = html.replace(/<head>/i, '<head><meta name="robots" content="noindex,follow" />');
-    html = html.replace(/<main\\b[^>]*>/i, match => match + introduction);
+    html = html.replace(/<main\b[^>]*>/i, match => match + introduction);
     return res.type('html').send(html);
   });
   const searchPages = require('./lib/search-pages');
