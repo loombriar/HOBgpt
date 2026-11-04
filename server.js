@@ -949,10 +949,22 @@ function createApp(options = {}) {
     return (req, res, next) => {
       const now = Date.now();
       const actor = req.designerId ? `designer:${req.designerId}` : req.buyerSubject ? `buyer:${req.buyerSubject}` : `ip:${req.authenticatedIngressIp || clientAddress(req)}`;
-      const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${actor}`).digest('hex');
-      const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
-      if (entry.count > max) {
-        res.set('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
+      // Railway may rotate the ingress socket peer between requests. That peer is
+      // authenticated, but it is not a stable end-user identity. Limit anonymous
+      // traffic by both peer and a conservative shared budget until a verified
+      // per-client edge identity is available. Never trust caller IP headers.
+      const identities = [actor];
+      if (actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
+        identities.push('anonymous:railway-shared');
+      }
+      let retryAt = 0;
+      for (const identity of identities) {
+        const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${identity}`).digest('hex');
+        const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
+        if (entry.count > max) retryAt = Math.max(retryAt, entry.resetAt);
+      }
+      if (retryAt) {
+        res.set('Retry-After', String(Math.max(1, Math.ceil((retryAt - now) / 1000))));
         return fail(res, 429, 'rate_limited', 'Too many requests. Please try again shortly.');
       }
       if (Math.random() < 0.01) db.prepare('DELETE FROM rate_limit_buckets WHERE reset_at<=?').run(now);
