@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /** Private PDF and DOCX intake; uploads processed in memory. */
-export default function CollectionPdfIntake() {
+export default function CollectionPdfIntake({ onFinishListing }: { onFinishListing: (id:string) => Promise<void> }) {
   const selectionVersion = useRef(0);
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
@@ -12,6 +12,8 @@ export default function CollectionPdfIntake() {
   const [draftId, setDraftId] = useState('');
   const [listingCategory, setListingCategory] = useState('');
   const [createdListingIds, setCreatedListingIds] = useState<string[]>([]);
+  const [createdDrafts, setCreatedDrafts] = useState<Array<{id:string;title:string}>>([]);
+  const [openingListing, setOpeningListing] = useState(false);
   const [converting, setConverting] = useState(false);
   const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;selected:boolean}>>([]);
   const [savedReviews, setSavedReviews] = useState<Array<{id:string;sourceName:string;updatedAt:string;garmentCount:number}>>([]);
@@ -37,7 +39,7 @@ export default function CollectionPdfIntake() {
       const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'});
       const result=await response.json();
       if(!response.ok)throw new Error('Could not open this saved collection. Refresh the list and try again.');
-      selectionVersion.current++; setFile(null); setExtractedText(''); setEntries([]); setCreatedListingIds([]); setListingCategory('');
+      selectionVersion.current++; setFile(null); setExtractedText(''); setEntries([]); setCreatedListingIds([]); setCreatedDrafts([]); setListingCategory('');
       setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
       setServerStatus('Saved collection reopened. Your original document is not needed to finish this review.');
     }catch(err){setError(err instanceof Error?err.message:'Could not open collection.');}
@@ -56,7 +58,7 @@ export default function CollectionPdfIntake() {
     setServerStatus('');
     setExtractedText('');
     setSourceName(next?.name || '');
-    setDraftId(''); setReviewGarments([]); setCreatedListingIds([]);
+    setDraftId(''); setReviewGarments([]); setCreatedListingIds([]); setCreatedDrafts([]);
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -72,7 +74,7 @@ export default function CollectionPdfIntake() {
     }).catch(() => { if (version === selectionVersion.current) setError('Could not read this document.'); });
   }
   return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
-    <h2 className="font-serif text-2xl">Prepare a collection from a PDF or Word document</h2>
+    <h2 className="font-serif text-2xl">Upload your collection — PDF or Word</h2>
     <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
     <section aria-label="Resume saved collections" className="space-y-3 border rounded-xl p-4">
       <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Resume saved collections</h3><button type="button" className="underline min-h-11" disabled={loadingReviews || openingReview || sending || converting} onClick={()=>void refreshReviews()}>Refresh list</button></div>
@@ -145,6 +147,8 @@ export default function CollectionPdfIntake() {
                   const response=await fetch('/api/listings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Idempotency-Key':'pdf-'+g.id},body:JSON.stringify({title:g.name.trim(),description:g.description.trim(),price:g.price,category:listingCategory,size:g.sizes.slice(0,40)})});
                   const result=await response.json();
                   if(!response.ok)throw new Error(result.message||'Could not create listing draft for '+g.name);
+                  if (!result.item?.id) throw new Error('The listing was saved without a valid reference. Open Your listings before retrying.');
+                  setCreatedDrafts(items=>items.some(item=>item.id===result.item.id)?items:[...items,{id:result.item.id,title:result.item.title||g.name}]);
                   setCreatedListingIds(ids=>ids.includes(g.id)?ids:[...ids,g.id]);
                   created++;
                 }
@@ -153,6 +157,11 @@ export default function CollectionPdfIntake() {
               finally{setConverting(false);}
             }}>{converting?'Creating drafts…':'Create marketplace drafts from reviewed garments'}</button>
         </div>
+        {createdDrafts.length>0 && <section aria-label="Finish imported listings" className="rounded-xl border p-4 space-y-3">
+          <h4 className="font-semibold">Next: finish your listings</h4>
+          <p className="text-sm">Your imported details are saved as private drafts. Open each listing to add product photos, check sizes, set shipping and inventory, then save. Submitting for review is a separate step.</p>
+          <ul className="space-y-2">{createdDrafts.map(item=><li key={item.id} className="flex flex-wrap justify-between items-center gap-3 border-t pt-3"><span className="break-words">{item.title}</span><button type="button" disabled={openingListing||converting} className="min-h-11 rounded-lg border px-4" onClick={async()=>{setOpeningListing(true);setError('');try{await onFinishListing(item.id);}catch(err){setError(err instanceof Error?err.message:'Could not open listing. Find it under Your listings.');}finally{setOpeningListing(false);}}}>Finish listing: {item.title}</button></li>)}</ul>
+        </section>}
         <button type="button" className="rounded-lg border px-4 py-2" onClick={async()=>{
           try {
             const response=await fetch('/api/designer/collection-drafts/'+encodeURIComponent(draftId),{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({garments:reviewGarments})});
