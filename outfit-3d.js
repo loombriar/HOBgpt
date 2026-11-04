@@ -26,25 +26,28 @@
   const legged=template==='Jumpsuit'||template==='Top & trousers';
   const full=template==='Full skirt'||template==='Top & skirt';
   const aline=template==='A-line';
-  const fitted=template==='Fitted';
+  const bottomStyle=value('creator-bottom-style','Classic');
+  const fitted=template==='Fitted'||(separated&&bottomStyle==='Straight');
+  const wide=separated&&bottomStyle==='Flared';
   let waist;
   if(legged){
    // Build a short hip section before splitting into legs so trousers and jumpsuits
    // read as one connected garment rather than two floating tubes.
    const waistRow=ring(.38,.19,.02),hipRow=ring(.42,.23,-.12);connect(prior,waistRow,bottomColor);connect(waistRow,hipRow,bottomColor);
    seams.push({points:waistRow.concat([waistRow[0]]),color:'#655154'});
-   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,bottomColor);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
-   const left=leg(-.2,fitted?.2:.25),right=leg(.2,fitted?.2:.25);waist=waistRow;connect(hipRow,left.first,bottomColor);connect(hipRow,right.first,bottomColor);
+   const leg=(cx,width)=>{let first,last;for(let i=0;i<=24;i++){const f=i/24,y=-.1-f*(skirtLength-.1),rx=width*(wide?1+.22*f:1-.18*f),rz=.2*(1-.18*f),lean=cx*(1+.08*f);const row=ring(rx,rz,y).map(p=>[p[0]+lean,p[1],p[2]]);if(first===undefined)first=row;if(last)connect(last,row,bottomColor);last=row;}seams.push({points:last.concat([last[0]]),color:'#756958'});return {first,last};};
+   const left=leg(-.2,fitted?.2:wide?.32:.25),right=leg(.2,fitted?.2:wide?.32:.25);waist=waistRow;connect(hipRow,left.first,bottomColor);connect(hipRow,right.first,bottomColor);
   }else{
-   for(let i=0;i<=38;i++){const f=i/38,flare=full?.76:fitted?.12:aline?.48:.43,base=.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12),rx=base,rz=.165+(full?.38:fitted?.07:.27)*f,fold=(full?.085:fitted?.012:.045)*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,bottomColor);prior=row;}
+   for(let i=0;i<=38;i++){const f=i/38,flare=wide?.9:full?.76:fitted?.12:aline?.48:.43,base=.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12),rx=base,rz=.165+(full?.38:fitted?.07:.27)*f,fold=(full?.085:fitted?.012:.045)*f;const row=ring(rx,rz,-f*skirtLength,fold);if(i===0)waist=row;if(i)connect(prior,row,bottomColor);prior=row;}
    seams.push({points:waist.concat([waist[0]]),color:'#655154'});seams.push({points:prior.concat([prior[0]]),color:'#756958'});
    const inner=prior.map(p=>[p[0]*.985,p[1]+.025,p[2]*.985]);connect(prior,inner,bottomColor);
-   const flare=full?.76:fitted?.12:aline?.48:.43;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+(full?.085:fitted?.012:.045)*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.38:fitted?.07:.27)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
+   const flare=wide?.9:full?.76:fitted?.12:aline?.48:.43;for(const angle of [Math.PI*.25,Math.PI*.75,Math.PI*1.25,Math.PI*1.75]){const points=[];for(let i=0;i<=38;i++){const f=i/38,r=1+(full?.085:fitted?.012:.045)*f*Math.cos(angle*12);points.push([(.36+flare*Math.pow(f,full?.64:fitted?1.65:1.12))*Math.cos(angle)*r,-f*skirtLength,(.165+(full?.38:fitted?.07:.27)*f)*Math.sin(angle)*r]);}seams.push({points,color:'#766e66',subtle:true});}
   }
   // Follow the bodice surface with shaping seams, including the back closure.
   for(const angle of [Math.PI*.32,Math.PI*.68,Math.PI*1.5]){const points=[];for(let i=1;i<=26;i++){const f=i/26,bust=Math.exp(-Math.pow((f-.25)/.24,2));points.push([(.36+.14*(1-f)+.025*bust)*Math.cos(angle),topY(angle)*(1-f),(.21+.065*bust-.045*f)*Math.sin(angle)]);}seams.push({points,color:'#766e66',subtle:true});}
   if(sleeves!=='Sleeveless')for(const sign of [-1,1])tube([sign*.44,.82,0],[sign*(sleeves==='Long'?.83:.69),sleeves==='Long'?-.15:.48,0],.145,color);
   const belt=value('creator-waist-detail','None');if(belt!=='None'||value('creator-accessory','None')==='Belt'){const c=belt==='Contrast belt'?value('creator-secondary-color','#775166'):color;connect(ring(.37,.18,.035),ring(.38,.185,-.05),c);}
+  canvas.dataset.bottomStyle=bottomStyle;panel.setAttribute('aria-label','Interactive 3D '+template.toLowerCase());canvas.setAttribute('aria-label','Rotatable 3D '+template.toLowerCase()+'. Drag or use arrow keys to rotate; Home resets the view.');
   canvas.dataset.topColor=color;canvas.dataset.bottomColor=bottomColor;
   canvas.dataset.meshTriangles=String(mesh.length);canvas.dataset.template=template;canvas.dataset.fabricFinish=finish;canvas.dataset.neckline=neck;canvas.dataset.length=length;canvas.dataset.sleeves=sleeves;
  }
