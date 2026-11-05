@@ -1651,10 +1651,7 @@ function createApp(options = {}) {
         if(operation&&order){
           const intent=typeof refund.payment_intent==='string'?refund.payment_intent:refund.payment_intent?.id;
           if(refund.id!==refundId||(operation.stripe_refund_id&&operation.stripe_refund_id!==refundId)||intent!==order.stripe_payment_intent_id||refund.amount!==operation.amount_cents||refund.currency!==order.currency||!['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))return res.status(400).send('Refund does not match this order.');
-          db.transaction(()=>{
-            db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(refundId,refund.status,new Date().toISOString(),operation.order_id,operation.scope);
-            updateRefundSummary(operation.order_id);
-          }).immediate();
+          recordOrderRefund(order,operation.scope,refundId,refund.status,operation.amount_cents);
         }else{
           // Support pending full refunds created before the durable refund ledger existed.
           const legacy=db.prepare("SELECT * FROM orders WHERE stripe_refund_id=? AND payment_provider='stripe'").get(refundId);
@@ -2278,12 +2275,17 @@ function createApp(options = {}) {
   db.prepare("DELETE FROM customer_login_challenges WHERE email IN (SELECT recipient FROM email_outbox WHERE event_key LIKE 'customer-signin:%' AND status!='sent')").run();
   db.prepare("DELETE FROM email_outbox WHERE event_key LIKE 'customer-signin:%'").run();
 
-  async function sendEmail({ to, subject, text, eventKey=null }) {
-    if (!to) return false;
+  function enqueueEmail({ to, subject, text, eventKey=null }) {
+    if (!to) return null;
     const id = makeId(), now = new Date().toISOString();
     const inserted=db.prepare(`INSERT INTO email_outbox (id,recipient,subject,body_text,status,attempts,next_attempt_at,created_at,event_key)
       VALUES (?,?,?,?,'pending',0,?,?,?) ON CONFLICT(event_key) WHERE event_key IS NOT NULL DO NOTHING`).run(id,to,subject,text,now,now,eventKey);
-    if(!inserted.changes)return false;
+    return inserted.changes?id:null;
+  }
+
+  async function sendEmail(message) {
+    const id=enqueueEmail(message);
+    if(!id)return false;
     await processEmailOutbox();
     return db.prepare('SELECT status FROM email_outbox WHERE id=?').get(id)?.status === 'sent';
   }
@@ -2416,10 +2418,7 @@ function createApp(options = {}) {
       const order=db.prepare('SELECT * FROM orders WHERE id=?').get(operation.reference_id);
       const scope=body.get('metadata[refund_scope]');
       if(!isStripeRefundId(result.id) || (result.payment_intent!==undefined && result.payment_intent!==body.get('payment_intent')) || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.currency!==undefined && result.currency!==order.currency) || !['pending','requires_action','succeeded','failed','canceled'].includes(result.status))throw new Error('Order refund mismatch.');
-      db.transaction(()=>{
-        db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(result.id,result.status,new Date().toISOString(),order.id,scope);
-        updateRefundSummary(order.id);
-      }).immediate();
+      recordOrderRefund(order,scope,result.id,result.status,Number(body.get('amount')));
     }else if(operation.kind==='deposit_reversal') {
       if(!result.id.startsWith('trr_'))throw new Error('Invalid reversal reference.');
       db.prepare('UPDATE special_order_offers SET stripe_reversal_id=? WHERE id=?').run(result.id,operation.reference_id);
@@ -3977,6 +3976,23 @@ function createApp(options = {}) {
     db.prepare('UPDATE orders SET refund_status=?,stripe_refund_id=COALESCE(?,stripe_refund_id),refunded_at=? WHERE id=?').run(status,full?.stripe_refund_id||null,status==='succeeded'?new Date().toISOString():null,orderId);
   }
 
+  function recordOrderRefund(order, scope, refundId, status, amountCents) {
+    const queued=db.transaction(()=>{
+      const previous=db.prepare('SELECT status FROM order_refunds WHERE order_id=? AND scope=?').get(order.id,scope);
+      db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(refundId,status,new Date().toISOString(),order.id,scope);
+      updateRefundSummary(order.id);
+      if(!previous||previous.status==='succeeded'||status!=='succeeded'||!order.buyer_email)return null;
+      const amount=new Intl.NumberFormat('en-US',{style:'currency',currency:order.currency}).format(amountCents/100);
+      return enqueueEmail({
+        to:order.buyer_email,
+        eventKey:`buyer-refund-confirmation:${order.id}:${scope}`,
+        subject:'Your House of Briar refund',
+        text:`Your ${amount} refund for order ${order.id} has been confirmed.`
+      });
+    }).immediate();
+    if(queued)void processEmailOutbox().catch(error=>console.error('Refund email queue processing failed:',error.message));
+  }
+
   async function refundOrder(req,res,next,scope='full') {
     try {
       const order=db.prepare('SELECT * FROM orders WHERE id=?').get(req.params.orderId);
@@ -4019,11 +4035,9 @@ function createApp(options = {}) {
       const key=scope==='full'?`hob-refund-${order.id}`:`hob-seller-refund-${order.id}-${scope}`;
       const refund=await stripeOperations.request('order_refund',order.id,'refunds',{body:body.toString(),idempotencyKey:key});
       if(!refund.id)throw new Error('Payment provider returned no refund reference.');
-      db.transaction(()=>{
-        db.prepare("UPDATE order_refunds SET status=CASE WHEN status='succeeded' THEN status ELSE ? END,stripe_refund_id=?,updated_at=? WHERE order_id=? AND scope=?").run(refund.status||'pending',refund.id,new Date().toISOString(),order.id,scope);
-        updateRefundSummary(order.id);
-      }).immediate();
-      if(order.buyer_email)void sendEmail({to:order.buyer_email,subject:'Your House of Briar refund',text:`Refund requested for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
+      if(order.buyer_email&&refund.status!=='succeeded'&&db.prepare('SELECT status FROM order_refunds WHERE order_id=? AND scope=?').get(order.id,scope)?.status!=='succeeded'){
+        void sendEmail({to:order.buyer_email,eventKey:`buyer-refund-request:${order.id}:${scope}`,subject:'Your House of Briar refund',text:`Refund requested for order ${order.id}. Stripe refund status: ${refund.status||'pending'}.`});
+      }
       return res.json({ok:true,refundId:refund.id,status:refund.status,amountCents:amount});
     }catch(error){return next(error);}
   }
