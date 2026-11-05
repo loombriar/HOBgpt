@@ -303,3 +303,6 @@ html[data-hob-theme="dark"] body.blackberry-house .hero.sewing-hero.fashion-cove
 }
 @keyframes hob-editorial-glow { from { transform: translate(-5%, 3%); } to { transform: translate(0); } }
 @keyframes hob-editorial-type { from { transform: translateY(.12em); opacity: .65; } to { transform: translateY(0); opacity: 1; } }
+
+/* Respect native visibility state even when legacy component display rules are stronger. */
+[hidden], dialog:not([open]) { display: none !important; }
