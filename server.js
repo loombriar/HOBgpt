@@ -3750,13 +3750,18 @@ function createApp(options = {}) {
     if (imageCount < 1) return fail(res, 422, 'images_required', 'This listing has no ready images.');
     await requireStripeSellerReady(row.designer_id);
 
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET status = 'published', moderation_status = 'approved', moderation_reason = NULL, published_at = ?, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(timestamp, timestamp, row.id);
-    notifyDesigner(row.designer_id,'listing_review','Listing approved',`${row.title} was approved and is now published.`,{listingId:row.id,actionPath:`/shop/${row.id}`,priority:'normal',source:'admin',adminLabel:'House of Briar'});
+    const approved = db.transaction(() => {
+      const timestamp = new Date().toISOString();
+      const result = db.prepare(`
+        UPDATE listings
+        SET status = 'published', moderation_status = 'approved', moderation_reason = NULL, published_at = ?, updated_at = ?, version = version + 1
+        WHERE id = ? AND status = 'pending_review' AND version = ?
+      `).run(timestamp, timestamp, row.id, row.version);
+      if (!result.changes) return false;
+      notifyDesigner(row.designer_id,'listing_review','Listing approved',`${row.title} was approved and is now published.`,{listingId:row.id,actionPath:`/shop/${row.id}`,priority:'normal',source:'admin',adminLabel:'House of Briar'});
+      return true;
+    })();
+    if (!approved) return fail(res, 409, 'invalid_state', 'This listing changed during approval. Refresh the review queue and try again.');
 
     return res.json({ item: serializeListing(getListing(row.id), 'public') });
     } catch(error) { if(error.statusCode)return fail(res,error.statusCode,error.code||'payout_setup_incomplete',error.message); return next(error); }
@@ -3769,13 +3774,18 @@ function createApp(options = {}) {
 
     const reason = String(req.body?.reason || '').trim();
     if (!reason || reason.length > 1000) return fail(res, 422, 'reason_required', 'Provide a rejection reason up to 1,000 characters.');
-    const timestamp = new Date().toISOString();
-    db.prepare(`
-      UPDATE listings
-      SET status = 'rejected', moderation_status = 'rejected', moderation_reason = ?, published_at = NULL, updated_at = ?, version = version + 1
-      WHERE id = ?
-    `).run(reason, timestamp, row.id);
-    notifyDesigner(row.designer_id,'listing_review','Changes requested',`${row.title} needs changes before it can be published. ${reason}`,{listingId:row.id,actionPath:`/account#listing-${row.id}`,priority:'important',source:'admin',adminLabel:'House of Briar'});
+    const rejected = db.transaction(() => {
+      const timestamp = new Date().toISOString();
+      const result = db.prepare(`
+        UPDATE listings
+        SET status = 'rejected', moderation_status = 'rejected', moderation_reason = ?, published_at = NULL, updated_at = ?, version = version + 1
+        WHERE id = ? AND status = 'pending_review' AND version = ?
+      `).run(reason, timestamp, row.id, row.version);
+      if (!result.changes) return false;
+      notifyDesigner(row.designer_id,'listing_review','Changes requested',`${row.title} needs changes before it can be published. ${reason}`,{listingId:row.id,actionPath:`/account#listing-${row.id}`,priority:'important',source:'admin',adminLabel:'House of Briar'});
+      return true;
+    })();
+    if (!rejected) return fail(res, 409, 'invalid_state', 'This listing changed during review. Refresh the review queue and try again.');
     return res.json({ item: serializeListing(getListing(row.id), 'private') });
   });
 
