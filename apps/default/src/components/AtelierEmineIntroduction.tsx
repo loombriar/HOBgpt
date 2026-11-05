@@ -1,12 +1,12 @@
 import SocialBrandLink from './SocialBrandLink';
 export default function AtelierEmineIntroduction() {
-  return <section id="atelier-emine" aria-labelledby="atelier-emine-title" className="hob-editorial-spotlight border-b border-border bg-card">
+  return <section id="atelier-emine" aria-labelledby="atelier-emine-title" className="border-b border-border bg-card">
     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[260px_1fr] md:items-center lg:px-8">
       <div className="flex items-center justify-center bg-white p-4">
         <img src="/atelier-emine-logo-v1.webp" width="1024" height="1024" alt="Atelier Emine" className="h-56 w-56 object-contain" loading="lazy"/>
       </div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">01 / Designer spotlight / Istanbul, Türkiye</p>
+        <p className="text-xs font-semibold uppercase tracking-[.2em] text-muted-foreground">Meet an independent design house / Istanbul, Türkiye</p>
         <h2 id="atelier-emine-title" className="mt-3 font-serif text-4xl">Meet Atelier Emine</h2>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground">Atelier Emine is an Istanbul-based design house creating handcrafted couture handbags inspired by a 65-year family craft heritage. Each piece is individually made using carefully selected materials, including crystals, mother-of-pearl, pearls, velvet, and wood.</p>
         <p className="mt-5 font-semibold text-foreground">Collection preview · Purchasing coming soon</p>
