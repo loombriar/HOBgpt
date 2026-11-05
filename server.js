@@ -953,13 +953,16 @@ function createApp(options = {}) {
       // authenticated, but it is not a stable end-user identity. Limit anonymous
       // traffic by both peer and a conservative shared budget until a verified
       // per-client edge identity is available. Never trust caller IP headers.
-      const identities = [actor];
+      const visitorMode = process.env.HOB_VISITOR_RATE_LIMITS === 'true' && process.env.HOB_LOOPBACK_BACKEND === 'true';
+      const visitor = visitorMode && actor.startsWith('ip:') && /^[a-f0-9]{32}$/.test(req.authenticatedIngressVisitor || '')
+        ? 'visitor:' + req.authenticatedIngressVisitor : null;
+      const identities = [visitor || actor];
       const requiresReportEdge = keyPrefix==='listing-report' && actor.startsWith('ip:') && Boolean(process.env.HOB_REPORT_EDGE_TOKEN);
       if (requiresReportEdge && !req.authenticatedEdgeClient) {
         return fail(res, 403, 'untrusted_edge', 'This request must pass through the public edge.');
       }
       if (!requiresReportEdge && actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
-        identities.push('anonymous:railway-shared');
+        if (!visitor || keyPrefix !== 'listing-report') identities.push('anonymous:railway-shared');
       }
       let retryAt = 0;
       for (const identity of identities) {
