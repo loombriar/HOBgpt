@@ -33,6 +33,13 @@ function createIngressProxy({upstream,secret,edgeToken=process.env.HOB_REPORT_ED
   if (!upstream || !/^https?:$/.test(new URL(upstream).protocol)) throw new Error('INGRESS_UPSTREAM_URL must be an HTTP URL');
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('INGRESS_HMAC_SECRET must be at least 32 characters');
   if (edgeToken && !/^[a-f0-9]{64}$/.test(edgeToken)) throw new Error('HOB_REPORT_EDGE_TOKEN must be 32 random bytes encoded as hex');
+  const visitorMode = process.env.HOB_VISITOR_RATE_LIMITS === 'true';
+  const signVisitor = id => crypto.createHmac('sha256', secret).update('visitor:' + id).digest('hex');
+  const readVisitor = raw => {
+    const match = String(raw || '').match(/(?:^|;\s*)hob_visitor=([a-f0-9]{32})\.([a-f0-9]{64})(?:;|$)/);
+    if (!match) return null;
+    return crypto.timingSafeEqual(Buffer.from(signVisitor(match[1]), 'hex'), Buffer.from(match[2], 'hex')) ? match[1] : null;
+  };
   const target=new URL(upstream);
   const allowedHosts = allowedHostnames();
   return http.createServer((req,res)=>{
@@ -52,10 +59,11 @@ function createIngressProxy({upstream,secret,edgeToken=process.env.HOB_REPORT_ED
     // Do not trust that hostname for any other endpoint.
     const railwayHealthcheck = host === 'healthcheck.railway.app' && req.method === 'GET' && req.url === '/api/health';
     if (allowedHosts && !allowedHosts.has(host) && !railwayHealthcheck) {res.writeHead(400);res.end('Invalid Host');return;}
+    const visitorId = visitorMode ? (readVisitor(req.headers.cookie) || crypto.randomBytes(16).toString('hex')) : null;
     const timestamp=String(now());
     const id=nonce();
     const path=req.url;
-    const payload=[timestamp,id,req.method,path,ip,verifiedEdge?'edge':'peer'].join('\n');
+    const payload=[timestamp,id,req.method,path,ip,verifiedEdge?'edge':'peer',...(visitorId?[visitorId]:[])].join('\n');
     const signature=crypto.createHmac('sha256',secret).update(payload).digest('hex');
     const headers={...req.headers,
       host:req.headers.host,
@@ -63,12 +71,20 @@ function createIngressProxy({upstream,secret,edgeToken=process.env.HOB_REPORT_ED
       'x-hob-ingress-nonce':id,
       'x-hob-ingress-client-ip':ip,
       'x-hob-ingress-identity':verifiedEdge?'edge':'peer',
+      ...(visitorId?{'x-hob-ingress-visitor':visitorId}:{}),
       'x-hob-ingress-signature':signature};
     // Never forward client-provided internal identity or proxy-chain headers.
     for(const key of Object.keys(headers)) if(key.startsWith('x-hob-edge-')||key.startsWith('x-forwarded-')||key==='x-real-ip'||key==='forwarded') delete headers[key];
     const transport=target.protocol==='https:'?https:http;
     const upstreamReq=transport.request({hostname:target.hostname,port:target.port||undefined,
       path:target.pathname.replace(/\/$/,'')+path,method:req.method,headers},upstreamRes=>{
+      if (visitorId) {
+        const cookie = 'hob_visitor=' + visitorId + '.' + signVisitor(visitorId) +
+          '; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000' +
+          (process.env.NODE_ENV === 'production' ? '; Secure' : '');
+        const existing = upstreamRes.headers['set-cookie'];
+        upstreamRes.headers['set-cookie'] = existing ? [...(Array.isArray(existing)?existing:[existing]),cookie] : [cookie];
+      }
       res.writeHead(upstreamRes.statusCode||502,upstreamRes.headers);
       upstreamRes.pipe(res);
     });
