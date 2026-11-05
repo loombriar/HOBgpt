@@ -962,13 +962,16 @@ function createApp(options = {}) {
         return fail(res, 403, 'untrusted_edge', 'This request must pass through the public edge.');
       }
       if (!requiresReportEdge && actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
-        if (!visitor || keyPrefix !== 'listing-report') identities.push('anonymous:railway-shared');
+        identities.push(visitor && keyPrefix === 'listing-report' ? 'anonymous:railway-shared-visitor-safety' : 'anonymous:railway-shared');
       }
       let retryAt = 0;
       for (const identity of identities) {
         const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${identity}`).digest('hex');
         const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
-        if (entry.count > max) retryAt = Math.max(retryAt, entry.resetAt);
+        // A higher shared safety ceiling mitigates disposable-cookie abuse while
+        // preserving an independent five-request allowance for each browser.
+        const ceiling = identity === 'anonymous:railway-shared-visitor-safety' ? 50 : max;
+        if (entry.count > ceiling) retryAt = Math.max(retryAt, entry.resetAt);
       }
       if (retryAt) {
         res.set('Retry-After', String(Math.max(1, Math.ceil((retryAt - now) / 1000))));
