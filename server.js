@@ -954,7 +954,11 @@ function createApp(options = {}) {
       // traffic by both peer and a conservative shared budget until a verified
       // per-client edge identity is available. Never trust caller IP headers.
       const identities = [actor];
-      if (actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
+      const requiresReportEdge = keyPrefix==='listing-report' && actor.startsWith('ip:') && Boolean(process.env.HOB_REPORT_EDGE_TOKEN);
+      if (requiresReportEdge && !req.authenticatedEdgeClient) {
+        return fail(res, 403, 'untrusted_edge', 'This request must pass through the public edge.');
+      }
+      if (!requiresReportEdge && actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
         identities.push('anonymous:railway-shared');
       }
       let retryAt = 0;

@@ -72,3 +72,27 @@ test('direct backend access cannot bypass authenticated ingress, including forge
   }
  }finally{await close(backend);}
 });
+
+test('only a token-authenticated edge can sign distinct client addresses',async()=>{
+  const gate=createIngressGate({secret});
+  const edgeToken='c'.repeat(64);
+  const backend=http.createServer((req,res)=>{
+    const wrapped={method:req.method,url:req.url,get:name=>req.headers[name]};
+    gate(wrapped,{status(code){res.statusCode=code;return this;},json(body){res.end(JSON.stringify(body));}},()=>{
+      assert.equal(req.headers['x-hob-edge-token'],undefined);
+      assert.equal(req.headers['x-hob-edge-client-ip'],undefined);
+      res.end(JSON.stringify({ip:wrapped.authenticatedIngressIp,edge:wrapped.authenticatedEdgeClient}));
+    });
+  });
+  const port=await listen(backend);
+  const proxy=createIngressProxy({upstream:'http://127.0.0.1:'+port,secret,edgeToken});
+  const proxyPort=await listen(proxy);
+  try{
+    const url='http://127.0.0.1:'+proxyPort+'/api/listings/example/report';
+    const request=(ip,token)=>fetch(url,{headers:{'x-hob-edge-client-ip':ip,'x-hob-edge-token':token,'x-hob-ingress-identity':'edge'}});
+    for(const ip of ['198.51.100.9','203.0.113.20']){
+      assert.deepEqual(await (await request(ip,edgeToken)).json(),{ip,edge:true});
+    }
+    assert.deepEqual(await (await request('198.51.100.9','d'.repeat(64))).json(),{ip:'127.0.0.1',edge:false});
+  }finally{await close(proxy);await close(backend);}
+});
