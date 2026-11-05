@@ -73,7 +73,9 @@ async function renderHouseEditorial(){
 renderHouseEditorial();
 
 const motionButton=makeElement('button','atelier-motion-button','Pause animation');motionButton.type='button';motionButton.setAttribute('aria-pressed','false');
-motionButton.addEventListener('click',()=>{const paused=document.body.dataset.motion!=='paused';document.body.dataset.motion=paused?'paused':'running';motionButton.textContent=paused?'Play animation':'Pause animation';motionButton.setAttribute('aria-pressed',String(paused));});document.querySelector('.sewing-hero').append(motionButton);
+motionButton.addEventListener('click',()=>{const paused=document.body.dataset.motion!=='paused';document.body.dataset.motion=paused?'paused':'running';motionButton.textContent=paused?'Play animation':'Pause animation';motionButton.setAttribute('aria-pressed',String(paused));});
+const motionTarget=document.querySelector('.sewing-hero, .hob-editorial-hero');
+motionTarget?.append(motionButton);
 
 function houseLookbook(items){
   const photos=items.flatMap(item=>getProductImages(item).map(image=>({item,image})));const host=makeElement('div','house-lookbook');
