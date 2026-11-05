@@ -1,6 +1,6 @@
 # Administrator role permissions
 
-Proposed server policy for issue #482. Owner review of this matrix and deployed staging verification are still required before rollout.
+Implemented server policy for issue #482. The owner approved this role/action matrix on November 5, 2026. Staging has verified distinct owner/reviewer/support sign-ins, restricted reads, forbidden financial writes, permitted reviewer/support writes, and audit attribution. Public-ingress acceptance for an unrecognized-role MFA identity remains outstanding; isolated deployed-runtime HTTP checks have verified default denial. These findings do not by themselves constitute complete production rollout approval.
 
 | Role | Allowed privileged actions |
 | --- | --- |
@@ -22,6 +22,6 @@ Administrator tokens and actor labels must each identify exactly one configured 
 
 - Automated regression covers separate named reviewer/support/owner identities, cookie and bearer authorization, permitted review writes, financial/destructive denials, unknown-role denial, header spoofing and audit attribution.
 - Full CI and staging checks must pass on the reviewed commit.
-- Confirm the proposed role/action matrix with the owner before merge/deployment.
-- On staging, test distinct nonproduction identities, authorized/denied actions and audit rows without publishing credentials or personal data.
+- Owner approved the role/action matrix on November 5, 2026; the original review requirement is complete.
+- Staging owner/reviewer/support role boundaries, authorized/denied actions, and audit attribution were verified by November 4, 2026. Isolated HTTP enforcement of an unrecognized role was verified in the November 5 staging runtime; the unknown-role check through the primary deployed application's public ingress still requires a dedicated nonproduction MFA identity.
 - No production credentials or variables are changed by this pull request.
