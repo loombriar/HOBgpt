@@ -32,6 +32,15 @@ The session-binding upgrade invalidates cookies issued by older application vers
 
 For a lost device, replace the affected factor through the deployment secret manager, activate the replacement configuration, and verify a saved old cookie is denied before accepting recovery. Keep MFA enabled. Record only sanitized outcomes, never the cookie or secret. The synthetic tests in `tests/admin-session-lifecycle.test.js` cover configuration transitions across application restarts; they do not substitute for this deployed recovery rehearsal.
 
+## Acceptance evidence update — November 5, 2026
+
+This section reconciles the historical enrollment checklist below with the more recent [MFA issue #446](https://github.com/loombriar/HOBgpt/issues/446) and [role issue #482](https://github.com/loombriar/HOBgpt/issues/482). The original pending entries below are a historical template, not an assertion that every check remains untested.
+
+- **Verified on staging (November 4):** separate owner/reviewer/support MFA sign-ins; valid-token bearer-only denial (403); logout followed by rejection of the saved cookie (401); restricted-role denial of refund/payout requests and matching denied-attempt audit attribution; permitted reviewer/support writes and matching audit attribution.
+- **Verified with isolated deployed-code checks:** rotating a synthetic MFA factor rejects the old session and old factor, permits a fresh login, and leaves an unaffected helper session working. On November 5, an unrecognized-role identity authenticated in a separate loopback process inside the staging container, then received 403 on protected routes.
+- **Still pending:** privately confirm unique individual House-admin enrollment and real ownership of each configured factor; perform a dedicated staging test-identity recovery drill when resumed, including activation across running instances and old-session rejection via public ingress; complete rollback owner, alerting, incident documentation, and deployment acceptance signoff. Primary staging public-ingress denial for a configured unrecognized-role identity also remains open under #482.
+- **Safety:** The owner and a second maintainer have reported Railway MFA/recovery readiness, but that is not independently verified House-admin factor enrollment or a completed live recovery. Do not weaken MFA, rotate real staff factors, publish secrets, or claim a live recovery pass to close documentation.
+
 ## Staging acceptance record (required before production enforcement)
 
 Use a **dedicated staging administrator identity and unique staging-only TOTP secret**. Do not copy or retrieve a production secret into staging. Confirm that staging and production have separate data stores and administrator credentials before testing.
