@@ -953,19 +953,25 @@ function createApp(options = {}) {
       // authenticated, but it is not a stable end-user identity. Limit anonymous
       // traffic by both peer and a conservative shared budget until a verified
       // per-client edge identity is available. Never trust caller IP headers.
-      const identities = [actor];
+      const visitorMode = process.env.HOB_VISITOR_RATE_LIMITS === 'true' && process.env.HOB_LOOPBACK_BACKEND === 'true';
+      const visitor = visitorMode && actor.startsWith('ip:') && /^[a-f0-9]{32}$/.test(req.authenticatedIngressVisitor || '')
+        ? 'visitor:' + req.authenticatedIngressVisitor : null;
+      const identities = [visitor || actor];
       const requiresReportEdge = keyPrefix==='listing-report' && actor.startsWith('ip:') && Boolean(process.env.HOB_REPORT_EDGE_TOKEN);
       if (requiresReportEdge && !req.authenticatedEdgeClient) {
         return fail(res, 403, 'untrusted_edge', 'This request must pass through the public edge.');
       }
       if (!requiresReportEdge && actor.startsWith('ip:') && process.env.RAILWAY_PROJECT_ID && process.env.HOB_LOOPBACK_BACKEND === 'true') {
-        identities.push('anonymous:railway-shared');
+        identities.push(visitor && keyPrefix === 'listing-report' ? 'anonymous:railway-shared-visitor-safety' : 'anonymous:railway-shared');
       }
       let retryAt = 0;
       for (const identity of identities) {
         const bucketKey = crypto.createHash('sha256').update(`${keyPrefix}:${identity}`).digest('hex');
         const entry = consumeRateLimit.immediate(bucketKey, now, windowMs);
-        if (entry.count > max) retryAt = Math.max(retryAt, entry.resetAt);
+        // A higher shared safety ceiling mitigates disposable-cookie abuse while
+        // preserving an independent five-request allowance for each browser.
+        const ceiling = identity === 'anonymous:railway-shared-visitor-safety' ? 50 : max;
+        if (entry.count > ceiling) retryAt = Math.max(retryAt, entry.resetAt);
       }
       if (retryAt) {
         res.set('Retry-After', String(Math.max(1, Math.ceil((retryAt - now) / 1000))));

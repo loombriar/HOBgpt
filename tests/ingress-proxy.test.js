@@ -96,3 +96,35 @@ test('only a token-authenticated edge can sign distinct client addresses',async(
     assert.deepEqual(await (await request('198.51.100.9','d'.repeat(64))).json(),{ip:'127.0.0.1',edge:false});
   }finally{await close(proxy);await close(backend);}
 });
+
+test('opt-in signed visitor cookie distinguishes browsers and rejects forged visitor identity', async () => {
+  const old = process.env.HOB_VISITOR_RATE_LIMITS;
+  process.env.HOB_VISITOR_RATE_LIMITS = 'true';
+  const gate = createIngressGate({secret});
+  const backend = http.createServer((req,res) => {
+    const wrapped = {method:req.method,url:req.url,get:n=>req.headers[n]};
+    gate(wrapped,{status(code){res.statusCode=code;return this;},json(body){res.end(JSON.stringify(body));}},()=>
+      res.end(JSON.stringify({visitor:wrapped.authenticatedIngressVisitor,ip:wrapped.authenticatedIngressIp})));
+  });
+  const port = await listen(backend);
+  const proxy = createIngressProxy({upstream:'http://127.0.0.1:'+port,secret});
+  const proxyPort = await listen(proxy);
+  try {
+    const url='http://127.0.0.1:'+proxyPort+'/api/visitor-test';
+    const first=await fetch(url,{headers:{'x-hob-ingress-visitor':'a'.repeat(32)}});
+    assert.equal(first.status,200);
+    const firstId=(await first.json()).visitor;
+    assert.notEqual(firstId,'a'.repeat(32));
+    const cookie=first.headers.get('set-cookie').split(';')[0];
+    const repeated=await fetch(url,{headers:{cookie}});
+    assert.equal((await repeated.json()).visitor,firstId);
+    const second=await fetch(url);
+    assert.notEqual((await second.json()).visitor,firstId);
+    const forged=await fetch(url,{headers:{cookie:'hob_visitor='+firstId+'.'+'0'.repeat(64)}});
+    assert.notEqual((await forged.json()).visitor,firstId);
+  } finally {
+    await close(proxy);await close(backend);
+    if(old===undefined)delete process.env.HOB_VISITOR_RATE_LIMITS;
+    else process.env.HOB_VISITOR_RATE_LIMITS=old;
+  }
+});
