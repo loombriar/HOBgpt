@@ -1637,7 +1637,7 @@ function createApp(options = {}) {
       }
       if (['refund.created','refund.updated','refund.failed'].includes(event.type)) {
         const refundId=event.data?.object?.id;
-        if(typeof refundId!=='string'||!refundId.startsWith('re_'))return res.status(400).send('Invalid refund event.');
+        if(!isStripeRefundId(refundId))return res.status(400).send('Invalid refund event.');
         const refund=await stripeApi(`refunds/${encodeURIComponent(refundId)}`);
         const deposit=db.prepare('SELECT * FROM special_order_offers WHERE stripe_refund_id=? OR id=?').get(refundId,refund.metadata?.special_offer_id||'');
         if(deposit)validateDepositRefund(deposit,refund);
@@ -2390,7 +2390,7 @@ function createApp(options = {}) {
 
   function validateDepositRefund(offer,refund) {
     const intent=typeof refund.payment_intent==='string'?refund.payment_intent:refund.payment_intent?.id;
-    if(!offer || !refund.id?.startsWith('re_') || intent!==offer.stripe_payment_intent_id || refund.amount!==offer.deposit_cents || refund.currency!=='usd' || !['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))throw new Error('Refund does not match this special-order deposit.');
+    if(!offer || !isStripeRefundId(refund.id) || intent!==offer.stripe_payment_intent_id || refund.amount!==offer.deposit_cents || refund.currency!=='usd' || !['pending','requires_action','succeeded','failed','canceled'].includes(refund.status))throw new Error('Refund does not match this special-order deposit.');
     if(offer.stripe_refund_id && offer.stripe_refund_id!==refund.id)throw new Error('Deposit refund reference changed.');
     db.prepare("UPDATE special_order_offers SET stripe_refund_id=?,deposit_refund_status=CASE WHEN deposit_refund_status='succeeded' THEN deposit_refund_status ELSE ? END,status=CASE WHEN deposit_refund_status='succeeded' OR ?='succeeded' THEN 'deposit_refunded' ELSE 'deposit_paid' END WHERE id=?").run(refund.id,refund.status,refund.status,offer.id);
   }
@@ -2411,7 +2411,7 @@ function createApp(options = {}) {
     }else if(operation.kind==='order_refund') {
       const order=db.prepare('SELECT * FROM orders WHERE id=?').get(operation.reference_id);
       const scope=body.get('metadata[refund_scope]');
-      if(!result.id.startsWith('re_') || (result.payment_intent!==undefined && result.payment_intent!==body.get('payment_intent')) || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.currency!==undefined && result.currency!==order.currency) || !['pending','requires_action','succeeded','failed','canceled'].includes(result.status))throw new Error('Order refund mismatch.');
+      if(!isStripeRefundId(result.id) || (result.payment_intent!==undefined && result.payment_intent!==body.get('payment_intent')) || (result.amount!==undefined && result.amount!==Number(body.get('amount'))) || (result.currency!==undefined && result.currency!==order.currency) || !['pending','requires_action','succeeded','failed','canceled'].includes(result.status))throw new Error('Order refund mismatch.');
       db.transaction(()=>{
         db.prepare("UPDATE order_refunds SET stripe_refund_id=?,status=CASE WHEN status='succeeded' THEN status ELSE ? END,updated_at=? WHERE order_id=? AND scope=?").run(result.id,result.status,new Date().toISOString(),order.id,scope);
         updateRefundSummary(order.id);
@@ -3958,6 +3958,10 @@ function createApp(options = {}) {
     const refunds=db.prepare('SELECT scope,amount_cents,status,stripe_refund_id,created_at,updated_at FROM order_refunds WHERE order_id=?').all(order.id);
     return res.json({order,items,payouts,refunds});
   });
+
+  function isStripeRefundId(id) {
+    return typeof id==='string' && (id.startsWith('re_') || id.startsWith('pyr_'));
+  }
 
   function updateRefundSummary(orderId) {
     const order=db.prepare('SELECT subtotal_cents FROM orders WHERE id=?').get(orderId);

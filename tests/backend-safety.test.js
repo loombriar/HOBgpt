@@ -43,6 +43,17 @@ test('seller refunds protect that seller, permit other sellers payouts and rejec
   assert.equal(ctx.db.prepare("SELECT amount_cents FROM order_refunds WHERE scope='maker'").get().amount_cents,4000);
 }));
 
+test('seller refunds accept Afterpay refund IDs in the response and signed webhook',()=>fixture(async({ctx,call,webhook,setHandler})=>{
+  const refund={id:'pyr_test',payment_intent:'pi_test',amount:4000,currency:'usd',status:'succeeded'};
+  setHandler(async()=>refund);
+  const result=await call(partial);
+  assert.equal(result.status,200);
+  assert.equal(result.body.refundId,refund.id);
+  assert.equal((await webhook('evt_afterpay_refund','refund.updated',refund.id)).status,200);
+  assert.equal(ctx.db.prepare("SELECT stripe_refund_id FROM order_refunds WHERE scope='maker'").get().stripe_refund_id,refund.id);
+  assert.equal(ctx.db.prepare("SELECT refund_status FROM orders WHERE id='order'").get().refund_status,'partial');
+}));
+
 test('refund intent blocks payout during a slow provider call; uncertain provider failures retain the hold',()=>fixture(async({ctx,call,setHandler,calls})=>{
   let entered,finish;const waiting=new Promise(r=>{entered=r;});const gate=new Promise(r=>{finish=r;});
   setHandler(async()=>{entered();await gate;throw new Error('provider response lost');});
