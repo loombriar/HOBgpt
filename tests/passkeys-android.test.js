@@ -8,6 +8,9 @@ test('generated Android passkey configuration preserves edge-to-edge, remains id
   const java=path.join(app,'src/main/java/com/houseofbriar/market/MainActivity.java');
   fs.mkdirSync(path.dirname(java),{recursive:true});fs.mkdirSync(path.join(app,'src/main/res/values'),{recursive:true});fs.mkdirSync(scripts,{recursive:true});
   fs.copyFileSync(path.join(__dirname,'../mobile/scripts/configure-android.mjs'),path.join(scripts,'configure-android.mjs'));
+  const assets=path.join(mobile,'assets');
+  fs.mkdirSync(assets,{recursive:true});
+  fs.copyFileSync(path.join(__dirname,'../mobile/assets/hob_launcher.webp'),path.join(assets,'hob_launcher.webp'));
   fs.writeFileSync(java,'package com.houseofbriar.market;\nimport com.getcapacitor.BridgeActivity;\npublic class MainActivity extends BridgeActivity {}');
   fs.writeFileSync(path.join(app,'build.gradle'),'plugins {}\n');fs.writeFileSync(path.join(app,'src/main/AndroidManifest.xml'),'<manifest><application android:label="House of Briar"></application></manifest>');
   const run=()=>execFileSync(process.execPath,[path.join(scripts,'configure-android.mjs')],{encoding:'utf8'});run();
@@ -15,6 +18,10 @@ test('generated Android passkey configuration preserves edge-to-edge, remains id
   run();assert.equal(fs.readFileSync(java,'utf8'),first);
   assert.equal(fs.readFileSync(path.join(app,'build.gradle'),'utf8').match(/apply from: 'passkeys.gradle'/g).length,1);
   assert.match(fs.readFileSync(path.join(app,'src/main/res/values/passkeys.xml'),'utf8'),/https:\/\/houseofbriar.shop\/\.well-known\/assetlinks.json/);
-  assert.equal(fs.readFileSync(path.join(app,'src/main/AndroidManifest.xml'),'utf8').match(/android:name="asset_statements"/g).length,1);
+  const manifest=fs.readFileSync(path.join(app,'src/main/AndroidManifest.xml'),'utf8');
+  assert.equal(manifest.match(/android:name="asset_statements"/g).length,1);
+  for(const attribute of ['icon','roundIcon']){
+   assert.equal(manifest.match(new RegExp('android:'+attribute+'="@mipmap/hob_launcher"','g'))?.length,1);
+  }
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
