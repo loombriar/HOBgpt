@@ -250,6 +250,16 @@ html body .house-footer-link-row :is(.footer-story,.footer-menu,.house-footer-po
 html body .house-footer-link-row summary{display:list-item!important;padding:0!important;min-height:44px!important;line-height:44px!important;font:inherit;cursor:pointer;white-space:nowrap}
 .house-footer-link-row a,.house-footer-link-row button{color:inherit;min-height:44px;display:inline-flex;align-items:center;margin:0!important;font-size:13px!important;white-space:nowrap}
 html body .house-footer-link-panel{position:absolute;bottom:100%;left:0;z-index:50;display:flex;flex-direction:column;gap:8px;width:max-content;max-width:min(700px,calc(100vw - 32px));max-height:60vh;overflow:auto;padding:16px;background:var(--briar-card,#252523);color:var(--briar-ink,#f4f0e7);border:1px solid var(--briar-line,#777);box-sizing:border-box;box-shadow:0 4px 20px #0004}
+/* Center the wide story panel on the footer row instead of its trigger. */
+@media (width > 900px) {
+  .house-footer-link-row { position: relative; }
+  html body .house-footer-link-row .footer-story { position: static !important; }
+  html body .house-footer-link-row .footer-story > .house-footer-link-panel {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(700px, calc(100% - 32px));
+  }
+}
 html body .house-footer-link-panel .story-section{margin:0!important;padding:0!important;background:inherit!important;color:inherit!important}
 html body .house-footer-link-panel .story-grid{display:block!important;padding:0!important}
 html body .house-footer-link-panel .story-visual{display:none!important}
