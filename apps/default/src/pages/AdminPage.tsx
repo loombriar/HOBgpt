@@ -13,7 +13,7 @@ type Operations = {
   financialOperations?:Array<{kind:string;referenceId:string;state:string;createdAt:string;updatedAt:string}>;
   summary: { paidOrders:number; refundedOrders:number; pendingOrders:number; heldPayouts:number; failedPayouts:number; releasedPayouts:number; reversedPayouts:number; activeReservations:number };
   orders: Array<{id:string;status:string;subtotal_cents:number;platform_fee_cents:number;designer_amount_cents:number;created_at:string;item_count:number;designer_count:number;refund_status?:string;stripe_refund_id?:string;refunded_at?:string}>;
-  payouts: Array<{order_id:string;designer_id:string;amount_cents:number;status:string;error_message?:string;tracking_carrier?:string;tracking_number?:string;tracking_status?:string;release_reason?:string;stripe_reversal_id?:string;refund_hold?:boolean;refund_status?:string|null}>;
+  payouts: Array<{transfer_id:string;order_id:string;designer_id:string;amount_cents:number;status:string;error_message?:string;tracking_carrier?:string;tracking_number?:string;tracking_status?:string;release_reason?:string;stripe_reversal_id?:string;refund_hold?:boolean;refund_status?:string|null}>;
   inventory: Array<{listing_id:string;order_id:string;status:string;title?:string;designer_id?:string;expires_at:string}>;
 };
 const money=(c:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((c||0)/100);
@@ -30,6 +30,19 @@ export default function AdminPage(){
   const [data,setData]=useState<Operations|null>(null);
   const [error,setError]=useState('');
   const [actionNotice,setActionNotice]=useState('');
+  const [payoutReview,setPayoutReview]=useState<Record<string,any>>({});
+  const [reviewBusy,setReviewBusy]=useState<string|null>(null);
+  const reviewPayout=async(orderId:string,designerId:string)=>{
+    const key=orderId+':'+designerId;
+    setReviewBusy(key);
+    try{
+      const response=await fetch(`/api/admin/payout-review/${encodeURIComponent(orderId)}/${encodeURIComponent(designerId)}`,{cache:'no-store'});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result?.error?.message||'Payout review unavailable.');
+      setPayoutReview(previous=>({...previous,[key]:result}));
+    }catch(error){setError(error instanceof Error?error.message:'Payout review unavailable.');}
+    finally{setReviewBusy(null);}
+  };
   const [detail,setDetail]=useState<any>(null);
   const [busy,setBusy]=useState('');
   const [reviewQueue,setReviewQueue]=useState<ReviewListing[]>([]);
@@ -161,12 +174,18 @@ export default function AdminPage(){
     const refundHeld=Boolean(p.refund_hold)&&p.status!=='paid'&&!p.stripe_reversal_id;
     const refundLabel=p.refund_status==='succeeded'?'Held — refunded':'Held — refund review required';
     const holdId=`payout-refund-hold-${i}`;
+    const operationHeld=Boolean(data.financialOperations?.some(operation=>operation.kind==='payout'&&operation.referenceId===p.transfer_id));
+    const reviewKey=p.order_id+':'+p.designer_id;
+    const review=payoutReview[reviewKey];
     return <div key={p.order_id+p.designer_id+i} className="rounded-2xl border border-border p-4">
       <div className="flex flex-wrap justify-between gap-2"><span className="font-medium">{p.designer_id}</span><span>{money(p.amount_cents)} · {p.stripe_reversal_id?'reversed':refundHeld?refundLabel:p.status}</span></div>
       <p className="mt-2 text-sm text-muted-foreground">Order {p.order_id.slice(0,10)} · {p.tracking_carrier||'No carrier'} {p.tracking_number||''} · {p.tracking_status||'awaiting tracking'}</p>
       {refundHeld&&<p id={holdId} className="mt-2 text-sm text-muted-foreground">{p.refund_status==='succeeded'?"This seller’s items were refunded. No payout can be released.":"This seller’s payout is blocked by a refund. Review the order’s refund details."}</p>}
       {p.error_message&&<p className="mt-2 text-sm text-destructive">{p.error_message}</p>}
-      {p.status!=='paid'&&!p.stripe_reversal_id&&<button disabled={!!busy||refundHeld} aria-describedby={refundHeld?holdId:undefined} onClick={()=>action(`/api/admin/orders/${p.order_id}/designers/${encodeURIComponent(p.designer_id)}/release`)} className="mt-3 rounded-full border border-border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">{p.status==='failed'?'Retry payout':'Release payout'}</button>}
+      {p.status!=='paid'&&!p.stripe_reversal_id&&<button disabled={!!busy||refundHeld||operationHeld} aria-describedby={refundHeld?holdId:undefined} onClick={()=>action(`/api/admin/orders/${p.order_id}/designers/${encodeURIComponent(p.designer_id)}/release`)} className="mt-3 rounded-full border border-border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">{p.status==='failed'?'Retry payout':'Release payout'}</button>}
+      {operationHeld&&<p className="mt-2 text-sm text-muted-foreground">Payout held for Stripe operator review. Retry is disabled until provider reconciliation is complete.</p>}
+      {operationHeld&&<button type="button" disabled={reviewBusy===reviewKey} onClick={()=>reviewPayout(p.order_id,p.designer_id)} className="mt-3 ml-2 rounded-full border border-border px-3 py-1.5 text-sm disabled:opacity-50">{reviewBusy===reviewKey?'Checking Stripe…':'Review Stripe evidence'}</button>}
+      {review&&<div className="mt-3 rounded-xl border border-border p-3 text-sm" role="status"><p>Provider check: {review.providerCheck}. Matching transfers: {review.matchingTransfers?.length??0}.</p><p className="mt-1">{review.notice}</p><p className="mt-1">Original operations: {review.operations?.map((o:{state:string;attemptCount:number})=>o.state+' ('+o.attemptCount+' attempts)').join(', ')||'none recorded'}.</p>{review.matchingTransfers?.map((t:{id:string;amountCents:number})=><p key={t.id}>Stripe transfer {t.id} · {money(t.amountCents)}</p>)}</div>}
     </div>;
   })}</div></section>
   <section id="admin-holds" className="mt-6 rounded-3xl border border-border bg-card p-6"><h2 className="font-serif text-2xl">Inventory holds</h2><div className="mt-4 space-y-2">{data.inventory.map(r=><div key={r.listing_id} className="flex flex-col justify-between gap-1 rounded-xl border border-border p-3 sm:flex-row"><span>{r.title||r.listing_id}</span><span className="flex items-center gap-2 text-sm text-muted-foreground">{r.status} · order {r.order_id.slice(0,10)}{r.status==='reserved'&&<button disabled={!!busy} onClick={()=>action(`/api/admin/orders/${r.order_id}/inventory/release`)} className="rounded-full border border-border px-3 py-1.5">Release</button>}</span></div>)}</div></section>{detail&&<section className="mt-6 rounded-3xl border border-border bg-card p-6"><div className="flex justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Order detail</p><h2 className="font-serif text-2xl">{detail.order.id}</h2><p className="mt-1 text-sm text-muted-foreground">{detail.order.refund_status==='succeeded'?`Refunded${detail.order.refunded_at?' · '+new Date(detail.order.refunded_at).toLocaleString():''}${detail.order.stripe_refund_id?' · '+detail.order.stripe_refund_id:''}`:detail.order.status}</p></div><button onClick={()=>setDetail(null)} className="rounded-full border border-border px-4 text-sm">Close</button></div><div className="mt-4 space-y-3"><p className="text-sm text-muted-foreground">Payment: {money(detail.order.subtotal_cents)} · Refund: {detail.order.refund_status||'none'}</p>{(detail.refunds||[]).map((r:any)=><p key={r.scope} className="text-sm">Refund {r.scope}: {money(r.amount_cents)} · {r.status}{r.stripe_refund_id?' · '+r.stripe_refund_id:''}</p>)}{refundNotice&&<p role="status" className="text-sm text-primary">{refundNotice}</p>}{detail.order.status==='paid'&&!detail.order.refund_status&&!(detail.refunds||[]).length&&<button type="button" disabled={!!busy} onClick={()=>void refundOrder()} className="min-h-11 rounded-full border border-destructive px-5 text-sm text-destructive disabled:opacity-50">{busy==='refund-'+detail.order.id?'Processing refund…':'Refund full order'}</button>}</div>{location.hostname==='house-of-briar-staging.up.railway.app'&&detail.order.status==='paid'&&detail.order.payment_provider==='stripe'&&detail.order.refund_status!=='succeeded'&&

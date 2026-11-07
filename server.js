@@ -3940,7 +3940,7 @@ function createApp(options = {}) {
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
       COUNT(DISTINCT oi.designer_id) designer_count,COUNT(oi.id) item_count
       FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id GROUP BY o.id ORDER BY o.created_at DESC LIMIT 200`).all();
-    const payouts = db.prepare(`SELECT dt.order_id,dt.designer_id,dt.amount_cents,dt.status,dt.error_message,dt.created_at,dt.paid_at,
+    const payouts = db.prepare(`SELECT dt.id AS transfer_id,dt.order_id,dt.designer_id,dt.amount_cents,dt.status,dt.error_message,dt.created_at,dt.paid_at,
       dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id,dt.payout_in_flight,
       CASE WHEN EXISTS (SELECT 1 FROM order_refunds r WHERE r.order_id=dt.order_id AND r.scope IN ('full',dt.designer_id))
         OR (o.refund_status IS NOT NULL AND o.refund_status!='' AND NOT EXISTS (SELECT 1 FROM order_refunds r WHERE r.order_id=dt.order_id))

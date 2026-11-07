@@ -21,3 +21,14 @@ test('payout review fails closed for incomplete listings and provider errors',()
  assert.match(handler,/providerCheck='error'/);
  assert.match(handler,/previously configured account/);
 });
+
+test('admin operations exposes payout transfer id for safe hold matching',()=>{
+ assert.match(source,/SELECT dt\.id AS transfer_id,dt\.order_id,dt\.designer_id/);
+});
+test('admin UI disables held retries and offers read-only evidence review',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/operation\.kind==='payout'&&operation\.referenceId===p\.transfer_id/);
+ assert.match(ui,/disabled=\{!!busy\|\|refundHeld\|\|operationHeld\}/);
+ assert.match(ui,/Review Stripe evidence/);
+ assert.match(ui,/api\/admin\/payout-review/);
+});
