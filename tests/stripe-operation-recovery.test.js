@@ -52,7 +52,7 @@ test('repeated payout replay rejection preserves the hold, including frozen prov
    if(calls===1)throw new Error('connection dropped after POST');
    throw Object.freeze(Object.assign(new Error('credentials rejected on replay'),{providerStatus:401}));
   },applyResult:()=>{applied++;},onRejected:()=>{released++;db.prepare('UPDATE designer_transfers SET payout_in_flight=0 WHERE id=?').run('transfer-465');}});
-  await assert.rejects(ops.request('payout','transfer-465','transfers',options),/uncertain/i);
+  await assert.rejects(ops.request('payout','transfer-465','transfers',options),/connection dropped after POST/);
   for(let i=0;i<2;i++){
    const result=await ops.reconcile();
    assert.equal(result.errors,1);
