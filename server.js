@@ -3895,8 +3895,15 @@ function createApp(options = {}) {
       COUNT(DISTINCT oi.designer_id) designer_count,COUNT(oi.id) item_count
       FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id GROUP BY o.id ORDER BY o.created_at DESC LIMIT 200`).all();
     const payouts = db.prepare(`SELECT dt.order_id,dt.designer_id,dt.amount_cents,dt.status,dt.error_message,dt.created_at,dt.paid_at,
-      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id,dt.payout_in_flight
-      FROM designer_transfers dt ORDER BY dt.created_at DESC LIMIT 300`).all();
+      dt.tracking_carrier,dt.tracking_number,dt.tracking_status,dt.tracking_verified_at,dt.release_reason,dt.stripe_reversal_id,dt.payout_in_flight,
+      CASE WHEN EXISTS (SELECT 1 FROM order_refunds r WHERE r.order_id=dt.order_id AND r.scope IN ('full',dt.designer_id))
+        OR (o.refund_status IS NOT NULL AND o.refund_status!='' AND NOT EXISTS (SELECT 1 FROM order_refunds r WHERE r.order_id=dt.order_id))
+        THEN 1 ELSE 0 END AS refund_hold,
+      COALESCE((SELECT r.status FROM order_refunds r WHERE r.order_id=dt.order_id AND r.scope IN ('full',dt.designer_id)
+        ORDER BY CASE WHEN r.status='succeeded' THEN 0 ELSE 1 END LIMIT 1),
+        CASE WHEN NOT EXISTS (SELECT 1 FROM order_refunds r WHERE r.order_id=dt.order_id) THEN o.refund_status END) AS refund_status
+      FROM designer_transfers dt LEFT JOIN orders o ON o.id=dt.order_id ORDER BY dt.created_at DESC LIMIT 300`).all()
+      .map(row=>({...row,refund_hold:Boolean(row.refund_hold)}));
     const inventory = db.prepare(`SELECT ir.listing_id,ir.order_id,ir.status,ir.reserved_at,ir.expires_at,ir.sold_at,l.title,l.designer_id
       FROM inventory_reservations ir LEFT JOIN listings l ON l.id=ir.listing_id
       WHERE ir.status IN ('reserved','sold') ORDER BY ir.reserved_at DESC LIMIT 300`).all();
