@@ -3889,6 +3889,52 @@ function createApp(options = {}) {
     return res.json({message:{id:message.id,status:'answered',responseText:text,respondedAt}});
   });
 
+  // Read-only provider reconciliation. This endpoint deliberately cannot reset a
+  // durable operation or issue a second transfer: absence on the currently
+  // configured account cannot rule out an earlier request on another account.
+  app.get('/api/admin/payout-review/:orderId/:designerId',authAdmin,async(req,res)=>{
+    const {orderId,designerId}=req.params;
+    const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(orderId,designerId);
+    if(!transfer)return fail(res,404,'payout_not_found','Designer payout not found.');
+    const operations=stripeOperations.reviewPayout(transfer.id);
+    const order=db.prepare('SELECT status,payment_provider,refund_status FROM orders WHERE id=?').get(orderId);
+    const postage=postageAccounting.summary(orderId,designerId);
+    const evidence={orderId,designerId,transferId:transfer.id,amountCents:transfer.amount_cents,
+      transferStatus:transfer.status,payoutInFlight:Boolean(transfer.payout_in_flight),
+      existingStripeTransferId:transfer.stripe_transfer_id||null,operations,
+      orderStatus:order?.status||null,paymentProvider:order?.payment_provider||null,
+      refundHold:postage.customerRefundHold,postageHold:postage.postageHold,
+      safeToRetry:false,providerCheck:'unavailable',matchingTransfers:[],
+      notice:'Read-only review. Do not retry until the original Stripe account and request outcome are independently verified.'};
+    try{
+      const matches=[];let startingAfter=null,complete=false;
+      // Stripe's transfer_group filter is server-side, but verify metadata and
+      // destination independently; cap pagination and fail closed if incomplete.
+      for(let page=0;page<10;page++){
+        const query=new URLSearchParams({transfer_group:orderId,limit:'100'});
+        if(startingAfter)query.set('starting_after',startingAfter);
+        const result=await stripeApi('transfers?'+query.toString(),{method:'GET'});
+        if(!Array.isArray(result?.data))throw new Error('Invalid Stripe transfer listing.');
+        for(const item of result.data){
+          if(item.transfer_group===orderId && item.metadata?.designer_id===designerId)
+            matches.push({id:item.id,amountCents:item.amount,destination:item.destination,created:item.created});
+        }
+        if(!result.has_more){complete=true;break;}
+        if(!result.data.length||!result.data[result.data.length-1]?.id)break;
+        startingAfter=result.data[result.data.length-1].id;
+      }
+      evidence.providerCheck=complete?'completed':'incomplete';
+      evidence.matchingTransfers=matches;
+      evidence.notice=matches.length?'Matching Stripe transfer(s) found. Reconcile against the ledger before any further action.':
+        'No matching transfers found in the currently configured Stripe account. This does not prove the original request did not reach a previously configured account.';
+    }catch(error){
+      evidence.providerCheck='error';
+      evidence.notice='Stripe transfer verification failed. Payout remains held.';
+      log('error','admin_payout_review_provider_check_failed',{orderId,providerStatus:error?.providerStatus||null});
+    }
+    res.set('Cache-Control','no-store');return res.json(evidence);
+  });
+
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
