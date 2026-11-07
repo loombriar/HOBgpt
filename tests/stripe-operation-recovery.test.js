@@ -68,3 +68,24 @@ test('repeated payout replay rejection preserves the hold, including frozen prov
   assert.equal(row.response_json,null);
  }finally{db.close();}
 });
+
+test('operator payout review reports durable evidence without authorizing a duplicate transfer',async()=>{
+ const db=new Database(':memory:');let calls=0;
+ db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
+ db.prepare('INSERT INTO designer_transfers(id) VALUES (?)').run('transfer-465');
+ try {
+  const ops=createStripeOperations({db,stripeApi:async()=>{calls++;throw Object.assign(new Error('incorrect account'),{providerStatus:401});},applyResult:()=>{}});
+  await assert.rejects(ops.request('payout','transfer-465','transfers',{body:'amount=465&destination=acct_wrong',idempotencyKey:'original-465'}));
+  const review=ops.reviewPayout('transfer-465');
+  assert.equal(review.length,1);
+  assert.equal(review[0].state,'rejected');
+  assert.equal(review[0].attemptCount,1);
+  assert.equal(review[0].safeToRetry,false);
+  assert.equal(review[0].requiresProviderReconciliation,true);
+  assert.equal(review[0].providerResponseRecorded,false);
+  assert.equal(JSON.stringify(review).includes('acct_wrong'),false);
+  assert.equal(ops.reviewPayout('other-transfer').length,0);
+  assert.equal(calls,1);
+  assert.equal(db.prepare('SELECT payout_in_flight FROM designer_transfers WHERE id=?').get('transfer-465').payout_in_flight,1);
+ }finally{db.close();}
+});
