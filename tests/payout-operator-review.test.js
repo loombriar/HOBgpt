@@ -125,3 +125,17 @@ test('recovery diagnostics are allowlisted and do not leak provider secrets',()=
  assert.match(ui,/result\?\.error\?\.stage/);
  assert.match(ui,/Do not retry until reconciled/);
 });
+
+test('staging recovery only excludes refunds scoped to another known designer',()=>{
+ const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+ const helper=server.slice(server.indexOf('function payoutRecoveryRefundHold('),server.indexOf("app.get('/api/admin/payout-review/"));
+ assert.match(helper,/r\.scope==='full'/);
+ assert.match(helper,/r\.scope===designerId/);
+ assert.match(helper,/!knownDesigners\.has\(r\.scope\)/);
+ assert.match(helper,/if\(!records\.length\)return Boolean\(orderRefundStatus\)/);
+ const endpoint=server.slice(server.indexOf("app.post('/api/admin/payout-recovery/"),server.indexOf("app.get('/api/admin/operations'"));
+ assert.match(endpoint,/payoutRecoveryRefundHold\(orderId,designerId,order\.refund_status\)/);
+ assert.match(endpoint,/allocation\.cents!==465/);
+ const review=server.slice(server.indexOf("app.get('/api/admin/payout-review/"),server.indexOf("app.post('/api/admin/payout-recovery/"));
+ assert.match(review,/payoutRecoveryRefundHold\(orderId,designerId,order\?\.refund_status\)/);
+});
