@@ -3978,6 +3978,65 @@ function createApp(options = {}) {
     res.set('Cache-Control','no-store');return res.json(evidence);
   });
 
+  // One-time, staging-only operator recovery. Never exposed to ordinary payout retries.
+  app.post('/api/admin/payout-recovery/:orderId/:designerId',authAdmin,async(req,res)=>{
+    const {orderId,designerId}=req.params;
+    const expectedOrder='0e431f79-b914-4752-881e-92ee14063591';
+    const expectedDesigner='designer-ae813ebf-dc22-4b8a-8bb7-c2b139d610f8';
+    if(process.env.RAILWAY_ENVIRONMENT_NAME!=='staging'||process.env.STRIPE_PLATFORM_ACCOUNT_ID!=='acct_1UOi6aGzi8sy8B3e'||!String(process.env.STRIPE_SECRET_KEY||'').startsWith('sk_test_'))return fail(res,403,'sandbox_only','Recovery is restricted to the House of Briar staging sandbox.');
+    if(orderId!==expectedOrder||designerId!==expectedDesigner)return fail(res,403,'recovery_not_authorized','This recovery is restricted to one identified test payout.');
+    if(req.body?.confirmation!==('RECOVER '+orderId+' $4.65'))return fail(res,400,'confirmation_required','Explicit operator confirmation is required.');
+    const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(orderId,designerId);
+    const order=db.prepare('SELECT * FROM orders WHERE id=?').get(orderId);
+    if(!transfer||!order||transfer.amount_cents!==465||order.currency!=='usd'||order.payment_provider!=='stripe'||transfer.status!=='failed'||transfer.stripe_transfer_id)return fail(res,409,'ineligible','Payout is not eligible for recovery.');
+    const original=db.prepare("SELECT * FROM stripe_operations WHERE kind='payout' AND reference_id=? ORDER BY created_at").all(transfer.id);
+    if(original.length!==1||original[0].state!=='rejected'||original[0].attempt_count!==1||original[0].response_json!==null)return fail(res,409,'operation_unresolved','Original payout operation requires manual review.');
+    const params=new URLSearchParams(original[0].request_body);
+    if(original[0].endpoint!=='transfers'||params.get('amount')!=='465'||params.get('currency')!=='usd'||params.get('destination')!=='acct_1USn9QK6ZDhvRVwZ'||params.get('transfer_group')!==orderId||params.get('metadata[order_id]')!==orderId||params.get('metadata[designer_id]')!==designerId)return fail(res,409,'original_mismatch','Original transfer parameters do not match approved recovery.');
+    const postage=postageAccounting.summary(orderId,designerId);
+    if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||order.refund_status||db.prepare('SELECT 1 FROM order_refunds WHERE order_id=?').get(orderId))return fail(res,409,'payout_held','Refund or postage hold prevents recovery.');
+    const key='hob-recovery-20261108-'+orderId+'-'+designerId;
+    // A durable recovery record prevents a second submission, including after a crash.
+    if(db.prepare('SELECT 1 FROM stripe_operations WHERE operation_key=?').get(key))return fail(res,409,'recovery_already_started','Recovery already started. Reconcile its durable operation before any further action.');
+    try{
+      const account=await stripeApi('account',{method:'GET'});
+      if(account.id!=='acct_1UOi6aGzi8sy8B3e'||account.livemode!==false)throw new Error('Unexpected Stripe platform account.');
+      const destination=await stripeApi('accounts/acct_1USn9QK6ZDhvRVwZ',{method:'GET'});
+      if(destination.id!=='acct_1USn9QK6ZDhvRVwZ'||destination.capabilities?.transfers!=='active')throw new Error('Destination cannot receive transfers.');
+      const balance=await stripeApi('balance',{method:'GET'});
+      if(!balance.available?.some(b=>b.currency==='usd'&&b.amount>=465))throw new Error('Insufficient available sandbox funds.');
+      // Enumerate destination transfers, not only order-group matches.
+      let cursor=null,complete=false;
+      for(let page=0;page<20;page++){
+        const query=new URLSearchParams({destination:'acct_1USn9QK6ZDhvRVwZ',limit:'100'});
+        if(cursor)query.set('starting_after',cursor);
+        const listing=await stripeApi('transfers?'+query.toString(),{method:'GET'});
+        if(!Array.isArray(listing.data))throw new Error('Invalid transfer listing.');
+        if(listing.data.some(t=>t.transfer_group===orderId||t.metadata?.order_id===orderId))throw new Error('Matching transfer exists; reconcile first.');
+        if(!listing.has_more){complete=true;break;}
+        cursor=listing.data.at(-1)?.id;
+        if(!cursor)break;
+      }
+      if(!complete)throw new Error('Transfer listing incomplete.');
+      // Claim exactly once in the persistent database before contacting Stripe.
+      const claimed=db.transaction(()=>{
+        if(db.prepare('SELECT 1 FROM stripe_operations WHERE operation_key=?').get(key))return false;
+        const result=db.prepare("UPDATE designer_transfers SET payout_in_flight=1 WHERE id=? AND status='failed' AND payout_in_flight=0 AND stripe_transfer_id IS NULL").run(transfer.id);
+        if(result.changes!==1)return false;
+        const timestamp=new Date().toISOString();
+        db.prepare("INSERT INTO stripe_operations(operation_key,kind,reference_id,endpoint,request_body,created_at,state,response_json,updated_at,attempt_count) VALUES (?,?,?,?,?,?,'initiating',NULL,?,0)").run(key,'payout',transfer.id,'transfers',original[0].request_body,timestamp,timestamp);
+        return true;
+      }).immediate();
+      if(!claimed)return fail(res,409,'recovery_locked','Recovery is already in progress.');
+      // request() reuses the exact persisted request body and idempotency key.
+      const result=await stripeOperations.request('payout',transfer.id,'transfers',{body:original[0].request_body,idempotencyKey:key});
+      res.set('Cache-Control','no-store');return res.json({status:'paid',stripeTransferId:result.id,amountCents:465});
+    }catch(error){
+      log('error','staging_payout_recovery_failed',{orderId,code:error.code||null,providerStatus:error.providerStatus||null});
+      return fail(res,409,'recovery_needs_review','Recovery could not complete. Inspect the durable operation and Stripe before taking any further action.');
+    }
+  });
+
   app.get('/api/admin/operations', authAdmin, (_req, res) => {
     releaseExpiredInventoryReservations();
     const orders = db.prepare(`SELECT o.id,o.status,o.currency,o.subtotal_cents,o.platform_fee_cents,o.designer_amount_cents,o.created_at,o.paid_at,o.refund_status,o.stripe_refund_id,o.refunded_at,
