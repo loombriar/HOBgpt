@@ -46,3 +46,19 @@ test('Stripe platform identity is authenticated, read-only and uses configured s
  assert.match(ui,/Verify Stripe platform account/);
  assert.match(ui,/api\/admin\/stripe-platform-identity/);
 });
+
+test('original payout diagnostics allowlist parameters without exposing raw payloads',()=>{
+ const ledger=fs.readFileSync(path.join(__dirname,'..','lib/stripe-operations.js'),'utf8');
+ const start=ledger.indexOf('function reviewPayout(referenceId)');
+ const diagnostic=ledger.slice(start);
+ assert.match(diagnostic,/new URLSearchParams\(row.request_body/);
+ assert.match(diagnostic,/destination:validAccount\(destination\)/);
+ assert.match(diagnostic,/amountCents:/);
+ assert.match(diagnostic,/providerResponseRecorded:/);
+ assert.match(diagnostic,/safeToRetry:false/);
+ assert.doesNotMatch(diagnostic,/requestBody:row.request_body|responseJson:row.response_json|return row.request_body/);
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/Original destination:/);
+ assert.match(ui,/Original idempotency key:/);
+ assert.match(ui,/Provider response recorded:/);
+});
