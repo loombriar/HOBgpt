@@ -3988,7 +3988,7 @@ function createApp(options = {}) {
       if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||Boolean(db.prepare('SELECT refund_status FROM orders WHERE id=?').get(orderId)?.refund_status)||hasRefundRecord)reasons.push('refund_or_postage_hold');
       if(recovery)reasons.push('recovery_operation_exists');
       if(transfer.payout_in_flight)reasons.push('payout_in_flight');
-      evidence.recoveryPreflight={status:reasons.length?'blocked':'eligible_for_provider_checks',reasons,recoveryOperationState:recovery?.state||'not_created',recoveryAttempts:recovery?.attempt_count??0};
+      evidence.recoveryPreflight={status:reasons.length?'blocked':'eligible_for_provider_checks',reasons,recoveryOperationState:recovery?.state||'not_created',recoveryAttempts:recovery?.attempt_count??0,holdChecks:{customerRefundHold:Boolean(postage.customerRefundHold),postageHold:Boolean(postage.postageHold),insufficientEarnings:Boolean(postage.insufficientEarnings),orderRefundStatus:db.prepare('SELECT refund_status FROM orders WHERE id=?').get(orderId)?.refund_status||null,refundRecordExists:hasRefundRecord}};
     }
     res.set('Cache-Control','no-store');return res.json(evidence);
   });
