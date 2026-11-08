@@ -62,3 +62,12 @@ test('original payout diagnostics allowlist parameters without exposing raw payl
  assert.match(ui,/Original idempotency key:/);
  assert.match(ui,/Provider response recorded:/);
 });
+
+test('payout diagnostics recognize House of Briar prefixed designer IDs',()=>{
+ const ledger=fs.readFileSync(path.join(__dirname,'..','lib/stripe-operations.js'),'utf8');
+ const start=ledger.indexOf('function reviewPayout(referenceId)');
+ const diagnostic=ledger.slice(start);
+ assert.match(diagnostic,/const validDesignerId=/);
+ assert.match(diagnostic,/designerId:validDesignerId\(designerId\)/);
+ assert.match(diagnostic,/validUuid\(orderId\)&&validDesignerId\(designerId\)/);
+});
