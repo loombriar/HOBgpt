@@ -4032,8 +4032,13 @@ function createApp(options = {}) {
       const result=await stripeOperations.request('payout',transfer.id,'transfers',{body:original[0].request_body,idempotencyKey:key});
       res.set('Cache-Control','no-store');return res.json({status:'paid',stripeTransferId:result.id,amountCents:465});
     }catch(error){
-      log('error','staging_payout_recovery_failed',{orderId,code:error.code||null,providerStatus:error.providerStatus||null});
-      return fail(res,409,'recovery_needs_review','Recovery could not complete. Inspect the durable operation and Stripe before taking any further action.');
+      // Expose only allowlisted diagnostic states. Never return raw Stripe errors,
+      // request bodies, tokens, account secrets, or provider responses.
+      const recoveryOperation=db.prepare("SELECT state,attempt_count,response_json FROM stripe_operations WHERE operation_key=?").get(key);
+      const stage=recoveryOperation ? (recoveryOperation.state==='rejected'?'provider_rejected':recoveryOperation.state==='unknown'?'provider_outcome_unknown':recoveryOperation.state==='received'?'provider_result_unapplied':recoveryOperation.state==='applied'?'provider_result_applied':'operation_initiated') : 'preflight_failed';
+      log('error','staging_payout_recovery_failed',{orderId,stage,code:error.code||null,providerStatus:error.providerStatus||null});
+      res.set('Cache-Control','no-store');
+      return res.status(409).json({error:{code:'recovery_needs_review',message:'Recovery blocked; do not retry until reconciled.',stage,attemptCount:recoveryOperation?.attempt_count??0,operationState:recoveryOperation?.state||'not_created'}});
     }
   });
 
