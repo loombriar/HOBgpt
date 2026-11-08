@@ -3892,6 +3892,26 @@ function createApp(options = {}) {
   // Read-only provider reconciliation. This endpoint deliberately cannot reset a
   // durable operation or issue a second transfer: absence on the currently
   // configured account cannot rule out an earlier request on another account.
+  // Read-only account identity check uses the exact secret key configured in
+  // this Railway environment. Never return the key, raw Stripe response or headers.
+  app.get('/api/admin/stripe-platform-identity',authAdmin,async(_req,res)=>{
+    res.set('Cache-Control','no-store');
+    try{
+      const account=await stripeApi('account',{method:'GET'});
+      if(!/^acct_[A-Za-z0-9]+$/.test(String(account?.id||'')))
+        throw new Error('Stripe returned an invalid account identifier.');
+      const configuredId=String(process.env.STRIPE_PLATFORM_ACCOUNT_ID||'');
+      return res.json({stripeAccountId:account.id,
+        configuredPlatformAccountId:configuredId||null,
+        matchesConfiguredPlatformAccount:Boolean(configuredId&&account.id===configuredId),
+        livemode:account.livemode===true,
+        notice:'Read-only identity check. No payout operation or hold has changed.'});
+    }catch(error){
+      log('error','stripe_platform_identity_check_failed',{providerStatus:error?.providerStatus||null,providerCode:error?.providerCode||null});
+      return fail(res,502,'stripe_identity_unavailable','Unable to verify the Stripe account associated with the configured secret key.');
+    }
+  });
+
   app.get('/api/admin/payout-review/:orderId/:designerId',authAdmin,async(req,res)=>{
     const {orderId,designerId}=req.params;
     const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(orderId,designerId);
