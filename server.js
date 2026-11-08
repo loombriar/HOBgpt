@@ -3912,6 +3912,15 @@ function createApp(options = {}) {
     }
   });
 
+  // Fail closed on missing, full, target-designer, or unrecognized refund scopes.
+  // A partial refund on a different designer does not hold this designer.
+  function payoutRecoveryRefundHold(orderId,designerId,orderRefundStatus){
+    const records=db.prepare('SELECT scope FROM order_refunds WHERE order_id=?').all(orderId);
+    if(!records.length)return Boolean(orderRefundStatus);
+    const knownDesigners=new Set(db.prepare('SELECT DISTINCT designer_id FROM order_items WHERE order_id=?').all(orderId).map(r=>r.designer_id));
+    return records.some(r=>r.scope==='full'||r.scope===designerId||!knownDesigners.has(r.scope));
+  }
+
   app.get('/api/admin/payout-review/:orderId/:designerId',authAdmin,async(req,res)=>{
     const {orderId,designerId}=req.params;
     const transfer=db.prepare('SELECT * FROM designer_transfers WHERE order_id=? AND designer_id=?').get(orderId,designerId);
@@ -3985,7 +3994,7 @@ function createApp(options = {}) {
       if(transfer.amount_cents!==465||transfer.status!=='failed'||transfer.stripe_transfer_id||order?.payment_provider!=='stripe')reasons.push('ineligible_transfer');
       if(original.length!==1||original[0].state!=='rejected'||original[0].attempt_count!==1||original[0].response_json!==null)reasons.push('original_operation_unresolved');
       if(!params||original[0].endpoint!=='transfers'||params.get('amount')!=='465'||params.get('currency')!=='usd'||params.get('destination')!=='acct_1USn9QK6ZDhvRVwZ'||params.get('transfer_group')!==orderId||params.get('metadata[order_id]')!==orderId||params.get('metadata[designer_id]')!==designerId)reasons.push('original_parameters_mismatch');
-      if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||Boolean(db.prepare('SELECT refund_status FROM orders WHERE id=?').get(orderId)?.refund_status)||hasRefundRecord)reasons.push('refund_or_postage_hold');
+      if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||payoutRecoveryRefundHold(orderId,designerId,order?.refund_status))reasons.push('refund_or_postage_hold');
       if(recovery)reasons.push('recovery_operation_exists');
       if(transfer.payout_in_flight)reasons.push('payout_in_flight');
       evidence.recoveryPreflight={status:reasons.length?'blocked':'eligible_for_provider_checks',reasons,recoveryOperationState:recovery?.state||'not_created',recoveryAttempts:recovery?.attempt_count??0,holdChecks:{customerRefundHold:Boolean(postage.customerRefundHold),postageHold:Boolean(postage.postageHold),insufficientEarnings:Boolean(postage.insufficientEarnings),orderRefundStatus:db.prepare('SELECT refund_status FROM orders WHERE id=?').get(orderId)?.refund_status||null,refundRecordExists:hasRefundRecord,refundRecords:db.prepare('SELECT scope,amount_cents,status,created_at,updated_at FROM order_refunds WHERE order_id=? ORDER BY created_at').all(orderId),orderItems:db.prepare('SELECT designer_id,quantity,unit_amount_cents AS unit_price_cents,line_total_cents,designer_amount_cents FROM order_items WHERE order_id=?').all(orderId),orderFinancials:{subtotalCents:db.prepare('SELECT subtotal_cents FROM orders WHERE id=?').get(orderId)?.subtotal_cents??null,designerAmountCents:db.prepare('SELECT designer_amount_cents FROM orders WHERE id=?').get(orderId)?.designer_amount_cents??null}}};
@@ -4009,7 +4018,10 @@ function createApp(options = {}) {
     const params=new URLSearchParams(original[0].request_body);
     if(original[0].endpoint!=='transfers'||params.get('amount')!=='465'||params.get('currency')!=='usd'||params.get('destination')!=='acct_1USn9QK6ZDhvRVwZ'||params.get('transfer_group')!==orderId||params.get('metadata[order_id]')!==orderId||params.get('metadata[designer_id]')!==designerId)return fail(res,409,'original_mismatch','Original transfer parameters do not match approved recovery.');
     const postage=postageAccounting.summary(orderId,designerId);
-    if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||order.refund_status||db.prepare('SELECT 1 FROM order_refunds WHERE order_id=?').get(orderId))return fail(res,409,'payout_held','Refund or postage hold prevents recovery.');
+    if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||payoutRecoveryRefundHold(orderId,designerId,order.refund_status))return fail(res,409,'payout_held','Refund or postage hold prevents recovery.');
+    // Verify the original $4.65 allocation is attributable solely to this designer.
+    const allocation=db.prepare('SELECT COUNT(*) AS items,COALESCE(SUM(designer_amount_cents),0) AS cents FROM order_items WHERE order_id=? AND designer_id=?').get(orderId,designerId);
+    if(!allocation.items||allocation.cents!==465)return fail(res,409,'allocation_mismatch','Designer allocation does not match the approved recovery amount.');
     const key='hob-recovery-20261108-'+orderId+'-'+designerId;
     // A durable recovery record prevents a second submission, including after a crash.
     if(db.prepare('SELECT 1 FROM stripe_operations WHERE operation_key=?').get(key))return fail(res,409,'recovery_already_started','Recovery already started. Reconcile its durable operation before any further action.');
