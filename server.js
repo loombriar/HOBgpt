@@ -3975,6 +3975,21 @@ function createApp(options = {}) {
       evidence.notice='Stripe transfer verification failed. Payout remains held.';
       log('error','admin_payout_review_provider_check_failed',{orderId,providerStatus:error?.providerStatus||null});
     }
+    // Read-only staging preflight: explain 409 safeguards without initiating payment.
+    if(orderId==='0e431f79-b914-4752-881e-92ee14063591'&&designerId==='designer-ae813ebf-dc22-4b8a-8bb7-c2b139d610f8'&&process.env.RAILWAY_ENVIRONMENT_NAME==='staging'){
+      const original=db.prepare("SELECT state,attempt_count,response_json,endpoint,request_body FROM stripe_operations WHERE kind='payout' AND reference_id=? ORDER BY created_at").all(transfer.id);
+      const recovery=db.prepare("SELECT state,attempt_count FROM stripe_operations WHERE operation_key=?").get('hob-recovery-20261108-'+orderId+'-'+designerId);
+      const params=original.length===1?new URLSearchParams(original[0].request_body):null;
+      const hasRefundRecord=Boolean(db.prepare('SELECT 1 FROM order_refunds WHERE order_id=?').get(orderId));
+      const reasons=[];
+      if(transfer.amount_cents!==465||transfer.status!=='failed'||transfer.stripe_transfer_id||order?.payment_provider!=='stripe')reasons.push('ineligible_transfer');
+      if(original.length!==1||original[0].state!=='rejected'||original[0].attempt_count!==1||original[0].response_json!==null)reasons.push('original_operation_unresolved');
+      if(!params||original[0].endpoint!=='transfers'||params.get('amount')!=='465'||params.get('currency')!=='usd'||params.get('destination')!=='acct_1USn9QK6ZDhvRVwZ'||params.get('transfer_group')!==orderId||params.get('metadata[order_id]')!==orderId||params.get('metadata[designer_id]')!==designerId)reasons.push('original_parameters_mismatch');
+      if(postage.customerRefundHold||postage.postageHold||postage.insufficientEarnings||Boolean(db.prepare('SELECT refund_status FROM orders WHERE id=?').get(orderId)?.refund_status)||hasRefundRecord)reasons.push('refund_or_postage_hold');
+      if(recovery)reasons.push('recovery_operation_exists');
+      if(transfer.payout_in_flight)reasons.push('payout_in_flight');
+      evidence.recoveryPreflight={status:reasons.length?'blocked':'eligible_for_provider_checks',reasons,recoveryOperationState:recovery?.state||'not_created',recoveryAttempts:recovery?.attempt_count??0};
+    }
     res.set('Cache-Control','no-store');return res.json(evidence);
   });
 
