@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
 const start=source.indexOf("app.get('/api/admin/payout-review/:orderId/:designerId'");
-const end=source.indexOf("app.get('/api/admin/operations'",start);
+const end=source.indexOf("app.post('/api/admin/payout-recovery/:orderId/:designerId'",start);
 const handler=source.slice(start,end);
 test('payout review is authenticated, read-only, and never authorizes retry',()=>{
  assert.ok(start>=0&&end>start);
@@ -82,4 +82,22 @@ test('destination account review uses read-only Stripe GET and fails closed',()=
  const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
  assert.match(ui,/Original destination Stripe check:/);
  assert.match(ui,/Transfers capability:/);
+});
+
+test('staging recovery is narrowly scoped, durable, and never retries held refunds',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+ const start=source.indexOf("app.post('/api/admin/payout-recovery/:orderId/:designerId'");
+ assert.ok(start>0);
+ const recovery=source.slice(start,source.indexOf("app.get('/api/admin/operations'",start));
+ assert.match(recovery,/RAILWAY_ENVIRONMENT_NAME!=='staging'/);
+ assert.match(recovery,/startsWith\('sk_test_'\)/);
+ assert.match(recovery,/confirmation_required/);
+ assert.match(recovery,/original\[0\]\.state!=='rejected'/);
+ assert.match(recovery,/postage\.customerRefundHold\|\|postage\.postageHold/);
+ assert.match(recovery,/SELECT 1 FROM order_refunds/);
+ assert.match(recovery,/SELECT 1 FROM stripe_operations WHERE operation_key/);
+ assert.match(recovery,/UPDATE designer_transfers SET payout_in_flight=1/);
+ assert.match(recovery,/stripeOperations\.request\('payout'/);
+ assert.match(recovery,/if\(!complete\)throw/);
+ assert.doesNotMatch(recovery,/method:'POST'/);
 });
