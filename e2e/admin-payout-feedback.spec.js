@@ -62,5 +62,5 @@ test('partial refunds disable only the affected seller and preserve paid and rev
   await expect(retry).toHaveAccessibleDescription('This seller’s payout is blocked by a refund. Review the order’s refund details.');
   await expect(payouts).toContainText('$5.00 · paid');
   await expect(payouts).toContainText('$5.00 · reversed');
-  await expect(payouts.getByRole('button')).toHaveCount(3);
+  await expect(payouts.getByRole('button',{name:/^(Release payout|Retry payout)$/})).toHaveCount(3);
 });

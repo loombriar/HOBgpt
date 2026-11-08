@@ -32,3 +32,17 @@ test('admin UI disables held retries and offers read-only evidence review',()=>{
  assert.match(ui,/Review Stripe evidence/);
  assert.match(ui,/api\/admin\/payout-review/);
 });
+
+test('Stripe platform identity is authenticated, read-only and uses configured secret',()=>{
+ const start=source.indexOf("app.get('/api/admin/stripe-platform-identity'");
+ const end=source.indexOf("app.get('/api/admin/payout-review/",start);
+ assert.ok(start>=0&&end>start);
+ const handler=source.slice(start,end);
+ assert.match(handler,/authAdmin/);
+ assert.match(handler,/stripeApi\('account',\{method:'GET'\}\)/);
+ assert.match(handler,/matchesConfiguredPlatformAccount/);
+ assert.doesNotMatch(handler,/STRIPE_SECRET_KEY|method:'POST'|stripeOperations\.request|UPDATE stripe_operations/);
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/Verify Stripe platform account/);
+ assert.match(ui,/api\/admin\/stripe-platform-identity/);
+});
