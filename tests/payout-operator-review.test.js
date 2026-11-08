@@ -101,3 +101,13 @@ test('staging recovery is narrowly scoped, durable, and never retries held refun
  assert.match(recovery,/if\(!complete\)throw/);
  assert.doesNotMatch(recovery,/method:'POST'/);
 });
+
+test('admin recovery control requires exact staging test payout and typed confirmation',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/p\.order_id===recoveryOrderId&&p\.designer_id===recoveryDesignerId&&p\.amount_cents===465/);
+ assert.match(ui,/p\.status==='failed'&&!refundHeld/);
+ assert.match(ui,/recoveryConfirmation!==\('RECOVER '\+recoveryOrderId\+' \$4\.65'\)/);
+ assert.match(ui,/api\/admin\/payout-recovery/);
+ assert.match(ui,/body:JSON\.stringify\(\{confirmation\}\)/);
+ assert.match(ui,/setRecoveryNotice\('Sandbox transfer confirmed:/);
+});
