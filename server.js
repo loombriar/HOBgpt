@@ -3926,6 +3926,29 @@ function createApp(options = {}) {
       refundHold:postage.customerRefundHold,postageHold:postage.postageHold,
       safeToRetry:false,providerCheck:'unavailable',matchingTransfers:[],
       notice:'Read-only review. Do not retry until the original Stripe account and request outcome are independently verified.'};
+    // Check only the destination captured in the immutable original payout request.
+    // A Connect account lookup is read-only and cannot establish whether the transfer executed.
+    const destinations=[...new Set(operations.map(o=>o.originalRequest?.destination).filter(Boolean))];
+    evidence.destinationCheck={status:'unavailable',accountId:destinations.length===1?destinations[0]:null,
+      belongsToPlatform:null,transfersCapability:null,payoutsEnabled:null,chargesEnabled:null,
+      detailsSubmitted:null,disabledReason:null,notice:'Original destination could not be uniquely identified.'};
+    if(destinations.length===1&&/^acct_[A-Za-z0-9]+$/.test(destinations[0])){
+      try{
+        const connected=await stripeApi('accounts/'+encodeURIComponent(destinations[0]),{method:'GET'});
+        if(connected?.id!==destinations[0])throw new Error('Stripe returned a different connected account.');
+        evidence.destinationCheck={status:'completed',accountId:connected.id,belongsToPlatform:true,
+          transfersCapability:connected.capabilities?.transfers||null,
+          payoutsEnabled:connected.payouts_enabled===true,
+          chargesEnabled:connected.charges_enabled===true,
+          detailsSubmitted:connected.details_submitted===true,
+          disabledReason:typeof connected.requirements?.disabled_reason==='string'?connected.requirements.disabled_reason:null,
+          notice:'Account is retrievable with the current platform secret key. This does not establish historical transfer execution or guarantee transfer eligibility.'};
+      }catch(error){
+        evidence.destinationCheck={...evidence.destinationCheck,status:'error',
+          notice:'Connected account could not be verified using the current Stripe platform credentials.'};
+        log('warn','admin_payout_destination_check_failed',{orderId,providerStatus:error?.providerStatus||null,providerCode:error?.providerCode||null});
+      }
+    }
     try{
       const matches=[];let startingAfter=null,complete=false;
       // Stripe's transfer_group filter is server-side, but verify metadata and
