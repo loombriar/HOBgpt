@@ -4025,14 +4025,18 @@ function createApp(options = {}) {
     const key='hob-recovery-20261108-'+orderId+'-'+designerId;
     // A durable recovery record prevents a second submission, including after a crash.
     if(db.prepare('SELECT 1 FROM stripe_operations WHERE operation_key=?').get(key))return fail(res,409,'recovery_already_started','Recovery already started. Reconcile its durable operation before any further action.');
+    let preflightStage='platform_identity';
     try{
       const account=await stripeApi('account',{method:'GET'});
       if(account.id!=='acct_1UOi6aGzi8sy8B3e'||account.livemode!==false)throw new Error('Unexpected Stripe platform account.');
+      preflightStage='destination_capability';
       const destination=await stripeApi('accounts/acct_1USn9QK6ZDhvRVwZ',{method:'GET'});
       if(destination.id!=='acct_1USn9QK6ZDhvRVwZ'||destination.capabilities?.transfers!=='active')throw new Error('Destination cannot receive transfers.');
+      preflightStage='available_balance';
       const balance=await stripeApi('balance',{method:'GET'});
       if(!balance.available?.some(b=>b.currency==='usd'&&b.amount>=465))throw new Error('Insufficient available sandbox funds.');
       // Enumerate destination transfers, not only order-group matches.
+      preflightStage='duplicate_transfer_check';
       let cursor=null,complete=false;
       for(let page=0;page<20;page++){
         const query=new URLSearchParams({destination:'acct_1USn9QK6ZDhvRVwZ',limit:'100'});
@@ -4046,6 +4050,7 @@ function createApp(options = {}) {
       }
       if(!complete)throw new Error('Transfer listing incomplete.');
       // Claim exactly once in the persistent database before contacting Stripe.
+      preflightStage='durable_claim';
       const claimed=db.transaction(()=>{
         if(db.prepare('SELECT 1 FROM stripe_operations WHERE operation_key=?').get(key))return false;
         const result=db.prepare("UPDATE designer_transfers SET payout_in_flight=1 WHERE id=? AND status='failed' AND payout_in_flight=0 AND stripe_transfer_id IS NULL").run(transfer.id);
@@ -4056,13 +4061,14 @@ function createApp(options = {}) {
       }).immediate();
       if(!claimed)return fail(res,409,'recovery_locked','Recovery is already in progress.');
       // request() reuses the exact persisted request body and idempotency key.
+      preflightStage='provider_submission';
       const result=await stripeOperations.request('payout',transfer.id,'transfers',{body:original[0].request_body,idempotencyKey:key});
       res.set('Cache-Control','no-store');return res.json({status:'paid',stripeTransferId:result.id,amountCents:465});
     }catch(error){
       // Expose only allowlisted diagnostic states. Never return raw Stripe errors,
       // request bodies, tokens, account secrets, or provider responses.
       const recoveryOperation=db.prepare("SELECT state,attempt_count,response_json FROM stripe_operations WHERE operation_key=?").get(key);
-      const stage=recoveryOperation ? (recoveryOperation.state==='rejected'?'provider_rejected':recoveryOperation.state==='unknown'?'provider_outcome_unknown':recoveryOperation.state==='received'?'provider_result_unapplied':recoveryOperation.state==='applied'?'provider_result_applied':'operation_initiated') : 'preflight_failed';
+      const stage=recoveryOperation ? (recoveryOperation.state==='rejected'?'provider_rejected':recoveryOperation.state==='unknown'?'provider_outcome_unknown':recoveryOperation.state==='received'?'provider_result_unapplied':recoveryOperation.state==='applied'?'provider_result_applied':'operation_initiated') : preflightStage;
       log('error','staging_payout_recovery_failed',{orderId,stage,code:error.code||null,providerStatus:error.providerStatus||null});
       res.set('Cache-Control','no-store');
       return res.status(409).json({error:{code:'recovery_needs_review',message:'Recovery blocked; do not retry until reconciled.',stage,attemptCount:recoveryOperation?.attempt_count??0,operationState:recoveryOperation?.state||'not_created'}});
