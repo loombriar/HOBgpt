@@ -55,6 +55,26 @@ export default function AdminPage(){
     }catch(error){setError(error instanceof Error?error.message:'Payout review unavailable.');}
     finally{setReviewBusy(null);}
   };
+  const recoveryOrderId='0e431f79-b914-4752-881e-92ee14063591';
+  const recoveryDesignerId='designer-ae813ebf-dc22-4b8a-8bb7-c2b139d610f8';
+  const [recoveryBusy,setRecoveryBusy]=useState(false);
+  const [recoveryConfirmation,setRecoveryConfirmation]=useState('');
+  const [recoveryNotice,setRecoveryNotice]=useState('');
+  const recoverSandboxPayout=async()=>{
+    const confirmation='RECOVER '+recoveryOrderId+' $4.65';
+    if(recoveryConfirmation!==confirmation)return;
+    setRecoveryBusy(true);setError('');setRecoveryNotice('');
+    try{
+      const response=await fetch('/api/admin/payout-recovery/'+encodeURIComponent(recoveryOrderId)+'/'+encodeURIComponent(recoveryDesignerId),{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})
+      });
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(result?.error?.message||'Recovery could not complete; check Stripe and the operation ledger before retrying.');
+      setRecoveryNotice('Sandbox transfer confirmed: '+result.stripeTransferId+' ('+money(result.amountCents)+').');
+      setRecoveryConfirmation('');await load();
+    }catch(error){setError(error instanceof Error?error.message:'Recovery could not complete.');}
+    finally{setRecoveryBusy(false);}
+  };
   const [detail,setDetail]=useState<any>(null);
   const [busy,setBusy]=useState('');
   const [reviewQueue,setReviewQueue]=useState<ReviewListing[]>([]);
@@ -196,6 +216,7 @@ export default function AdminPage(){
       {p.error_message&&<p className="mt-2 text-sm text-destructive">{p.error_message}</p>}
       {p.status!=='paid'&&!p.stripe_reversal_id&&<button disabled={!!busy||refundHeld||operationHeld} aria-describedby={refundHeld?holdId:undefined} onClick={()=>action(`/api/admin/orders/${p.order_id}/designers/${encodeURIComponent(p.designer_id)}/release`)} className="mt-3 rounded-full border border-border px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">{p.status==='failed'?'Retry payout':'Release payout'}</button>}
       {operationHeld&&<p className="mt-2 text-sm text-muted-foreground">Payout held for Stripe operator review. Retry is disabled until provider reconciliation is complete.</p>}
+      {fullAccess&&p.order_id===recoveryOrderId&&p.designer_id===recoveryDesignerId&&p.amount_cents===465&&p.status==='failed'&&!refundHeld&&<div className="mt-3 rounded-xl border border-border p-3 text-sm"><p className="font-medium">Staging only — recover original $4.65 test payout</p><p className="mt-1 text-muted-foreground">This action sends a sandbox Stripe transfer once. Confirm the order and amount; a failed or uncertain response must be reconciled, not blindly retried.</p><label className="mt-2 block" htmlFor="sandbox-payout-confirmation">Type RECOVER {recoveryOrderId} $4.65 to authorize</label><input id="sandbox-payout-confirmation" autoComplete="off" value={recoveryConfirmation} onChange={event=>setRecoveryConfirmation(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2" /><button type="button" disabled={recoveryBusy||recoveryConfirmation!==('RECOVER '+recoveryOrderId+' $4.65')} onClick={recoverSandboxPayout} className="mt-2 rounded-full border border-border px-3 py-1.5 disabled:opacity-50">{recoveryBusy?'Processing sandbox transfer…':'Recover $4.65 test payout'}</button>{recoveryNotice&&<p role="status" className="mt-2">{recoveryNotice}</p>}</div>}
       {operationHeld&&<button type="button" disabled={reviewBusy===reviewKey} onClick={()=>reviewPayout(p.order_id,p.designer_id)} className="mt-3 ml-2 rounded-full border border-border px-3 py-1.5 text-sm disabled:opacity-50">{reviewBusy===reviewKey?'Checking Stripe…':'Review Stripe evidence'}</button>}
       {review&&<div className="mt-3 rounded-xl border border-border p-3 text-sm" role="status"><p>Provider check: {review.providerCheck}. Matching transfers: {review.matchingTransfers?.length??0}.</p><p className="mt-1">{review.notice}</p><p className="mt-1">Original operations: {review.operations?.map((o:{state:string;attemptCount:number})=>o.state+' ('+o.attemptCount+' attempts)').join(', ')||'none recorded'}.</p>{review.operations?.map((o:any)=><div key={o.operationKey} className="mt-2 border-t border-border pt-2"><p>Original destination: {o.originalRequest?.destination||'Unavailable'}</p><p>Original amount: {o.originalRequest?.amountCents==null?'Unavailable':money(o.originalRequest.amountCents)} · Currency: {o.originalRequest?.currency||'Unavailable'}</p><p>Original transfer group: {o.originalRequest?.transferGroup||'Unavailable'}</p><p>Original order metadata: {o.originalRequest?.orderId||'Unavailable'}</p><p>Original designer metadata: {o.originalRequest?.designerId||'Unavailable'}</p><p>Original endpoint: {o.originalRequest?.endpoint||'Unavailable'} · Parameters valid: {o.originalRequest?.parametersValid?'Yes':'No'}</p><p>Original idempotency key: {o.operationKey}</p><p>Provider response recorded: {o.providerResponseRecorded?'Yes':'No'} · First recorded: {o.createdAt||'Unavailable'}</p></div>)}{review.destinationCheck&&<div className="mt-2 border-t border-border pt-2"><p>Original destination Stripe check: {review.destinationCheck.status}</p><p>Destination account: {review.destinationCheck.accountId||'Unavailable'}</p><p>Retrievable from current platform: {review.destinationCheck.belongsToPlatform===true?'Yes':review.destinationCheck.belongsToPlatform===false?'No':'Unverified'}</p><p>Transfers capability: {review.destinationCheck.transfersCapability||'Unavailable'}</p><p>Payouts enabled: {review.destinationCheck.payoutsEnabled===null?'Unverified':review.destinationCheck.payoutsEnabled?'Yes':'No'}</p><p>Charges enabled: {review.destinationCheck.chargesEnabled===null?'Unverified':review.destinationCheck.chargesEnabled?'Yes':'No'}</p><p>Details submitted: {review.destinationCheck.detailsSubmitted===null?'Unverified':review.destinationCheck.detailsSubmitted?'Yes':'No'}</p><p>Disabled reason: {review.destinationCheck.disabledReason||'None reported'}</p><p>{review.destinationCheck.notice}</p></div>}{review.matchingTransfers?.map((t:{id:string;amountCents:number})=><p key={t.id}>Stripe transfer {t.id} · {money(t.amountCents)}</p>)}</div>}
     </div>;
