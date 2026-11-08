@@ -111,3 +111,17 @@ test('admin recovery control requires exact staging test payout and typed confir
  assert.match(ui,/body:JSON\.stringify\(\{confirmation\}\)/);
  assert.match(ui,/setRecoveryNotice\('Sandbox transfer confirmed:/);
 });
+
+test('recovery diagnostics are allowlisted and do not leak provider secrets',()=>{
+ const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+ const start=server.indexOf("app.post('/api/admin/payout-recovery/");
+ const end=server.indexOf("app.get('/api/admin/operations'",start);
+ const handler=server.slice(start,end);
+ assert.match(handler,/operationState:recoveryOperation\?\.state/);
+ assert.match(handler,/attemptCount:recoveryOperation\?\.attempt_count/);
+ assert.match(handler,/stage,attemptCount:/);
+ assert.doesNotMatch(handler,/message:error\.message|response_json:recoveryOperation/);
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/result\?\.error\?\.stage/);
+ assert.match(ui,/Do not retry until reconciled/);
+});
