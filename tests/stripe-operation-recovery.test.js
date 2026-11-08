@@ -83,7 +83,11 @@ test('operator payout review reports durable evidence without authorizing a dupl
   assert.equal(review[0].safeToRetry,false);
   assert.equal(review[0].requiresProviderReconciliation,true);
   assert.equal(review[0].providerResponseRecorded,false);
-  assert.equal(JSON.stringify(review).includes('acct_wrong'),false);
+  assert.equal(review[0].originalRequest.destination,'acct_wrong');
+  assert.equal(review[0].originalRequest.amountCents,465);
+  assert.equal(review[0].originalRequest.parametersValid,false);
+  assert.equal(JSON.stringify(review).includes('request_body'),false);
+  assert.equal(JSON.stringify(review).includes('response_json'),false);
   assert.equal(ops.reviewPayout('other-transfer').length,0);
   assert.equal(calls,1);
   assert.equal(db.prepare('SELECT payout_in_flight FROM designer_transfers WHERE id=?').get('transfer-465').payout_in_flight,1);
