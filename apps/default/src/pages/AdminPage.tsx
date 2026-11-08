@@ -69,7 +69,7 @@ export default function AdminPage(){
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation})
       });
       const result=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(result?.error?.message||'Recovery could not complete; check Stripe and the operation ledger before retrying.');
+      if(!response.ok)throw new Error((result?.error?.message||'Recovery blocked.')+' Stage: '+(result?.error?.stage||result?.error?.code||'unknown')+'. Ledger: '+(result?.error?.operationState||'unavailable')+'; attempts: '+(result?.error?.attemptCount??'unknown')+'. Do not retry until reconciled.');
       setRecoveryNotice('Sandbox transfer confirmed: '+result.stripeTransferId+' ('+money(result.amountCents)+').');
       setRecoveryConfirmation('');await load();
     }catch(error){setError(error instanceof Error?error.message:'Recovery could not complete.');}
