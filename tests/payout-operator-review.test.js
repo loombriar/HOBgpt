@@ -94,7 +94,7 @@ test('staging recovery is narrowly scoped, durable, and never retries held refun
  assert.match(recovery,/confirmation_required/);
  assert.match(recovery,/original\[0\]\.state!=='rejected'/);
  assert.match(recovery,/postage\.customerRefundHold\|\|postage\.postageHold/);
- assert.match(recovery,/SELECT 1 FROM order_refunds/);
+ assert.match(recovery,/payoutRecoveryRefundHold\(orderId,designerId,order\.refund_status\)/);
  assert.match(recovery,/SELECT 1 FROM stripe_operations WHERE operation_key/);
  assert.match(recovery,/UPDATE designer_transfers SET payout_in_flight=1/);
  assert.match(recovery,/stripeOperations\.request\('payout'/);
