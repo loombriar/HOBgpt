@@ -71,3 +71,15 @@ test('payout diagnostics recognize House of Briar prefixed designer IDs',()=>{
  assert.match(diagnostic,/designerId:validDesignerId\(designerId\)/);
  assert.match(diagnostic,/validUuid\(orderId\)&&validDesignerId\(designerId\)/);
 });
+
+test('destination account review uses read-only Stripe GET and fails closed',()=>{
+ assert.match(handler,/stripeApi\('accounts\/'\+encodeURIComponent\(destinations\[0\]\),\{method:'GET'\}\)/);
+ assert.match(handler,/evidence\.destinationCheck/);
+ assert.match(handler,/capabilities\?\.transfers/);
+ assert.match(handler,/payouts_enabled/);
+ assert.match(handler,/safeToRetry:false/);
+ assert.doesNotMatch(handler,/method:'POST'|stripeOperations\.request|UPDATE stripe_operations/);
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/Original destination Stripe check:/);
+ assert.match(ui,/Transfers capability:/);
+});
