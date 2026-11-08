@@ -94,7 +94,7 @@ test('staging recovery is narrowly scoped, durable, and never retries held refun
  assert.match(recovery,/confirmation_required/);
  assert.match(recovery,/original\[0\]\.state!=='rejected'/);
  assert.match(recovery,/postage\.customerRefundHold\|\|postage\.postageHold/);
- assert.match(recovery,/SELECT 1 FROM order_refunds/);
+ assert.match(recovery,/payoutRecoveryRefundHold\(orderId,designerId,order\.refund_status\)/);
  assert.match(recovery,/SELECT 1 FROM stripe_operations WHERE operation_key/);
  assert.match(recovery,/UPDATE designer_transfers SET payout_in_flight=1/);
  assert.match(recovery,/stripeOperations\.request\('payout'/);
@@ -124,4 +124,18 @@ test('recovery diagnostics are allowlisted and do not leak provider secrets',()=
  const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
  assert.match(ui,/result\?\.error\?\.stage/);
  assert.match(ui,/Do not retry until reconciled/);
+});
+
+test('staging recovery only excludes refunds scoped to another known designer',()=>{
+ const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+ const helper=server.slice(server.indexOf('function payoutRecoveryRefundHold('),server.indexOf("app.get('/api/admin/payout-review/"));
+ assert.match(helper,/r\.scope==='full'/);
+ assert.match(helper,/r\.scope===designerId/);
+ assert.match(helper,/!knownDesigners\.has\(r\.scope\)/);
+ assert.match(helper,/if\(!records\.length\)return Boolean\(orderRefundStatus\)/);
+ const endpoint=server.slice(server.indexOf("app.post('/api/admin/payout-recovery/"),server.indexOf("app.get('/api/admin/operations'"));
+ assert.match(endpoint,/payoutRecoveryRefundHold\(orderId,designerId,order\.refund_status\)/);
+ assert.match(endpoint,/allocation\.cents!==465/);
+ const review=server.slice(server.indexOf("app.get('/api/admin/payout-review/"),server.indexOf("app.post('/api/admin/payout-recovery/"));
+ assert.match(review,/payoutRecoveryRefundHold\(orderId,designerId,order\?\.refund_status\)/);
 });
