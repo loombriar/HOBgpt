@@ -11,6 +11,6 @@ test('proposes unverified catalog lines without inventing prices or availability
   assert.equal(rows[0].sizes, '');
 });
 test('limits candidate count', () => {
-  const rows = proposeGarments(Array.from({length: 80}, (_, i) => 'Garment '+i).join('\n'));
-  assert.equal(rows.length, 30);
+  const rows = proposeGarments(Array.from({length: 350}, (_, i) => 'Garment '+i).join('\n'));
+  assert.equal(rows.length, 300);
 });
