@@ -12,6 +12,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   const [sending, setSending] = useState(false);
   const [draftId, setDraftId] = useState('');
   const [listingCategory, setListingCategory] = useState('');
+  const [usdPricesConfirmed, setUsdPricesConfirmed] = useState(false);
   const [createdListingIds, setCreatedListingIds] = useState<string[]>([]);
   const [createdDrafts, setCreatedDrafts] = useState<Array<{id:string;title:string}>>([]);
   const [openingListing, setOpeningListing] = useState(false);
@@ -58,7 +59,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
       const result=await response.json();
       if(!response.ok)throw new Error('Could not open this saved collection. Refresh the list and try again.');
       selectionVersion.current++; setFile(null); setExtractedText(''); setEntries([]); setCreatedListingIds([]); setCreatedDrafts([]); setListingCategory('');
-      setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
+      setUsdPricesConfirmed(false); setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
       setServerStatus('Saved collection reopened. Your original document is not needed to finish this review.');
     }catch(err){setError(err instanceof Error?err.message:'Could not open collection.');}
     finally{setOpeningReview(false);}
@@ -76,7 +77,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
     setServerStatus('');
     setExtractedText('');
     setSourceName(next?.name || '');
-    setDraftId(''); setReviewPage(0); setReviewQuery(''); setReviewGarments([]); setCreatedListingIds([]); setCreatedDrafts([]);
+    setDraftId(''); setReviewPage(0); setReviewQuery(''); setReviewGarments([]); setUsdPricesConfirmed(false); setCreatedListingIds([]); setCreatedDrafts([]);
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -127,7 +128,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
           const response = await fetch('/api/designer/collection-drafts', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sourceName:file?.name,extractedText}) });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Could not create private review draft.');
-          setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); setServerStatus(result.reused ? 'Identical review already exists; reopened saved review.' : 'New private review created.'); void refreshReviews();
+          setUsdPricesConfirmed(false); setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); setServerStatus(result.reused ? 'Identical review already exists; reopened saved review.' : 'New private review created.'); void refreshReviews();
         } catch (err) { setError(err instanceof Error ? err.message : 'Draft creation failed.'); }
       }}>Create private review draft from extracted lines</button>}
       {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3><p className="text-sm break-words">{sourceName}</p>
@@ -163,14 +164,16 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         <div className="space-y-2 border-t pt-3">
           <h4 className="font-semibold">Create unpublished marketplace drafts</h4>
           <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices in this form become USD marketplace prices. This importer does not detect or convert foreign currencies. If your workbook uses GBP or another currency, manually convert and verify each price before creating drafts. Photos, shipping and inventory must be checked separately before publication.</p>
+          <label className="flex items-start gap-2"><input type="checkbox" checked={usdPricesConfirmed} onChange={e=>setUsdPricesConfirmed(e.target.checked)}/><span>I have verified that every selected product price is the intended final USD marketplace price (including any necessary GBP-to-USD conversion). I understand the spreadsheet's numeric GBP prices are not converted automatically.</span></label>
           <label className="block">Marketplace category
             <select className="block border rounded p-2" value={listingCategory} onChange={e=>setListingCategory(e.target.value)}>
               <option value="">Choose category</option>
               {['apparel','accessories','costumes','menswear','womenswear','unisex','other'].map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           </label>
-          <button type="button" className="rounded-lg border px-4 py-2" disabled={converting || !listingCategory || !reviewGarments.some(g=>g.selected && g.name.trim() && g.description.trim() && g.price!==null && Number.isFinite(g.price) && g.price>=0)}
+          <button type="button" className="rounded-lg border px-4 py-2" disabled={converting || !usdPricesConfirmed || !listingCategory || !reviewGarments.some(g=>g.selected && g.name.trim() && g.description.trim() && g.price!==null && Number.isFinite(g.price) && g.price>=0)}
             onClick={async()=>{
+              if (!usdPricesConfirmed) { setError('Confirm the selected product prices are in USD before creating marketplace drafts.'); return; }
               const eligible=reviewGarments.filter(g=>g.selected && g.name.trim() && g.description.trim() && g.price!==null && Number.isFinite(g.price) && g.price>=0 && !createdListingIds.includes(g.id));
               if(!eligible.length){setError('No eligible new garments remain.');return;}
               if(!window.confirm('Create '+eligible.length+' private marketplace listing drafts? This will not publish products.'))return;
