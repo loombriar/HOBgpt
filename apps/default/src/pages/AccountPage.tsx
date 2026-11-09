@@ -112,6 +112,22 @@ function StudioContent() {
   const [payoutMessage, setPayoutMessage] = useState('');
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [studioAccess, setStudioAccess] = useState<'checking' | 'designer' | 'signup' | 'error'>('checking');
+  // The expanded collection intake above the inbox can shift hash targets during hydration.
+  // Re-align deep links once the designer dashboard has rendered.
+  useEffect(() => {
+    if (studioAccess !== 'designer' || !location.hash) return;
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    const align = () => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      if (target instanceof HTMLDetailsElement) target.open = true;
+      target.scrollIntoView({ block: 'start' });
+    };
+    const frame = requestAnimationFrame(align);
+    const settle = window.setTimeout(align, 300);
+    return () => { cancelAnimationFrame(frame); window.clearTimeout(settle); };
+  }, [studioAccess, location.hash]);
+
   const [houseProfile,setHouseProfile]=useState<{id:string;commissionBasisPoints?:number;foundingBadge?:{type:string;label:string;awardedAt:string}|null;email:string;brandName?:string;bio?:string;location?:string;sellerTermsAccepted:boolean;sellerTermsVersion:string;sellerTermsAcceptedAt:string|null;socialLinks?:Record<string,{url:string;visible:boolean}>}|null>(null);
   const [socialLinks,setSocialLinks]=useState<Record<string,{url:string;visible:boolean}>>({});
   const [socialMessage,setSocialMessage]=useState('');
