@@ -134,10 +134,10 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
         {importReport?.supported && <section aria-label="Import accuracy report" className="rounded-xl border p-4 space-y-2">
           <h4 className="font-semibold">Import accuracy report</h4>
-          <p className="text-sm">Compared against the extracted spreadsheet text from this upload, not the original Excel file. This checks mapped fields, not image accuracy or completeness of the extraction.</p>
+          <p className="text-sm">Compared against extracted spreadsheet text, not the original workbook. This checks mapped fields only. Product images, original currency, stock, shipping, and extraction completeness are not verified.</p>
           <p className="text-sm">{importReport.matched} of {importReport.sourceCount} extracted products matched by name · {importReport.issues.length} source rows flagged</p>
           {importReport.truncated && <p role="alert" className="text-sm">The review is limited to 30 suggestions. Additional source products may be missing; do not treat this as a complete import.</p>}
-          {importReport.issues.length===0 ? <p className="text-sm">No differences found in compared fields. Spot-check the original workbook before publishing.</p> :
+          {importReport.issues.length===0 ? <p className="text-sm">No differences found in compared fields only. This is not a zero-error certification of the workbook.</p> :
             <details><summary className="cursor-pointer underline">Show {importReport.issues.length} flagged source rows</summary>
               <ul className="list-disc pl-5 space-y-2 mt-2">{importReport.issues.map((issue,i)=><li key={i} className="text-sm">Row {issue.row}: {issue.name} — {issue.problems.join('; ')}</li>)}</ul>
             </details>}
@@ -162,7 +162,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         </fieldset>)}
         <div className="space-y-2 border-t pt-3">
           <h4 className="font-semibold">Create unpublished marketplace drafts</h4>
-          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices are in USD; convert foreign-currency prices before creating drafts. Photos, shipping and inventory must be checked separately before publication.</p>
+          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices in this form become USD marketplace prices. This importer does not detect or convert foreign currencies. If your workbook uses GBP or another currency, manually convert and verify each price before creating drafts. Photos, shipping and inventory must be checked separately before publication.</p>
           <label className="block">Marketplace category
             <select className="block border rounded p-2" value={listingCategory} onChange={e=>setListingCategory(e.target.value)}>
               <option value="">Choose category</option>
