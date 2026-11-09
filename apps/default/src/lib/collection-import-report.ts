@@ -41,5 +41,6 @@ export function collectionImportReport(text:string, garments:ImportCandidate[]) 
     }
     if(problems.length)issues.push({row:index+2,name,problems});
   });
+  for (const [name, remaining] of byName) for (const _draft of remaining) issues.push({row:0,name,problems:['Private review entry has no matching source row']});
   return {supported:true,sourceCount,matched,issues,truncated:sourceCount>=300 && garments.length<=300};
 }
