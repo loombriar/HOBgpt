@@ -21,6 +21,18 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [openingReview, setOpeningReview] = useState(false);
+  const [deletingReview, setDeletingReview] = useState('');
+  async function deleteReview(id:string, name:string) {
+    if (!window.confirm('Permanently delete the saved review for '+name+'? This will not delete marketplace listings.')) return;
+    setDeletingReview(id); setReviewError('');
+    try {
+      const response = await fetch('/api/designer/collection-drafts/'+encodeURIComponent(id), {method:'DELETE',credentials:'same-origin'});
+      if (!response.ok) throw new Error('Could not delete saved review.');
+      if (draftId === id) { setDraftId(''); setReviewGarments([]); setExtractedText(''); setFile(null); }
+      await refreshReviews();
+    } catch (err) { setReviewError(err instanceof Error ? err.message : 'Delete failed.'); }
+    finally { setDeletingReview(''); }
+  }
   const [sourceName, setSourceName] = useState('');
   const [reviewPage, setReviewPage] = useState(0);
   const [reviewQuery, setReviewQuery] = useState('');
@@ -85,11 +97,11 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
     <p className="text-sm">Upload a PDF, Word (.docx) or Excel (.xlsx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
     <section aria-label="Resume saved collections" className="space-y-3 border rounded-xl p-4">
       <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Resume saved collections</h3><button type="button" className="underline min-h-11" disabled={loadingReviews || openingReview || sending || converting} onClick={()=>void refreshReviews()}>Refresh list</button></div>
-      <p className="text-sm">Private reviews saved to your designer account. The 100 most recently updated collections appear here.</p>
+      <p className="text-sm">Private reviews saved to your designer account. The 100 most recently updated collections appear here. Re-uploading identical extracted content reuses its existing review; older reviews can be deleted individually.</p>
       {loadingReviews && <p role="status">Loading saved collections…</p>}
       {reviewError && <p role="alert">{reviewError}</p>}
       {!loadingReviews && !reviewError && savedReviews.length===0 && <p>No saved collections yet. Extract a catalog and create a private review to begin.</p>}
-      <ul className="space-y-2">{savedReviews.map(review=><li key={review.id} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="min-w-0"><p className="font-medium break-words">{review.sourceName}</p><p className="text-sm">{review.garmentCount} suggestions · Updated {review.updatedAt}</p></div><button type="button" className="rounded-lg border px-4 min-h-11" disabled={openingReview || sending || converting} onClick={()=>void resumeReview(review.id)} aria-label={'Resume '+review.sourceName}>{openingReview?'Opening…':'Resume review'}</button></li>)}</ul>
+      <ul className="space-y-2">{savedReviews.map(review=><li key={review.id} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="min-w-0"><p className="font-medium break-words">{review.sourceName}</p><p className="text-sm">{review.garmentCount} suggestions · Updated {review.updatedAt}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="rounded-lg border px-4 min-h-11" disabled={openingReview || sending || converting || Boolean(deletingReview)} onClick={()=>void resumeReview(review.id)} aria-label={'Resume '+review.sourceName}>{openingReview?'Opening…':'Resume review'}</button><button type="button" className="rounded-lg border px-4 min-h-11 text-red-700" disabled={openingReview || sending || converting || Boolean(deletingReview)} onClick={()=>void deleteReview(review.id,review.sourceName)} aria-label={'Delete '+review.sourceName}>{deletingReview===review.id?'Deleting…':'Delete review'}</button></div></li>)}</ul>
     </section>
     <label className="block">Choose PDF, Word or Excel catalog (up to 20 MB)
       <input className="mt-2 block w-full" type="file" disabled={sending || converting || openingReview} accept=".pdf,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={event => choose(event.target.files?.[0])} />
@@ -115,7 +127,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
           const response = await fetch('/api/designer/collection-drafts', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sourceName:file?.name,extractedText}) });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Could not create private review draft.');
-          setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); void refreshReviews();
+          setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); setServerStatus(result.reused ? 'Identical review already exists; reopened saved review.' : 'New private review created.'); void refreshReviews();
         } catch (err) { setError(err instanceof Error ? err.message : 'Draft creation failed.'); }
       }}>Create private review draft from extracted lines</button>}
       {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3><p className="text-sm break-words">{sourceName}</p>
