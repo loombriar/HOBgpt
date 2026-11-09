@@ -41,5 +41,5 @@ export function collectionImportReport(text:string, garments:ImportCandidate[]) 
     }
     if(problems.length)issues.push({row:index+2,name,problems});
   });
-  return {supported:true,sourceCount,matched,issues,truncated:sourceCount>=30 && garments.length<=30};
+  return {supported:true,sourceCount,matched,issues,truncated:sourceCount>=300 && garments.length<=300};
 }
