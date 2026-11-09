@@ -1753,7 +1753,7 @@ function createApp(options = {}) {
   const collectionPdfUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 0 },
-    fileFilter: (_req, file, cb) => cb(null, ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.mimetype))
+    fileFilter: (_req, file, cb) => cb(null, ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(file.mimetype))
   });
   app.post('/api/designer/collection-imports', authDesigner,
     rateLimit({windowMs: 60 * 60 * 1000, max: 12, keyPrefix: 'designer-pdf-import'}),
@@ -1765,12 +1765,15 @@ function createApp(options = {}) {
       const buffer = req.file?.buffer;
       const isWord = /\.docx$/i.test(req.file?.originalname || '');
       const isPdf = /\.pdf$/i.test(req.file?.originalname || '');
-      if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || isWord && buffer.readUInt32LE(0) === 0x04034b50)) {
-        return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF or DOCX catalog.');
+      const isExcel = /\.xlsx$/i.test(req.file?.originalname || '');
+      if (!buffer || buffer.length < 8 || !(isPdf && buffer.subarray(0, 5).toString('ascii') === '%PDF-' || (isWord || isExcel) && buffer.readUInt32LE(0) === 0x04034b50)) {
+        return fail(res, 400, 'invalid_catalog', 'Upload a valid PDF, DOCX or XLSX catalog.');
       }
       let extracted, pageMarkers = [];
       try {
-        if (isWord) {
+        if (isExcel) {
+          extracted = require('./lib/collection-xlsx-text').extractXlsxText(buffer);
+        } else if (isWord) {
           extracted = require('./lib/collection-docx-text').extractDocxText(buffer);
         } else {
           const raw = buffer.toString('latin1');
@@ -1780,7 +1783,7 @@ function createApp(options = {}) {
           extracted = require('./lib/collection-pdf-text').extractPdfText(buffer);
         }
       } catch (error) {
-        return fail(res, 422, 'invalid_catalog', 'Could not extract document text. Check the file is a valid, unprotected PDF or DOCX.');
+        return fail(res, 422, 'invalid_catalog', 'Could not extract document text. Check the file is a valid, unprotected PDF, DOCX or XLSX.');
       }
       // The file is intentionally not persisted; extracted text is returned only to its authenticated uploader.
       res.set('Cache-Control', 'no-store');
