@@ -17,7 +17,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   const [createdDrafts, setCreatedDrafts] = useState<Array<{id:string;title:string}>>([]);
   const [openingListing, setOpeningListing] = useState(false);
   const [converting, setConverting] = useState(false);
-  const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;selected:boolean}>>([]);
+  const [reviewGarments, setReviewGarments] = useState<Array<{id:string;name:string;description:string;price:number|null;sizes:string;colors:string;sku?:string;imageUrls?:string[];selected:boolean}>>([]);
   const [savedReviews, setSavedReviews] = useState<Array<{id:string;sourceName:string;updatedAt:string;garmentCount:number}>>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewError, setReviewError] = useState('');
@@ -95,7 +95,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   }
   return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
     <h2 className="font-serif text-2xl">Upload your collection — PDF, Word or Excel</h2>
-    <p className="text-sm">Upload a PDF, Word (.docx) or Excel (.xlsx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
+    <p className="text-sm">Upload a PDF, Word (.docx) or Excel (.xlsx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Atelier Emine direct HTTPS product photos can be transferred to private drafts after review; other photo hosts still require manual upload. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
     <section aria-label="Resume saved collections" className="space-y-3 border rounded-xl p-4">
       <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Resume saved collections</h3><button type="button" className="underline min-h-11" disabled={loadingReviews || openingReview || sending || converting} onClick={()=>void refreshReviews()}>Refresh list</button></div>
       <p className="text-sm">Private reviews saved to your designer account. The 100 most recently updated collections appear here. Re-uploading identical extracted content reuses its existing review; older reviews can be deleted individually.</p>
@@ -135,7 +135,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
         {importReport?.supported && <section aria-label="Import accuracy report" className="rounded-xl border p-4 space-y-2">
           <h4 className="font-semibold">Import accuracy report</h4>
-          <p className="text-sm">Compared against extracted spreadsheet text, not the original workbook. This checks mapped fields only. Product images, original currency, stock, shipping, and extraction completeness are not verified.</p>
+          <p className="text-sm">Compared against extracted spreadsheet text, not the original workbook. This checks mapped fields only. Image availability, original currency, stock, shipping, and extraction completeness are not verified.</p>
           <p className="text-sm">{importReport.matched} of {importReport.sourceCount} extracted products matched by name · {importReport.issues.length} source rows flagged</p>
           {importReport.truncated && <p role="alert" className="text-sm">The review is limited to 30 suggestions. Additional source products may be missing; do not treat this as a complete import.</p>}
           {importReport.issues.length===0 ? <p className="text-sm">No differences found in compared fields only. This is not a zero-error certification of the workbook.</p> :
@@ -157,13 +157,15 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
           <label className="block">Description<textarea className="block w-full border rounded p-2" value={g.description} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,description:e.target.value}:v))}/></label>
           <label className="block">Price (leave empty if unknown)<input className="block w-full border rounded p-2" type="number" min="0" step="0.01" value={g.price ?? ''} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,price:e.target.value===''?null:Number(e.target.value)}:v))}/></label>
           <label className="block">Sizes<input className="block w-full border rounded p-2" value={g.sizes} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,sizes:e.target.value}:v))}/></label>
+          <p className="text-sm">SKU: {g.sku || 'Not provided'} · Source photos: {g.imageUrls?.length || 0} (verify every image matches this product)</p>
+          {(g.imageUrls || []).slice(0,10).map((src,index)=><a key={index} href={src} target="_blank" rel="noopener noreferrer" className="inline-block underline text-sm mr-3">View source photo {index+1}</a>)}
           <label className="block">Colors<input className="block w-full border rounded p-2" value={g.colors} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,colors:e.target.value}:v))}/></label>
           <label className="flex gap-2"><input type="checkbox" checked={g.selected} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,selected:e.target.checked}:v))}/> Mark reviewed</label>
           <button type="button" className="underline" onClick={()=>setReviewGarments(items=>items.filter((_,j)=>j!==i))}>Remove suggestion</button>
         </fieldset>)}
         <div className="space-y-2 border-t pt-3">
           <h4 className="font-semibold">Create unpublished marketplace drafts</h4>
-          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices in this form become USD marketplace prices. This importer does not detect or convert foreign currencies. If your workbook uses GBP or another currency, manually convert and verify each price before creating drafts. Photos, shipping and inventory must be checked separately before publication.</p>
+          <p className="text-sm">Select a category and mark each complete garment as reviewed. Only reviewed garments with a name, description and confirmed price are eligible. Prices in this form become USD marketplace prices. This importer does not detect or convert foreign currencies. If your workbook uses GBP or another currency, manually convert and verify each price before creating drafts. Atelier Emine photo links are copied through the authenticated photo uploader when drafts are created; failed photos stop conversion and can be retried safely. Shipping and inventory must be checked separately before publication.</p>
           <label className="flex items-start gap-2"><input type="checkbox" checked={usdPricesConfirmed} onChange={e=>setUsdPricesConfirmed(e.target.checked)}/><span>I have verified that every selected product price is the intended final USD marketplace price (including any necessary GBP-to-USD conversion). I understand the spreadsheet's numeric GBP prices are not converted automatically.</span></label>
           <label className="block">Marketplace category
             <select className="block border rounded p-2" value={listingCategory} onChange={e=>setListingCategory(e.target.value)}>
@@ -188,6 +190,28 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
                   const result=await response.json();
                   if(!response.ok)throw new Error(result.message||'Could not create listing draft for '+g.name);
                   if (!result.item?.id) throw new Error('The listing was saved without a valid reference. Open Your listings before retrying.');
+                  const photoUrls=(g.imageUrls || []).slice(0,10);
+                  for(let imageIndex=0;imageIndex<photoUrls.length;imageIndex++){
+                    const source=photoUrls[imageIndex];
+                    const parsed=new URL(source);
+                    if(parsed.protocol!=='https:' || !['atelieremine.com','www.atelieremine.com'].includes(parsed.hostname.toLowerCase())) {
+                      throw new Error('Unsupported photo host for '+g.name+'. Add photos manually to the saved listing.');
+                    }
+                    const sourceResponse=await fetch('/api/designer/collection-photo-source?url='+encodeURIComponent(source),{credentials:'same-origin'});
+                    if(!sourceResponse.ok)throw new Error('Could not retrieve photo '+(imageIndex+1)+' for '+g.name+'. The listing is saved; retry to finish its photos.');
+                    const photo=await sourceResponse.blob();
+                    const extension=photo.type==='image/png'?'png':photo.type==='image/webp'?'webp':'jpg';
+                    const uploadData=new FormData();
+                    uploadData.append('image',photo,'collection-'+imageIndex+'.'+extension);
+                    const imageResponse=await fetch('/api/listings/'+encodeURIComponent(result.item.id)+'/images',{
+                      method:'POST',credentials:'same-origin',
+                      headers:{'Idempotency-Key':'collection-'+g.id+'-'+imageIndex},body:uploadData
+                    });
+                    if(!imageResponse.ok){
+                      const failure=await imageResponse.json().catch(()=>({}));
+                      throw new Error('Photo '+(imageIndex+1)+' failed for '+g.name+': '+(failure.message||'upload rejected')+'. Retry to finish.');
+                    }
+                  }
                   setCreatedDrafts(items=>items.some(item=>item.id===result.item.id)?items:[...items,{id:result.item.id,title:result.item.title||g.name}]);
                   setCreatedListingIds(ids=>ids.includes(g.id)?ids:[...ids,g.id]);
                   created++;
@@ -199,7 +223,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         </div>
         {createdDrafts.length>0 && <section aria-label="Finish imported listings" className="rounded-xl border p-4 space-y-3">
           <h4 className="font-semibold">Next: finish your listings</h4>
-          <p className="text-sm">Your imported details are saved as private drafts. Open each listing to add product photos, check sizes, set shipping and inventory, then save. Submitting for review is a separate step.</p>
+          <p className="text-sm">Your imported details are saved as private drafts. Open each listing to verify imported product photos, add any missing photos, check sizes, set shipping and inventory, then save. Submitting for review is a separate step.</p>
           <ul className="space-y-2">{createdDrafts.map(item=><li key={item.id} className="flex flex-wrap justify-between items-center gap-3 border-t pt-3"><span className="break-words">{item.title}</span><button type="button" disabled={openingListing||converting} className="min-h-11 rounded-lg border px-4" onClick={async()=>{setOpeningListing(true);setError('');try{await onFinishListing(item.id);}catch(err){setError(err instanceof Error?err.message:'Could not open listing. Find it under Your listings.');}finally{setOpeningListing(false);}}}>Finish listing: {item.title}</button></li>)}</ul>
         </section>}
         <button type="button" className="rounded-lg border px-4 py-2" onClick={async()=>{
