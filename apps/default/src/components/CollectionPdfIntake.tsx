@@ -22,6 +22,10 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   const [reviewError, setReviewError] = useState('');
   const [openingReview, setOpeningReview] = useState(false);
   const [sourceName, setSourceName] = useState('');
+  const [reviewPage, setReviewPage] = useState(0);
+  const [reviewQuery, setReviewQuery] = useState('');
+  const visibleReviews = reviewGarments.map((garment,index)=>({garment,index})).filter(({garment})=>garment.name.toLowerCase().includes(reviewQuery.toLowerCase()));
+  const pageCount = Math.max(1,Math.ceil(visibleReviews.length/20));
   const importReport = extractedText && draftId ? collectionImportReport(extractedText, reviewGarments) : null;
   async function refreshReviews() {
     setLoadingReviews(true); setReviewError('');
@@ -42,7 +46,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
       const result=await response.json();
       if(!response.ok)throw new Error('Could not open this saved collection. Refresh the list and try again.');
       selectionVersion.current++; setFile(null); setExtractedText(''); setEntries([]); setCreatedListingIds([]); setCreatedDrafts([]); setListingCategory('');
-      setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
+      setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(result.sourceName); setReviewGarments(result.garments);
       setServerStatus('Saved collection reopened. Your original document is not needed to finish this review.');
     }catch(err){setError(err instanceof Error?err.message:'Could not open collection.');}
     finally{setOpeningReview(false);}
@@ -60,7 +64,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
     setServerStatus('');
     setExtractedText('');
     setSourceName(next?.name || '');
-    setDraftId(''); setReviewGarments([]); setCreatedListingIds([]); setCreatedDrafts([]);
+    setDraftId(''); setReviewPage(0); setReviewQuery(''); setReviewGarments([]); setCreatedListingIds([]); setCreatedDrafts([]);
     setFile(null);
     setEntries([]);
     if (!next) return;
@@ -111,7 +115,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
           const response = await fetch('/api/designer/collection-drafts', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sourceName:file?.name,extractedText}) });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Could not create private review draft.');
-          setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); void refreshReviews();
+          setReviewPage(0); setReviewQuery(''); setDraftId(result.id); setSourceName(file?.name || result.sourceName); setReviewGarments(result.garments); void refreshReviews();
         } catch (err) { setError(err instanceof Error ? err.message : 'Draft creation failed.'); }
       }}>Create private review draft from extracted lines</button>}
       {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3><p className="text-sm break-words">{sourceName}</p>
@@ -127,7 +131,14 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
             </details>}
         </section>}
         {draftId && !extractedText && <p className="text-sm">Accuracy comparison is unavailable for reopened saved reviews because the original extracted text is not retained. Re-upload the source file to generate a new comparison.</p>}
-        {reviewGarments.map((g,i) => <fieldset key={g.id} className="rounded-lg border p-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-3 border rounded-lg p-3">
+          <label>Find product <input className="border rounded p-2 ml-2" value={reviewQuery} onChange={e=>{setReviewQuery(e.target.value);setReviewPage(0);}} placeholder="Search product names" /></label>
+          <span className="text-sm">{visibleReviews.length} of {reviewGarments.length} products</span>
+          <button type="button" className="border rounded px-3 py-2" disabled={reviewPage===0} onClick={()=>setReviewPage(p=>Math.max(0,p-1))}>Previous</button>
+          <span className="text-sm">Page {Math.min(reviewPage+1,pageCount)} of {pageCount}</span>
+          <button type="button" className="border rounded px-3 py-2" disabled={reviewPage>=pageCount-1} onClick={()=>setReviewPage(p=>Math.min(pageCount-1,p+1))}>Next</button>
+        </div>
+        {visibleReviews.slice(reviewPage*20,(reviewPage+1)*20).map(({garment:g,index:i}) => <fieldset key={g.id} className="rounded-lg border p-3 space-y-2">
           <legend>Candidate {i+1}</legend>
           <label className="block">Garment name<input className="block w-full border rounded p-2" value={g.name} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,name:e.target.value}:v))}/></label>
           <label className="block">Description<textarea className="block w-full border rounded p-2" value={g.description} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,description:e.target.value}:v))}/></label>
