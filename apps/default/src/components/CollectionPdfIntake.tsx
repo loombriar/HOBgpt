@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** Private PDF and DOCX intake; uploads processed in memory. */
+/** Private PDF, DOCX and XLSX intake; uploads processed in memory. */
 export default function CollectionPdfIntake({ onFinishListing }: { onFinishListing: (id:string) => Promise<void> }) {
   const selectionVersion = useRef(0);
   const [file, setFile] = useState<File | null>(null);
@@ -65,7 +65,8 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
     if (next.size > 20 * 1024 * 1024) { setError('Document must be 20 MB or smaller.'); return; }
     const isPdf = next.name.toLowerCase().endsWith('.pdf');
     const isDocx = next.name.toLowerCase().endsWith('.docx');
-    if (!isPdf && !isDocx) { setError('Select a PDF or Word (.docx) catalog.'); return; }
+    const isXlsx = next.name.toLowerCase().endsWith('.xlsx');
+    if (!isPdf && !isDocx && !isXlsx) { setError('Select a PDF, Word (.docx) or Excel (.xlsx) catalog.'); return; }
     next.slice(0, 5).arrayBuffer().then(bytes => {
       if (version !== selectionVersion.current) return;
       const magic = String.fromCharCode(...new Uint8Array(bytes));
@@ -74,8 +75,8 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
     }).catch(() => { if (version === selectionVersion.current) setError('Could not read this document.'); });
   }
   return <section aria-label="Collection document intake" className="rounded-2xl border border-border p-5 space-y-4">
-    <h2 className="font-serif text-2xl">Upload your collection — PDF or Word</h2>
-    <p className="text-sm">Upload a PDF or Word (.docx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
+    <h2 className="font-serif text-2xl">Upload your collection — PDF, Word or Excel</h2>
+    <p className="text-sm">Upload a PDF, Word (.docx) or Excel (.xlsx) catalog for text extraction, then review garment suggestions before creating private drafts. The original document is processed in memory and is not stored. Photos are not imported. Prices, sizes, colors and descriptions need manual review; scanned PDFs may not contain readable text. Word support is for .docx files, not older .doc files.</p>
     <section aria-label="Resume saved collections" className="space-y-3 border rounded-xl p-4">
       <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Resume saved collections</h3><button type="button" className="underline min-h-11" disabled={loadingReviews || openingReview || sending || converting} onClick={()=>void refreshReviews()}>Refresh list</button></div>
       <p className="text-sm">Private reviews saved to your designer account. The 100 most recently updated collections appear here.</p>
@@ -84,8 +85,8 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
       {!loadingReviews && !reviewError && savedReviews.length===0 && <p>No saved collections yet. Extract a catalog and create a private review to begin.</p>}
       <ul className="space-y-2">{savedReviews.map(review=><li key={review.id} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="min-w-0"><p className="font-medium break-words">{review.sourceName}</p><p className="text-sm">{review.garmentCount} suggestions · Updated {review.updatedAt}</p></div><button type="button" className="rounded-lg border px-4 min-h-11" disabled={openingReview || sending || converting} onClick={()=>void resumeReview(review.id)} aria-label={'Resume '+review.sourceName}>{openingReview?'Opening…':'Resume review'}</button></li>)}</ul>
     </section>
-    <label className="block">Choose PDF or Word catalog (up to 20 MB)
-      <input className="mt-2 block w-full" type="file" disabled={sending || converting || openingReview} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => choose(event.target.files?.[0])} />
+    <label className="block">Choose PDF, Word or Excel catalog (up to 20 MB)
+      <input className="mt-2 block w-full" type="file" disabled={sending || converting || openingReview} accept=".pdf,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={event => choose(event.target.files?.[0])} />
     </label>
     {error && <p role="alert" className="text-red-700">{error}</p>}
     {(url || draftId) && <>
@@ -98,7 +99,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Document validation failed.');
           setExtractedText(typeof result.extractedText === 'string' ? result.extractedText : '');
-          setServerStatus(result.extractedText?.trim() ? 'Text extracted. Review it below, then create a private review draft. No listings were created.' : 'No readable text found. Use a text-based PDF or DOCX, or use the manual review list below. No listings were created.');
+          setServerStatus(result.extractedText?.trim() ? 'Text extracted. Review it below, then create a private review draft. No listings were created.' : 'No readable text found. Use a text-based PDF, DOCX or XLSX, or use the manual review list below. No listings were created.');
         } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed.'); }
         finally { setSending(false); }
       }}>{sending ? 'Validating…' : 'Extract document text with House of Briar'}</button>
