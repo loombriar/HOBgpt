@@ -5045,6 +5045,13 @@ function createApp(options = {}) {
     res.set('Cache-Control','public, max-age=300').json(require('./android-passkey-association').statement());
   });
   app.get('/passkey-vendor.js',(_req,res)=>res.sendFile(path.join(path.dirname(require.resolve('@simplewebauthn/browser')),'../dist/bundle/index.umd.min.js')));
+  // These root-level scripts are referenced by index.html; they are not in the React dist directory.
+  for (const asset of ['designer-spotlight-config.js', 'designer-spotlight.js', 'admin-designer-spotlight.js']) {
+    app.get('/' + asset, (_req, res) => {
+      res.set('Cache-Control', 'no-cache, must-revalidate');
+      return res.sendFile(path.join(rootDir, asset));
+    });
+  }
   app.get('/passkey-client.js',(_req,res)=>res.sendFile(path.join(rootDir,'passkey-client.js')));
   app.get('/script.js', (_req, res) => { res.set('Cache-Control', 'no-cache, must-revalidate'); return res.sendFile(path.join(rootDir, 'script.js')); });
   app.get('/369d1fcc2901e810c35601d8f4376324e65b00844c0d9e223fbfa0bf44249c22.png', (_req, res) =>
