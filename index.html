@@ -71,7 +71,7 @@
 @media(max-width:700px){#shop .house-preview-pieces{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#shop .house-preview-pieces{grid-template-columns:repeat(2,minmax(0,1fr))}#shop .house-preview-piece img{aspect-ratio:5/4}}
 </style>
-  <link rel="stylesheet" href="/house-global-nav.css?v=footer-readable-20261028"><script src="/house-global-nav.js?v=rosegold-20261030-color-studio-20261028" defer></script><style id="hob-inline-persistent-nav-style">
+  <link rel="stylesheet" href="/house-global-nav.css?v=footer-story-20261106"><script src="/house-global-nav.js?v=rosegold-20261030-color-studio-20261028" defer></script><style id="hob-inline-persistent-nav-style">
 /* Critical navigation: render before scripts and override the legacy sticky menu. */
 html body .page-shell > header.site-header.sewing-header,
 html body .page-shell > header.site-header,
@@ -472,6 +472,13 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div id="designer-products" class="designer-products room-card" aria-live="polite"></div>
         </section>
         <section class="seller-readiness-card" aria-labelledby="seller-readiness-title">
+          <div class="room-card" style="border:2px solid #216b55;padding:1.25rem;margin-bottom:1.25rem;background:#f5faf7;color:#173b30">
+            <p class="eyebrow">START HERE · NEW DESIGNERS</p>
+            <h3 style="margin:.35rem 0">Upload your collection or create your first piece</h3>
+            <p>Already have a collection catalog? Choose <strong>Upload PDF or Word</strong> to turn a PDF or .docx into private draft listings. Review the details and add photos before submitting anything for approval. Prefer to start with photos? Use the listing form instead.</p>
+            <p><strong>Stripe is optional at signup.</strong> You can create your profile, upload a collection and save private drafts now. Connect Stripe later, before accepting purchases and payouts.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem"><a class="primary-button" href="/account#pdf-collection-upload">Upload PDF or Word collection</a><a class="secondary-button" href="#product-form">Start with photos instead</a></div>
+          </div>
           <div class="seller-readiness-heading"><div><p class="eyebrow">Designer onboarding</p><h3 id="seller-readiness-title">Your selling setup</h3><div id="designer-founding-badge" class="listing-badges"></div></div><span id="seller-readiness-badge" class="status-badge">Checking…</span></div>
           <p id="seller-readiness-summary" class="small-print">Checking your Designer dashboard setup.</p>
           <div id="seller-readiness-list" class="seller-readiness-list" aria-live="polite"></div>
@@ -697,7 +704,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><input id="admin-token" type="password" autocomplete="current-password" required /><button type="button" class="secondary-button" aria-controls="admin-token" aria-pressed="false">Show password</button></div>
           <label for="admin-authenticator-code">Authenticator code</label>
           <input id="admin-authenticator-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-describedby="admin-authenticator-help" />
-          <p id="admin-authenticator-help" class="small-print">Enter a fresh six-digit code from House of Briar – Production when two-step verification is enabled.</p>
+          <p id="admin-authenticator-help" class="small-print">If two-step verification is enabled, enter the current six-digit code for this admin account from your authenticator app.</p>
           <button class="primary-button" type="submit">Open admin panel</button>
         </form>
       </section>
@@ -778,13 +785,14 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
           </div>
           <details class="footer-story"><summary>Our Story <span aria-hidden="true">+</span></summary><section id="story" class="story-section">
           <div class="container story-grid">
-            <div class="story-visual"><div class="story-panel"><p class="eyebrow">Our story</p><h2>Good taste.<br />Questionable restraint.</h2></div></div>
+            <div class="story-visual"><div class="story-panel"><p class="eyebrow">About House of Briar</p><h2>Made by Someone,<br />Not Everyone.</h2></div></div>
             <div class="story-copy">
-              <p>Fashion has enough rules. We brought scissors.</p>
-              <p>For the designers with wild ideas, overflowing sketchbooks, and absolutely no interest in playing it safe: this is your runway.</p>
-              <p>For the shoppers who want something nobody else at the party is wearing: welcome. We saved you the good stuff.</p>
-              <p>House of Briar brings the makers and the outfit repeat-offenders-in-recovery together. Original fashion, wearable art, and pieces that make strangers stop you on the street.</p>
-              <p>Because life's too short for boring clothes. And frankly, your closet deserves a plot twist.</p>
+              <p>House of Briar was born from a belief that fashion should be as individual as the people who create and wear it.</p>
+              <p>In a world of mass production and passing trends, we believe there is something extraordinary about a piece made with intention, imagination, and a personal touch.</p>
+              <p>House of Briar is a home for independent designers, emerging talent, and creative minds who have something original to share. It's a place where craftsmanship matters, individuality is celebrated, and every creation has a story worth telling.</p>
+              <p>Our mission is to give designers a space to showcase their work, build their brands, and connect with people who appreciate fashion beyond the ordinary.</p>
+              <p>We're not here to tell you what to wear. We're here to help you discover something that speaks to who you are.</p>
+              <p><strong>House of Briar. Where art meets fashion, and individuality takes shape.</strong></p>
               <div class="story-actions"><a class="secondary-button" href="#shop">Shop the unexpected ↗</a><a class="secondary-button" href="/designers/room#designer-signup">Join the designers ↗</a></div>
             </div>
           </div>

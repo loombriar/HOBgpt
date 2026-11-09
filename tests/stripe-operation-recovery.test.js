@@ -40,3 +40,56 @@ test('a rejected replay cannot prove that an earlier unknown provider request di
   assert.equal(calls,2);assert.equal(released,0);assert.equal(db.prepare('SELECT state FROM stripe_operations').get().state,'unknown');
  }finally{db.close();}
 });
+
+test('repeated payout replay rejection preserves the hold, including frozen provider errors',async()=>{
+ const db=new Database(':memory:');let calls=0,released=0,applied=0;
+ db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
+ db.prepare('INSERT INTO designer_transfers(id) VALUES (?)').run('transfer-465');
+ const options={body:'amount=465&currency=usd',idempotencyKey:'hob-transfer-staging-order-maker'};
+ try{
+  const ops=createStripeOperations({db,stripeApi:async()=>{
+   calls++;
+   if(calls===1)throw new Error('connection dropped after POST');
+   throw Object.freeze(Object.assign(new Error('credentials rejected on replay'),{providerStatus:401}));
+  },applyResult:()=>{applied++;},onRejected:()=>{released++;db.prepare('UPDATE designer_transfers SET payout_in_flight=0 WHERE id=?').run('transfer-465');}});
+  await assert.rejects(ops.request('payout','transfer-465','transfers',options),/connection dropped after POST/);
+  for(let i=0;i<2;i++){
+   const result=await ops.reconcile();
+   assert.equal(result.errors,1);
+   assert.equal(result.resolved,0);
+  }
+  assert.equal(calls,3);
+  assert.equal(released,0);
+  assert.equal(applied,0);
+  assert.equal(db.prepare('SELECT payout_in_flight FROM designer_transfers').get().payout_in_flight,1);
+  const row=db.prepare('SELECT state,attempt_count,response_json FROM stripe_operations').get();
+  assert.equal(row.state,'unknown');
+  assert.equal(row.attempt_count,3);
+  assert.equal(row.response_json,null);
+ }finally{db.close();}
+});
+
+test('operator payout review reports durable evidence without authorizing a duplicate transfer',async()=>{
+ const db=new Database(':memory:');let calls=0;
+ db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
+ db.prepare('INSERT INTO designer_transfers(id) VALUES (?)').run('transfer-465');
+ try {
+  const ops=createStripeOperations({db,stripeApi:async()=>{calls++;throw Object.assign(new Error('incorrect account'),{providerStatus:401});},applyResult:()=>{}});
+  await assert.rejects(ops.request('payout','transfer-465','transfers',{body:'amount=465&destination=acct_wrong',idempotencyKey:'original-465'}));
+  const review=ops.reviewPayout('transfer-465');
+  assert.equal(review.length,1);
+  assert.equal(review[0].state,'rejected');
+  assert.equal(review[0].attemptCount,1);
+  assert.equal(review[0].safeToRetry,false);
+  assert.equal(review[0].requiresProviderReconciliation,true);
+  assert.equal(review[0].providerResponseRecorded,false);
+  assert.equal(review[0].originalRequest.destination,'acct_wrong');
+  assert.equal(review[0].originalRequest.amountCents,465);
+  assert.equal(review[0].originalRequest.parametersValid,false);
+  assert.equal(JSON.stringify(review).includes('request_body'),false);
+  assert.equal(JSON.stringify(review).includes('response_json'),false);
+  assert.equal(ops.reviewPayout('other-transfer').length,0);
+  assert.equal(calls,1);
+  assert.equal(db.prepare('SELECT payout_in_flight FROM designer_transfers WHERE id=?').get('transfer-465').payout_in_flight,1);
+ }finally{db.close();}
+});

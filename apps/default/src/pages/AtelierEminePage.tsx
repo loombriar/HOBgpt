@@ -1,5 +1,6 @@
 import SocialBrandLink from '../components/SocialBrandLink';
 import {useEffect,useState} from 'react';
+import { Link } from 'react-router-dom';
 import HouseShell from '@/components/HouseShell';
 import collection from '../../../../shared/atelier-emine-preview.json';
 
@@ -24,6 +25,11 @@ export default function AtelierEminePage(){
       </div>
     </header>
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <aside aria-labelledby="us-designer-signup-title" className="mb-6 rounded-xl border border-border bg-card p-5">
+        <h2 id="us-designer-signup-title" className="font-semibold">House of Briar is open to U.S. designers</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6">Create your profile and submit your collection through Backstage.</p>
+        <Link to="/sell#designer-signup" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">Join as a U.S. designer</Link>
+      </aside>
       <section aria-labelledby="collection-preview-title" className="border-l-4 border-primary bg-accent p-5">
         <h2 id="collection-preview-title" className="font-semibold">Collection preview · Purchasing coming soon</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6">These pieces are not available to purchase yet. Prices are shown in US dollars. Each bag is made to order; production and delivery timing will be confirmed before purchases open.</p>

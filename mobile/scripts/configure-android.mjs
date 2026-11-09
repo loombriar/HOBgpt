@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const activity = new URL('../android/app/src/main/java/com/houseofbriar/market/MainActivity.java', import.meta.url);
 const original = await readFile(activity, 'utf8');
@@ -50,13 +50,33 @@ await writeFile(new URL('../android/app/passkeys.gradle', import.meta.url), `dep
 `);
 const manifest = new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url);
 let xml = await readFile(manifest, 'utf8');
+const application = /<application\b[^>]*>/;
+if (!application.test(xml)) throw new Error('Android application element missing');
+xml = xml.replace(application, tag => {
+  const withoutIcons = tag.replace(/\s+android:(?:icon|roundIcon)="[^"]*"/g, '');
+  return withoutIcons.replace(/>$/, ' android:icon="@mipmap/hob_launcher" android:roundIcon="@mipmap/hob_launcher">');
+});
 if (!xml.includes('android:name="asset_statements"')) {
-  if (!/<application\b[^>]*>/.test(xml)) throw new Error('Android application element missing');
   xml = xml.replace(/<application\b[^>]*>/, '$&\n        <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />');
-  await writeFile(manifest, xml);
 }
+await writeFile(manifest, xml);
 await writeFile(new URL('../android/app/src/main/res/values/passkeys.xml', import.meta.url), `<resources>
     <string name="asset_statements" translatable="false">[{\\"include\\":\\"https://houseofbriar.shop/.well-known/assetlinks.json\\"}]</string>
 </resources>
 `);
 console.log('Configured Android WebAuthn support. Play app-signing certificate association and device testing are still required.');
+
+const resources = new URL('../android/app/src/main/res/', import.meta.url);
+await mkdir(new URL('mipmap-nodpi/', resources), { recursive: true });
+await mkdir(new URL('mipmap-anydpi-v26/', resources), { recursive: true });
+await copyFile(new URL('../assets/hob_launcher.webp', import.meta.url), new URL('mipmap-nodpi/hob_launcher_art.webp', resources));
+await mkdir(new URL('mipmap-anydpi/', resources), { recursive: true });
+await writeFile(new URL('mipmap-anydpi/hob_launcher.xml', resources), `<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@mipmap/hob_launcher_art" android:gravity="fill" />
+`);
+await writeFile(new URL('mipmap-anydpi-v26/hob_launcher.xml', resources), `<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background><color android:color="#FCF3DF" /></background>
+    <foreground>
+        <inset android:drawable="@mipmap/hob_launcher_art" android:inset="19.45%" />
+    </foreground>
+</adaptive-icon>
+`);

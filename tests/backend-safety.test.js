@@ -43,6 +43,45 @@ test('seller refunds protect that seller, permit other sellers payouts and rejec
   assert.equal(ctx.db.prepare("SELECT amount_cents FROM order_refunds WHERE scope='maker'").get().amount_cents,4000);
 }));
 
+test('seller refunds accept Afterpay refund IDs in the response and signed webhook',()=>fixture(async({ctx,call,webhook,setHandler})=>{
+  const refund={id:'pyr_test',payment_intent:'pi_test',amount:4000,currency:'usd',status:'succeeded'};
+  setHandler(async()=>refund);
+  const result=await call(partial);
+  assert.equal(result.status,200);
+  assert.equal(result.body.refundId,refund.id);
+  assert.equal((await webhook('evt_afterpay_refund','refund.updated',refund.id)).status,200);
+  assert.equal(ctx.db.prepare("SELECT stripe_refund_id FROM order_refunds WHERE scope='maker'").get().stripe_refund_id,refund.id);
+  assert.equal(ctx.db.prepare("SELECT refund_status FROM orders WHERE id='order'").get().refund_status,'partial');
+}));
+
+test('a refund confirmed by webhook queues one buyer confirmation despite replay',()=>fixture(async({ctx,options,call,webhook,setHandler})=>{
+  options.sendEmail=async()=>true;
+  ctx.db.prepare("UPDATE orders SET buyer_email=? WHERE id='order'").run('buyer@example.com');
+  const refund={id:'pyr_test',payment_intent:'pi_test',amount:4000,currency:'usd',status:'pending'};
+  setHandler(async()=>refund);
+  assert.equal((await call(partial)).status,200);
+  const confirmations=()=>ctx.db.prepare("SELECT body_text FROM email_outbox WHERE event_key='buyer-refund-confirmation:order:maker'").all();
+  assert.equal(confirmations().length,0);
+  refund.status='succeeded';
+  assert.equal((await webhook('evt_refund_confirmed','refund.updated',refund.id)).status,200);
+  assert.equal((await webhook('evt_refund_replayed','refund.updated',refund.id)).status,200);
+  assert.equal(confirmations().length,1);
+  assert.match(confirmations()[0].body_text,/\$40\.00/);
+}));
+
+test('recovered refund queues buyer confirmation without a second admin request',()=>fixture(async({ctx,options,call,setHandler})=>{
+  options.sendEmail=async()=>true;
+  ctx.db.prepare("UPDATE orders SET buyer_email=? WHERE id='order'").run('buyer@example.com');
+  setHandler(async()=>{throw new Error('Provider response interrupted');});
+  assert.equal((await call(partial)).status,500);
+  setHandler(async()=>({id:'pyr_recovered',payment_intent:'pi_test',amount:4000,currency:'usd',status:'succeeded'}));
+  await ctx.reconcileFinancialOperations();
+  await ctx.reconcileFinancialOperations();
+  await ctx.processEmailOutbox();
+  const messages=ctx.db.prepare("SELECT status FROM email_outbox WHERE event_key='buyer-refund-confirmation:order:maker'").all();
+  assert.deepEqual(messages,[{status:'sent'}]);
+}));
+
 test('refund intent blocks payout during a slow provider call; uncertain provider failures retain the hold',()=>fixture(async({ctx,call,setHandler,calls})=>{
   let entered,finish;const waiting=new Promise(r=>{entered=r;});const gate=new Promise(r=>{finish=r;});
   setHandler(async()=>{entered();await gate;throw new Error('provider response lost');});
