@@ -1,3 +1,4 @@
+import { collectionImportReport } from '@/lib/collection-import-report';
 import { useEffect, useRef, useState } from 'react';
 
 /** Private PDF, DOCX and XLSX intake; uploads processed in memory. */
@@ -21,6 +22,7 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
   const [reviewError, setReviewError] = useState('');
   const [openingReview, setOpeningReview] = useState(false);
   const [sourceName, setSourceName] = useState('');
+  const importReport = extractedText && draftId ? collectionImportReport(extractedText, reviewGarments) : null;
   async function refreshReviews() {
     setLoadingReviews(true); setReviewError('');
     try {
@@ -114,6 +116,17 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
       }}>Create private review draft from extracted lines</button>}
       {draftId && <section className="space-y-3"><h3 className="font-semibold">Private collection review</h3><p className="text-sm break-words">{sourceName}</p>
         <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
+        {importReport?.supported && <section aria-label="Import accuracy report" className="rounded-xl border p-4 space-y-2">
+          <h4 className="font-semibold">Import accuracy report</h4>
+          <p className="text-sm">Compared against the extracted spreadsheet text from this upload, not the original Excel file. This checks mapped fields, not image accuracy or completeness of the extraction.</p>
+          <p className="text-sm">{importReport.matched} of {importReport.sourceCount} extracted products matched by name · {importReport.issues.length} source rows flagged</p>
+          {importReport.truncated && <p role="alert" className="text-sm">The review is limited to 30 suggestions. Additional source products may be missing; do not treat this as a complete import.</p>}
+          {importReport.issues.length===0 ? <p className="text-sm">No differences found in compared fields. Spot-check the original workbook before publishing.</p> :
+            <details><summary className="cursor-pointer underline">Show {importReport.issues.length} flagged source rows</summary>
+              <ul className="list-disc pl-5 space-y-2 mt-2">{importReport.issues.map((issue,i)=><li key={i} className="text-sm">Row {issue.row}: {issue.name} — {issue.problems.join('; ')}</li>)}</ul>
+            </details>}
+        </section>}
+        {draftId && !extractedText && <p className="text-sm">Accuracy comparison is unavailable for reopened saved reviews because the original extracted text is not retained. Re-upload the source file to generate a new comparison.</p>}
         {reviewGarments.map((g,i) => <fieldset key={g.id} className="rounded-lg border p-3 space-y-2">
           <legend>Candidate {i+1}</legend>
           <label className="block">Garment name<input className="block w-full border rounded p-2" value={g.name} onChange={e=>setReviewGarments(items=>items.map((v,j)=>j===i?{...v,name:e.target.value}:v))}/></label>
