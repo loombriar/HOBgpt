@@ -169,6 +169,8 @@
       }
       const checks = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
       if (!checks.every(response => response.status === 401)) throw new Error('Sign out did not complete. Please try again.');
+      guestSessionConfirmed=true;
+      mailboxAuthDenied=true;
       for (const storage of [localStorage, sessionStorage]) {
         storage.removeItem('briarDesignerToken');
         storage.removeItem('house-of-briar:cart');
@@ -184,7 +186,7 @@
   setInterval(() => { if (!guestSessionConfirmed) void refreshSignout(); }, 30000);
   window.addEventListener('focus', () => { guestSessionConfirmed=false; void refreshSignout(); });
   document.addEventListener('visibilitychange', () => void refreshSignout());
-  if (account) new MutationObserver(() => void refreshSignout()).observe(account, {childList:true,subtree:true,characterData:true});
+  if (account) new MutationObserver(() => { guestSessionConfirmed=false; void refreshSignout(); }).observe(account, {childList:true,subtree:true,characterData:true});
 
   // Persistent designer mailbox uses the existing private notification/read-state API.
   const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=false;
@@ -239,7 +241,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){mailboxAuthDenied=false;void refreshMailbox();}});
   window.addEventListener('focus',()=>{mailboxAuthDenied=false;void refreshMailbox();});
   const workspace=document.getElementById('designer-workspace');
-  if(workspace)new MutationObserver(()=>{void refreshMailbox();void refreshSignout();}).observe(workspace,{attributes:true,attributeFilter:['class']});
+  if(workspace)new MutationObserver(()=>{mailboxAuthDenied=false;guestSessionConfirmed=false;void refreshMailbox();void refreshSignout();}).observe(workspace,{attributes:true,attributeFilter:['class']});
 
   if (header) header.classList.add('hob-original-header');
   const setOffset = () => {
