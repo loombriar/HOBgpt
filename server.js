@@ -2925,6 +2925,7 @@ function createApp(options = {}) {
     const cancel=kind==='donation'?origin+'/?donation=canceled':origin+'/?checkout=canceled';
     return {brand_name:'House of Briar',user_action:'PAY_NOW',return_url:success,cancel_url:cancel,shipping_preference:kind==='order'?'GET_FROM_FILE':'NO_SHIPPING'};
   }
+  require('./lib/paypal-sandbox-test-orders').installPayPalSandboxTestOrders({app,db,paypalApi,authAdmin,checkoutLimiter,trustedAppOrigin});
   // Merchandise payments must share the seller payout rail. Donations have no seller payouts.
   const paypalMerchandiseUnavailable = (_req,res) => fail(res,503,'payment_method_unavailable','This payment option is currently unavailable. Please choose an available payment method at checkout.');
   app.post('/api/paypal/checkout/order',checkoutLimiter,paypalMerchandiseUnavailable);
