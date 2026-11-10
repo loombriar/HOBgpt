@@ -149,13 +149,14 @@
   designerMenu.querySelector('.hob-seamstress-menu-panel').appendChild(signout);
   const sessionEndpoints = ['/api/my/designer-profile', '/api/customer/session'];
   let sessionCheckBusy = false;
+  let guestSessionConfirmed = false;
   async function refreshSignout() {
-    if (sessionCheckBusy || document.visibilityState === 'hidden') return;
+    if (sessionCheckBusy || guestSessionConfirmed || document.visibilityState === 'hidden') return;
     sessionCheckBusy = true;
     try {
       const responses = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
-      if (responses.some(response => response.ok)){signout.hidden=false;join.textContent='My dashboard';}
-      else if (responses.every(response => [401,403,404].includes(response.status))){signout.hidden=true;join.textContent='Sign in / Join';}
+      if (responses.some(response => response.ok)){guestSessionConfirmed=false;signout.hidden=false;join.textContent='My dashboard';}
+      else if (responses.every(response => [401,403,404].includes(response.status))){guestSessionConfirmed=true;signout.hidden=true;join.textContent='Sign in / Join';}
     } catch {} finally { sessionCheckBusy = false; }
   }
   signout.addEventListener('click', async () => {
@@ -168,6 +169,8 @@
       }
       const checks = await Promise.all(sessionEndpoints.map(url => fetch(url, {credentials:'same-origin',cache:'no-store'})));
       if (!checks.every(response => response.status === 401)) throw new Error('Sign out did not complete. Please try again.');
+      guestSessionConfirmed=true;
+      mailboxAuthDenied=true;
       for (const storage of [localStorage, sessionStorage]) {
         storage.removeItem('briarDesignerToken');
         storage.removeItem('house-of-briar:cart');
@@ -180,10 +183,10 @@
     }
   });
   void refreshSignout();
-  setInterval(() => void refreshSignout(), 30000);
-  window.addEventListener('focus', () => void refreshSignout());
+  setInterval(() => { if (!guestSessionConfirmed) void refreshSignout(); }, 30000);
+  window.addEventListener('focus', () => { guestSessionConfirmed=false; void refreshSignout(); });
   document.addEventListener('visibilitychange', () => void refreshSignout());
-  if (account) new MutationObserver(() => void refreshSignout()).observe(account, {childList:true,subtree:true,characterData:true});
+  if (account) new MutationObserver(() => { guestSessionConfirmed=false; void refreshSignout(); }).observe(account, {childList:true,subtree:true,characterData:true});
 
   // Persistent designer mailbox uses the existing private notification/read-state API.
   const mailboxWrap=document.createElement('div');mailboxWrap.className='hob-mailbox-wrap';mailboxWrap.hidden=false;
@@ -202,12 +205,13 @@
   searchToggle.title='Search';
   const guestInbox=()=>{panel.replaceChildren();const link=document.createElement('a');link.href='/join.html';link.textContent='Sign in to see your mailbox';panel.append(link);};guestInbox();
   let mailboxBusy=false;
+  let mailboxAuthDenied=false;
   async function refreshMailbox(){
-    if(mailboxBusy||document.visibilityState==='hidden')return;
+    if(mailboxBusy||mailboxAuthDenied||document.visibilityState==='hidden')return;
     mailboxBusy=true;
     try{
       const response=await fetch('/api/my/designer-notifications',{credentials:'same-origin',cache:'no-store'});
-      if([401,403].includes(response.status)){guestInbox();return;}
+      if([401,403].includes(response.status)){mailboxAuthDenied=true;guestInbox();return;}
       if(!response.ok)return;
       const data=await response.json();if(!Array.isArray(data.items))return;
       const unread=Number(data.unread)||0;mailboxWrap.hidden=false;mailbox.classList.toggle('has-unread',unread>0);
@@ -233,10 +237,11 @@
   mailbox.addEventListener('click',()=>{panel.hidden=!panel.hidden;mailbox.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)void refreshMailbox();});
   document.addEventListener('click',event=>{if(!mailboxWrap.contains(event.target)){panel.hidden=true;mailbox.setAttribute('aria-expanded','false');}});
   mailboxWrap.addEventListener('keydown',event=>{if(event.key==='Escape'){panel.hidden=true;mailbox.setAttribute('aria-expanded','false');mailbox.focus();}});
-  void refreshMailbox();setInterval(()=>void refreshMailbox(),30000);
-  document.addEventListener('visibilitychange',()=>void refreshMailbox());
+  void refreshMailbox();setInterval(()=>{if(!mailboxAuthDenied)void refreshMailbox();},30000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){mailboxAuthDenied=false;void refreshMailbox();}});
+  window.addEventListener('focus',()=>{mailboxAuthDenied=false;void refreshMailbox();});
   const workspace=document.getElementById('designer-workspace');
-  if(workspace)new MutationObserver(()=>{void refreshMailbox();void refreshSignout();}).observe(workspace,{attributes:true,attributeFilter:['class']});
+  if(workspace)new MutationObserver(()=>{mailboxAuthDenied=false;guestSessionConfirmed=false;void refreshMailbox();void refreshSignout();}).observe(workspace,{attributes:true,attributeFilter:['class']});
 
   if (header) header.classList.add('hob-original-header');
   const setOffset = () => {
