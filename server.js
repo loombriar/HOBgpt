@@ -3486,6 +3486,37 @@ function createApp(options = {}) {
     return res.json({item:serializeListing(getListing(row.id),'private')});
   });
 
+  // Narrowly scoped remote-photo bridge for the Atelier Emine spreadsheet importer.
+  // Never fetch arbitrary designer-provided hosts: this endpoint is intentionally allowlisted.
+  app.get('/api/designer/collection-photo-source', authDesigner, async (req, res) => {
+    try {
+      const raw = String(req.query.url || '');
+      if (raw.length > 2000) return fail(res, 400, 'invalid_photo_url', 'Image URL is too long.');
+      const target = new URL(raw);
+      if (target.protocol !== 'https:' || !['atelieremine.com', 'www.atelieremine.com'].includes(target.hostname.toLowerCase()) ||
+          target.port || target.username || target.password) {
+        return fail(res, 400, 'untrusted_photo_host', 'Only direct HTTPS Atelier Emine image links are supported.');
+      }
+      const upstream = await fetch(target.href, { redirect: 'manual', signal: AbortSignal.timeout(12000), headers: { Accept: 'image/png,image/jpeg,image/webp' } });
+      if (!upstream.ok || upstream.status >= 300) return fail(res, 422, 'photo_unavailable', 'The source photo could not be downloaded.');
+      const length = Number(upstream.headers.get('content-length') || 0);
+      if (length > 8 * 1024 * 1024) return fail(res, 413, 'photo_too_large', 'Source photo exceeds 8 MB.');
+      const chunks = []; let total = 0;
+      for await (const chunk of upstream.body) {
+        total += chunk.length;
+        if (total > 8 * 1024 * 1024) return fail(res, 413, 'photo_too_large', 'Source photo exceeds 8 MB.');
+        chunks.push(chunk);
+      }
+      const bytes = Buffer.concat(chunks);
+      const mime = detectImageMime(bytes);
+      if (!mime) return fail(res, 415, 'unsupported_photo', 'Source is not a JPEG, PNG or WebP photo.');
+      res.set('Cache-Control', 'private, no-store');
+      res.type(mime).send(bytes);
+    } catch {
+      return fail(res, 422, 'photo_fetch_failed', 'Could not retrieve the original product photo.');
+    }
+  });
+
   app.post('/api/listings/:listingId/images', authDesigner, imageUploadLimiter, upload.single('image'), async (req, res, next) => {
     try {
       const row = ownedEditableListing(req, res);
