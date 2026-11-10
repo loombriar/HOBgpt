@@ -135,9 +135,9 @@ export default function CollectionPdfIntake({ onFinishListing }: { onFinishListi
         <p className="text-sm">These are unverified text-line suggestions, not finished product listings. Correct or remove every entry before using it.</p>
         {importReport?.supported && <section aria-label="Import accuracy report" className="rounded-xl border p-4 space-y-2">
           <h4 className="font-semibold">Import accuracy report</h4>
-          <p className="text-sm">Compared against extracted spreadsheet text, not the original workbook. This checks mapped fields only. Image availability, original currency, stock, shipping, and extraction completeness are not verified.</p>
+          <p className="text-sm">Compared against extracted spreadsheet text, not the original workbook. This checks mapped fields, SKUs and source image URL associations where present. Image availability, uploaded image completion, original currency, stock, shipping, and extraction completeness are not verified.</p>
           <p className="text-sm">{importReport.matched} of {importReport.sourceCount} extracted products matched by name · {importReport.issues.length} source rows flagged</p>
-          {importReport.truncated && <p role="alert" className="text-sm">The review is limited to 30 suggestions. Additional source products may be missing; do not treat this as a complete import.</p>}
+          {importReport.truncated && <p role="alert" className="text-sm">The review is limited to 300 suggestions. Additional source products may be missing; do not treat this as a complete import.</p>}
           {importReport.issues.length===0 ? <p className="text-sm">No differences found in compared fields only. This is not a zero-error certification of the workbook.</p> :
             <details><summary className="cursor-pointer underline">Show {importReport.issues.length} flagged source rows</summary>
               <ul className="list-disc pl-5 space-y-2 mt-2">{importReport.issues.map((issue,i)=><li key={i} className="text-sm">Row {issue.row}: {issue.name} — {issue.problems.join('; ')}</li>)}</ul>
