@@ -24,7 +24,7 @@ describe('collection SKU reconciliation',()=>{
     expect(r.issues.some(i=>i.problems.includes('Image URLs differ from source'))).toBe(true);
   });
   it('flags missing SKU and mismatched image counts',()=>{
-    const r=collectionImportReport(source.replace('D1 |',' |'),[{...drafts[0],sku:'',imageUrls:[]},drafts[1]]);
+    const r=collectionImportReport(source.replace('D1 |',' |'),[{...drafts[0],sku:'',imageUrls:[]},{...drafts[1],imageUrls:[]}]);
     expect(r.issues.some(i=>i.problems.includes('Missing SKU in source'))).toBe(true);
     expect(r.issues.some(i=>i.problems.includes('Image URL count differs from source'))).toBe(true);
   });
