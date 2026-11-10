@@ -23,3 +23,9 @@ test('preserves SKU and Atelier Emine photo URLs with the correct garment', () =
   assert.deepEqual(garments[0].imageUrls,['https://www.atelieremine.com/a.png','https://www.atelieremine.com/b.png']);
   assert.deepEqual(garments[1].imageUrls,['https://www.atelieremine.com/c.png']);
 });
+
+test('preserves duplicate names and duplicate SKUs for review instead of silently dropping source rows', () => {
+  const rows=proposeGarments('name | sku | price\\nDress | D-1 | 10\\nDress | D-2 | 12\\nOther | D-1 | 15');
+  assert.equal(rows.length,3);
+  assert.deepEqual(rows.map(g=>g.sku),['D-1','D-2','D-1']);
+});
