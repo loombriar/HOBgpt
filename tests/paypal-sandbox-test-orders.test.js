@@ -44,6 +44,9 @@ test('admin sandbox test orders persist and capture only the server-owned $1 amo
     assert.equal(created.status,201);
     const order=await created.json();
     assert.equal(order.amountCents,100);assert.equal(order.currency,'USD');assert.equal(order.status,'created');
+    const experience=calls[0].options.body.payment_source.paypal.experience_context;
+    assert.equal(experience.return_url,origin+'/admin?checkout=paypal-sandbox-return');
+    assert.equal(experience.cancel_url,origin+'/admin?checkout=paypal-sandbox-cancel');
     const list=await fetch(url,{headers:{Authorization:'Bearer sandbox-test-admin'}});
     assert.equal(list.status,200);const listed=await list.json();assert.equal(listed.enabled,true);assert.equal(listed.items[0].id,order.id);
     assert.equal(calls[0].options.body.purchase_units[0].amount.value,'1.00');
