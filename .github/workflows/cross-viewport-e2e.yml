@@ -60,10 +60,10 @@ jobs:
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '120000'
         run: |
-          npx playwright install --with-deps chromium || {
-            echo 'Initial Chromium installation failed; retrying once after a short delay.'
+          npx playwright install chromium || {
+            echo 'Initial Chromium browser download failed; retrying once after a short delay.'
             sleep 10
-            npx playwright install --with-deps chromium
+            npx playwright install chromium
           }
 
       - name: Run all E2E tests at this viewport
