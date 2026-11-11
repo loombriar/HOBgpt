@@ -565,6 +565,7 @@ function createApp(options = {}) {
     sent_at TEXT
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS email_outbox_pending ON email_outbox(status,next_attempt_at)');
+  ensureColumn('email_outbox', 'retry_blocked_at', 'TEXT');
   recordMigration(3, 'durable_email_outbox');
 
   db.exec(`CREATE TABLE IF NOT EXISTS analytics_events (
@@ -2244,7 +2245,11 @@ function createApp(options = {}) {
       signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({ from, to: [to], subject, text })
     });
-    if (!response.ok) throw new Error(`Resend returned ${response.status}: ${(await response.text()).slice(0,300)}`);
+    if (!response.ok) throw Object.assign(new Error(`Resend returned ${response.status}: ${(await response.text()).slice(0,300)}`), {
+      providerStatus: response.status,
+      // Validation failures need corrected content, not another identical send.
+      emailRetryBlocked: response.status === 400 || response.status === 422
+    });
     return true;
   }
 
@@ -2256,12 +2261,12 @@ function createApp(options = {}) {
   }
 
   async function deliverQueuedEmails(limit) {
-    const rows = db.prepare("SELECT * FROM email_outbox WHERE status IN ('pending','failed') AND next_attempt_at <= ? ORDER BY created_at LIMIT ?").all(new Date().toISOString(), limit);
+    const rows = db.prepare("SELECT * FROM email_outbox WHERE status IN ('pending','failed') AND retry_blocked_at IS NULL AND next_attempt_at <= ? ORDER BY created_at LIMIT ?").all(new Date().toISOString(), limit);
     for (const row of rows) {
       const now = new Date().toISOString();
       const leaseUntil = new Date(Date.now() + 5 * 60_000).toISOString();
       // Claim before awaiting the provider, including across processes sharing this database.
-      const claimed = db.prepare("UPDATE email_outbox SET next_attempt_at=? WHERE id=? AND status IN ('pending','failed') AND next_attempt_at<=?").run(leaseUntil,row.id,now);
+      const claimed = db.prepare("UPDATE email_outbox SET next_attempt_at=? WHERE id=? AND status IN ('pending','failed') AND retry_blocked_at IS NULL AND next_attempt_at<=?").run(leaseUntil,row.id,now);
       if (!claimed.changes) continue;
       try {
         const sent = await deliverEmail({ to: row.recipient, subject: row.subject, text: row.body_text, idempotencyKey: `hob-email-${row.id}` });
@@ -2270,8 +2275,9 @@ function createApp(options = {}) {
       } catch (error) {
         const attempts = row.attempts + 1;
         const delayMs = Math.min(60 * 60 * 1000, 30_000 * (2 ** Math.min(attempts - 1, 7)));
-        db.prepare("UPDATE email_outbox SET status='failed',attempts=?,next_attempt_at=?,last_error=? WHERE id=?").run(attempts, new Date(Date.now()+delayMs).toISOString(), String(error.message || error).slice(0,500), row.id);
-        log('error','email_delivery_failed',{ outboxId: row.id, attempts, error: String(error.message || error).slice(0,300) });
+        const retryBlocked = error.emailRetryBlocked === true;
+        db.prepare("UPDATE email_outbox SET status='failed',attempts=?,next_attempt_at=?,last_error=?,retry_blocked_at=? WHERE id=?").run(attempts, new Date(Date.now()+delayMs).toISOString(), String(error.message || error).slice(0,500), retryBlocked ? now : null, row.id);
+        log('error','email_delivery_failed',{ outboxId: row.id, attempts, retryBlocked, providerStatus: error.providerStatus || null });
       }
     }
     return rows.length;
@@ -4142,8 +4148,8 @@ function createApp(options = {}) {
       activeReservations: inventory.filter(row=>row.status==='reserved').length
     };
     const emailCounts=db.prepare("SELECT SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) sent FROM email_outbox").get();
-    const emailMessages=db.prepare('SELECT id,subject,status,attempts,next_attempt_at,created_at,sent_at FROM email_outbox ORDER BY created_at DESC,id DESC LIMIT 30').all();
-    const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
+    const emailMessages=db.prepare('SELECT id,subject,status,attempts,next_attempt_at,created_at,sent_at,retry_blocked_at FROM email_outbox ORDER BY created_at DESC,id DESC LIMIT 30').all();
+    const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,retryBlocked:Boolean(row.retry_blocked_at),nextAttemptAt:row.retry_blocked_at?null:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
     const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state NOT IN ('applied','rejected') ORDER BY updated_at DESC LIMIT 100").all();
     // An uncertain purchase can hold payout before a confirmed charge exists.
