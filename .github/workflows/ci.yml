@@ -39,6 +39,13 @@ jobs:
         working-directory: apps/default
         run: npm run build
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '120000'
+        run: |
+          npx playwright install chromium || {
+            echo 'Initial Chromium browser download failed; retrying once after a short delay.'
+            sleep 10
+            npx playwright install chromium
+          }
       - name: Run browser E2E
         run: npm run test:e2e

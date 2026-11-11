@@ -1746,7 +1746,7 @@ function createApp(options = {}) {
   // Parse analytics before the general parser so its smaller limit is enforced.
   app.use('/api/analytics/events',express.json({limit:'16kb'}));
   // Catalog reviews can contain 60,000 Unicode characters plus reviewed garment details.
-  app.use('/api/designer/collection-drafts', express.json({ limit: '256kb' }));
+  app.use('/api/designer/collection-drafts', express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '64kb' }));
   require('./lib/designer-collection-drafts').registerCollectionDrafts({ app, db, authDesigner, fail, rateLimit });
   // Private PDF / Word collection intake: authenticated designer only, no public file URL.

@@ -18,3 +18,15 @@ test('extracts inline garment data from XLSX worksheet into reviewable text',()=
  assert.match(result.text,/Blue Dress \| 89\.99/);
 });
 test('rejects invalid spreadsheet archives',()=>assert.throws(()=>extractXlsxText(Buffer.from('not an excel file'))));
+
+test('rejects worksheets with more than 300 nonempty rows instead of silently dropping products',()=>{
+ const header='<row r="1"><c r="A1" t="inlineStr"><is><t>Name</t></is></c><c r="B1" t="inlineStr"><is><t>Price</t></is></c></row>';
+ const rows=Array.from({length:300},(_,i)=>'<row r="'+(i+2)+'"><c r="A'+(i+2)+'" t="inlineStr"><is><t>Product '+i+'</t></is></c><c r="B'+(i+2)+'"><v>10</v></c></row>').join('');
+ assert.throws(()=>extractXlsxText(makeZip('xl/worksheets/sheet1.xml','<worksheet><sheetData>'+header+rows+'</sheetData></worksheet>')),/exceeds 300/);
+});
+test('accepts a worksheet at the documented row boundary',()=>{
+ const header='<row r="1"><c r="A1" t="inlineStr"><is><t>Name</t></is></c><c r="B1" t="inlineStr"><is><t>Price</t></is></c></row>';
+ const rows=Array.from({length:299},(_,i)=>'<row r="'+(i+2)+'"><c r="A'+(i+2)+'" t="inlineStr"><is><t>Product '+i+'</t></is></c><c r="B'+(i+2)+'"><v>10</v></c></row>').join('');
+ const result=extractXlsxText(makeZip('xl/worksheets/sheet1.xml','<worksheet><sheetData>'+header+rows+'</sheetData></worksheet>'));
+ assert.equal(result.text.split('\n').length,300);
+});
