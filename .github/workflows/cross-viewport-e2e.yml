@@ -1,0 +1,72 @@
+name: Cross-viewport E2E
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-viewport-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E / ${{ matrix.viewport.name }} (${{ matrix.viewport.width }}x${{ matrix.viewport.height }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport:
+          - name: phone-320
+            width: 320
+            height: 800
+          - name: phone-360
+            width: 360
+            height: 800
+          - name: phone-390
+            width: 390
+            height: 844
+          - name: tablet-768
+            width: 768
+            height: 1024
+          - name: desktop-1280
+            width: 1280
+            height: 800
+    env:
+      HOB_E2E_VIEWPORT_WIDTH: ${{ matrix.viewport.width }}
+      HOB_E2E_VIEWPORT_HEIGHT: ${{ matrix.viewport.height }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/default/package-lock.json
+
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          npm ci --prefix apps/default
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run all E2E tests at this viewport
+        run: npm run test:e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-results-${{ matrix.viewport.name }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
