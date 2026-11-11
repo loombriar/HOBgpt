@@ -2607,11 +2607,14 @@ function createApp(options = {}) {
           'metadata[order_id]': orderId,
           'metadata[designer_id]': group.designer_id
         });
-        const transfer = await stripeOperations.request('payout',transferId,'transfers', { body: body.toString(), idempotencyKey: `hob-transfer-${orderId}-${group.designer_id}` });
+        const initialKey=`hob-transfer-${orderId}-${group.designer_id}`;
+        const idempotencyKey=releaseReason==='admin_retry'?stripeOperations.adminRetryPayoutIdempotencyKey(transferId,initialKey):initialKey;
+        const transfer = await stripeOperations.request('payout',transferId,'transfers', { body: body.toString(), idempotencyKey });
         db.prepare("UPDATE designer_transfers SET stripe_transfer_id = ?, status = 'paid', payout_in_flight=0, error_message = NULL, paid_at = ?, release_reason = ? WHERE id = ?").run(transfer.id, new Date().toISOString(), releaseReason, transferId);
         await notifyPayout(transferId, 'paid');
         results.push({ designer_id: group.designer_id, status: 'paid', stripe_transfer_id: transfer.id });
       } catch (error) {
+        if(error.payoutConflict){results.push({designer_id:group.designer_id,status:'pending',reason:error.payoutReviewRequired?'provider_reconciliation_required':'transfer_processing'});continue;}
         const rejected=stripeOperations.rejected(error);
         db.prepare("UPDATE designer_transfers SET status=?,payout_in_flight=?,error_message=? WHERE id=?").run(rejected?'failed':'pending',rejected?0:1,String(error.message||error).slice(0,500),transferId);
         if(rejected)await notifyPayout(transferId, 'failed');
@@ -4142,7 +4145,7 @@ function createApp(options = {}) {
     const emailMessages=db.prepare('SELECT id,subject,status,attempts,next_attempt_at,created_at,sent_at FROM email_outbox ORDER BY created_at DESC,id DESC LIMIT 30').all();
     const emails={configured:Boolean(typeof options.sendEmail==='function'||(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL)),counts:{pending:Number(emailCounts.pending||0),failed:Number(emailCounts.failed||0),sent:Number(emailCounts.sent||0)},messages:emailMessages.map(row=>({id:row.id,subject:row.subject,status:row.status,attempts:row.attempts,nextAttemptAt:row.next_attempt_at,createdAt:row.created_at,sentAt:row.sent_at||null}))};
     res.set('Cache-Control','no-store');
-    const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state!='applied' ORDER BY updated_at DESC LIMIT 100").all();
+    const financialOperations=db.prepare("SELECT kind,reference_id AS referenceId,state,created_at AS createdAt,updated_at AS updatedAt FROM stripe_operations WHERE state NOT IN ('applied','rejected') ORDER BY updated_at DESC LIMIT 100").all();
     // An uncertain purchase can hold payout before a confirmed charge exists.
     // Include those labels so the review queue cannot hide the held order.
     const postageReviews=db.prepare(`SELECT order_id,designer_id FROM postage_charges

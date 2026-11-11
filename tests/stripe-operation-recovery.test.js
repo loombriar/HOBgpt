@@ -69,6 +69,54 @@ test('repeated payout replay rejection preserves the hold, including frozen prov
  }finally{db.close();}
 });
 
+test('an explicit admin retry gets a fresh key only after a definite payout rejection',async()=>{
+ const db=new Database(':memory:');let calls=0;
+ db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
+ db.prepare('INSERT INTO designer_transfers(id) VALUES (?)').run('transfer-465');
+ const initialKey='hob-transfer-staging-order-maker';
+ try{
+  const ops=createStripeOperations({db,stripeApi:async()=>{
+   calls++;
+   if(calls===1)throw Object.assign(new Error('destination account rejected'),{providerStatus:401});
+   return{id:'tr_recovered'};
+  },applyResult:()=>{}});
+  const original={body:'amount=465&currency=usd',idempotencyKey:initialKey};
+  await assert.rejects(ops.request('payout','transfer-465','transfers',original),/destination account rejected/);
+  const retryKey=ops.adminRetryPayoutIdempotencyKey('transfer-465',initialKey);
+  assert.equal(retryKey,initialKey+'-retry-1');
+  const result=await ops.request('payout','transfer-465','transfers',{...original,idempotencyKey:retryKey});
+  assert.equal(result.id,'tr_recovered');
+  assert.equal(calls,2);
+  assert.deepEqual(db.prepare('SELECT operation_key,state FROM stripe_operations ORDER BY created_at,operation_key').all(),[
+   {operation_key:initialKey,state:'rejected'},
+   {operation_key:retryKey,state:'applied'}
+  ]);
+  assert.equal(ops.adminRetryPayoutIdempotencyKey('transfer-465',initialKey),retryKey);
+ }finally{db.close();}
+});
+
+test('ambiguous payout outcomes reuse their original key and block alternate concurrent keys',async()=>{
+ const db=new Database(':memory:');let calls=0,finishRequest,markStarted;
+ db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
+ db.prepare('INSERT INTO designer_transfers(id) VALUES (?)').run('transfer-465');
+ const initialKey='hob-transfer-staging-order-maker';
+ const started=new Promise(resolve=>{markStarted=resolve;});
+ try{
+  const ops=createStripeOperations({db,stripeApi:()=>{
+   calls++;markStarted();return new Promise(resolve=>{finishRequest=resolve;});
+  },applyResult:()=>{}});
+  const original={body:'amount=465&currency=usd',idempotencyKey:initialKey};
+  const pending=ops.request('payout','transfer-465','transfers',original);
+  await started;
+  assert.equal(ops.adminRetryPayoutIdempotencyKey('transfer-465',initialKey),initialKey);
+  await assert.rejects(ops.request('payout','transfer-465','transfers',{...original,idempotencyKey:initialKey+'-retry-1'}),error=>error.payoutConflict===true);
+  assert.equal(calls,1);
+  finishRequest({id:'tr_once'});
+  assert.equal((await pending).id,'tr_once');
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM stripe_operations').get().count,1);
+ }finally{db.close();}
+});
+
 test('operator payout review reports durable evidence without authorizing a duplicate transfer',async()=>{
  const db=new Database(':memory:');let calls=0;
  db.exec('CREATE TABLE designer_transfers (id TEXT PRIMARY KEY,payout_in_flight INTEGER NOT NULL DEFAULT 0)');
