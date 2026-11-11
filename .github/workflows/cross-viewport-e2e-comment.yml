@@ -1,0 +1,112 @@
+name: Cross-viewport E2E PR summary
+
+on:
+  workflow_run:
+    workflows:
+      - Cross-viewport E2E
+    types:
+      - completed
+
+permissions: {}
+
+concurrency:
+  group: cross-viewport-e2e-summary-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  summarize:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      # This privileged workflow intentionally does not check out or execute PR code.
+      - name: Aggregate viewport outcomes and update the PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "Invalid workflow run ID" >&2
+            exit 1
+          fi
+
+          pr_number="$EVENT_PR_NUMBER"
+          if [[ ! "$pr_number" =~ ^[0-9]+$ ]]; then
+            pr_number="$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}/pulls?per_page=100" --jq '[.[] | select(.state == "open")][0].number // empty')"
+          fi
+          if [[ ! "$pr_number" =~ ^[0-9]+$ ]]; then
+            echo "No associated pull request was found; skipping comment."
+            exit 0
+          fi
+
+          gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" > /tmp/viewport-jobs.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const marker = '<!-- hobgpt-cross-viewport-e2e-summary -->';
+          const jobs = JSON.parse(fs.readFileSync('/tmp/viewport-jobs.json', 'utf8')).jobs || [];
+          const expected = [
+            { label: '320 × 800', name: 'E2E / phone-320 (320x800)' },
+            { label: '360 × 800', name: 'E2E / phone-360 (360x800)' },
+            { label: '390 × 844', name: 'E2E / phone-390 (390x844)' },
+            { label: '768 × 1024', name: 'E2E / tablet-768 (768x1024)' },
+            { label: '1280 × 800', name: 'E2E / desktop-1280 (1280x800)' },
+          ];
+          const display = {
+            success: 'PASS',
+            failure: 'FAIL',
+            cancelled: 'CANCELLED',
+            skipped: 'SKIPPED',
+            timed_out: 'TIMED OUT',
+            action_required: 'ACTION REQUIRED',
+            neutral: 'NEUTRAL',
+          };
+          const rows = expected.map(({ label, name }) => {
+            const job = jobs.find((entry) => entry.name === name);
+            const state = job?.conclusion || job?.status || 'missing';
+            const result = display[state] || (state === 'missing' ? 'MISSING' : state.toUpperCase());
+            const url = typeof job?.html_url === 'string' && /^https:\/\/github\.com\//.test(job.html_url)
+              ? job.html_url
+              : null;
+            return { label, result, url, passed: state === 'success' };
+          });
+          const allPassed = rows.every((row) => row.passed);
+          const runUrl = /^https:\/\/github\.com\//.test(process.env.RUN_URL || '')
+            ? process.env.RUN_URL
+            : null;
+          const runLabel = runUrl
+            ? `[run #${process.env.RUN_ID}, attempt ${process.env.RUN_ATTEMPT}](${runUrl})`
+            : `run #${process.env.RUN_ID}, attempt ${process.env.RUN_ATTEMPT}`;
+          const table = [
+            '| Viewport | Result | Job log |',
+            '| --- | --- | --- |',
+            ...rows.map((row) => `| ${row.label} | **${row.result}** | ${row.url ? `[details](${row.url})` : '—'} |`),
+          ].join('\n');
+          const body = [
+            marker,
+            `## Cross-viewport E2E: ${allPassed ? 'PASS' : 'REVIEW NEEDED'}`,
+            '',
+            `Full Playwright suite across all configured viewport profiles. ${runLabel}.`,
+            '',
+            table,
+          ].join('\n');
+          fs.writeFileSync('/tmp/viewport-comment-payload.json', JSON.stringify({ body }));
+          NODE
+
+          comment_id="$(gh api --paginate "repos/${GH_REPO}/issues/${pr_number}/comments?per_page=100" --jq '.[] | select(.body | contains("<!-- hobgpt-cross-viewport-e2e-summary -->")) | .id' | tail -n 1)"
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH "repos/${GH_REPO}/issues/comments/${comment_id}" --input /tmp/viewport-comment-payload.json > /dev/null
+            echo "Updated viewport summary comment ${comment_id} on PR #${pr_number}."
+          else
+            gh api --method POST "repos/${GH_REPO}/issues/${pr_number}/comments" --input /tmp/viewport-comment-payload.json > /dev/null
+            echo "Created viewport summary comment on PR #${pr_number}."
+          fi
