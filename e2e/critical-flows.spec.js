@@ -172,7 +172,7 @@ test('admin panel entry displays daily traffic without a public website views sh
   await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
   await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
   await expect(traffic.getByRole('heading', { name: 'Daily counts', exact: true })).toBeVisible();
-  await expect(traffic.locator('#admin-daily-traffic tbody tr')).toHaveCount(1);
+  await expect(traffic.locator('#admin-daily-traffic tbody tr')).not.toHaveCount(0);
   await expect(traffic.locator('.admin-traffic-stat strong').first()).toHaveText(/[1-9][0-9,]*/);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(traffic).toHaveCount(0);

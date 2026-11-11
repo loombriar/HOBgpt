@@ -114,7 +114,9 @@ for(const width of [390,1280]) {
   await page.screenshot({path:`/tmp/hob-marketplace-studio-${width}.png`});
   await page.goto('/admin');
   await page.getByLabel('Admin access token').fill('e2e-admin-token');
+  const adminLogin=page.waitForResponse(response=>response.url().endsWith('/api/admin/session')&&response.request().method()==='POST');
   await page.getByRole('button',{name:'Open dashboard',exact:true}).click();
+  expect((await adminLogin).status()).toBe(200);
   await expect(page.getByRole('navigation',{name:'Administration sections'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-admin-${width}.png`});
