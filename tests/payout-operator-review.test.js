@@ -25,6 +25,14 @@ test('payout review fails closed for incomplete listings and provider errors',()
 test('admin operations exposes payout transfer id for safe hold matching',()=>{
  assert.match(source,/SELECT dt\.id AS transfer_id,dt\.order_id,dt\.designer_id/);
 });
+
+test('definite provider rejections are retryable but unresolved financial operations remain held',()=>{
+ assert.match(source,/FROM stripe_operations WHERE state NOT IN \('applied','rejected'\)/);
+ const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
+ assert.match(ui,/const operationHeld=Boolean\(data\.financialOperations\?\.some\(operation=>operation\.kind==='payout'&&operation\.referenceId===p\.transfer_id\)\)/);
+ assert.match(ui,/p\.status==='failed'\?'Retry payout':'Release payout'/);
+});
+
 test('admin UI disables held retries and offers read-only evidence review',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'..','apps/default/src/pages/AdminPage.tsx'),'utf8');
  assert.match(ui,/operation\.kind==='payout'&&operation\.referenceId===p\.transfer_id/);

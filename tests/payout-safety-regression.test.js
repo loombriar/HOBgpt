@@ -47,3 +47,11 @@ test('payout gate behavior: admin override and simulated tracking never reach St
   assert.match(fn, /admin_override|releaseReason/);
   assert.ok(fn.indexOf('carrier_verification_required') < fn.indexOf("stripeOperations.request('payout',transferId,'transfers'"));
 });
+
+test('only an explicit retry after a definite rejection can use a fresh payout key',()=>{
+  assert.match(fn,/releaseReason==='admin_retry'\?stripeOperations\.adminRetryPayoutIdempotencyKey\(transferId,initialKey\):initialKey/);
+  assert.match(fn,/if\(error\.payoutConflict\)\{results\.push\(\{designer_id:group\.designer_id,status:'pending',reason:error\.payoutReviewRequired\?'provider_reconciliation_required':'transfer_processing'\}\);continue;\}/);
+  const ledger=fs.readFileSync(require('node:path').join(__dirname,'..','lib','stripe-operations.js'),'utf8');
+  assert.match(ledger,/rows\.every\(row=>row\.state==='rejected'&&row\.response_json===null&&row\.attempt_count===1\)/);
+  assert.match(ledger,/operation_key<>\? AND state IN \('initiating','unknown','received','review_required'\)/);
+});
