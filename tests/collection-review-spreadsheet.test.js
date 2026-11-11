@@ -17,3 +17,17 @@ test('long extracted rows still create suggestions',()=>{
  assert.equal(result.length,1);
  assert.equal(result[0].name,'Long Coat');
 });
+
+test('maps garment and retail-price header variants and falls back when sale price is blank',()=>{
+ const result=proposeGarments('garment | sale_price | base_price | retail price\nBlue Coat |  | 145 | 159');
+ assert.equal(result.length,1);
+ assert.equal(result[0].name,'Blue Coat');
+ assert.equal(result[0].price,145);
+});
+
+test('recognizes title and retail price columns for reviewable products',()=>{
+ const result=proposeGarments('title | retail price\nLinen Jacket | 210');
+ assert.equal(result.length,1);
+ assert.equal(result[0].name,'Linen Jacket');
+ assert.equal(result[0].price,210);
+});
