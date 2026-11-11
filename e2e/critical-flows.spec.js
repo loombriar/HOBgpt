@@ -164,7 +164,9 @@ test('admin panel entry displays daily traffic without a public website views sh
   await expect(page.locator('#support .founding-designer-card img')).toHaveAttribute('src', '/founding-designer-berry-v1.webp');
   await expect(page.locator('#admin-review-workspace')).toBeHidden();
   await page.getByLabel('Administrator code').fill('e2e-admin-token');
+  const analyticsResponse = page.waitForResponse(response => response.url().includes('/api/admin/analytics') && response.ok());
   await page.locator('#admin-login-form button[type="submit"]').click();
+  const { traffic: trafficData } = await (await analyticsResponse).json();
   const traffic = page.locator('#admin-website-views');
   await traffic.locator('summary').click();
   await expect(traffic.locator('summary')).toHaveText('Website views');
@@ -172,7 +174,16 @@ test('admin panel entry displays daily traffic without a public website views sh
   await expect(traffic.locator('.admin-traffic-stat').getByText('Visits', { exact: true })).toBeVisible();
   await expect(traffic.getByText("Today's page views", { exact: true })).toBeVisible();
   await expect(traffic.getByRole('heading', { name: 'Daily counts', exact: true })).toBeVisible();
-  await expect(traffic.locator('#admin-daily-traffic tbody tr')).toHaveCount(1);
+  // The shared fixture can span midnight in the analytics timezone. Verify
+  // every returned day instead of assuming all traffic belongs to one date.
+  expect(trafficData.daily.length).toBeGreaterThan(0);
+  const rows = traffic.locator('#admin-daily-traffic tbody tr');
+  await expect(rows).toHaveCount(trafficData.daily.length);
+  for (const [index, day] of [...trafficData.daily].reverse().entries()) {
+    await expect(rows.nth(index).locator('td')).toHaveText([
+      day.day, Number(day.views).toLocaleString('en-US'), Number(day.visits).toLocaleString('en-US')
+    ]);
+  }
   await expect(traffic.locator('.admin-traffic-stat strong').first()).toHaveText(/[1-9][0-9,]*/);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(traffic).toHaveCount(0);

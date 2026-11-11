@@ -102,25 +102,47 @@ for(const width of [390,1280]) {
   await expect(page.locator('#admin-review-dialog')).not.toBeVisible();
  });
 }
+test.describe('Marketplace layout with isolated authentication state', () => {
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {once}=require('node:events');
+ const {createApp}=require('../server');
+ let appContext,server,dataDir,origin;
+ test.beforeAll(async()=>{
+  // Layout logins must not exhaust the shared suite's real ten-attempt limit.
+  dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'hob-layout-'));
+  appContext=createApp({dataDir,designerTokens:{'e2e-designer-token':'maker'},adminToken:'e2e-admin-token',seedProducts:[]});
+  server=appContext.app.listen(0,'127.0.0.1');
+  await once(server,'listening');
+  origin='http://127.0.0.1:'+server.address().port;
+ });
+ test.afterAll(async()=>{
+  if(server)await new Promise(resolve=>server.close(resolve));
+  if(appContext)appContext.db.close();
+  if(dataDir)fs.rmSync(dataDir,{recursive:true,force:true});
+ });
 for(const width of [390,1280]) {
  test(`Marketplace studio and admin layout fit a ${width}px screen`,async({page})=>{
   await page.setViewportSize({width,height:850});
-  const session=await page.request.post('/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
+  const session=await page.request.post(origin+'/api/session',{headers:{Authorization:'Bearer e2e-designer-token'}});
   expect(session.ok()).toBeTruthy();
-  await page.goto('/account');
+  await page.goto(origin+'/account');
   await expect(page.getByRole('navigation',{name:'Designer studio sections'})).toBeVisible();
   await expect(page.locator('details').filter({has:page.getByText('Personal shopping & support',{exact:true})})).not.toHaveAttribute('open');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-studio-${width}.png`});
-  await page.goto('/admin');
+  await page.goto(origin+'/admin');
   await page.getByLabel('Admin access token').fill('e2e-admin-token');
+  const login=page.waitForResponse(response=>response.url()===origin+'/api/admin/session'&&response.request().method()==='POST');
   await page.getByRole('button',{name:'Open dashboard',exact:true}).click();
+  expect((await login).status()).toBe(200);
   await expect(page.getByRole('navigation',{name:'Administration sections'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/hob-marketplace-admin-${width}.png`});
  });
 }
 
+
+});
 
 test('designer and admin credentials can be revealed and hidden without changing values', async ({ page }) => {
   await page.goto('/designers/room');
