@@ -1,3 +1,4 @@
+import CollectionPhoto from '../components/CollectionPhoto';
 import SocialBrandLink from '../components/SocialBrandLink';
 import {useEffect,useState} from 'react';
 import { Link } from 'react-router-dom';
@@ -43,12 +44,12 @@ export default function AtelierEminePage(){
       {pieces.length===0&&<p className="py-10 text-center">No pieces match your search. Try another name or material.</p>}
       <div className="grid items-start gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {pieces.map(piece=><article key={piece.sku} id={`preview-${piece.sku}`} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-          <div className="relative aspect-[4/5] bg-white"><img src={piece.images[0]} alt={`${piece.name} by Atelier Emine`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-contain"/><span className="absolute left-3 top-3 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold">Coming soon</span></div>
+          <div className="relative aspect-[4/5] bg-white"><CollectionPhoto sources={piece.images} alt={`${piece.name} by Atelier Emine`} className="h-full w-full bg-white object-contain"/><span className="absolute left-3 top-3 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold">Coming soon</span></div>
           <div className="p-3 sm:p-4"><h2 className="font-serif text-2xl">{piece.name}</h2><p className="mt-2 text-sm font-semibold tabular-nums">{money.format(piece.priceUsd)} USD</p><p className="mt-1 text-xs text-muted-foreground">Made to order · Collection preview</p>
             <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">Details &amp; photos</summary>
               <p className="mt-2 break-words text-xs text-muted-foreground">Model {piece.sku}</p><p className="mt-4 whitespace-pre-line break-words text-sm leading-6">{piece.description}</p>
               {piece.care&&<p className="mt-4 text-sm leading-6"><strong>Care:</strong> {piece.care}</p>}
-              <div className="mt-4 grid grid-cols-2 gap-2">{piece.images.map((url,index)=><a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${piece.name} photo ${index+1}`}><img src={url} alt={`${piece.name}, view ${index+1}`} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full bg-white object-contain"/></a>)}</div>
+              <div className="mt-4 grid grid-cols-2 gap-2">{piece.images.map((url,index)=><a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${piece.name} photo ${index+1}`}><CollectionPhoto sources={[url]} alt={`${piece.name}, view ${index+1}`} className="aspect-square w-full bg-white object-contain"/></a>)}</div>
               <p className="mt-3 text-xs leading-5 text-muted-foreground">Photos supplied by Atelier Emine. Open a photo to view it at full size.</p>
             </details>
           </div>
