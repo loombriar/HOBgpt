@@ -34,7 +34,8 @@ test('unavailable originals leave an honest placeholder without retrying forever
   const card = page.locator(`[id="preview-${piece.sku}"]`);
   await card.scrollIntoViewIfNeeded();
   await expect(card.getByRole('img', { name: `${piece.name} by Atelier Emine: photo unavailable`, exact: true })).toBeVisible();
-  await expect(card.locator('img')).toHaveCount(0);
+  // Closed detail thumbnails remain mounted and lazy; only the failed cover is replaced.
+  await expect(card.getByRole('img', { name: `${piece.name} by Atelier Emine`, exact: true })).toHaveCount(0);
   for (const source of new Set(piece.images)) expect(attempts.filter(url => url === source)).toHaveLength(1);
   await expect(card.getByRole('heading', { name: piece.name, exact: true })).toBeVisible();
 });
