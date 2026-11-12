@@ -11,13 +11,13 @@
   "theme_color": "#fbf7f2",
   "icons": [
     {
-      "src": "/icons/house-of-briar-192.png?v=thorn-7",
+      "src": "/icons/house-of-briar-192.png?v=thorn-20261112",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/house-of-briar-512.png?v=thorn-7",
+      "src": "/icons/house-of-briar-512.png?v=thorn-20261112",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
@@ -33,13 +33,27 @@
       "name": "Shop the Briar",
       "short_name": "Shop",
       "description": "Browse clothing from independent designers",
-      "url": "/#shop"
+      "url": "/#shop",
+      "icons": [
+        {
+          "src": "/icons/house-of-briar-192.png?v=thorn-20261112",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "The Creative House",
       "short_name": "Creative House",
       "description": "Explore creative profiles and collaboration opportunities",
-      "url": "/creative-house.html"
+      "url": "/creative-house.html",
+      "icons": [
+        {
+          "src": "/icons/house-of-briar-192.png?v=thorn-20261112",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
