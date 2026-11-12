@@ -16,7 +16,8 @@ test('failed cover advances to another original photo of the same product', asyn
   await page.getByRole('searchbox', { name: 'Search the collection' }).fill(piece.sku);
   const card = page.locator(`[id="preview-${piece.sku}"]`);
   const cover = card.getByRole('img', { name: `${piece.name} by Atelier Emine`, exact: true });
-  await cover.scrollIntoViewIfNeeded();
+  // The cover is replaced when its source fails; scroll its stable parent instead.
+  await card.scrollIntoViewIfNeeded();
   await expect(cover).toHaveAttribute('src', piece.images[1]);
   await expect.poll(() => cover.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   expect(attempts).toContain(piece.images[0]);
