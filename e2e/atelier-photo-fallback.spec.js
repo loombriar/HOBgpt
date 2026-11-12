@@ -24,9 +24,18 @@ test('failed cover advances to another original photo of the same product', asyn
 });
 
 test('unavailable originals leave an honest placeholder without retrying forever', async ({ page }) => {
-  const attempts = [];
+  // Network requests can include separate detail thumbnails. Track only the cover's
+  // error events to verify each source is attempted once by that component.
+  await page.addInitScript(alt => {
+    window.__coverFailures = [];
+    document.addEventListener('error', event => {
+      const image = event.target;
+      if (image instanceof HTMLImageElement && image.alt === alt) {
+        window.__coverFailures.push(image.currentSrc || image.src);
+      }
+    }, true);
+  }, `${piece.name} by Atelier Emine`);
   await page.route('https://www.atelieremine.com/**', route => {
-    attempts.push(route.request().url());
     return route.fulfill({ status: 403, body: 'Unavailable test fixture' });
   });
   await page.goto('/atelier-emine');
@@ -36,6 +45,6 @@ test('unavailable originals leave an honest placeholder without retrying forever
   await expect(card.getByRole('img', { name: `${piece.name} by Atelier Emine: photo unavailable`, exact: true })).toBeVisible();
   // Closed detail thumbnails remain mounted and lazy; only the failed cover is replaced.
   await expect(card.getByRole('img', { name: `${piece.name} by Atelier Emine`, exact: true })).toHaveCount(0);
-  for (const source of new Set(piece.images)) expect(attempts.filter(url => url === source)).toHaveLength(1);
+  expect(await page.evaluate(() => window.__coverFailures)).toEqual([...new Set(piece.images)]);
   await expect(card.getByRole('heading', { name: piece.name, exact: true })).toBeVisible();
 });
