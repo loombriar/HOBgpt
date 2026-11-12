@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const [paymentState, setPaymentState] = useState<'idle' | 'opening' | 'verifying' | 'paid' | 'cancelled' | 'failed'>(returnState === 'canceled' ? 'cancelled' : 'idle');
   const [receipt,setReceipt]=useState<BuyerOrder|null>(null);
   const [paymentError, setPaymentError] = useState('');
+  const [cartStorageWarning, setCartStorageWarning] = useState(false);
   const [giftNotes,setGiftNotes]=useState<Record<string,string>>({});
   const [promoInput,setPromoInput]=useState('');
   const [promoCodes,setPromoCodes]=useState<string[]>([]);
@@ -81,7 +82,8 @@ export default function CheckoutPage() {
     if (returnState !== 'canceled' || !canceledOrderId || !cancelToken) return;
     void cancelCheckoutOrder(canceledOrderId, cancelToken)
       .then(() => {
-        window.localStorage.removeItem(PENDING_KEY);
+        // Cancellation is confirmed by the server even if local cleanup is denied.
+        try { window.localStorage.removeItem(PENDING_KEY); } catch {}
         setPaymentState('cancelled');
         trackCommerceEvent({ event: 'checkout_abandoned', orderId: canceledOrderId, value: snapshot?.subtotal, currency: 'USD', itemCount: snapshot?.items.length });
       })
@@ -98,6 +100,7 @@ export default function CheckoutPage() {
     let active = true;
     setPaymentState('verifying');
     setPaymentError('');
+    setCartStorageWarning(false);
     void verifyCheckoutSession(sessionId)
       .then((result) => {
         if (!active) return;
@@ -113,8 +116,11 @@ export default function CheckoutPage() {
         // receipt so both entry points remove only the pieces actually bought.
         const purchasedIds = result.receipt?.items.map((item) => item.listingId) ?? snapshot?.ids ?? [];
         const remaining = readCartIds().filter((id) => !purchasedIds.includes(id));
-        window.localStorage.setItem(CART_KEY, JSON.stringify(remaining));
-        window.localStorage.removeItem(PENDING_KEY);
+        // Browser cleanup cannot undo a server-verified payment.
+        try {
+          window.localStorage.setItem(CART_KEY, JSON.stringify(remaining));
+          window.localStorage.removeItem(PENDING_KEY);
+        } catch { setCartStorageWarning(true); }
         setCartIds(remaining);
         window.dispatchEvent(new Event('house-of-briar-cart'));
       })
@@ -132,13 +138,19 @@ export default function CheckoutPage() {
     setPaymentError('');
     const checkoutItems: CheckoutItem[] = catalogItems.map(({ id, name, amount, quantity }) => ({ id, name, amount, quantity,giftNote:giftNotes[id]||undefined }));
     const nextSnapshot: CheckoutSnapshot = { ids: catalogItems.map((item) => item.id), items: catalogItems, subtotal };
-    window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
+    try {
+      window.localStorage.setItem(PENDING_KEY, JSON.stringify(nextSnapshot));
+    } catch {
+      setPaymentState('failed');
+      setPaymentError('Your browser could not save checkout details. Enable site storage and try again.');
+      return;
+    }
     trackCommerceEvent({ event: 'begin_checkout', value: subtotal, currency: 'USD', itemCount: catalogItems.length });
     try {
       const url = await createCheckoutSession(checkoutItems, auth.user?.access_token ?? '', promoCodes, quote?.totalBeforeTaxCents ?? undefined);
       window.location.assign(url);
     } catch (error) {
-      window.localStorage.removeItem(PENDING_KEY);
+      try { window.localStorage.removeItem(PENDING_KEY); } catch {}
       setPaymentState('failed');
       setPaymentError(error instanceof Error ? error.message : 'Secure checkout could not start.');
     }
@@ -166,7 +178,7 @@ export default function CheckoutPage() {
       {!loading && loadError && !paymentComplete && <div role="alert" className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{loadError} <button type="button" onClick={() => window.location.reload()} className="ml-2 underline underline-offset-4">Retry</button></div>}
       {emptyBag && <div className="mt-8 rounded-3xl border border-border bg-card p-8 text-center sm:p-12"><p className="font-serif text-3xl">Your cart is waiting for a piece.</p><Link to="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground">Explore the collection <ArrowRight size={16} /></Link></div>}
 
-      {paymentComplete && <section className="mt-8 rounded-3xl border border-primary/30 bg-card p-5 sm:p-8"><div role="status" className="mb-5"><BadgeCheck size={30} className="text-primary"/><h2 className="mt-3 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm text-muted-foreground">Your payment is verified. PDF patterns can be downloaded below. Physical pieces and paper patterns are prepared and shipped by their designers.</p></div>{receipt&&<BuyerOrderCard order={receipt}/>}<p className="mt-4 text-xs leading-6 text-muted-foreground">Keep this receipt page to check shipment updates later. Signed-in purchases also appear in your account. Guest orders stay private and are not linked to an account by email; use the order help link above if you need support.</p><div className="mt-4 flex flex-wrap gap-4"><Link to="/account#purchases" className="inline-flex min-h-11 items-center text-sm underline">My account &amp; orders</Link><Link to="/shop" className="inline-flex min-h-11 items-center text-sm underline">Continue shopping</Link></div>{!receipt&&<p className="mt-3 text-xs">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p>}</section>}
+      {paymentComplete && <section className="mt-8 rounded-3xl border border-primary/30 bg-card p-5 sm:p-8"><div role="status" className="mb-5"><BadgeCheck size={30} className="text-primary"/><h2 className="mt-3 font-serif text-3xl">Order confirmed</h2><p className="mt-2 text-sm text-muted-foreground">Your payment is verified. PDF patterns can be downloaded below. Physical pieces and paper patterns are prepared and shipped by their designers.</p></div>{cartStorageWarning&&<p role="alert" className="mb-5 text-sm">Payment confirmed, but this browser could not update your saved cart. Do not pay for these pieces again. Keep this receipt for your records.</p>}{receipt&&<BuyerOrderCard order={receipt}/>}<p className="mt-4 text-xs leading-6 text-muted-foreground">Keep this receipt page to check shipment updates later. Signed-in purchases also appear in your account. Guest orders stay private and are not linked to an account by email; use the order help link above if you need support.</p><div className="mt-4 flex flex-wrap gap-4"><Link to="/account#purchases" className="inline-flex min-h-11 items-center text-sm underline">My account &amp; orders</Link><Link to="/shop" className="inline-flex min-h-11 items-center text-sm underline">Continue shopping</Link></div>{!receipt&&<p className="mt-3 text-xs">Receipt reference: {sessionId?.slice(-8).toUpperCase()}</p>}</section>}
       {!loading && !loadError && hasItems && !paymentComplete && <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-7" aria-labelledby="delivery-heading">
