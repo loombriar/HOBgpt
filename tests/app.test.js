@@ -293,7 +293,13 @@ test('editorial storefront retains accessible native category filters and their 
   const taxonomyScript=await (await fetch(`${baseUrl}/house-taxonomy.js`)).text();assert.match(taxonomyScript,/Masculine/);
   assert.doesNotMatch(html, /data-filter-menu="designer"/);
   assert.doesNotMatch(html, /class="fashion-category-links"/);
-  assert.match(html, /href="\/shop\?category=menswear"/);
+  for (const presentation of ['menswear', 'womenswear', 'unisex']) {
+    const href = '/shop?category=apparel&presentation=' + presentation;
+    assert.ok(html.includes('href="' + href.replace('&', '&amp;') + '"'));
+    const params = new URL(href, baseUrl).searchParams;
+    assert.equal(params.get('category'), 'apparel');
+    assert.equal(params.get('presentation'), presentation);
+  }
   assert.match(html, /id="designers-wanted-title">Made by someone,/);
   assert.match(html, /Independent by design/);
   assert.doesNotMatch(html, /class="sewing-hero-art"/);
