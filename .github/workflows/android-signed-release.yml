@@ -1,6 +1,15 @@
 name: Android signed release (manual)
 on:
   workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Integer greater than every version code previously uploaded to Google Play'
+        required: true
+        type: string
+      version_name:
+        description: 'Public release version, for example 1.0.7'
+        required: true
+        type: string
 concurrency:
   group: android-signed-release
   cancel-in-progress: false
@@ -35,11 +44,16 @@ jobs:
         working-directory: mobile
       - name: Set Google Play release version
         working-directory: mobile
+        env:
+          RELEASE_VERSION_CODE: ${{ inputs.version_code }}
+          RELEASE_VERSION_NAME: ${{ inputs.version_name }}
         run: |
           set -euo pipefail
-          sed -i -E 's/versionCode [0-9]+/versionCode 6/; s/versionName "[^"]*"/versionName "1.0.6"/' android/app/build.gradle
-          grep -Eq 'versionCode 6\b' android/app/build.gradle
-          grep -Fq 'versionName "1.0.6"' android/app/build.gradle
+          [[ "$RELEASE_VERSION_CODE" =~ ^[1-9][0-9]{0,9}$ ]] && (( RELEASE_VERSION_CODE <= 2100000000 )) || { echo "Invalid version code." >&2; exit 1; }
+          [[ "$RELEASE_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version name must use major.minor.patch." >&2; exit 1; }
+          sed -i -E "s/versionCode [0-9]+/versionCode ${RELEASE_VERSION_CODE}/; s/versionName \"[^\"]*\"/versionName \"${RELEASE_VERSION_NAME}\"/" android/app/build.gradle
+          grep -Eq "versionCode ${RELEASE_VERSION_CODE}([[:space:]]|$)" android/app/build.gradle
+          grep -Fq "versionName \"${RELEASE_VERSION_NAME}\"" android/app/build.gradle
       - run: npx cap sync android && npm run android:verify
         working-directory: mobile
       - name: Configure signing from GitHub Actions secrets
