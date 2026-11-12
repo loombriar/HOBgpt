@@ -8,7 +8,8 @@ html body.blackberry-house :is(.page-shell,#top,#shop,#designer-modal,#creative-
 html body.blackberry-house #top>:is(section,.house-shopping-promises),
 html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero,
 html body.creative-makeover main>section,
-html body.creative-makeover main>.hero.briar-creative-hero.briar-text-hero{
+html body.creative-makeover main>.hero.briar-creative-hero.briar-text-hero,
+html body.creative-makeover .briar-text-hero .briar-creative-copy{
   background:var(--house-paper)!important;background-image:none!important;color:var(--house-ink)!important;
 }
 html body.blackberry-house .hero.sewing-hero.fashion-cover.briar-text-hero .fashion-cover-copy :is(h1,h1 em,p:not(.eyebrow),p.eyebrow),
