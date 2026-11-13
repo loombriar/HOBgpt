@@ -27,19 +27,22 @@ for (const query of [
   await page.goto('/');
   await page.evaluate(()=>navigator.serviceWorker.ready);
   await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
-  const target=new URL('/checkout'+query,page.url()).href;
+  const target=new URL('/privacy.html'+query,page.url()).href;
   await page.context().setOffline(true);
   try {
    await page.goto(target);
    await expect(page.getByText('check your confirmation before attempting another payment.',{exact:false})).toBeVisible();
    const retry=page.getByRole('link',{name:'Try again',exact:true});
    expect(await retry.evaluate(link=>link.href)).toBe(target);
-   // Serve a harmless confirmation fixture: this test never contacts a payment provider.
-   await page.route(target,route=>route.fulfill({contentType:'text/html',body:'<h1>Connection restored</h1>'}));
+   // Use the real static privacy document so the service worker performs an actual
+   // network retry without app scripts or payment-provider calls.
    await page.context().setOffline(false);
-   await retry.click();
+   await Promise.all([
+    page.waitForNavigation({waitUntil:'domcontentloaded'}),
+    retry.click(),
+   ]);
    await expect(page).toHaveURL(target);
-   await expect(page.getByRole('heading',{name:'Connection restored'})).toBeVisible();
+   await expect(page.getByRole('heading',{name:'Privacy Policy',exact:true})).toBeVisible();
   } finally { await page.context().setOffline(false); }
  });
 }
