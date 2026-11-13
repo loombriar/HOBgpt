@@ -29,8 +29,6 @@
     <link rel="apple-touch-icon" href="/icons/house-of-briar-192.png?v=thorn-20261112" />
     <link rel="stylesheet" href="/styles.css?v=house-editorial-20261104" />
     <script src="/script.js?v=atelier-gallery-20261030" defer></script>
-    <script src="/designer-spotlight-config.js" defer></script>
-    <script src="/designer-spotlight.js" defer></script>
     <script src="/admin-designer-spotlight.js" defer></script>
     <script src="/passkey-vendor.js" defer></script>
     <script src="/passkey-client.js" defer></script>
@@ -148,10 +146,9 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
       </header>
       <main id="top">
         
-<aside class="house-designer-ad" aria-label="Atelier Emine designer spotlight">
-  <a class="house-designer-ad-image" href="/atelier-emine" aria-label="Explore Atelier Emine’s collection preview"><img src="/atelier-emine-campaign-v1.webp" width="1143" height="569" alt="Atelier Emine campaign featuring a model holding a pink mother-of-pearl handbag" fetchpriority="high"></a>
-  <div class="house-designer-ad-caption"><span>Designer spotlight / Atelier Emine</span><a href="/atelier-emine">Explore the collection →</a><span>Purchasing coming soon</span></div>
-</aside>
+<aside id="house-fashion-campaign" aria-label="House of Briar fashion campaign" style="width:100%;border-bottom:1px solid #94794e">
+<img src="/atelier-emine-campaign-v1.webp" width="1143" height="569" alt="Fashion model holding a pink mother-of-pearl handbag" fetchpriority="high" style="display:block;width:100%;height:auto">
+<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px"><span>Independent by design</span><a href="/sell" style="display:inline-flex;align-items:center;min-height:44px;font-weight:700;text-decoration:underline">Join as a designer →</a></div></aside>
 <section id="student-benefit" aria-labelledby="student-benefit-title" style="padding:clamp(24px,5vw,48px);background:#202426;color:#f4e8d1;border-bottom:2px solid #d4b879">
           <div style="max-width:1100px;margin:auto">
             <p style="font:700 14px/1.5 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase">Student designer benefit</p>
@@ -168,26 +165,14 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
     <p class="eyebrow">INDEPENDENT BY DESIGN <span aria-hidden="true">/</span> THE FOUNDING EDIT</p>
     <h1>Made by someone,<br><em>not everyone.</em></h1>
     <p>Your next favorite starts here. Discover original clothing made by independent designers.</p>
-    <div class="sewing-hero-actions"><a class="primary-button" href="/atelier-emine">Shop the Runway <span aria-hidden="true">↗</span></a><a class="secondary-button" href="/designers/room#designer-signup">Join as a designer <span aria-hidden="true">↗</span></a></div>
-    <p class="sewing-hero-detail">Explore the collection preview. Purchasing coming soon.</p>
+    <div class="sewing-hero-actions"><a class="primary-button" href="/sell">Join as a designer <span aria-hidden="true">↗</span></a><a class="secondary-button" href="/designers">Discover designers <span aria-hidden="true">↗</span></a></div>
+    <p class="sewing-hero-detail">Independent fashion, emerging talent, and a place for every designer to grow.</p>
     <p>Not a designer, but love to sew? <a href="/?visitors=signup&amp;seamstress=signup">Sign up as a seamstress or tailor ↗</a> · <a href="/?visitors=signup&amp;seamstress=signin">Seamstress sign in ↗</a></p>
     <p class="fashion-cover-footnote">ORIGINAL CLOTHING. INDIVIDUAL POINTS OF VIEW.</p>
   </div>
 </section>
 <div class="house-shopping-promises" aria-label="Shopping with House of Briar"><span><b>01</b> Independent designers</span><span><b>02</b> Free US delivery</span><span><b>03</b> Checkout without an account</span></div>
-<section id="atelier-emine" class="atelier-emine-introduction" aria-labelledby="atelier-emine-title">
-  <div class="container atelier-emine-inner">
-    <div class="atelier-emine-logo"><img src="/atelier-emine-logo-v1.webp" width="1024" height="1024" alt="Atelier Emine" loading="lazy"></div>
-    <div class="atelier-emine-copy">
-      <p class="eyebrow">MEET AN INDEPENDENT DESIGN HOUSE / ISTANBUL, TÜRKIYE</p>
-      <h2 id="atelier-emine-title">Meet Atelier Emine</h2>
-      <p>Atelier Emine is an Istanbul-based design house creating handcrafted couture handbags inspired by a 65-year family craft heritage. Each piece is individually made using carefully selected materials, including crystals, mother-of-pearl, pearls, velvet, and wood.</p>
-      <p class="atelier-emine-status">Collection preview · Purchasing coming soon</p>
-      <p>Explore the collection preview. Pieces are not available to purchase yet.</p>
-      <div class="atelier-emine-links"><a href="/atelier-emine">Preview the collection →</a><a href="https://www.atelieremine.com" target="_blank" rel="noopener noreferrer">Visit Atelier Emine’s website ↗</a><a href="https://www.instagram.com/ateliereminedesign" target="_blank" rel="noopener noreferrer" aria-label="Instagram" title="Instagram"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" style="vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></svg></a></div>
-    </div>
-  </div>
-</section>
+
 <section id="shop" class="product-section">
           <div class="container">
             <div class="section-heading">
@@ -272,7 +257,7 @@ html[data-hob-theme="dark"] :is(a,button){color:inherit}
               </div>
             </div>
             <p id="shop-status" class="notice" role="status" aria-live="polite">Loading the latest pieces…</p>
-            <template id="atelier-gallery-preview"><aside class="house-shop-invitation" aria-labelledby="home-shop-invitation-title"><p class="eyebrow">DESIGNER SPOTLIGHT / ATELIER EMINE</p><h3 id="home-shop-invitation-title">The handbag edit</h3><p>Explore a selection of handcrafted statement bags by Atelier Emine. Discover the materials, details and individuality behind the collection. Browse all 88 approved designs; purchasing is coming soon.</p><div class="house-preview-pieces"><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE763"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/230/chatgpt-image-22-may-2026-19-08-06.png?revision=1779718617" alt="Lustre Pearl by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Lustre Pearl</strong><span>$202.59 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE762"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/229/chatgpt-image-22-may-2026-11-42-38.png?revision=1779717271" alt="Velis Mauve by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velis Mauve</strong><span>$405.18 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE760"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/227/chatgpt-image-22-may-2026-10-29-32.png?revision=1779716609" alt="Velis Ebony by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velis Ebony</strong><span>$405.18 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE758"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/225/chatgpt-image-22-may-2026-11-08-16.png?revision=1779723795" alt="Velis Vanilla by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velis Vanilla</strong><span>$405.18 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE756"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/223/chatgpt-image-22-may-2026-08-15-13.png?revision=1779717827" alt="Silva Luna by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Silva Luna</strong><span>$405.18 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE755"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/222/chatgpt-image-22-may-2026-08-21-36.png?revision=1779717960" alt="Silva Walnut by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Silva Walnut</strong><span>$405.18 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE751"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/218/asdsadsa.jpeg?revision=1779722335" alt="Velora Velmira by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Velora Velmira</strong><span>$303.89 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE747"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/214/chatgpt-image-21-may-2026-16-03-10.png?revision=1779722527" alt="Panna Beige by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Panna Beige</strong><span>$202.59 USD · Coming soon</span></a><a class="house-preview-piece" href="/atelier-emine#preview-ATELIEREMINE743"><img src="https://www.atelieremine.com/idea/rh/24/myassets/products/210/chatgpt-image-21-may-2026-15-32-00.png?revision=1779722844" alt="Panna Deep by Atelier Emine" loading="lazy" referrerpolicy="no-referrer"><strong>Panna Deep</strong><span>$202.59 USD · Coming soon</span></a></div><div class="house-shop-invitation-actions"><a class="primary-button" href="/atelier-emine">View all 88 bags →</a></div></aside></template>
+            <template id="atelier-gallery-preview" data-marketplace="true"><aside class="house-shop-invitation" aria-labelledby="home-shop-invitation-title"><p class="eyebrow">INDEPENDENT FASHION</p><h3 id="home-shop-invitation-title">The House is getting dressed.</h3><p>Bring your original collection to House of Briar. Designer signup is free, with no listing fees.</p><div class="house-shop-invitation-actions"><a class="primary-button" href="/sell">Join as a designer →</a></div></aside></template>
             <div id="product-grid" class="product-grid" aria-label="Shopping gallery"></div>
           </div>
         </section>
