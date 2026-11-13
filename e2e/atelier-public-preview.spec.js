@@ -25,12 +25,14 @@ for(const width of [320,1280])test(`approved Atelier Emine preview is searchable
   }
 });
 
-test('empty shopping galleries show the approved bags',async({page})=>{
+test('empty homepage invites designers while the standalone collection stays display-only',async({page})=>{
   await page.route('**/api/gallery**',route=>route.fulfill({json:{items:[]}}));
   await page.goto('/#shop');
-  await expect(page.locator('#product-grid .house-preview-piece')).toHaveCount(9);
-  await expect(page.getByText('The House is getting dressed',{exact:true})).toHaveCount(0);
-  await expect(page.getByRole('link',{name:'View all 88 bags →',exact:true})).toBeVisible();
+  await expect(page.locator('#product-grid .house-preview-piece')).toHaveCount(0);
+  const invitation=page.locator('#product-grid .house-shop-invitation');
+  await expect(invitation.getByRole('heading',{name:'The House is getting dressed.',exact:true})).toBeVisible();
+  await expect(invitation.getByRole('link',{name:'Join as a designer →',exact:true})).toHaveAttribute('href','/sell');
+  await expect(page.getByRole('link',{name:'View all 88 bags →',exact:true})).toHaveCount(0);
   await page.goto('/shop');
   await expect(page.getByRole('article')).toHaveCount(88);
   await expect(page.getByRole('button',{name:/add to (cart|suitcase)|buy now/i})).toHaveCount(0);
