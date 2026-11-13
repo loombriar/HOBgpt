@@ -1,3 +1,4 @@
+import { applyFabricSuggestions } from '@/lib/fabric-listing-suggestions';
 import CollectionPdfIntake from '@/components/CollectionPdfIntake';
 import StudioListingPhotos from '@/components/StudioListingPhotos';
 import ListingSteps, { ListingStep } from '@/components/ListingSteps';
@@ -165,7 +166,18 @@ function StudioContent() {
   const sellerToken = auth.isAuthenticated ? '__house_session__' : '';
   const filteredProducts=products.filter(product=>listingFilter==='All'||product.studioStatus===listingFilter);
   const identifyFabric=async()=>{if(!fabricPhotos.length){setFabricMessage('Take or upload at least one fabric photo.');return;}setFabricFinding(true);setFabricMessage('Examining the fabric…');setFabricResult(null);try{const form=new FormData();fabricPhotos.slice(0,3).forEach(file=>form.append('photos',file));const r=await fetch('/api/my/fabric-finder',{method:'POST',credentials:'same-origin',body:form});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error?.message||'Fabric could not be identified.');setFabricResult(d);setFabricMessage('Visual fabric estimate ready.');}catch(e){setFabricMessage(e instanceof Error?e.message:'Fabric could not be identified.');}finally{setFabricFinding(false);}};
-  const useFabricInListing=()=>{const a=fabricResult?.analysis;if(!a)return;const material=a.listingMaterialSuggestion||a.fabricFamily||'';const care=Array.isArray(a.careConsiderations)?a.careConsiderations.join('; '):'';const addition=[material&&('Material: '+material),care&&('Suggested care: '+care)].filter(Boolean).join('\n');if(addition)setDescription(v=>v.includes(addition)?v:[v,addition].filter(Boolean).join('\n\n'));};
+  const useFabricInListing=()=>{
+    const next=applyFabricSuggestions({materials,careInstructions},fabricResult?.analysis);
+    const changed=next.materials!==materials||next.careInstructions!==careInstructions;
+    setMaterials(next.materials);
+    setCareInstructions(next.careInstructions);
+    const notice=changed
+      ? 'Fabric suggestions added to empty Materials and Care instructions fields. Verify the garment label; existing text was kept.'
+      : 'No fields changed. Existing Materials and Care instructions were kept; empty fields need usable fabric suggestions.';
+    setFabricMessage(notice);
+    setMessage(notice);
+    setListingStep(2);
+  };
   const refreshSellerSettings=async()=>{if(!sellerToken)return;try{const r=await fetch('/api/my/seller-settings',{credentials:'same-origin'});const d=await r.json().catch(()=>({}));if(r.ok)setSellerSettings({vacationMode:Boolean(d.vacationMode),vacationMessage:d.vacationMessage||'',vacationReturnAt:d.vacationReturnAt||'',promos:d.promos||[]});}catch{}};
   const saveSellerSettings=async()=>{setSellerSettingsMessage('Saving…');try{const r=await fetch('/api/my/seller-settings',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(sellerSettings)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error?.message||'Settings could not be saved.');setSellerSettings(v=>({...v,...d}));setSellerSettingsMessage('Shop availability updated.');}catch(e){setSellerSettingsMessage(e instanceof Error?e.message:'Settings could not be saved.');}};
   const createPromo=async(e:FormEvent)=>{e.preventDefault();setSellerSettingsMessage('');try{const r=await fetch('/api/my/promo-codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...promoDraft,discountValue:Number(promoDraft.discountValue),maxUses:promoDraft.maxUses?Number(promoDraft.maxUses):null})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error?.message||'Promo could not be created.');setPromoDraft({code:'',discountType:'percent',discountValue:'',maxUses:''});await refreshSellerSettings();setSellerSettingsMessage('Promo code created.');}catch(e){setSellerSettingsMessage(e instanceof Error?e.message:'Promo could not be created.');}};
