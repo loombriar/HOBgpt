@@ -23,6 +23,9 @@ for(const react of [false,true])for(const width of [320,1280]){
   expect(await campaign.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#outfit-studio-home'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
   const student=page.locator(react?'section[aria-labelledby="student-commission-heading"]':'#student-benefit');
   await expect(student).toContainText('permanent 5%');
+  expect(await student.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#outfit-studio-home'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  const support=page.getByRole('heading',{name:react?'Help the briar keep growing.':'Help independent fashion grow',exact:true});
+  expect(await studio.evaluate((el,text)=>Boolean(el.compareDocumentPosition([...document.querySelectorAll('h2')].find(h=>h.textContent===text))&Node.DOCUMENT_POSITION_FOLLOWING),await support.textContent())).toBe(true);
   await expect(student.locator('a')).toHaveAttribute('href','/founding-schools');
   expect(await campaign.evaluate((el,selector)=>Boolean(el.compareDocumentPosition(document.querySelector(selector))&Node.DOCUMENT_POSITION_FOLLOWING),react?'section[aria-labelledby="student-commission-heading"]':'#student-benefit')).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
