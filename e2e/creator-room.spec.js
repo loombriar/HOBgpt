@@ -41,5 +41,9 @@ for(const [look,template,neckline,length] of [['everyday','A-line','Scoop','Midi
 test('Unknown homepage starter is ignored safely',async({page})=>{
  await page.goto('/design-projects.html?look=unknown#creator-room');
  await expect(page.locator('#creator-template')).toHaveValue('A-line');
+ await expect(page.locator('#creator-3d-canvas')).toBeVisible();
+ await expect(page.locator('#creator-3d-status')).toContainText('a-line');
+ await page.getByRole('button',{name:'Show editable sketch',exact:true}).click();
  await expect(page.locator('#creator-preview')).toBeVisible();
+ await expect(page.locator('#creator-preview-description')).toContainText('A-line');
 });
