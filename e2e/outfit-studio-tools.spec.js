@@ -7,3 +7,35 @@ for(const width of [390,1280])test(`outfit templates, prints and local download 
  await page.getByRole('button',{name:'Add this template to my brief',exact:true}).click();await expect(page.locator('#project-details')).toHaveValue(/Template design: Jumpsuit/);await expect(page.locator('#project-details')).toHaveValue(/Bottom color: #775166/);await expect(page.locator('#project-details')).toHaveValue(/Print: Polka dots/);await page.locator('#creator-include-preview').check();await page.getByLabel('Bottom color',{exact:true}).fill('#b7d9cc');await expect(page.locator('#creator-include-preview')).toBeDisabled();
  await chooser.getByRole('button',{name:'Top & trousers',exact:true}).click();await expect(page.locator('#creator-preview-description')).toContainText('Top & trousers');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.locator('#creator-room').screenshot({path:`/tmp/hob-outfit-next-${width}.png`});
 });
+
+for(const width of [390,1280])test(`outfit summary, color swap and reversible reset work at ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.goto('/design-projects.html?look=evening#creator-room');
+ await expect(page.locator('#creator-look-summary')).toContainText('Fitted · V-neck · Sleeveless · Maxi');
+ await page.getByLabel('Fabric name and notes',{exact:true}).fill('Keep this cotton twill');
+ const avatar=await require('sharp')({create:{width:90,height:160,channels:4,background:'#dd8666'}}).png().toBuffer();
+ await page.getByLabel('Upload your avatar image',{exact:true}).setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:avatar});
+ await expect(page.locator('#creator-avatar-status')).toContainText('Avatar added locally');
+ await page.getByRole('button',{name:'Jade & cream',exact:true}).click();
+ await page.getByRole('button',{name:'Add this template to my brief',exact:true}).click();await page.locator('#creator-include-preview').check();
+ await page.getByRole('button',{name:'Swap top and bottom colors',exact:true}).click();
+ await expect(page.getByLabel('Top / main color',{exact:true})).toHaveValue('#efe3ce');
+ await expect(page.getByLabel('Bottom color',{exact:true})).toHaveValue('#216650');
+ await expect(page.locator('#creator-summary-top')).toHaveText('Top / main: #efe3ce');
+ await expect(page.locator('#creator-include-preview')).toBeDisabled();
+ await page.getByRole('button',{name:'Undo',exact:true}).click();
+ await expect(page.getByLabel('Top / main color',{exact:true})).toHaveValue('#216650');
+ await expect(page.locator('#creator-summary-bottom')).toHaveText('Bottom: #efe3ce');
+ await page.getByRole('button',{name:'Reset outfit',exact:true}).click();
+ await expect(page.getByLabel('Dress or outfit template',{exact:true})).toHaveValue('A-line');
+ await expect(page.getByLabel('Fabric name and notes',{exact:true})).toHaveValue('Keep this cotton twill');
+ await expect(page.locator('#creator-preview image[data-avatar-reference]')).toHaveCount(1);
+ await expect(page.locator('#creator-include-preview')).not.toBeChecked();
+ await page.getByRole('button',{name:'Undo',exact:true}).click();
+ await expect(page.getByLabel('Dress or outfit template',{exact:true})).toHaveValue('Fitted');
+ await expect(page.getByLabel('Top / main color',{exact:true})).toHaveValue('#216650');
+ await expect(page.locator('#creator-look-summary')).toContainText('Fitted');
+ await page.getByRole('navigation',{name:'Outfit studio sections'}).getByRole('link',{name:'See your outfit ↓',exact:true}).click();
+ await expect(page).toHaveURL(/#creator-live-preview$/);
+ await expect(page.getByRole('heading',{name:'Your outfit at a glance',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
