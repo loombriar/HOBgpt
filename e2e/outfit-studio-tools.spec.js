@@ -39,3 +39,53 @@ for(const width of [390,1280])test(`outfit summary, color swap and reversible re
  await expect(page.getByRole('heading',{name:'Your outfit at a glance',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+for(const width of [390,1280])test(`compare looks locally and restore them safely at ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});let posts=0;page.on('request',r=>{if(r.method()==='POST')posts++;});
+ await page.goto('/design-projects.html?look=evening#creator-room');
+ await page.getByLabel('Fabric name and notes',{exact:true}).fill('Pinned silk reference');
+ const avatar=await require('sharp')({create:{width:90,height:160,channels:4,background:'#dd8666'}}).png().toBuffer();
+ await page.getByLabel('Upload your avatar image',{exact:true}).setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:avatar});
+ await expect(page.locator('#creator-avatar-status')).toContainText('Avatar added locally');
+ await page.getByRole('button',{name:'Pin this look for comparison',exact:true}).click();
+ await expect(page.locator('#creator-comparison')).toBeVisible();
+ await expect(page.locator('#creator-pinned-summary')).toContainText('Fitted');
+ await expect.poll(()=>page.locator('#creator-pinned-image').evaluate(el=>el.complete&&el.naturalWidth===600)).toBe(true);
+ await page.getByRole('button',{name:'Remove avatar',exact:true}).click();
+ await page.getByLabel('Dress or outfit template',{exact:true}).selectOption('Jumpsuit');
+ await page.getByLabel('Fabric name and notes',{exact:true}).fill('Current cotton reference');
+ await page.getByRole('button',{name:'Compare current look',exact:true}).click();
+ await expect(page.locator('#creator-current-summary')).toContainText('Jumpsuit');
+ await expect.poll(()=>page.locator('#creator-current-image').evaluate(el=>el.complete&&el.naturalWidth===600)).toBe(true);
+ await expect(page.locator('#creator-pinned-summary')).toContainText('Fitted');
+ await page.getByRole('button',{name:'Add this template to my brief',exact:true}).click();await page.locator('#creator-include-preview').check();
+ await page.getByRole('button',{name:'Use pinned look',exact:true}).click();
+ await expect(page.getByLabel('Dress or outfit template',{exact:true})).toHaveValue('Fitted');
+ await expect(page.getByLabel('Fabric name and notes',{exact:true})).toHaveValue('Pinned silk reference');
+ await expect(page.locator('#creator-preview image[data-avatar-reference]')).toHaveCount(1);
+ await expect(page.locator('#creator-include-preview')).not.toBeChecked();
+ await expect(page.locator('#creator-current-image')).toBeHidden();
+ await page.getByRole('button',{name:'Undo',exact:true}).click();
+ await expect(page.getByLabel('Dress or outfit template',{exact:true})).toHaveValue('Jumpsuit');
+ await expect(page.getByLabel('Fabric name and notes',{exact:true})).toHaveValue('Current cotton reference');
+ await expect(page.locator('#creator-preview image[data-avatar-reference]')).toHaveCount(0);
+ await page.getByRole('button',{name:'Clear comparison',exact:true}).click();
+ await expect(page.locator('#creator-comparison')).toBeHidden();
+ await expect(page.getByRole('button',{name:'Compare current look',exact:true})).toBeDisabled();
+ await expect(page.getByLabel('Dress or outfit template',{exact:true})).toHaveValue('Jumpsuit');
+ expect(posts).toBe(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.reload();await expect(page.locator('#creator-comparison')).toBeHidden();
+});
+
+test('download written brief locally and reject unsafe fabric URLs',async({page})=>{
+ let posts=0;page.on('request',r=>{if(r.method()==='POST')posts++;});await page.goto('/design-projects.html?look=evening');
+ await page.getByLabel('Fabric name and notes',{exact:true}).fill('Silk twill, confirm yardage');
+ await page.getByLabel('Fabric product link',{exact:true}).fill('https://example.com/fabric');
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download design brief',exact:true}).click();
+ const download=await pending;expect(download.suggestedFilename()).toBe('house-of-briar-design-brief.txt');
+ const text=require('node:fs').readFileSync(await download.path(),'utf8');
+ expect(text).toContain('Template design: Fitted');expect(text).toContain('Silk twill, confirm yardage');expect(text).toContain('https://example.com/fabric');expect(text).toContain('not a sewing pattern');
+ await page.getByLabel('Fabric product link',{exact:true}).fill('javascript:alert(1)');
+ let downloads=0;page.on('download',()=>downloads++);await page.getByRole('button',{name:'Download design brief',exact:true}).click();
+ await expect(page.locator('#creator-status')).toContainText('secure https://');expect(downloads).toBe(0);expect(posts).toBe(0);
+});
