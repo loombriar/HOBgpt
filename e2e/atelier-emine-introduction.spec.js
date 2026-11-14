@@ -12,6 +12,15 @@ for(const react of [false,true])for(const width of [320,1280]){
   await expect(campaign.getByRole('link',{name:'Join as a designer →',exact:true})).toHaveAttribute('href','/sell');
   await expect(page.locator('#atelier-emine')).toHaveCount(0);
   await expect(page.locator('main a[href^="/atelier-emine"]')).toHaveCount(0);
+  const studio=page.locator('#outfit-studio-home');
+  await expect(studio.getByRole('heading',{name:'Create an outfit.',exact:true})).toBeVisible();
+  await expect(studio.getByRole('link',{name:'Open the outfit studio ↗',exact:true})).toHaveAttribute('href','/design-projects.html#creator-room');
+  await expect(studio.getByRole('group',{name:'Start an outfit'}).getByRole('link')).toHaveCount(3);
+  for(const image of await studio.getByRole('img').all()) {
+   await image.scrollIntoViewIfNeeded();
+   await expect.poll(()=>image.evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
+  }
+  expect(await campaign.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#outfit-studio-home'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
   const student=page.locator(react?'section[aria-labelledby="student-commission-heading"]':'#student-benefit');
   await expect(student).toContainText('permanent 5%');
   await expect(student.locator('a')).toHaveAttribute('href','/founding-schools');
