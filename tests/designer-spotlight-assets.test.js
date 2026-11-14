@@ -11,12 +11,16 @@ const scripts = [
   'admin-designer-spotlight.js'
 ];
 
-test('homepage spotlight scripts exist and have explicit root asset routes', () => {
+test('spotlight assets remain available while public homepage promotions are paused', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   for (const script of scripts) {
     assert.ok(fs.statSync(path.join(root, script)).isFile(), script + ' is missing');
-    assert.ok(html.includes('src="/' + script + '"'), script + ' is not referenced by the homepage');
+    if (script === 'admin-designer-spotlight.js') {
+      assert.ok(html.includes('src="/' + script + '"'), 'Admin spotlight editor must remain available');
+    } else {
+      assert.ok(!html.includes('src="/' + script + '"'), 'Paused promotion must not be restored by ' + script);
+    }
     assert.ok(server.includes("'" + script + "'"), script + ' is not registered for serving');
   }
   assert.match(server, /app\.get\('\/' \+ asset, \(_req, res\) =>/);

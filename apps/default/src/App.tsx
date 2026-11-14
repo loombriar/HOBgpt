@@ -10,6 +10,7 @@ const AtelierEminePage = lazy(() => import('@/pages/AtelierEminePage'));
 const ShopPage = lazy(() => import('@/pages/ShopPage'));
 const ProductPage = lazy(() => import('@/pages/ProductPage'));
 const DesignerStorefrontPage = lazy(() => import('@/pages/DesignerStorefrontPage'));
+const SchoolsPage = lazy(() => import('@/pages/SchoolsPage'));
 const DesignersPage = lazy(() => import('@/pages/DesignersPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/shop" element={<Section name="Shop"><ShopPage /></Section>} />
       <Route path="/atelier-emine" element={<Section name="Atelier Emine collection preview"><AtelierEminePage /></Section>} />
       <Route path="/shop/:productId" element={<Section name="Product"><ProductPage /></Section>} />
+      <Route path="/schools" element={<Section name="Fashion schools"><SchoolsPage /></Section>} />
       <Route path="/designers" element={<Section name="Designers"><DesignersPage /></Section>} />
       <Route path="/designers/:designerId" element={<Section name="Designer storefront"><DesignerStorefrontPage /></Section>} />
       <Route path="/account" element={<Section name="Your studio"><AccountPage /></Section>} />

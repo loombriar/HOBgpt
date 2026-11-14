@@ -16,6 +16,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { applyShipping } = require('./shipping');
 const creatorCommissions = require('./lib/creator-commissions');
+const {registerSchoolDirectory} = require('./lib/school-directory');
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -3217,13 +3218,15 @@ function createApp(options = {}) {
     return res.status(404).json({error:{code:'not_found',message:'Not found.'}});
   });
 
+  const {publicSchool} = registerSchoolDirectory({app,db,authDesigner,fail});
+
   app.get('/api/designers', (_req,res)=>{
     const rows=db.prepare("SELECT id,display_name,brand_name,bio,portrait_storage_key FROM designer_profiles WHERE status='active' ORDER BY COALESCE(brand_name,display_name)").all();
     return res.json({designers:rows.map(d=>{
       const pieces=db.prepare('SELECT * FROM listings WHERE designer_id=?').all(d.id).filter(customerListingVisible);
       const sold=pieces.filter(row=>listingInventory(row).soldQuantity>0);
       const available=pieces.filter(row=>listingInventory(row).availableQuantity===null || listingInventory(row).availableQuantity>0);
-      return {id:d.id,...sewingServices.designerServices(d.id),displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:pieces.length,soldCount:sold.length,availableCount:available.length};
+      return {id:d.id,schoolName:publicSchool(d.id),...sewingServices.designerServices(d.id),displayName:d.display_name,brandName:d.brand_name,bio:d.bio||'',portraitUrl:d.portrait_storage_key?`/media/designers/${encodeURIComponent(d.id)}/portrait`:null,pieceCount:pieces.length,soldCount:sold.length,availableCount:available.length};
     })});
   });
 
@@ -3246,7 +3249,7 @@ function createApp(options = {}) {
     const items=rows.filter(customerListingVisible).map(row=>serializeListing(row,'public'));
     const currentItems=items.filter(item=>item.availableQuantity===null||item.availableQuantity>0);
     const soldItems=items.filter(item=>item.soldQuantity>0);
-    return res.json({designer:{id:designer.id,...sewingServices.designerServices(designer.id),displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
+    return res.json({designer:{id:designer.id,schoolName:publicSchool(designer.id),...sewingServices.designerServices(designer.id),displayName:designer.display_name,brandName:designer.brand_name,bio:designer.bio||'',location:designer.location||'',productionMethod:designer.production_method||'',categories:Array.isArray(categories)?categories:[],portfolioUrl:designer.portfolio_url||null,socialUrl:designer.social_url||null,socialLinks:(()=>{try{const links=JSON.parse(designer.social_links||'{}');return Object.fromEntries(Object.entries(links).filter(([,entry])=>entry&&typeof entry==='object'&&entry.visible!==false))}catch{return{}}})(),portraitUrl:designer.portrait_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/portrait`:null,logoUrl:designer.logo_storage_key?`/media/designers/${encodeURIComponent(designer.id)}/logo`:null,totalLikes:Number(likes),badges,soldCount:soldItems.reduce((sum,item)=>sum+item.soldQuantity,0),currentListingCount:currentItems.length},items,currentItems,soldItems});
   });
 
   app.post('/api/my/designer-profile/portrait', authDesigner, imageUploadLimiter, upload.single('image'), async (req,res,next)=>{

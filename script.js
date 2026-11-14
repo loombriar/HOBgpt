@@ -580,7 +580,7 @@ function renderGallery() {
     const preview=byId('atelier-gallery-preview');
     if(preview)productGrid.append(preview.content.cloneNode(true));
     if(items.length){const collection=makeElement('h3','house-founding-collection','The Founder’s Collection');productGrid.append(collection);}
-    else{if(shopStatus)setMessage(shopStatus,'88 bags to preview · Purchasing coming soon.','');return;}
+    else{if(shopStatus)setMessage(shopStatus,preview?.dataset.marketplace==='true'?'The House is getting dressed. Join as a designer to share your collection.':'88 bags to preview · Purchasing coming soon.','');return;}
   }
   if (!items.length) {
     productGrid.appendChild(makeElement('p','empty-gallery','No pieces match these filters yet. Try another search or clear your filters.'));

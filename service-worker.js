@@ -1,4 +1,4 @@
-const CACHE_NAME = 'house-of-briar-shell-v3';
+const CACHE_NAME = 'house-of-briar-shell-v4';
 const OFFLINE_URL = '/offline.html';
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.add(OFFLINE_URL)));
