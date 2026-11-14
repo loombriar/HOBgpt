@@ -28,3 +28,18 @@ for(const width of [390,1280])test(`Outfit studio starter looks work at ${width}
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#creator-room').screenshot({path:`/tmp/hob-studio-${width}.png`});
 });
+for(const [look,template,neckline,length] of [['everyday','A-line','Scoop','Midi'],['evening','Fitted','V-neck','Maxi'],['separates','Top & skirt','Square','Mini']])test(`Homepage starter opens editable ${look} look`,async({page})=>{
+ await page.goto(`/design-projects.html?look=${look}#creator-room`);
+ await expect(page.locator('#creator-template')).toHaveValue(template);
+ await expect(page.locator('#creator-neckline')).toHaveValue(neckline);
+ await expect(page.locator('#creator-length')).toHaveValue(length);
+ await expect(page.locator('#creator-status')).toContainText('loaded');
+ await page.getByLabel('Length',{exact:true}).selectOption('Midi');
+ await expect(page.locator('#creator-preview-description')).toContainText('midi length');
+ expect(await page.locator('#creator-room .creator-builder>figure').evaluate(el=>getComputedStyle(el).overflowY)).toBe('visible');
+});
+test('Unknown homepage starter is ignored safely',async({page})=>{
+ await page.goto('/design-projects.html?look=unknown#creator-room');
+ await expect(page.locator('#creator-template')).toHaveValue('A-line');
+ await expect(page.locator('#creator-preview')).toBeVisible();
+});

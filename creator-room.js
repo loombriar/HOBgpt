@@ -273,5 +273,10 @@
   catch(error){if(attempt===conceptVersion)status.textContent=timedOut?'The preview took too long. Your sketch is unchanged; try again later.':error.message;}
   finally{clearTimeout(timer);if(conceptController===controller)conceptController=null;button.disabled=false;if(attempt===conceptVersion)$('creator-concept-cancel').hidden=true;}
  });
+ // Homepage starters accept only known looks and use the same editor/history path.
+ const requestedLook=new URLSearchParams(window.location.search).get('look');
+ if(Object.prototype.hasOwnProperty.call(looks,requestedLook)) {
+  root.querySelector(`[data-creator-look="${requestedLook}"]`)?.click();
+ }
  form.addEventListener('reset',()=>{invalidateConcept();active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;});render();checkpoint();
 })();
