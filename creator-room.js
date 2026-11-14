@@ -47,21 +47,25 @@
 
  let active=false;
  function values(){return {template:$('creator-template').value,waistDetail:$('creator-waist-detail').value,fabricFinish:$('creator-fabric-finish').value,topStyle:$('creator-top-style').value,bottomStyle:$('creator-bottom-style').value,accessory:$('creator-accessory').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value,secondary:$('creator-secondary-color').value,print:$('creator-print').value,printScale:Number($('creator-print-scale').value)};}
- function render(){
+ function render(v=values(),svg=$('creator-preview'),thumbnail=false){
+  if(!thumbnail){
   comparisonEpoch++;
   if(currentCompareUrl){URL.revokeObjectURL(currentCompareUrl);currentCompareUrl='';$('creator-current-image').removeAttribute('src');$('creator-current-image').hidden=true;$('creator-current-summary').textContent='Design changed. Select Compare current look to update this snapshot.';}
   invalidateConcept();
-  const v=values(),pos=position(),svg=$('creator-preview');
+  }
+  const pos=thumbnail?{x:0,y:0,scale:1,opacity:1}:position();
+  if(!thumbnail){
   $('creator-look-summary').textContent=`${v.template} · ${v.neckline} · ${v.sleeves==='Sleeveless'?'Sleeveless':v.sleeves+' sleeves'} · ${v.length}. ${v.print==='Solid'?'Solid color':v.print} · ${v.fabricFinish.toLowerCase()} fabric appearance. Waist: ${v.waistDetail.toLowerCase()}. Accessory: ${v.accessory.toLowerCase()}.`;
   $('creator-summary-top').textContent=`Top / main: ${v.color}`;
   $('creator-summary-bottom').textContent=`Bottom: ${v.secondary}`;
   $('creator-summary-top-chip').style.backgroundColor=v.color;
   $('creator-summary-bottom-chip').style.backgroundColor=v.secondary;
+  }
   svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
   const add=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));parent.append(n);return n;};
   add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-studio-paper)'});
   add('path',{d:'M22 32 H42 M22 32 V52 M278 32 H258 M278 32 V52 M22 390 H42 M22 390 V370 M278 390 H258 M278 390 V370',stroke:'#c9c1b4','stroke-width':.5,fill:'none'});
-  if(avatarData)add('image',{href:avatarData,x:0,y:0,width:300,height:400,preserveAspectRatio:'xMidYMid meet','data-avatar-reference':'true'});
+  if(avatarData&&!thumbnail)add('image',{href:avatarData,x:0,y:0,width:300,height:400,preserveAspectRatio:'xMidYMid meet','data-avatar-reference':'true'});
   const height=v.length==='Mini'?.4:v.length==='Midi'?.72:1;
   const shapeForLength=d=>d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g,(_,x,y)=>x+' '+(Number(y)>195?195+(Number(y)-195)*height:y));
   const separated=v.template.startsWith('Top &');
@@ -98,7 +102,7 @@
   const fill=(id,color)=>{if(v.print==='Solid')return color;const pattern=add('pattern',{id,width:v.printScale,height:v.printScale,patternUnits:'userSpaceOnUse'},defs);add('rect',{width:v.printScale,height:v.printScale,fill:color},pattern);if(v.print==='Polka dots')add('circle',{cx:v.printScale/2,cy:v.printScale/2,r:v.printScale/6,fill:'#292722','fill-opacity':.45},pattern);else add('path',{d:`M0 0 L0 ${v.printScale}`,'stroke-width':v.printScale/3,stroke:'#292722','stroke-opacity':.4},pattern);return `url(#${id})`;};
   const topFill=fill('creator-top-print',v.color),bottomFill=fill('creator-bottom-print',v.secondary);
   const clip=add('clipPath',{id:'creator-bottom-clip'},defs);add('rect',{x:0,y:195,width:300,height:235},clip);
-  if(!avatarData)add('path',{d:silhouette,fill:'#302638','fill-opacity':.2,transform:'translate(3 6)',filter:'url(#creator-soft-shadow)','data-garment-shadow':'true'},group);
+  if(!avatarData||thumbnail)add('path',{d:silhouette,fill:'#302638','fill-opacity':.2,transform:'translate(3 6)',filter:'url(#creator-soft-shadow)','data-garment-shadow':'true'},group);
   const garment=add('g',{mask:'url(#creator-garment-cutouts)'},group);
   if(separated){
    const split=variants[v.template].indexOf(' Z')+2,top=variants[v.template].slice(0,split),bottom=variants[v.template].slice(split);
@@ -229,17 +233,24 @@
   add('path',{d:neckline,fill:'none',stroke:'#39333a','stroke-width':.85,'stroke-linecap':'round'},group);
   const viewLabel=add('text',{x:150,y:30,'text-anchor':'middle',fill:'#746d61','font-size':9,'font-family':'sans-serif','letter-spacing':1.5});viewLabel.textContent='FRONT · TECHNICAL SKETCH';
   const title=add('text',{x:150,y:418,'text-anchor':'middle',fill:'#292722','font-size':13,'font-family':'Georgia,serif','letter-spacing':'.5'});title.textContent=v.template+' · '+v.length;
+  if(thumbnail)return;
   for(const id of ['creator-top-style','creator-bottom-style'])$(id).disabled=!separated;
   $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} ${separated?v.topStyle.toLowerCase()+' top and '+v.bottomStyle.toLowerCase()+' bottom. ':''}${v.fabricFinish.toLowerCase()} appearance; ${v.waistDetail.toLowerCase()}; ${v.accessory.toLowerCase()} accessory. Technical concept sketch; confirm construction and measurements with your maker.`;
   for(const button of root.querySelectorAll('.creator-palette'))button.setAttribute('aria-pressed',String(button.dataset.top===v.color&&button.dataset.bottom===v.secondary));
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
+  // Render cards with the same geometry, colors and details as the editable sketch.
+  for(const button of root.querySelectorAll('[data-creator-template]')){
+   const preview=document.createElementNS(ns,'svg');preview.setAttribute('xmlns',ns);preview.setAttribute('viewBox','0 0 300 430');
+   render({...v,template:button.dataset.creatorTemplate},preview,true);
+   button.querySelector('img').src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(preview));
+  }
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
  const initialTemplate=$('creator-template').value;
  const optionArtwork={'A-line':'/outfit-options/a-line.png','Fitted':'/outfit-options/fitted.png','Full skirt':'/outfit-options/full-skirt.png','Jumpsuit':'/outfit-options/jumpsuit.png','Top & trousers':'/outfit-options/top-trousers.png','Top & skirt':'/outfit-options/top-skirt.png'};
  for(const name of Object.keys(paths)){
   const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';
-  const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} 3D garment preview`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
+  const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} sketch with your selected colors and details`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
   const label=document.createElement('span');label.textContent=name;button.append(artwork,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);
  }
  $('creator-template').value=initialTemplate;
