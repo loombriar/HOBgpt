@@ -31,11 +31,13 @@
  const paths=garmentPaths();
  // History is tab-local. Never store avatars, drafts or consent in browser storage.
  const historyFields=[...controls,'creator-fabric-name','creator-fabric-url'];
+ let pinnedLook=null,pinnedUrl='',currentCompareUrl='',comparisonEpoch=0;
  let history=[],historyIndex=-1;
  function snapshot(){return {fields:Object.fromEntries(historyFields.map(id=>[id,$(id).value])),avatar:avatarData};}
  function checkpoint(){const next=snapshot(),current=history[historyIndex];if(current&&JSON.stringify(current)===JSON.stringify(next))return;history=history.slice(0,historyIndex+1);history.push(next);if(history.length>40)history.shift();historyIndex=history.length-1;syncHistory();}
  function syncHistory(){$('creator-undo').disabled=historyIndex<=0;$('creator-redo').disabled=historyIndex>=history.length-1;}
- function restoreHistory(direction){checkpoint();const index=historyIndex+direction;if(index<0||index>=history.length)return;historyIndex=index;const state=history[index];for(const [id,value]of Object.entries(state.fields))$(id).value=value;avatarVersion++;avatarData=state.avatar;$('creator-avatar').value='';$('creator-remove-avatar').hidden=!avatarData;$('creator-avatar-adjustments').hidden=!avatarData;if(avatarData)$('creator-avatar').closest('.creator-option-section').open=true;$('creator-avatar-status').textContent=avatarData?'Avatar restored locally in this tab.':'';invalidate();render();syncHistory();$('creator-history-status').textContent=direction<0?'Previous design restored.':'Design change reapplied.';}
+ function restoreHistory(direction){checkpoint();const index=historyIndex+direction;if(index<0||index>=history.length)return;historyIndex=index;applySnapshot(history[index]);syncHistory();$('creator-history-status').textContent=direction<0?'Previous design restored.':'Design change reapplied.';}
+ function applySnapshot(state){for(const [id,value]of Object.entries(state.fields))$(id).value=value;avatarVersion++;avatarData=state.avatar;$('creator-avatar').value='';$('creator-remove-avatar').hidden=!avatarData;$('creator-avatar-adjustments').hidden=!avatarData;if(avatarData)$('creator-avatar').closest('.creator-option-section').open=true;$('creator-avatar-status').textContent=avatarData?'Avatar restored locally in this tab.':'';invalidate();render();}
  $('creator-undo').addEventListener('click',()=>restoreHistory(-1));
  $('creator-redo').addEventListener('click',()=>restoreHistory(1));
  root.addEventListener('change',event=>{if(historyFields.includes(event.target.id))checkpoint();});
@@ -46,6 +48,8 @@
  let active=false;
  function values(){return {template:$('creator-template').value,waistDetail:$('creator-waist-detail').value,fabricFinish:$('creator-fabric-finish').value,topStyle:$('creator-top-style').value,bottomStyle:$('creator-bottom-style').value,accessory:$('creator-accessory').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value,secondary:$('creator-secondary-color').value,print:$('creator-print').value,printScale:Number($('creator-print-scale').value)};}
  function render(){
+  comparisonEpoch++;
+  if(currentCompareUrl){URL.revokeObjectURL(currentCompareUrl);currentCompareUrl='';$('creator-current-image').removeAttribute('src');$('creator-current-image').hidden=true;$('creator-current-summary').textContent='Design changed. Select Compare current look to update this snapshot.';}
   invalidateConcept();
   const v=values(),pos=position(),svg=$('creator-preview');
   $('creator-look-summary').textContent=`${v.template} · ${v.neckline} · ${v.sleeves==='Sleeveless'?'Sleeveless':v.sleeves+' sleeves'} · ${v.length}. ${v.print==='Solid'?'Solid color':v.print} · ${v.fabricFinish.toLowerCase()} fabric appearance. Waist: ${v.waistDetail.toLowerCase()}. Accessory: ${v.accessory.toLowerCase()}.`;
@@ -276,6 +280,24 @@
  for(const id of controls)$(id).addEventListener('input',()=>{render();if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Design changed. Add the updated template to your brief before saving.';}});
  for(const id of ['creator-fabric-name','creator-fabric-url'])$(id).addEventListener('input',()=>{invalidateConcept();if(active){active=false;$('creator-include-preview').checked=false;$('creator-include-preview').disabled=true;$('creator-status').textContent='Fabric changed. Add the updated template to your brief before saving.';}});
  async function exportSketch(){const source=new XMLSerializer().serializeToString($('creator-preview'));const url=URL.createObjectURL(new Blob([source],{type:'image/svg+xml'}));try{const image=new Image();image.src=url;await image.decode();const canvas=document.createElement('canvas');canvas.width=600;canvas.height=860;canvas.getContext('2d').drawImage(image,0,0,600,860);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('The sketch could not be created. Your written brief can still be saved.');return blob;}finally{URL.revokeObjectURL(url);}}
+ function downloadLocal(blob,filename){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ $('creator-download-brief').addEventListener('click',()=>{try{downloadLocal(new Blob(['HOUSE OF BRIAR — OUTFIT DESIGN BRIEF\n\n'+brief()+'\n'],{type:'text/plain;charset=utf-8'}),'house-of-briar-design-brief.txt');$('creator-status').textContent='Design brief downloaded to this device. No account or upload needed.';}catch(error){$('creator-status').textContent=error.message||'The brief could not be downloaded.';}});
+ async function captureComparison(pin){
+  if(!pin&&!pinnedLook)return;
+  const epoch=++comparisonEpoch,state=snapshot(),summary=$('creator-look-summary').textContent+' '+$('creator-summary-top').textContent+' · '+$('creator-summary-bottom').textContent;
+  $('creator-pin-look').disabled=true;$('creator-compare-look').disabled=true;
+  try{
+   const blob=await exportSketch();if(epoch!==comparisonEpoch){$('creator-status').textContent='The design or comparison changed before the snapshot was ready. Try again with your current look.';return;}
+   const url=URL.createObjectURL(blob);
+   if(pin){if(pinnedUrl)URL.revokeObjectURL(pinnedUrl);pinnedUrl=url;pinnedLook=state;$('creator-pinned-image').src=url;$('creator-pinned-summary').textContent=summary;$('creator-comparison').hidden=false;$('creator-comparison-status').textContent='Look pinned locally. Make a change, then select Compare current look.';$('creator-status').textContent='Look pinned for comparison. It stays in this tab only.';}
+   else{if(currentCompareUrl)URL.revokeObjectURL(currentCompareUrl);currentCompareUrl=url;$('creator-current-image').src=url;$('creator-current-image').hidden=false;$('creator-current-summary').textContent=summary;$('creator-comparison-status').textContent='Pinned and current sketches are ready to compare.';$('creator-comparison').scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
+  }catch(error){$('creator-status').textContent=error.message||'This look could not be captured. Your design is unchanged.';}
+  finally{$('creator-pin-look').disabled=false;$('creator-compare-look').disabled=!pinnedLook;}
+ }
+ $('creator-pin-look').addEventListener('click',()=>captureComparison(true));
+ $('creator-compare-look').addEventListener('click',()=>captureComparison(false));
+ $('creator-restore-pinned').addEventListener('click',()=>{if(!pinnedLook)return;checkpoint();applySnapshot(pinnedLook);checkpoint();$('creator-status').textContent='Pinned outfit, fabric notes and avatar restored. Undo returns to your latest edits.';});
+ $('creator-clear-comparison').addEventListener('click',()=>{comparisonEpoch++;for(const url of [pinnedUrl,currentCompareUrl])if(url)URL.revokeObjectURL(url);pinnedLook=null;pinnedUrl='';currentCompareUrl='';$('creator-pinned-image').removeAttribute('src');$('creator-current-image').removeAttribute('src');$('creator-current-image').hidden=true;$('creator-current-summary').textContent='Change your outfit, then select Compare current look.';$('creator-comparison').hidden=true;$('creator-compare-look').disabled=true;$('creator-status').textContent='Comparison cleared. Your current design is unchanged.';});
  window.houseCreatorPreview=async()=>active&&$('creator-include-preview').checked?exportSketch():null;
  $('creator-download').addEventListener('click',async()=>{const button=$('creator-download');button.disabled=true;try{const blob=await exportSketch(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='house-of-briar-outfit.png';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('creator-status').textContent='Your outfit sketch was downloaded to this device.';}catch(error){$('creator-status').textContent=error.message||'The sketch could not be downloaded.';}finally{button.disabled=false;}});
  $('creator-concept-consent').addEventListener('change',()=>{if(!$('creator-concept-consent').checked)invalidateConcept();});
