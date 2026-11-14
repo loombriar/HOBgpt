@@ -2,6 +2,7 @@
  const root=document.getElementById('creator-room');if(!root)return;
  const $=id=>document.getElementById(id),form=$('design-project-form');
  const controls=['creator-template','creator-top-style','creator-bottom-style','creator-accessory','creator-waist-detail','creator-fabric-finish','creator-neckline','creator-sleeves','creator-length','creator-color','creator-secondary-color','creator-print','creator-print-scale','creator-offset-x','creator-offset-y','creator-scale','creator-opacity'];
+ const outfitDefaults=Object.fromEntries(controls.filter(id=>!['creator-offset-x','creator-offset-y','creator-scale','creator-opacity'].includes(id)).map(id=>[id,$(id).value]));
  let avatarData='',avatarVersion=0,conceptVersion=0,conceptController=null;
  function invalidateConcept(){const hadPreview=conceptController||!$('creator-concept-image').hidden;conceptVersion++;conceptController?.abort();conceptController=null;$('creator-concept-consent').checked=false;$('creator-concept-image').hidden=true;$('creator-concept-image').removeAttribute('src');$('creator-concept-download').hidden=true;$('creator-concept-download').removeAttribute('href');$('creator-concept-cancel').hidden=true;if(hadPreview)$('creator-concept-status').textContent='Design changed. Generate a fresh concept when ready.';}
  const position=()=>({x:Number($('creator-offset-x').value),y:Number($('creator-offset-y').value),scale:Number($('creator-scale').value)/100,opacity:Number($('creator-opacity').value)/100});
@@ -46,7 +47,13 @@
  function values(){return {template:$('creator-template').value,waistDetail:$('creator-waist-detail').value,fabricFinish:$('creator-fabric-finish').value,topStyle:$('creator-top-style').value,bottomStyle:$('creator-bottom-style').value,accessory:$('creator-accessory').value,neckline:$('creator-neckline').value,sleeves:$('creator-sleeves').value,length:$('creator-length').value,color:$('creator-color').value,secondary:$('creator-secondary-color').value,print:$('creator-print').value,printScale:Number($('creator-print-scale').value)};}
  function render(){
   invalidateConcept();
-  const v=values(),pos=position(),svg=$('creator-preview');svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
+  const v=values(),pos=position(),svg=$('creator-preview');
+  $('creator-look-summary').textContent=`${v.template} · ${v.neckline} · ${v.sleeves==='Sleeveless'?'Sleeveless':v.sleeves+' sleeves'} · ${v.length}. ${v.print==='Solid'?'Solid color':v.print} · ${v.fabricFinish.toLowerCase()} fabric appearance. Waist: ${v.waistDetail.toLowerCase()}. Accessory: ${v.accessory.toLowerCase()}.`;
+  $('creator-summary-top').textContent=`Top / main: ${v.color}`;
+  $('creator-summary-bottom').textContent=`Bottom: ${v.secondary}`;
+  $('creator-summary-top-chip').style.backgroundColor=v.color;
+  $('creator-summary-bottom-chip').style.backgroundColor=v.secondary;
+  svg.replaceChildren();const ns='http://www.w3.org/2000/svg';
   const add=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,val]of Object.entries(attrs))n.setAttribute(k,String(val));parent.append(n);return n;};
   add('rect',{x:0,y:0,width:300,height:430,fill:'url(#creator-studio-paper)'});
   add('path',{d:'M22 32 H42 M22 32 V52 M278 32 H258 M278 32 V52 M22 390 H42 M22 390 V370 M278 390 H258 M278 390 V370',stroke:'#c9c1b4','stroke-width':.5,fill:'none'});
@@ -255,6 +262,14 @@
  $('creator-reset-position').addEventListener('click',()=>{checkpoint();resetPosition();invalidate();render();checkpoint();});
  function fabric(){const raw=$('creator-fabric-url').value.trim();if(!raw)return '';let url;try{url=new URL(raw);}catch{throw Error('Use a complete fabric product link starting with https://.');}if(url.protocol!=='https:'||url.username||url.password)throw Error('Use a secure https:// fabric product link without sign-in details.');return url.href;}
  function brief(){const v=values(),link=fabric();return `Template design: ${v.template}\nTop style: ${v.template.startsWith('Top &')?v.topStyle:'Not applicable'}\nBottom style: ${v.template.startsWith('Top &')?v.bottomStyle:'Not applicable'}\nWaist detail: ${v.waistDetail}\nFabric appearance: ${v.fabricFinish}\nAccessory: ${v.accessory}\nNeckline: ${v.neckline}\nSleeves: ${v.sleeves}\nLength: ${v.length}\nPreview color: ${v.color}\nBottom color: ${v.secondary}\nPrint: ${v.print}${v.print==='Solid'?'':' (repeat '+v.printScale+')'}${avatarData?'\nAvatar: user-provided visual reference only; does not establish garment size or fit.':''}\nFabric choice: ${$('creator-fabric-name').value.trim()||'To discuss with maker'}${link?'\nFabric product link: '+link:''}\nFabric quantity, suitability, price and availability need maker/store confirmation. This template is a concept, not a sewing pattern or guaranteed fit.`;}
+ $('creator-swap-colors').addEventListener('click',()=>{
+  checkpoint();const top=$('creator-color').value;$('creator-color').value=$('creator-secondary-color').value;$('creator-secondary-color').value=top;
+  invalidate();render();checkpoint();$('creator-status').textContent='Top and bottom colors swapped. Undo restores your previous colors.';
+ });
+ $('creator-reset-outfit').addEventListener('click',()=>{
+  checkpoint();for(const [id,value]of Object.entries(outfitDefaults))$(id).value=value;
+  invalidate();render();checkpoint();$('creator-status').textContent='Outfit reset. Your fabric notes and avatar are kept. Use Undo to restore your previous outfit.';
+ });
  $('creator-review-save').addEventListener('click',()=>$('creator-use-template').click());
  $('creator-copy-brief').addEventListener('click',async()=>{try{const text=brief();await navigator.clipboard.writeText(text);$('creator-status').textContent='Design brief copied. You can paste it into a message to your maker.';}catch(error){$('creator-status').textContent=error.message?.startsWith('Use ')?error.message:'Copy is unavailable in this browser. Use Review & save design to read your brief below.';}});
  $('creator-use-template').addEventListener('click',()=>{const status=$('creator-status');try{const text=brief(),field=$('project-details'),old=field.value.replace(/\n?\[Back Stage template\][\s\S]*?\[End template\]/g,'').trim();const combined=(old?old+'\n\n':'')+'[Back Stage template]\n'+text+'\n[End template]';if(combined.length>field.maxLength)throw Error('Shorten your notes or fabric description so your brief fits within 2,000 characters.');field.value=combined;active=true;$('creator-include-preview').disabled=false;if(!$('project-title').value)$('project-title').value=values().template+' outfit concept';status.textContent='Template added to your brief below. Save it as a private project when ready.';$('new-project').scrollIntoView({block:'start',behavior:'smooth'});}catch(e){status.textContent=e.message;}});
