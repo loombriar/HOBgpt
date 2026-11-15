@@ -1,44 +1,31 @@
 const {test,expect}=require('@playwright/test');
-
-async function expectMatchingDrawing(page,source){
- const drawing=await page.evaluate(source=>{
-  const asset=new DOMParser().parseFromString(source,'image/svg+xml');
-  if(asset.querySelector('parsererror'))throw Error('Invalid SVG preview');
-  // XML and HTML serialize empty SVG tags differently. Compare the drawing tree.
-  const normalize=node=>({
-   tag:node.localName,
-   namespace:node.namespaceURI,
-   attributes:Array.from(node.attributes).filter(a=>a.namespaceURI!=='http://www.w3.org/2000/xmlns/').map(a=>[a.name,a.value]).sort(([a],[b])=>a.localeCompare(b)),
-   text:Array.from(node.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join(''),
-   children:Array.from(node.children,normalize),
-  });
-  return {
-   expected:Array.from(asset.documentElement.children,normalize),
-   actual:Array.from(document.getElementById('creator-preview').children,normalize),
-  };
- },source);
- expect(drawing.actual).toEqual(drawing.expected);
-}
-
-for(const look of ['everyday','evening','separates'])test(`homepage ${look} image matches the starter sketch`,async({page})=>{
- await page.goto('/design-projects.html?look='+look+'#creator-room');
- await expect(page.locator('.creator-template-card')).toHaveCount(6);
- const response=await page.request.get('/outfit-options/starter-'+look+'.svg');
- expect(response.ok()).toBe(true);
- const markup=await response.text();
- await expectMatchingDrawing(page,markup);
+const artwork={'A-line':'a-line','Fitted':'fitted','Full skirt':'full-skirt','Jumpsuit':'jumpsuit','Top & trousers':'top-trousers','Top & skirt':'top-skirt'};
+for(const [look,template]of [['everyday','A-line'],['evening','Fitted'],['separates','Top & skirt']])test('homepage '+look+' keeps the detailed garment artwork',async({page})=>{
+ await page.goto('/');
+ const link=page.locator('.outfit-studio-looks a[href*="look='+look+'"]');
+ await expect(link.locator('img')).toHaveAttribute('src','/outfit-options/'+artwork[template]+'.png');
+ await link.click();
+ await expect(page.locator('#creator-detailed-image')).toHaveAttribute('src','/outfit-options/'+artwork[template]+'.png');
+ await expect(page.locator('#creator-template')).toHaveValue(template);
 });
-test('silhouette cards follow selected details and match the main sketch',async({page})=>{
- await page.goto('/design-projects.html#creator-room');
- await page.getByLabel('Dress or outfit template',{exact:true}).selectOption('Top & skirt');
- await page.getByLabel('Neckline',{exact:true}).selectOption('Square');
- await page.getByLabel('Sleeves',{exact:true}).selectOption('Long');
- await page.getByLabel('Length',{exact:true}).selectOption('Mini');
- await page.getByLabel('Print',{exact:true}).selectOption('Polka dots');
+for(const width of [390,1280])test('detailed selected image and live design work at '+width+'px',async({page})=>{
+ await page.setViewportSize({width,height:844});await page.goto('/design-projects.html#creator-room');
+ for(const [name,file]of Object.entries(artwork)){
+  const button=page.locator('[data-creator-template="'+name+'"]');
+  await expect(button.locator('img')).toHaveAttribute('src','/outfit-options/'+file+'.png');
+  await button.click();
+  const image=page.locator('#creator-detailed-image');
+  await expect(image).toHaveAttribute('src','/outfit-options/'+file+'.png');
+  await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  await expect(page.locator('#creator-detailed-title')).toHaveText(name+' · Studio image');
+ }
  await page.locator('#creator-color').evaluate(input=>{input.value='#87355d';input.dispatchEvent(new Event('input',{bubbles:true}));});
- const image=page.locator('[data-creator-template="Top & skirt"] img');
- await expect(image).toHaveAttribute('src',/^data:image\/svg\+xml/);
- const source=decodeURIComponent((await image.getAttribute('src')).split(',')[1]);
- await expectMatchingDrawing(page,source);
- await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+ await page.getByLabel('Sleeves',{exact:true}).selectOption('Long');
+ await expect(page.locator('#creator-3d-canvas')).toHaveAttribute('data-top-color','#87355d');
+ await expect(page.locator('#creator-3d-canvas')).toHaveAttribute('data-sleeves','Long');
+ await expect(page.locator('#creator-3d-canvas')).toHaveAttribute('data-lighting','smooth-cloth');
+ await expect(page.locator('.creator-detailed-panel')).toContainText('Your color, neckline, sleeve and length changes appear in the editable previews below.');
+ await page.getByRole('button',{name:'Show editable sketch',exact:true}).click();
+ await expect(page.locator('#creator-preview')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
