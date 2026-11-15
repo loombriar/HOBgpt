@@ -16,7 +16,7 @@
  }
  function build(){mesh=[];seams=[];const color=value('creator-color','#b7d9cc'),finish=value('creator-fabric-finish','Matte'),length=value('creator-length','Midi'),sleeves=value('creator-sleeves','Short'),neck=value('creator-neckline','Scoop'),template=value('creator-template','A-line');
   const separated=template.startsWith('Top &');
-  const bottomColor=separated?value('creator-secondary-color',color):color;
+  const bottomColor=value('creator-secondary-color',color);
   const topY=t=>{const front=Math.max(0,Math.sin(t));return .96-(neck==='V-neck'?.37*Math.pow(front,4):neck==='Square'?.28*Math.min(1,front*2):.24*front*front);};
   let prior;
   for(let i=0;i<=26;i++){const f=i/26,y=.96*(1-f),bust=Math.exp(-Math.pow((f-.25)/.24,2)),rx=.36+.14*(1-f)+.025*bust,rz=.21+.065*bust-.045*f;const row=ring(rx,rz,t=>topY(t)*(1-f),.006);
@@ -49,15 +49,29 @@
   const belt=value('creator-waist-detail','None');if(belt!=='None'||value('creator-accessory','None')==='Belt'){const c=belt==='Contrast belt'?value('creator-secondary-color','#775166'):color;connect(ring(.37,.18,.035),ring(.38,.185,-.05),c);}
   canvas.dataset.bottomStyle=bottomStyle;panel.setAttribute('aria-label','Interactive 3D '+template.toLowerCase());canvas.setAttribute('aria-label','Rotatable 3D '+template.toLowerCase()+'. Drag or use arrow keys to rotate; Home resets the view.');
   canvas.dataset.topColor=color;canvas.dataset.bottomColor=bottomColor;
+  // Shared vertex normals keep cloth lighting continuous across triangle boundaries.
+  const normals=new Map();
+  for(const face of mesh){const [a,b,c]=face.points,n=cross(minus(b,a),minus(c,a));for(const p of face.points){const sum=normals.get(p)||[0,0,0];for(let i=0;i<3;i++)sum[i]+=n[i];normals.set(p,sum);}}
+  for(const face of mesh)face.normals=face.points.map(p=>{const n=normals.get(p),length=Math.hypot(...n)||1;return n.map(v=>v/length);});
+  canvas.dataset.lighting='smooth-cloth';
   canvas.dataset.meshTriangles=String(mesh.length);canvas.dataset.template=template;canvas.dataset.fabricFinish=finish;canvas.dataset.neckline=neck;canvas.dataset.length=length;canvas.dataset.sleeves=sleeves;
  }
  function rotate(p){const c=Math.cos(yaw),s=Math.sin(yaw),x=p[0]*c+p[2]*s,z=-p[0]*s+p[2]*c,cp=Math.cos(pitch),sp=Math.sin(pitch);return [x,p[1]*cp-z*sp,p[1]*sp+z*cp];}
  function project(p){const f=4.8/(4.8+p[2]),scale=150*zoom;return [300+p[0]*scale*f,270-p[1]*scale*f];}
  function paint(){frame=0;if(panel.hidden)return;ctx.clearRect(0,0,600,660);const bg=ctx.createLinearGradient(0,0,600,660);bg.addColorStop(0,'#f9f5ef');bg.addColorStop(1,'#e8dfd6');ctx.fillStyle=bg;ctx.fillRect(0,0,600,660);
-  ctx.fillStyle='rgba(65,45,50,.13)';ctx.beginPath();ctx.ellipse(300,610,135*zoom,15,0,0,Math.PI*2);ctx.fill();
+  const floor=ctx.createRadialGradient(300,610,4,300,610,160*zoom);floor.addColorStop(0,'rgba(65,45,50,.18)');floor.addColorStop(1,'rgba(65,45,50,0)');ctx.fillStyle=floor;ctx.save();ctx.translate(0,526);ctx.scale(1,.14);ctx.fillRect(100,0,400,1200);ctx.restore();
   const faces=mesh.map(face=>{const points=face.points.map(rotate);return {...face,points,depth:points.reduce((sum,p)=>sum+p[2],0)/3};}).sort((a,b)=>b.depth-a.depth);
   const light=[-.45,.6,-.66],finish=value('creator-fabric-finish','Matte');
-  for(const face of faces){const [a,b,c]=face.points,n=cross(minus(b,a),minus(c,a)),len=Math.hypot(...n)||1,unit=n.map(v=>v/len),diffuse=Math.abs(unit.reduce((sum,v,i)=>sum+v*light[i],0)),spec=finish==='Satin'?Math.pow(diffuse,14)*48:finish==='Velvet'?Math.pow(1-diffuse,3)*18:Math.pow(diffuse,8)*7;const hex=face.color.replace('#',''),rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));const shade=.57+.43*diffuse;ctx.fillStyle=`rgb(${rgb.map(v=>Math.min(255,Math.round(v*shade+spec))).join(',')})`;const points=face.points.map(project);ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();
+  for(const face of faces){
+   const hex=face.color.replace('#',''),rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)),points=face.points.map(project);
+   const illumination=face.normals.map(normal=>{const n=rotate(normal),diffuse=Math.abs(n.reduce((sum,v,i)=>sum+v*light[i],0));return .48+.52*diffuse;});
+   const order=[0,1,2].sort((a,b)=>illumination[a]-illumination[b]),low=order[0],high=order[2];
+   const tone=shade=>{const spec=finish==='Satin'?Math.pow(shade,18)*58:Math.pow(shade,10)*10;return 'rgb('+rgb.map(v=>Math.min(255,Math.round(v*shade+spec))).join(',')+')';};
+   let fill=tone(illumination[high]);
+   if(Math.hypot(points[low][0]-points[high][0],points[low][1]-points[high][1])>.01){fill=ctx.createLinearGradient(...points[low],...points[high]);fill.addColorStop(0,tone(illumination[low]));fill.addColorStop(1,tone(illumination[high]));}
+   ctx.fillStyle=fill;ctx.strokeStyle=fill;ctx.lineWidth=.4;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();ctx.stroke();
+   // Fine crossed threads follow the projected cloth, rather than a flat screen overlay.
+   if(finish==='Textured'){ctx.save();ctx.clip();ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineTo((points[1][0]+points[2][0])/2,(points[1][1]+points[2][1])/2);ctx.stroke();ctx.restore();}
   }
   // Draw only the front portions of seam lines, so back seams stay behind the cloth.
   for(const seam of seams){ctx.strokeStyle=seam.color;ctx.globalAlpha=seam.subtle?.22:.5;ctx.lineWidth=seam.subtle?.7:1;ctx.beginPath();let pen=false;for(const p of seam.points){const r=rotate(p),front=r[2]<.05;if(!front){pen=false;continue;}const [x,y]=project(r);if(pen)ctx.lineTo(x,y);else ctx.moveTo(x,y);pen=true;}ctx.stroke();}ctx.globalAlpha=1;

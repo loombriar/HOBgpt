@@ -55,6 +55,13 @@
   }
   const pos=thumbnail?{x:0,y:0,scale:1,opacity:1}:position();
   if(!thumbnail){
+  const detailed=$('creator-detailed-image');
+  if(detailed){
+   const artwork=optionArtwork[v.template];
+   if(detailed.getAttribute('src')!==artwork){detailed.src=artwork;$('creator-detailed-status').textContent='Loading detailed garment image…';detailed.hidden=false;}
+   detailed.alt=v.template+' detailed garment reference showing fabric, seams and drape';
+   $('creator-detailed-title').textContent=v.template+' · Studio image';
+  }
   $('creator-look-summary').textContent=`${v.template} · ${v.neckline} · ${v.sleeves==='Sleeveless'?'Sleeveless':v.sleeves+' sleeves'} · ${v.length}. ${v.print==='Solid'?'Solid color':v.print} · ${v.fabricFinish.toLowerCase()} fabric appearance. Waist: ${v.waistDetail.toLowerCase()}. Accessory: ${v.accessory.toLowerCase()}.`;
   $('creator-summary-top').textContent=`Top / main: ${v.color}`;
   $('creator-summary-bottom').textContent=`Bottom: ${v.secondary}`;
@@ -238,19 +245,19 @@
   $('creator-preview-description').textContent=`${v.template} template, ${v.neckline}, ${v.sleeves.toLowerCase()} sleeves, ${v.length.toLowerCase()} length.${avatarData?' Shown on your uploaded avatar.':''} ${v.print==='Solid'?'':' '+v.print+' print.'} ${separated?v.topStyle.toLowerCase()+' top and '+v.bottomStyle.toLowerCase()+' bottom. ':''}${v.fabricFinish.toLowerCase()} appearance; ${v.waistDetail.toLowerCase()}; ${v.accessory.toLowerCase()} accessory. Technical concept sketch; confirm construction and measurements with your maker.`;
   for(const button of root.querySelectorAll('.creator-palette'))button.setAttribute('aria-pressed',String(button.dataset.top===v.color&&button.dataset.bottom===v.secondary));
   for(const button of root.querySelectorAll('[data-creator-template]'))button.setAttribute('aria-pressed',String(button.dataset.creatorTemplate===v.template));
-  // Render cards with the same geometry, colors and details as the editable sketch.
-  for(const button of root.querySelectorAll('[data-creator-template]')){
-   const preview=document.createElementNS(ns,'svg');preview.setAttribute('xmlns',ns);preview.setAttribute('viewBox','0 0 300 430');
-   render({...v,template:button.dataset.creatorTemplate},preview,true);
-   button.querySelector('img').src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(preview));
-  }
+
  }
  const chooser=document.createElement('div');chooser.className='creator-template-grid';chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Choose a silhouette');
- const initialTemplate=$('creator-template').value;
+ const initialTemplate=$('creator-template').value; const detailImage=$('creator-detailed-image');
+ if(detailImage){
+  detailImage.addEventListener('load',()=>{$('creator-detailed-status').textContent='';detailImage.hidden=false;});
+  detailImage.addEventListener('error',()=>{detailImage.hidden=true;$('creator-detailed-status').textContent='The detailed image could not load. Your editable preview below is still available.';});
+ }
+
  const optionArtwork={'A-line':'/outfit-options/a-line.png','Fitted':'/outfit-options/fitted.png','Full skirt':'/outfit-options/full-skirt.png','Jumpsuit':'/outfit-options/jumpsuit.png','Top & trousers':'/outfit-options/top-trousers.png','Top & skirt':'/outfit-options/top-skirt.png'};
  for(const name of Object.keys(paths)){
   const button=document.createElement('button');button.type='button';button.dataset.creatorTemplate=name;button.setAttribute('aria-label',name);button.className='creator-template-card';
-  const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} sketch with your selected colors and details`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
+  const artwork=document.createElement('img');artwork.className='creator-template-art';artwork.src=optionArtwork[name];artwork.alt=`${name} detailed garment reference`;artwork.width=320;artwork.height=427;artwork.loading='eager';artwork.decoding='async';
   const label=document.createElement('span');label.textContent=name;button.append(artwork,label);button.addEventListener('click',()=>{checkpoint();$('creator-template').value=name;invalidate();render();checkpoint();});chooser.append(button);
  }
  $('creator-template').value=initialTemplate;
